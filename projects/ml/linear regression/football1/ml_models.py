@@ -9,10 +9,10 @@ def manual_gradient_descent(X_train, y_train, X_test, y_test,
     Multiple linear regression using gradient descent.
     Tracks loss over epochs and plots if desired.
     """
-    X_train_np = X_train.compute()
-    y_train_np = y_train.compute().values.reshape(-1,1)
-    X_test_np = X_test.compute()
-    y_test_np = y_test.compute().values.reshape(-1,1)
+    X_train_np = X_train
+    y_train_np = y_train.values.reshape(-1,1)
+    X_test_np = X_test
+    y_test_np = y_test.values.reshape(-1,1)
     
     # Add bias term
     X_b = np.hstack([np.ones((X_train_np.shape[0], 1)), X_train_np])
