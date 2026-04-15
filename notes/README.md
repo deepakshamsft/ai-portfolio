@@ -1,58 +1,3 @@
-# ai-portfolio
-
-A personal portfolio combining structured AI/ML study notes and hands-on engineering projects.
-
----
-
-## Structure
-
-```
-ai-portfolio/
-├── notes/          ← Study material: all ML and AI learning content
-├── projects/       ← Hands-on projects and experiments
-└── pdf-gen/        ← PDF generation tooling for the reference books
-```
-
----
-
-## `notes/` — Study Material
-
-All learning content lives here: 17-chapter ML curriculum, agentic AI notes, reference books, scripts, and runnable Jupyter notebooks.
-
-→ See [notes/README.md](notes/README.md) for the full index.
-
----
-
-## `projects/` — Engineering Projects
-
-Standalone, runnable projects built with the concepts covered in the notes.
-
-| Path | What it is |
-|---|---|
-| `projects/ml/linear-regression/` | End-to-end linear regression project on real data |
-| `projects/ai/rag-pipeline/` | RAG pipeline implementation |
-
-More projects added as the curriculum progresses.
-
----
-
-## Quick start
-
-**Set up the ML notebook environment (Windows):**
-```powershell
-.\notes\scripts\setup.ps1
-```
-
-**Set up the ML notebook environment (macOS / Linux):**
-```bash
-bash notes/scripts/setup.sh
-```
-
-**Install git hooks (secret scanning pre-commit):**
-```bash
-bash notes/scripts/install-hooks.sh     # macOS / Linux
-.\notes\scripts\install-hooks.ps1       # Windows
-```
 # AI Portfolio
 
 A personal learning library covering machine learning foundations and modern AI engineering. The repo is split into two tracks — **ML** (the maths and training mechanics behind models) and **AI** (how those models become thinking, acting agents) — plus working code projects.
@@ -97,10 +42,8 @@ ai-portfolio/
 │   └── ml/               ← Runnable Python experiments
 │       └── linear-regression/
 ├── scripts/
-│   ├── setup.ps1         ← Full dev environment setup — Windows
-│   ├── setup.sh          ← Full dev environment setup — macOS / Linux
-│   └── README.md         ← Usage guide, requirements, troubleshooting
-└── plan.md               ← Setup script design doc
+│   ├── setup.ps1         ← Windows: install deps + launch Jupyter
+│   └── setup.sh          ← macOS/Linux: install deps + launch Jupyter
 ```
 
 ---
@@ -224,9 +167,9 @@ This order mirrors the three layers of an agentic system: how the LLM thinks →
 Start here if you want to build solid ML foundations with runnable code.
 
 ```
-1. Run the full setup script (installs Python, VS Code, Ollama, SLM, and Jupyter)
-   Windows:      .\scripts\setup.ps1
-   macOS/Linux:  bash scripts/setup.sh
+1. Run the setup script to get Jupyter running locally
+   Windows:      .\notes\scripts\setup.ps1
+   macOS/Linux:  bash notes/scripts/setup.sh
 
 2. Open notes/ML/ in Jupyter (the script does this automatically)
 
@@ -263,36 +206,12 @@ A natural combined path: **Ch.1–6 (ML) → CoTReasoning + RAGAndEmbeddings (AI
 git clone <repo-url>
 cd ai-portfolio
 
-# One-command full setup (Python, VS Code, Ollama, Twinny, local SLM)
+# Launch the ML notebooks (installs everything into a .venv)
 # Windows
-.\scripts\setup.ps1
+.\notes\scripts\setup.ps1
 
 # macOS / Linux
-bash scripts/setup.sh
+bash notes/scripts/setup.sh
 ```
 
-The setup script handles everything in one run:
-- Installs Python 3.11+ and a full AI/ML library stack into a `.venv` at the repo root
-- Installs VS Code if not present
-- Installs the Twinny (Ollama AI Copilot) VS Code extension
-- Installs and starts the Ollama local inference server
-- Wires Ollama to start when the workspace opens and stop when VS Code closes
-- Pulls the best local SLM for coding (`qwen2.5-coder:7b` on ≥ 10 GB RAM, `phi3.5` on smaller machines)
-
-After setup, open VS Code in this folder. When prompted, click **Allow Automatic Tasks** to enable the Ollama lifecycle watcher.
-
-See [scripts/README.md](scripts/README.md) for the full usage guide, troubleshooting, and minimum machine requirements.
-
----
-
-## Minimum Machine Requirements
-
-| Resource | Recommended | Minimum |
-|----------|-------------|---------|
-| RAM | 16 GB | 8 GB |
-| Free disk space | 20 GB | 10 GB |
-| CPU | 4-core, 2020 or newer | 2-core |
-| GPU | Optional (CUDA/Metal accelerates inference) | Not required |
-| OS | Windows 11, macOS 13+, Ubuntu 22.04+ | Windows 10, macOS 12, Ubuntu 20.04 |
-
-> The setup scripts install PyTorch with the **CPU build** by default so everything works on any stock laptop. No GPU is needed to run the notebooks or the local SLM.
+The setup script creates a `.venv` at the repo root, installs all required packages (`numpy`, `pandas`, `scikit-learn`, `tensorflow`, `matplotlib`, `seaborn`, `scipy`, `notebook`), registers the kernel, and opens Jupyter rooted at `notes/ML/`.
