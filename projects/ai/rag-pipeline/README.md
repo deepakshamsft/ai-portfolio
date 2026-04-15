@@ -1,6 +1,6 @@
 # RAG Pipeline — Runnable Project
 
-> **Status: placeholder.** This document defines the scope and acceptance criteria. Implementation is tracked in `fixes.md` (TODO-RAG-PIPELINE).
+> **Status: placeholder.** This document defines the scope and acceptance criteria. Implementation is pending.
 
 ---
 

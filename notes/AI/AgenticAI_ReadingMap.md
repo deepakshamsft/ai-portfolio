@@ -314,6 +314,26 @@ ReActAndSemanticKernel.md
 
 ---
 
+## What Comes Next — Multi-Agent AI
+
+The AI track covers a **single agent**: one LLM, one context window, one tool list. Once that agent hits its limits — context window exhaustion, a tool list that grows unwieldy, a need to run sub-tasks in parallel — the natural next step is multi-agent architecture.
+
+The **Multi-Agent AI** track extends everything here to coordinated systems where specialised agents communicate through standardised protocols and hand off work across service boundaries.
+
+→ Start at [../MultiAgentAI/README.md](../MultiAgentAI/README.md)
+
+Key connection points:
+
+| This track | Extends to (MultiAgentAI) |
+|---|---|
+| ReAct loop — single agent reasons and acts | Orchestrator–Worker pattern — one agent decomposes, worker agents act (Ch.4–5) |
+| Tool schemas and function calling | MCP — open protocol that exposes any tool to any agent without bespoke adapters (Ch.2) |
+| LangChain / Semantic Kernel agent setup | AutoGen, LangGraph, SK AgentGroupChat — multi-agent coordination frameworks (Ch.7) |
+| Prompt injection mitigations | Trust boundaries across agent chains — HMAC signing, structured output validation (Ch.6) |
+| Context window management | Message format handoff strategies — full history vs. summary vs. structured result (Ch.1) |
+
+---
+
 <!-- AGENT-TODO: start
 When all todos below are implemented, delete this entire block — from the opening comment tag to the closing comment tag, inclusive.
 

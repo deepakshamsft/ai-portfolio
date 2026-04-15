@@ -51,10 +51,10 @@ A 17-chapter bottom-up curriculum built from the **Neural Chronicles** reference
 
 **Setup:**
 ```powershell
-# Windows
-.\scripts\setup.ps1
-# macOS / Linux
-bash scripts/setup.sh
+# Windows (run from repo root)
+.\notes\scripts\setup.ps1
+# macOS / Linux (run from repo root)
+bash notes/scripts/setup.sh
 ```
 
 | # | Chapter | Core concept |
@@ -111,10 +111,10 @@ Every core note has a companion `_Supplement.md` for production-depth details. R
 
 **Setup:**
 ```powershell
-# Windows
-.\MultiAgentAI\scripts\setup.ps1
-# macOS / Linux
-bash MultiAgentAI/scripts/setup.sh
+# Windows (run from repo root)
+.\notes\MultiAgentAI\scripts\setup.ps1
+# macOS / Linux (run from repo root)
+bash notes/MultiAgentAI/scripts/setup.sh
 ```
 
 | Chapter | What it covers |
@@ -131,7 +131,7 @@ bash MultiAgentAI/scripts/setup.sh
 
 ## Track 4 — Multimodal AI (`MultimodalAI/`)
 
-11-chapter track on generative image and video models. Running example: **PixelSmith**, a local AI-powered creative studio that must run on a stock developer laptop.
+12-chapter track on generative image and video models. Running example: **PixelSmith**, a local AI-powered creative studio that must run on a stock developer laptop.
 
 > → [MultimodalAI/README.md](MultimodalAI/README.md) for the full reading map.
 
@@ -221,7 +221,7 @@ Step 5 — Synthesis
 ### Path C — ML from Scratch (~40–50 hours)
 
 ```
-1. Run: .\scripts\setup.ps1  (Windows)  or  bash scripts/setup.sh  (macOS/Linux)
+1. Run: .\notes\scripts\setup.ps1  (Windows)  or  bash notes/scripts/setup.sh  (macOS/Linux)
 2. Work through ML/ ch01 → ch17 in order — README first, then notebook
 3. After Ch.6 you have enough ML to start Path B in parallel
 ```

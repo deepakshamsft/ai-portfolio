@@ -53,7 +53,7 @@ This one dataset threads naturally through all 17 chapters:
 | Ch.16 — TensorBoard | Instrument the Ch.5 training loop with TensorBoard scalars, histograms, and projector |
 | Ch.17 — Transformers & Attention | Build a minimal transformer encoder on the housing feature set; observe how attention weights reflect feature correlations (income ↔ value) |
 
-> **Why this works: The dataset is built into sklearn (no download required), has both regression and classification targets, has continuous and categorical features, and 20,000 rows — large enough to show real training dynamics without being slow.
+> **Why this works:** The dataset is built into sklearn (no download required), has both regression and classification targets, has continuous and categorical features, and 20,000 rows — large enough to show real training dynamics without being slow.
 
 ---
 
