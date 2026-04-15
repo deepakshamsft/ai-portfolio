@@ -1,6 +1,6 @@
-# AI Portfolio
+# AI Portfolio — Notes
 
-A personal learning library covering machine learning foundations and modern AI engineering. The repo is split into two tracks — **ML** (the maths and training mechanics behind models) and **AI** (how those models become thinking, acting agents) — plus working code projects.
+A personal learning library covering machine learning foundations and modern AI engineering. Five tracks take you from GPU silicon to deployed multi-agent systems.
 
 ---
 
@@ -22,180 +22,252 @@ This is not a course for data scientists or academic researchers. It is a practi
 
 **You do not need:** prior ML experience, a GPU, a maths degree, or familiarity with PyTorch/TensorFlow before you start.
 
-The ML track (Path C) teaches neural networks from first principles — you will derive the maths as you go. The AI track (Path B) is accessible after you can confidently explain what a function is and what an API call does.
-
 ### What Makes This Different
 
-Most ML/AI learning resources either state results without showing where they come from, or bury you in theory without connecting it to code you'd actually write. This repo tries to do neither. Every ML chapter derives the maths from scratch before using it — you see *why* the cross-entropy loss comes from maximum likelihood before you minimise it, not afterwards. All 17 ML chapters use the same California Housing dataset from Ch.1 through Ch.17, so you can watch a bare linear regression transform step by step into a regularised neural network evaluated with a full metrics suite — the delta between chapters is the concept, not a new dataset to understand. Every note ends with an **Interview Checklist** (Must Know / Likely Asked / Trap to Avoid) so the gap between reading and interview-ready is minimal. And every core AI note has a companion `_Supplement.md` for when you want the production-depth picture beyond the fundamentals — meaning you can go as shallow or as deep as your goal requires without the core note becoming overwhelming.
+Every ML chapter derives the maths from scratch before using it. All 17 ML chapters use the same California Housing dataset from Ch.1 through Ch.17, so the delta between chapters is the concept, not a new dataset to understand. Every note ends with an **Interview Checklist** (Must Know / Likely Asked / Trap to Avoid). Every core AI note has a companion `_Supplement.md` for production depth. Every notebook runs on a stock developer laptop — no A100, no cloud GPU budget required.
 
 ---
 
 ## Repository Structure
 
 ```
-ai-portfolio/
-├── notes/
-│   ├── AI/               ← Agentic AI: reasoning, retrieval, orchestration
-│   ├── ML/               ← Machine Learning: 17 chapters, each a README + notebook
-│   └── Reference/        ← Source HTML/PDF books the notes were built from
-├── projects/
-│   └── ml/               ← Runnable Python experiments
-│       └── linear-regression/
-├── scripts/
-│   ├── setup.ps1         ← Windows: install deps + launch Jupyter
-│   └── setup.sh          ← macOS/Linux: install deps + launch Jupyter
+notes/
+├── AI/               ← Agentic AI: reasoning, retrieval, orchestration (+ notebooks)
+├── AIInfrastructure/ ← GPU hardware to production serving platforms (+ notebooks)
+├── ML/               ← Machine Learning: 17 chapters, each a README + notebook
+├── MultiAgentAI/     ← Multi-agent protocols and coordination patterns (+ notebooks)
+├── MultimodalAI/     ← Diffusion, CLIP, vision transformers, text-to-video (+ notebooks)
+├── Reference/        ← ML Chronicles + Neural Chronicles HTML/PDF reference books
+└── scripts/          ← Cross-platform environment setup and notebook generation
 ```
 
 ---
 
-## Track 1 — Machine Learning (`notes/ML/`)
+## Track 1 — Machine Learning (`ML/`)
 
-A 17-chapter bottom-up curriculum built from the **Neural Chronicles** reference book. Every chapter lives in its own folder with two files: a technical README and a runnable Jupyter notebook. Both follow the same structure and use the same running example — the **California Housing dataset** (predicting and classifying home values in California).
+A 17-chapter bottom-up curriculum built from the **Neural Chronicles** reference book. Every chapter has a technical README and a runnable Jupyter notebook using the **California Housing dataset** throughout.
 
-> **Status:** In progress — see [notes/ML/ML_Chronicles_BuildPlan.md](notes/ML/ML_Chronicles_BuildPlan.md) for the chapter tracker.
+> See [ML/ML_Chronicles_BuildPlan.md](ML/ML_Chronicles_BuildPlan.md) for the chapter tracker.
+
+**Setup:**
+```powershell
+# Windows
+.\scripts\setup.ps1
+# macOS / Linux
+bash scripts/setup.sh
+```
 
 | # | Chapter | Core concept |
 |---|---|---|
-| 1 | Linear Regression | `ŷ = Wᵀx + b`, MSE, gradient descent, R² |
-| 2 | Logistic Regression | Sigmoid, binary cross-entropy, precision/recall, threshold tuning |
-| 3 | The XOR Problem | Why linear models fail, Universal Approximation Theorem |
-| 4 | Neural Networks | Dense layers, activations (ReLU/Softmax), Xavier/He init |
-| 5 | Backprop & Optimisers | Chain rule, SGD → Momentum → Adam, LR schedules |
-| 6 | Regularisation | L1/L2, dropout, early stopping |
-| 7 | CNNs | Convolution, pooling, feature hierarchies, ResNet idea |
-| 8 | RNNs / LSTMs / GRUs | Hidden state, vanishing gradient, LSTM gates |
-| 9 | Metrics Deep Dive | AUC-ROC, AUC-PR, confusion matrix, RMSE vs MAE |
-| 10 | Classical Classifiers | Decision Trees, KNN, Gini impurity |
-| 11 | SVM & Ensembles | Max-margin, kernel trick, bagging vs boosting, XGBoost |
-| 12 | Clustering | K-Means, DBSCAN, HDBSCAN |
-| 13 | Dimensionality Reduction | PCA, t-SNE, UMAP |
-| 14 | Unsupervised Metrics | Silhouette, Davies-Bouldin, ARI |
-| 15 | MLE & Loss Functions | Derive MSE and Cross-Entropy from maximum likelihood |
-| 16 | TensorBoard | Instrument training with scalars, histograms, and projector |
-| 17 | Transformers & Attention | Scaled dot-product attention, multi-head attention, positional encoding, encoder vs decoder |
+| 1 | [Linear Regression](ML/ch01-linear-regression/) | `ŷ = Wᵀx + b`, MSE, gradient descent, R² |
+| 2 | [Logistic Regression](ML/ch02-logistic-regression/) | Sigmoid, binary cross-entropy, precision/recall |
+| 3 | [The XOR Problem](ML/ch03-xor-problem/) | Why linear models fail, Universal Approximation Theorem |
+| 4 | [Neural Networks](ML/ch04-neural-networks/) | Dense layers, activations (ReLU/Softmax), Xavier/He init |
+| 5 | [Backprop & Optimisers](ML/ch05-backprop-optimisers/) | Chain rule, SGD → Momentum → Adam, LR schedules |
+| 6 | [Regularisation](ML/ch06-regularisation/) | L1/L2, dropout, early stopping |
+| 7 | [CNNs](ML/ch07-cnns/) | Convolution, pooling, feature hierarchies, ResNet idea |
+| 8 | [RNNs / LSTMs / GRUs](ML/ch08-rnns-lstms/) | Hidden state, vanishing gradient, LSTM gates |
+| 9 | [Metrics Deep Dive](ML/ch09-metrics/) | AUC-ROC, AUC-PR, confusion matrix, RMSE vs MAE |
+| 10 | [Classical Classifiers](ML/ch10-classical-classifiers/) | Decision Trees, KNN, Gini impurity |
+| 11 | [SVM & Ensembles](ML/ch11-svm-ensembles/) | Max-margin, kernel trick, bagging vs boosting, XGBoost |
+| 12 | [Clustering](ML/ch12-clustering/) | K-Means, DBSCAN, HDBSCAN |
+| 13 | [Dimensionality Reduction](ML/ch13-dimensionality-reduction/) | PCA, t-SNE, UMAP |
+| 14 | [Unsupervised Metrics](ML/ch14-unsupervised-metrics/) | Silhouette, Davies-Bouldin, ARI |
+| 15 | [MLE & Loss Functions](ML/ch15-mle-loss-functions/) | Derive MSE and Cross-Entropy from maximum likelihood |
+| 16 | [TensorBoard](ML/ch16-tensorboard/) | Instrument training with scalars, histograms, and projector |
+| 17 | [Transformers & Attention](ML/ch17-transformers/) | Scaled dot-product attention, multi-head, positional encoding |
 
 ---
 
-## Track 2 — Agentic AI (`notes/AI/`)
+## Track 2 — Agentic AI (`AI/`)
 
-A tightly cross-referenced set of deep-dive notes explaining how LLMs become agents — from token prediction through tool use, retrieval, and multi-agent orchestration.
+Deep-dive notes explaining how LLMs become agents — from token prediction through tool use, retrieval, and orchestration. Running example: **Mamma Rosa's PizzaBot**.
 
-| File | What it covers |
+| Document | What it covers |
 |---|---|
-| [AgenticAI_ReadingMap.md](notes/AI/AgenticAI_ReadingMap.md) | Entry point — explains the conceptual arc and how all documents connect |
-| [AIPrimer.md](notes/AI/AIPrimer.md) | Running example — Mamma Rosa's PizzaBot: system definition, RAG corpus, tools, and full ReAct trace used across all AI notes |
-| [LLMFundamentals.md](notes/AI/LLMFundamentals/LLMFundamentals.md) | What an LLM actually is: BPE tokenisation, pretraining → SFT → RLHF, temperature, context windows |
-| [PromptEngineering.md](notes/AI/PromptEngineering/PromptEngineering.md) | System prompts, few-shot, structured output, prompt injection and mitigations |
-| [CoTReasoning.md](notes/AI/CoTReasoning/CoTReasoning.md) | Chain-of-Thought prompting, hidden reasoning tokens, how "predict next token" becomes "call a tool" |
-| [CoTReasoning_Supplement.md](notes/AI/CoTReasoning/CoTReasoning_Supplement.md) | Advanced patterns: Self-Consistency, Tree/Graph of Thoughts, Process Reward Models, production failure modes |
-| [RAGAndEmbeddings.md](notes/AI/RAGAndEmbeddings/RAGAndEmbeddings.md) | Transformer encoders, contrastive training, pooling strategies, chunking, the full RAG ingestion + query pipeline |
-| [RAGAndEmbeddings_Supplement.md](notes/AI/RAGAndEmbeddings/RAGAndEmbeddings_Supplement.md) | Hybrid search, reranking, late interaction, advanced chunking strategies |
-| [VectorDBs.md](notes/AI/VectorDBs/VectorDBs.md) | Why exact search fails at scale, ANN index types (HNSW, IVF, DiskANN), distance metrics |
-| [VectorDBs_Supplement.md](notes/AI/VectorDBs/VectorDBs_Supplement.md) | Production architecture, filtering, quantisation, database comparison |
-| [ReActAndSemanticKernel.md](notes/AI/ReActAndSemanticKernel/ReActAndSemanticKernel.md) | ReAct loop, LangChain vs Semantic Kernel, multi-agent patterns, the "detective agency" mental model |
-| [ReActAndSemanticKernel_Supplement.md](notes/AI/ReActAndSemanticKernel/ReActAndSemanticKernel_Supplement.md) | Plan-and-Execute, LangGraph, memory types, production traps |
-| [EvaluatingAISystems.md](notes/AI/EvaluatingAISystems/EvaluatingAISystems.md) | RAGAS metrics, LLM-as-judge, hallucination detection, component and pipeline evaluation |
-| [FineTuning.md](notes/AI/FineTuning/FineTuning.md) | When to fine-tune vs. RAG vs. prompting, LoRA math, QLoRA, practical setup |
-| [SafetyAndHallucination.md](notes/AI/SafetyAndHallucination/SafetyAndHallucination.md) | Hallucination types and causes, mitigation stack, jailbreaks, alignment failures |
-| [CostAndLatency.md](notes/AI/CostAndLatency/CostAndLatency.md) | Token budgets, model cost tiers, KV caching, streaming, cost estimation patterns |
-| [AI_Interview_Primer.md](notes/AI/AI_Interview_Primer/AI_Interview_Primer.md) | Rapid-fire Q&A across all topics — designed for interview prep |
+| [AgenticAI_ReadingMap.md](AI/AgenticAI_ReadingMap.md) | Entry point — conceptual arc and how all documents connect |
+| [AIPrimer.md](AI/AIPrimer.md) | Running example — PizzaBot: system definition, RAG corpus, tools, full ReAct trace |
+| [LLMFundamentals/](AI/LLMFundamentals/) | BPE tokenisation, pretraining → SFT → RLHF, temperature, context windows |
+| [PromptEngineering/](AI/PromptEngineering/) | System prompts, few-shot, structured output, prompt injection |
+| [CoTReasoning/](AI/CoTReasoning/) | Chain-of-Thought, hidden reasoning tokens, Self-Consistency, Tree of Thoughts |
+| [RAGAndEmbeddings/](AI/RAGAndEmbeddings/) | Transformer encoders, contrastive training, chunking, full RAG pipeline |
+| [VectorDBs/](AI/VectorDBs/) | ANN index types (HNSW, IVF, DiskANN), distance metrics, production architecture |
+| [ReActAndSemanticKernel/](AI/ReActAndSemanticKernel/) | ReAct loop, LangChain vs Semantic Kernel, LangGraph, Plan-and-Execute |
+| [EvaluatingAISystems/](AI/EvaluatingAISystems/) | RAGAS metrics, LLM-as-judge, hallucination detection, pipeline evaluation |
+| [FineTuning/](AI/FineTuning/) | When to fine-tune vs RAG vs prompting, LoRA math, QLoRA |
+| [SafetyAndHallucination/](AI/SafetyAndHallucination/) | Hallucination types, mitigation stack, jailbreaks, alignment failures |
+| [CostAndLatency/](AI/CostAndLatency/) | Token budgets, model cost tiers, KV caching, streaming |
+| [AI_Interview_Primer/](AI/AI_Interview_Primer/) | Rapid-fire Q&A across all topics — designed for interview prep |
 
-Every core note has a companion `_Supplement.md` that goes deeper on advanced details and production gotchas. Read the core note first, then the supplement if you want the full picture.
+Every core note has a companion `_Supplement.md` for production-depth details. Read the core note first.
 
 ---
 
-## Projects (`projects/`)
+## Track 3 — Multi-Agent AI (`MultiAgentAI/`)
+
+7-chapter track on protocols and coordination patterns for multi-agent systems. Running scenario: **OrderFlow**, a B2B purchase-order automation platform.
+
+> → [MultiAgentAI/README.md](MultiAgentAI/README.md) for the full reading map and setup instructions.
+
+**Setup:**
+```powershell
+# Windows
+.\MultiAgentAI\scripts\setup.ps1
+# macOS / Linux
+bash MultiAgentAI/scripts/setup.sh
+```
+
+| Chapter | What it covers |
+|---|---|
+| [MessageFormats/](MultiAgentAI/MessageFormats/) | OpenAI message envelope, token counting, handoff strategies, context trimming |
+| [MCP/](MultiAgentAI/MCP/) | Model Context Protocol — JSON-RPC 2.0, Resources/Tools/Prompts, transport options |
+| [A2A/](MultiAgentAI/A2A/) | Agent-to-Agent protocol — Agent Cards, task lifecycle, SSE streaming, MCP+A2A composition |
+| [EventDrivenAgents/](MultiAgentAI/EventDrivenAgents/) | Pub/sub bus, DLQ, correlation/causation IDs, idempotency, fan-out/fan-in |
+| [SharedMemory/](MultiAgentAI/SharedMemory/) | Blackboard pattern, write-once guards, compare-and-swap, checkpoint/resume |
+| [TrustAndSandboxing/](MultiAgentAI/TrustAndSandboxing/) | Prompt injection, output schema validation, HMAC signing, timing attacks |
+| [AgentFrameworks/](MultiAgentAI/AgentFrameworks/) | LangGraph StateGraph, AutoGen multi-agent debate, Semantic Kernel, framework comparison |
+
+---
+
+## Track 4 — Multimodal AI (`MultimodalAI/`)
+
+11-chapter track on generative image and video models. Running example: **PixelSmith**, a local AI-powered creative studio that must run on a stock developer laptop.
+
+> → [MultimodalAI/README.md](MultimodalAI/README.md) for the full reading map.
+
+| Chapter | What it covers |
+|---|---|
+| [MultimodalFoundations/](MultimodalAI/MultimodalFoundations/) | Signals → tensors → tokens; patch embeddings; cross-modal alignment |
+| [VisionTransformers/](MultimodalAI/VisionTransformers/) | ViT architecture, patch tokenisation, CLS token, attention maps |
+| [CLIP/](MultimodalAI/CLIP/) | Contrastive pre-training, zero-shot classification, text-image retrieval |
+| [DiffusionModels/](MultimodalAI/DiffusionModels/) | DDPM forward/reverse process, noise schedules, score matching |
+| [LatentDiffusion/](MultimodalAI/LatentDiffusion/) | VAE latent space, Stable Diffusion architecture, CFG |
+| [Schedulers/](MultimodalAI/Schedulers/) | DDIM, DPM-Solver, Euler-a — speed vs quality tradeoffs |
+| [GuidanceConditioning/](MultimodalAI/GuidanceConditioning/) | Classifier-free guidance, ControlNet, img2img, inpainting |
+| [TextToImage/](MultimodalAI/TextToImage/) | End-to-end prompt → pixel pipeline, prompt engineering for images |
+| [TextToVideo/](MultimodalAI/TextToVideo/) | Temporal attention, video diffusion, consistency across frames |
+| [MultimodalLLMs/](MultimodalAI/MultimodalLLMs/) | Vision encoders in LLMs, visual question answering, GPT-4V patterns |
+| [GenerativeEvaluation/](MultimodalAI/GenerativeEvaluation/) | FID, IS, CLIP score, human preference alignment |
+| [LocalDiffusionLab/](MultimodalAI/LocalDiffusionLab/) | Running Stable Diffusion locally — memory optimisation, quantisation |
+
+---
+
+## Track 5 — AI Infrastructure (`AIInfrastructure/`)
+
+10-chapter track from GPU silicon to production serving platforms. Running scenario: **InferenceBase**, a startup evaluating whether to self-host Llama-3-8B instead of paying $80k/month in API bills.
+
+> → [AIInfrastructure/README.md](AIInfrastructure/README.md) for the full reading map.
+
+| Chapter | What it covers |
+|---|---|
+| [GPUArchitecture/](AIInfrastructure/GPUArchitecture/) | CUDA cores, tensor cores, VRAM, memory bandwidth, roofline model |
+| [MemoryAndComputeBudgets/](AIInfrastructure/MemoryAndComputeBudgets/) | VRAM estimation: parameters, KV cache, optimizer states, activations |
+| [QuantizationAndPrecision/](AIInfrastructure/QuantizationAndPrecision/) | FP16/BF16/INT8/INT4, GPTQ, AWQ, perplexity vs compression tradeoffs |
+| [ParallelismAndDistributedTraining/](AIInfrastructure/ParallelismAndDistributedTraining/) | Data/tensor/pipeline parallelism, ZeRO stages, FSDP |
+| [ServingFrameworks/](AIInfrastructure/ServingFrameworks/) | vLLM, TensorRT-LLM, TGI — continuous batching, PagedAttention |
+| [InferenceOptimization/](AIInfrastructure/InferenceOptimization/) | KV cache, speculative decoding, flash attention, kernel fusion |
+| [NetworkingAndClusterArchitecture/](AIInfrastructure/NetworkingAndClusterArchitecture/) | InfiniBand, NVLink, RDMA, collective ops (AllReduce, AllGather) |
+| [MLOpsAndExperimentManagement/](AIInfrastructure/MLOpsAndExperimentManagement/) | MLflow, W&B, experiment tracking, model registry, CI for ML |
+| [ProductionAIPlatform/](AIInfrastructure/ProductionAIPlatform/) | SLOs, autoscaling, shadow deployment, cost monitoring |
+| [CloudAIInfrastructure/](AIInfrastructure/CloudAIInfrastructure/) | Azure/AWS/GCP GPU offerings, spot instances, cost vs throughput |
+
+---
+
+## Projects (`../projects/`)
 
 Working Python experiments that accompany the theory.
 
 | Project | What it does |
 |---|---|
-| `projects/ml/linear-regression/` | End-to-end linear regression pipeline: data loading, model fitting, evaluation metrics, comparison across sklearn and custom implementations |
-| `projects/ml/linear-regression/football/` | Stub — planned experiment applying the same pipeline to a football dataset |
+| [`projects/ml/linear-regression/`](../projects/ml/linear-regression/) | End-to-end linear regression pipeline: data loading, model fitting, evaluation metrics, sklearn and custom implementations |
+| [`projects/ai/rag-pipeline/`](../projects/ai/rag-pipeline/) | RAG pipeline implementation — ingestion, embedding, retrieval, reranking |
 
 ---
 
-## How to Consume This Content — A Roadmap
+## How to Consume This Content — Reading Paths
 
-There are three sensible paths through this repo depending on your goal.
-
----
-
-### Path A — Interview Prep (fastest, 2–4 hours)
-
-Start here if you have an interview coming up and need a fast refresh across both ML and AI.
+### Path A — Interview Prep (2–4 hours)
 
 ```
-1. notes/AI/AgenticAI_ReadingMap.md    ← understand the architecture of agentic systems
-2. notes/AI/AI_Interview_Primer.md     ← Q&A format covering every topic fast
-3. notes/ML/ML_Chronicles_BuildPlan.md ← skim the Chapter Summaries section for ML concepts
+1. AI/AgenticAI_ReadingMap.md           ← understand the agentic systems architecture
+2. AI/AI_Interview_Primer/              ← Q&A covering every topic in interview format
+3. ML/ML_Chronicles_BuildPlan.md        ← skim Chapter Summaries for ML concepts
+4. MultiAgentAI/README.md              ← multi-agent protocol interview checklist
 ```
 
-The Interview Primer is dense by design — it covers CoT, ReAct, RAG, vector databases, and Semantic Kernel in crisp Q&A form, exactly how interviewers probe them.
-
----
-
-### Path B — AI Engineering Deep Dive (~10–14 hours, read order matters)
-
-Start here if you want to deeply understand how agentic systems work from first principles.
+### Path B — AI Engineering Deep Dive (~10–14 hours)
 
 ```
 Step 1 — Reasoning layer
-  → CoTReasoning.md
-  → CoTReasoning_Supplement.md
+  → AI/CoTReasoning/
+  → AI/CoTReasoning/CoTReasoning_Supplement.md
 
 Step 2 — Knowledge layer
-  → RAGAndEmbeddings.md
-  → RAGAndEmbeddings_Supplement.md
-  → VectorDBs.md
-  → VectorDBs_Supplement.md
+  → AI/RAGAndEmbeddings/
+  → AI/RAGAndEmbeddings/RAGAndEmbeddings_Supplement.md
+  → AI/VectorDBs/
 
 Step 3 — Orchestration layer
-  → ReActAndSemanticKernel.md
-  → ReActAndSemanticKernel_Supplement.md
+  → AI/ReActAndSemanticKernel/
+  → AI/ReActAndSemanticKernel/ReActAndSemanticKernel_Supplement.md
 
-Step 4 — Synthesis
-  → AI_Interview_Primer.md   (now reads as a self-test, not a cram session)
+Step 4 — Multi-agent
+  → MultiAgentAI/MessageFormats/ → MCP/ → A2A/ → AgentFrameworks/
+
+Step 5 — Synthesis
+  → AI/AI_Interview_Primer/      (now reads as a self-test)
 ```
 
-This order mirrors the three layers of an agentic system: how the LLM thinks → how it retrieves knowledge → how the surrounding software orchestrates it all.
+### Path C — ML from Scratch (~40–50 hours)
+
+```
+1. Run: .\scripts\setup.ps1  (Windows)  or  bash scripts/setup.sh  (macOS/Linux)
+2. Work through ML/ ch01 → ch17 in order — README first, then notebook
+3. After Ch.6 you have enough ML to start Path B in parallel
+```
+
+### Path D — Multimodal & Generative AI (~12–16 hours)
+
+```
+Prerequisite: Path B Step 2 (transformers, embeddings)
+
+MultimodalAI/MultimodalFoundations/
+→ MultimodalAI/VisionTransformers/
+→ MultimodalAI/CLIP/
+→ MultimodalAI/DiffusionModels/
+→ MultimodalAI/LatentDiffusion/
+→ MultimodalAI/Schedulers/
+→ MultimodalAI/TextToImage/
+→ MultimodalAI/LocalDiffusionLab/
+```
+
+### Path E — Infrastructure & Production (~8–12 hours)
+
+```
+Prerequisite: any track above (context for why infrastructure decisions matter)
+
+AIInfrastructure/GPUArchitecture/
+→ AIInfrastructure/MemoryAndComputeBudgets/
+→ AIInfrastructure/QuantizationAndPrecision/
+→ AIInfrastructure/ServingFrameworks/
+→ AIInfrastructure/InferenceOptimization/
+→ AIInfrastructure/ProductionAIPlatform/
+```
 
 ---
 
-### Path C — ML from Scratch (~40–50 hours with labs, chapter by chapter)
+### Cross-track connections
 
-Start here if you want to build solid ML foundations with runnable code.
-
-```
-1. Run the setup script to get Jupyter running locally
-   Windows:      .\notes\scripts\setup.ps1
-   macOS/Linux:  bash notes/scripts/setup.sh
-
-2. Open notes/ML/ in Jupyter (the script does this automatically)
-
-3. Work through chapters in order: ch01 → ch02 → ... → ch17
-   Each chapter = read the README first, then run the notebook
-
-4. After Ch.6 (Regularisation) you have enough ML to start Path B alongside
-```
-
-The 17 chapters build on each other. Ch.1–4 lay the model architecture foundations. Ch.5–6 cover how training actually works. Ch.7–8 extend to images and sequences. Ch.9–14 branch into classical methods, evaluation, and unsupervised learning. Ch.15 derives loss functions from first principles. Ch.16 covers training diagnostics with TensorBoard. Ch.17 builds the transformer from scratch — the bridge into the AI track.
-
----
-
-### Combining the tracks
-
-ML and AI are not independent. Here is where they connect:
-
-| ML chapter | AI connection |
-|---|---|
-| Ch.4 Neural Networks | The transformer encoder in RAGAndEmbeddings.md is a neural network — reading both together builds real intuition |
-| Ch.5 Backprop & Optimisers | Contrastive learning (InfoNCE) used to train embedding models is covered in RAGAndEmbeddings.md |
-| Ch.8 RNNs / LSTMs | The predecessor to transformers — understanding LSTMs makes the "why attention" story in Ch.17 land better, before moving to the AI notes |
-| Ch.17 Transformers | The load-bearing bridge: read this before starting the AI track — RAGAndEmbeddings.md assumes transformer encoders throughout |
-| Ch.12 Clustering | HDBSCAN appears in VectorDBs_Supplement.md as a way to discover topic clusters in a vector index |
-
-A natural combined path: **Ch.1–6 (ML) → CoTReasoning + RAGAndEmbeddings (AI) → Ch.7–8 (ML) → Ch.17 Transformers (ML) → ReActAndSemanticKernel (AI) → Ch.9–16 (ML) → VectorDBs (AI)**.
+| From | To | Connection |
+|---|---|---|
+| ML Ch.4 Neural Networks | AI/RAGAndEmbeddings | Transformer encoders are neural networks — the same maths |
+| ML Ch.5 Backprop | AI/RAGAndEmbeddings | Contrastive learning (InfoNCE) is trained with the same gradient machinery |
+| ML Ch.8 RNNs/LSTMs | ML Ch.17 Transformers | LSTMs explain *why* attention was invented |
+| ML Ch.17 Transformers | AI track (all) | Load-bearing bridge — read before the AI track |
+| ML Ch.12 Clustering | AI/VectorDBs | HDBSCAN discovers topic clusters in a vector index |
+| AI/ReActAndSemanticKernel | MultiAgentAI/ | Multi-agent is an extension of single-agent — not a replacement |
+| AI/RAGAndEmbeddings | MultimodalAI/CLIP | CLIP uses the same contrastive training as text embedding models |
+| AIInfrastructure/ServingFrameworks | MLOps/Production | Serving decisions set the floor on what your SLOs can guarantee |
 
 ---
 
