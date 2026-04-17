@@ -11,7 +11,7 @@
 |---|---|---|
 | 1 | Cover — title + regression scatter SVG | ✅ Done |
 | 2 | Prologue — three data types, compatibility table, bridge SVGs | ✅ Done |
-| 3 | Guide Overview — chapter map table (now 17 chapters), hyperparameter pattern, usage guide | ✅ Done |
+| 3 | Guide Overview — chapter map table (now 19 chapters), hyperparameter pattern, usage guide | ✅ Done |
 | 4 | Ch.1 Splash — dark page, regression SVG, subtitle + keywords | ✅ Done |
 | 5 | Ch.1 p1 — The Model (ŷ=wx+b, weighted sum, Dense(1) connection) | ✅ Done |
 | 6 | Ch.1 p2 — Cost Functions & Metrics (MSE, MAE, RMSE, R², bar chart SVG, table) | ✅ Done |
@@ -31,8 +31,13 @@
 | 70–75 | Ch.12 — Clustering (K-Means, DBSCAN, HDBSCAN, feature engineering) | ✅ Done |
 | 76–81 | Ch.13 — Dimensionality Reduction (PCA, t-SNE, UMAP) | ✅ Done |
 | 82–87 | Ch.14 — Unsupervised Metrics (Silhouette, Davies-Bouldin, ARI, EVR, reconstruction error) | ✅ Done |
+| 88–93 | Ch.15 — MLE & Loss Functions (Gaussian MLE, MAP/priors, cross-entropy) | ✅ Done |
+| 94–99 | Ch.16 — TensorBoard (scalars, histograms, graphs, instrumentation playbook) | ✅ Done |
+| 100–105 | Ch.17 — From Sequences to Attention (dot product, softmax, soft lookup, Q/K/V) | ✅ Done |
+| 106–111 | Ch.18 — Transformers & Attention (scaled dot-product, multi-head, positional encoding, encoder block) | ✅ Done |
+| 112–117 | Ch.19 — Hyperparameter Tuning (LR-range test, dial order, search strategies, Optuna) | ✅ Done |
 
-**The HTML source (Neural_Chronicles.html) covers Ch.1–Ch.14. Ch.15 (MLE & Loss Functions), Ch.16 (TensorBoard), Ch.17 (From Sequences to Attention — bridge), Ch.18 (Transformers & Attention), and Ch.19 (Hyperparameter Tuning) are notes-library-only chapters written beyond the original HTML book — 19 chapters total.**
+**The HTML source (Neural_Chronicles.html) now covers Ch.1–Ch.19 — 19 chapters totalling 117 pages. All 30 Ch.15–19 pages render at exactly 794×1123 px (A4 @ 96dpi).**
 
 > **Actual HTML line counts (as of last edit):**
 > - Ch.1 Linear Regression: ~lines 369–1107
@@ -61,7 +66,7 @@
 ## BOOK IDENTITY & TONE
 
 ### What this book is
-A **diagram-first technical interview reference** for deep learning. 14 chapters covering linear regression through unsupervised learning. Each chapter ends with a three-column interview checklist and a dedicated Q&A page.
+A **diagram-first technical interview reference** for deep learning. 19 chapters covering linear regression through hyperparameter tuning (including MLE, instrumentation, attention, and transformers). Each chapter ends with a three-column interview checklist and a dedicated Q&A page.
 
 ### What it is NOT
 - Not a narrative/story. No characters. No fictional framing. An earlier version had a manga story arc (Kai, the Neural Realm, Professor Regress, etc.) — that has been completely removed.

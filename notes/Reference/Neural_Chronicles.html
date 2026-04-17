@@ -14,6 +14,7 @@
   --regress:#27ae60;--arch:#2980b9;--forge:#e74c3c;--reg:#8e44ad;
   --conv:#16a085;--mem:#2471a3;--gold:#f39c12;--gap:8px;
   --class:#c0392b;--ens:#784212;--clust:#117a65;--dimred:#1a5276;--eval2:#6c3483;
+  --mle:#8e5a9e;--tb:#e67e22;--attn1:#0e7490;--attn2:#3730a3;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#c8c8c8;font-family:'Georgia',serif;color:#1a1a2e;}
@@ -255,7 +256,7 @@ li{margin-bottom:3px;line-height:1.45;}
   <div>
     <div class="ctag" style="font-size:.62rem;">GUIDE OVERVIEW</div>
     <h2>What&rsquo;s In This Guide &mdash; And What You&rsquo;ll Be Asked</h2>
-    <p>Fourteen chapters across two sections. Ch.1&ndash;9 cover deep learning foundations, from linear regression through RNNs. Ch.10&ndash;14 cover classical ML and unsupervised learning &mdash; Decision Trees, SVM, XGBoost, clustering, dimensionality reduction, and their evaluation metrics. Every chapter ends with a three-column interview checklist.</p>
+    <p>Nineteen chapters across three sections. Ch.1&ndash;9 cover deep learning foundations, from linear regression through RNNs. Ch.10&ndash;14 cover classical ML and unsupervised learning &mdash; Decision Trees, SVM, XGBoost, clustering, dimensionality reduction, and their evaluation metrics. Ch.15&ndash;19 cover the modern stack &mdash; MLE &amp; loss derivations, observability with TensorBoard, the bridge from sequences to attention, transformers, and systematic hyperparameter tuning. Every chapter ends with a three-column interview checklist.</p>
   </div>
 
   <div class="box">
@@ -332,6 +333,31 @@ li{margin-bottom:3px;line-height:1.45;}
         <td>Silhouette &middot; Davies-Bouldin &middot; ARI &middot; Explained variance ratio &middot; Reconstruction error &middot; Neighbourhood preservation</td>
         <td>Silhouette &asymp; 0 means? When is ARI not useful? Trustworthiness vs continuity in UMAP/t-SNE?</td>
       </tr>
+      <tr>
+        <td><strong>15</strong></td><td style="color:var(--mle);font-weight:700;">MLE &amp; Loss Functions</td>
+        <td>Likelihood &middot; Gaussian NLL &rarr; MSE &middot; Categorical NLL &rarr; Cross-Entropy &middot; MAP &middot; Gaussian prior &rarr; L2 &middot; Laplace prior &rarr; L1</td>
+        <td>Where does MSE come from? Derive cross-entropy. Why is L2 a Gaussian prior? MLE vs MAP?</td>
+      </tr>
+      <tr>
+        <td><strong>16</strong></td><td style="color:var(--tb);font-weight:700;">TensorBoard</td>
+        <td>Scalars &middot; Histograms &middot; Distributions &middot; Image / embedding projector &middot; HParams dashboard &middot; <code>tf.summary.*</code> &middot; Keras callback</td>
+        <td>What do weight histograms tell you? How do you spot dead ReLUs? HParams vs grid search runs?</td>
+      </tr>
+      <tr>
+        <td><strong>17</strong></td><td style="color:var(--attn1);font-weight:700;">From Sequences to Attention</td>
+        <td>Soft dictionary lookup &middot; Query &middot; Key &middot; Value &middot; Softmax weights &middot; Bridge from RNN hidden state</td>
+        <td>Derive attention without transformers. Why softmax over key similarities? How does this replace RNN recurrence?</td>
+      </tr>
+      <tr>
+        <td><strong>18</strong></td><td style="color:var(--attn2);font-weight:700;">Transformers &amp; Attention</td>
+        <td>Scaled dot-product &middot; softmax(QK&#7488;/&radic;d&#8342;) V &middot; Multi-head &middot; Positional encoding &middot; Residual + LayerNorm &middot; Encoder/decoder vs decoder-only</td>
+        <td>Why divide by &radic;d&#8342;? What do heads specialise in? Sinusoidal vs learned positions? Decoder-only why?</td>
+      </tr>
+      <tr>
+        <td><strong>19</strong></td><td style="color:var(--gold);font-weight:700;">Hyperparameter Tuning</td>
+        <td>Tune order: LR &rarr; batch &rarr; optimiser &rarr; reg &rarr; init &middot; Grid vs Random vs Bayesian (Optuna) vs ASHA / Hyperband &middot; Budget math</td>
+        <td>Why tune LR first? Random vs grid search? When does Bayesian optimisation pay off? ASHA tradeoffs?</td>
+      </tr>
     </table>
   </div>
 
@@ -346,7 +372,9 @@ li{margin-bottom:3px;line-height:1.45;}
         Ch.10 &mdash; <strong>max_depth</strong> (DT) &middot; <strong>k</strong> (KNN)<br>
         Ch.11 &mdash; <strong>C</strong> &middot; <strong>&gamma;</strong> (SVM) &middot; <strong>&eta;</strong> &middot; <strong>n_estimators</strong> (XGBoost)<br>
         Ch.12 &mdash; <strong>&epsilon;</strong> &middot; <strong>min_samples</strong> (DBSCAN)<br>
-        Ch.13 &mdash; <strong>perplexity</strong> (t-SNE) &middot; <strong>n_neighbors</strong> (UMAP)
+        Ch.13 &mdash; <strong>perplexity</strong> (t-SNE) &middot; <strong>n_neighbors</strong> (UMAP)<br>
+        Ch.18 &mdash; <strong>d<sub>model</sub></strong> &middot; <strong>heads</strong> &middot; <strong>layers</strong> (Transformer)<br>
+        Ch.19 &mdash; the dials themselves: <strong>LR</strong> first, then <strong>batch</strong>, <strong>optimiser</strong>, <strong>reg</strong>, <strong>init</strong>
       </span>
     </div>
     <div class="note">
@@ -359,6 +387,10 @@ li{margin-bottom:3px;line-height:1.45;}
         Classical ML / data science &#8594; Ch.10&ndash;11<br>
         Clustering &amp; unsupervised &#8594; Ch.12<br>
         Dimensionality reduction &#8594; Ch.13<br>
+        Loss-function derivations &#8594; Ch.15<br>
+        Observability / debugging training &#8594; Ch.16<br>
+        Transformers / LLM interview &#8594; Ch.17&ndash;18<br>
+        Tuning &amp; experiment design &#8594; Ch.19<br>
         Each chapter&rsquo;s final page = three-column interview checklist.
       </span>
     </div>
@@ -7980,6 +8012,1704 @@ for k in [5, 10, 20]:
     </svg>
     <figcaption>Internal metrics are proxies. The definitive test: does the unsupervised step improve the downstream supervised metric on held-out data?</figcaption>
   </figure>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.15 SPLASH ═══════════════════════════ -->
+<div class="page" style="padding:0;">
+<div class="splash">
+  <svg viewBox="0 0 400 190" width="340" style="margin-bottom:1.1rem;">
+    <rect width="400" height="190" fill="#0d0d1a" rx="6"/>
+    <text x="200" y="14" text-anchor="middle" fill="#8e5a9e" font-size="8" font-weight="700" font-family="Georgia,serif" letter-spacing="1.5">EVERY LOSS IS AN ASSUMPTION</text>
+
+    <!-- Left panel: Gaussian likelihood -> MSE -->
+    <text x="60" y="30" text-anchor="middle" fill="#8e5a9e" font-size="6.5" font-weight="700" font-family="Georgia,serif">Gaussian noise</text>
+    <!-- bell curve -->
+    <path d="M 15,85 Q 60,32 105,85" fill="none" stroke="#8e5a9e" stroke-width="1.4"/>
+    <path d="M 15,85 Q 60,32 105,85 L 105,85 L 15,85 Z" fill="#8e5a9e" opacity=".12"/>
+    <line x1="60" y1="32" x2="60" y2="85" stroke="#8e5a9e" stroke-width=".7" stroke-dasharray="2,1"/>
+    <circle cx="60" cy="85" r="2.2" fill="#f39c12"/>
+    <text x="60" y="96" text-anchor="middle" fill="#8e5a9e" font-size="5.5" font-family="Georgia,serif">y &#126; N(f(x), σ²)</text>
+    <text x="60" y="106" text-anchor="middle" fill="#aaa" font-size="6" font-family="Georgia,serif">−log p ∝ (y − f(x))²</text>
+    <text x="60" y="117" text-anchor="middle" fill="#f39c12" font-size="6.5" font-weight="700" font-family="Georgia,serif">⇒ MSE</text>
+
+    <!-- Middle panel: Bernoulli -> BCE -->
+    <text x="200" y="30" text-anchor="middle" fill="#2471a3" font-size="6.5" font-weight="700" font-family="Georgia,serif">Bernoulli flip</text>
+    <!-- two-prob bars -->
+    <rect x="160" y="45" width="20" height="40" fill="#2471a3" opacity=".8"/>
+    <text x="170" y="94" text-anchor="middle" fill="#aaa" font-size="5.5">p = ŷ</text>
+    <rect x="200" y="65" width="20" height="20" fill="#2471a3" opacity=".4"/>
+    <text x="210" y="94" text-anchor="middle" fill="#aaa" font-size="5.5">1&minus;p</text>
+    <rect x="240" y="55" width="20" height="30" fill="#e74c3c" opacity=".7"/>
+    <text x="250" y="94" text-anchor="middle" fill="#aaa" font-size="5.5">y ∈ {0,1}</text>
+    <text x="200" y="106" text-anchor="middle" fill="#aaa" font-size="6" font-family="Georgia,serif">−log p ∝ −y log ŷ − (1−y) log(1−ŷ)</text>
+    <text x="200" y="117" text-anchor="middle" fill="#f39c12" font-size="6.5" font-weight="700" font-family="Georgia,serif">⇒ Binary cross-entropy</text>
+
+    <!-- Right panel: MAP posterior -->
+    <text x="340" y="30" text-anchor="middle" fill="#e67e22" font-size="6.5" font-weight="700" font-family="Georgia,serif">Posterior = L × prior</text>
+    <rect x="285" y="38" width="110" height="60" rx="3" fill="#1a0f1a" stroke="#e67e22" stroke-width="1"/>
+    <text x="340" y="52" text-anchor="middle" fill="#aaa" font-size="6.5" font-family="Georgia,serif">p(θ|D) ∝ p(D|θ) · p(θ)</text>
+    <line x1="300" y1="60" x2="380" y2="60" stroke="#555" stroke-width=".5"/>
+    <text x="340" y="72" text-anchor="middle" fill="#8e5a9e" font-size="6" font-family="Georgia,serif">p(θ) = N(0,σ²) ⇒ L2</text>
+    <text x="340" y="83" text-anchor="middle" fill="#27ae60" font-size="6" font-family="Georgia,serif">p(θ) = Lap(0,b) ⇒ L1</text>
+    <text x="340" y="94" text-anchor="middle" fill="#e67e22" font-size="6" font-weight="700" font-family="Georgia,serif">λ controls prior strength</text>
+
+    <!-- Bottom strip: loss family map -->
+    <text x="10" y="132" fill="#8e5a9e" font-size="7" font-weight="700" font-family="Georgia,serif">Regression family</text>
+    <text x="10" y="144" fill="#aaa" font-size="6.5" font-family="Georgia,serif">MSE (L2)  •  MAE (L1)  •  Huber (hybrid, outlier-robust)  •  Log-Cosh (smooth L1)</text>
+    <text x="10" y="158" fill="#2471a3" font-size="7" font-weight="700" font-family="Georgia,serif">Classification family</text>
+    <text x="10" y="170" fill="#aaa" font-size="6.5" font-family="Georgia,serif">Binary CE  •  Categorical CE  •  Focal (rare-class)  •  KL (distribution match)</text>
+    <text x="10" y="184" fill="#e67e22" font-size="6" font-family="Georgia,serif">Every choice = an assumption about p(y | x). Mismatch the assumption, mismatch the fit.</text>
+  </svg>
+  <div class="ctag">Chapter 15</div>
+  <h1 style="font-size:2.4rem;font-weight:900;letter-spacing:.05em;line-height:1.08;margin-bottom:.28em;color:#fff;">MLE &amp;<br>Loss Functions</h1>
+  <div style="font-size:.95rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.7em;font-weight:700;">LIKELIHOOD &middot; MSE &middot; CROSS-ENTROPY &middot; MAP &middot; L1/L2</div>
+  <p style="color:#aaa;max-width:120mm;font-size:.84rem;">Every loss function in the preceding chapters was stated as a choice. Ch.15 shows that it was never a choice — once you assume a noise distribution over $y$, the loss is fixed. Gaussian noise gives MSE. Bernoulli flips give cross-entropy. Laplace noise gives MAE. Add a prior and the posterior mode gives L2 or L1 regularisation. This chapter is the Rosetta Stone that connects probability, optimisation, and every training loop you have written.</p>
+  <div style="margin-top:.8rem;font-size:.7rem;color:#666;">likelihood &middot; NLL &middot; Gaussian→MSE &middot; Bernoulli→BCE &middot; Laplace→MAE &middot; Huber &middot; KL divergence &middot; focal loss &middot; MAP &middot; L1/L2/ElasticNet</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.15 PAGE 1 — THE MATH ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.15 &mdash; MLE &amp; LOSS FUNCTIONS &middot; FROM LIKELIHOOD TO LOSS</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--mle);">Maximum Likelihood — the Source of Every Loss</h2>
+  <p>Supervised learning assumes the labels were <em>generated</em> by some conditional distribution $p(y \mid x; \theta)$. Maximum Likelihood Estimation (MLE) picks the $\theta$ that makes the observed data most probable under that assumed family. Take the negative log, and MLE <em>is</em> the loss function.</p>
+
+  <div class="note"><strong>Bridge from Ch.14.</strong> Ch.14 closed the unsupervised loop with metrics that have no labels. Ch.15 reopens the supervised story and asks: where does the <em>loss</em> itself come from? The answer — a noise assumption — is what justifies MSE for regression, cross-entropy for classification, and every regulariser you added without explanation.</p></div>
+
+  <div class="cols c11" style="gap:8px;">
+    <div class="flow">
+      <div class="math-block">
+        $$\hat\theta_{\mathrm{MLE}} \;=\; \arg\max_\theta \prod_{i=1}^{n} p(y_i \mid x_i;\, \theta)$$
+        $$\;=\; \arg\max_\theta \sum_{i=1}^{n} \log p(y_i \mid x_i;\, \theta)$$
+        $$\;=\; \arg\min_\theta \underbrace{-\sum_{i=1}^{n} \log p(y_i \mid x_i;\, \theta)}_{\text{negative log-likelihood (NLL)}}$$
+      </div>
+
+      <div class="box tint">
+        <h4>Three moves, one recipe</h4>
+        <ol class="sm" style="margin:0;padding-left:18px;">
+          <li><strong>Assume</strong> a conditional distribution $p(y \mid x;\theta)$ (Gaussian, Bernoulli, Categorical, &hellip;).</li>
+          <li><strong>Take logs</strong> — products of small numbers underflow; sums of logs do not.</li>
+          <li><strong>Negate</strong> — gradient descent minimises. The NLL is your loss.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="flow">
+      <div class="math-block">
+        $$\text{Gaussian: } p(y|x;\theta)=\frac{1}{\sigma\sqrt{2\pi}}\exp\!\left(-\tfrac{(y-f_\theta(x))^2}{2\sigma^2}\right)$$
+        $$-\log p \;=\; \tfrac{1}{2\sigma^2}(y-f_\theta(x))^2 \;+\; \text{const}$$
+        $$\Rightarrow\; \boxed{\mathcal{L}_{\mathrm{MSE}} \;=\; \tfrac{1}{n}\!\sum_i (y_i-f_\theta(x_i))^2}$$
+        $$\text{Bernoulli: } p(y|x;\theta)=\hat y^{y}(1-\hat y)^{1-y},\ \hat y=\sigma(f_\theta(x))$$
+        $$\Rightarrow\; \boxed{\mathcal{L}_{\mathrm{BCE}} \;=\; -\tfrac{1}{n}\!\sum_i y_i\log\hat y_i + (1-y_i)\log(1-\hat y_i)}$$
+      </div>
+    </div>
+  </div>
+
+  <div class="lock">
+    <strong>&#128274; Loss is not a choice — it is a modelling assumption made visible.</strong> MSE is not "the default"; it is what you get when you claim $y$ is Gaussian around $f_\theta(x)$. BCE is not "for classification"; it is the negative log of a Bernoulli. MAE is not "robust by luck"; it is the NLL under Laplace noise. When the tail of your residuals is heavier than Gaussian, MSE fights a losing battle — switch the <em>assumption</em>, not the hyperparameters.
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.15 PAGE 2 — CORE CONCEPT ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.15 &mdash; MLE &amp; LOSS FUNCTIONS &middot; GAUSSIAN LIKELIHOOD &rarr; MSE</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--mle);">The Likelihood Surface, Visualised</h2>
+
+  <figure class="diagram">
+    <img src="img/ch15-mle-gaussian.png" alt="Gaussian log-likelihood surface over (mu, sigma) with MLE star; NLL cross-section parabola reducing to MSE" style="width:100%;border-radius:4px;"/>
+    <figcaption>Left: the log-likelihood $\ell(\mu,\sigma)=\sum_i\log p(x_i\mid\mu,\sigma)$ is a smooth surface over parameter space; its peak (gold star) sits at the sample mean and sample std. Right: slicing at fixed $\sigma$ gives a parabola in $\mu$ — the NLL — whose minimum is the same $\bar x$. That parabola, stripped of constants, is exactly MSE.</figcaption>
+  </figure>
+
+  <div class="cols c11" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--mle);">Why the surface is convex</h3>
+      <p class="sm">For a Gaussian model with fixed $\sigma$, the NLL as a function of $\mu$ is $\tfrac{1}{2\sigma^2}\sum (x_i-\mu)^2$ — a quadratic in $\mu$ with a positive leading coefficient. Convexity guarantees a unique global minimum. Adding a linear predictor $f_\theta(x)=\mathbf w^\top x + b$ keeps convexity in $(\mathbf w, b)$ for linear regression, which is why ordinary least squares has a closed form $\hat{\mathbf w}=(X^\top X)^{-1}X^\top y$.</p>
+
+      <div class="box tint">
+        <h4>The σ trick</h4>
+        <p class="sm">The constant $\tfrac{1}{2\sigma^2}$ is absorbed into the learning rate when we drop it from the loss — the <em>argmin</em> is unaffected. In heteroscedastic regression (σ depends on $x$), we cannot drop it; weighting each residual by $1/\sigma_i^2$ becomes part of the loss (weighted least squares).</p>
+      </div>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--mle);">Noise assumption &rarr; loss</h3>
+      <table style="font-size:.68rem;">
+        <tr><th>Assumed $p(y\mid x;\theta)$</th><th>Task</th><th>NLL reduces to</th></tr>
+        <tr><td>Gaussian &nbsp;$\mathcal N(f_\theta(x),\sigma^2)$</td><td>Regression</td><td><strong>MSE</strong> (L2)</td></tr>
+        <tr><td>Laplace &nbsp;$\text{Lap}(f_\theta(x),b)$</td><td>Regression (heavy tails)</td><td><strong>MAE</strong> (L1)</td></tr>
+        <tr><td>Bernoulli &nbsp;$\text{Ber}(\sigma(f_\theta(x)))$</td><td>Binary classification</td><td><strong>BCE</strong></td></tr>
+        <tr><td>Categorical &nbsp;$\text{Cat}(\operatorname{softmax}(f_\theta(x)))$</td><td>Multi-class</td><td><strong>Cross-entropy</strong></td></tr>
+        <tr><td>Poisson &nbsp;$\text{Poi}(e^{f_\theta(x)})$</td><td>Count regression</td><td><strong>Poisson NLL</strong></td></tr>
+        <tr><td>Student-t &nbsp;$t_\nu(f_\theta(x),\sigma)$</td><td>Regression with outliers</td><td><strong>Robust NLL</strong> (smooth L1-like)</td></tr>
+      </table>
+
+      <div class="warn" style="margin-top:6px;">
+        <strong>&#9888; MSE on classification fails silently.</strong> If you set $y\in\{0,1\}$ and minimise MSE on $\hat y=\sigma(z)$, gradients vanish as $\hat y\to 0$ or $1$ (the sigmoid saturates). BCE's $-\log \hat y$ grows unboundedly, so its gradient stays informative — that is the <em>whole</em> reason classification uses log-loss.
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.15 PAGE 3 — MAP & PRIORS ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.15 &mdash; MLE &amp; LOSS FUNCTIONS &middot; MAP &rarr; L1 / L2 REGULARISATION</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--mle);">MAP: Where Regularisation Comes From</h2>
+  <p>MLE assumes every parameter value is equally plausible before seeing data. Adding a <em>prior</em> $p(\theta)$ injects a preference — and the posterior's mode (MAP estimate) gives a loss with a regularisation term built in. The shape of the prior <em>is</em> the shape of the regulariser.</p>
+
+  <figure class="diagram">
+    <img src="img/ch15-prior-posterior.png" alt="Gaussian vs Laplace prior densities and their corresponding regularisation penalties (L2 and L1)" style="width:100%;border-radius:4px;"/>
+    <figcaption>Left: a Gaussian prior on $w$ is a smooth bell; a Laplace prior is a sharp spike at zero with heavy tails. Right: the corresponding $-\log p(w)$ gives $w^2$ (L2) for Gaussian and $|w|$ (L1) for Laplace. The non-differentiable kink of $|w|$ at zero is exactly what makes L1 <em>sparsify</em> — the gradient's sign flips discontinuously, driving small weights to exact zero.</figcaption>
+  </figure>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <div class="math-block">
+        $$\hat\theta_{\mathrm{MAP}} \;=\; \arg\max_\theta p(\theta \mid D) \;=\; \arg\max_\theta p(D\mid\theta)\,p(\theta)$$
+        $$\;=\; \arg\min_\theta \Big[ -\!\sum_i\log p(y_i|x_i;\theta) \;-\; \log p(\theta)\Big]$$
+        $$\text{Gaussian prior } w\!\sim\!\mathcal N(0,\tau^2):\; -\log p(w) \propto \tfrac{1}{2\tau^2}\|w\|_2^2$$
+        $$\text{Laplace prior } w\!\sim\!\text{Lap}(0,b):\; -\log p(w) \propto \tfrac{1}{b}\|w\|_1$$
+      </div>
+      <p class="sm">Set $\lambda=\tfrac{1}{2\tau^2}$ (or $\tfrac{1}{b}$) and the familiar regularised loss <em>falls out</em>:</p>
+      <div class="math-block">
+        $$\mathcal{L}(\theta) \;=\; \underbrace{\text{NLL}(\theta)}_{\text{data fit}} \;+\; \lambda\,\underbrace{R(\theta)}_{\text{prior: L2 or L1}}$$
+      </div>
+    </div>
+
+    <div class="flow">
+      <table style="font-size:.68rem;">
+        <tr><th></th><th style="color:var(--mle);">L2 (ridge)</th><th style="color:#e67e22;">L1 (lasso)</th><th>ElasticNet</th></tr>
+        <tr><td>Prior</td><td>Gaussian</td><td>Laplace</td><td>Mixture</td></tr>
+        <tr><td>Penalty</td><td>$\lambda\|w\|_2^2$</td><td>$\lambda\|w\|_1$</td><td>$\lambda_1\|w\|_1+\lambda_2\|w\|_2^2$</td></tr>
+        <tr><td>Effect</td><td>Smooth shrinkage</td><td>Sparsity (exact zeros)</td><td>Grouped sparsity</td></tr>
+        <tr><td>Correlated features</td><td>Splits weight evenly</td><td>Picks one, zeros the rest</td><td>Keeps groups together</td></tr>
+        <tr><td>Closed form</td><td>Yes (ridge regression)</td><td>No (coordinate descent)</td><td>No</td></tr>
+      </table>
+
+      <div class="dial" style="margin-top:6px;">&lambda; tunes prior strength &middot; &lambda;&rarr;0: MLE &middot; &lambda;&rarr;&infin;: w&rarr;0</div>
+
+      <div class="box tint" style="margin-top:6px;">
+        <h4>Why L1 produces exact zeros</h4>
+        <p class="sm">At $w=0$, the L2 gradient is also 0 — no force to push a small weight past zero. The L1 subgradient at $w=0$ is the interval $[-\lambda, \lambda]$: as long as the data-fit gradient falls inside this interval, the optimum <em>stays</em> at zero. This is proximal shrinkage — the mathematical source of sparse models and feature selection.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.15 PAGE 4 — TF CODE ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.15 &mdash; MLE &amp; LOSS FUNCTIONS &middot; TENSORFLOW IMPLEMENTATION</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--mle);">Every Loss as One Line of TF</h2>
+
+  <div class="cols c21" style="gap:10px;">
+    <div class="flow">
+      <div class="code-block"><pre>import tensorflow as tf
+from tensorflow.keras import losses, regularizers, layers, Model
+
+# ── Regression: Gaussian noise ⇒ MSE ────────────────────────────
+mse   = losses.MeanSquaredError()          # ½·mean((y−ŷ)²)
+mae   = losses.MeanAbsoluteError()         # Laplace noise ⇒ L1
+huber = losses.Huber(delta=1.0)            # Gaussian core, Laplace tail
+logcosh = losses.LogCosh()                 # smooth approximation of MAE
+
+# ── Classification: Bernoulli / Categorical ⇒ cross-entropy ─────
+bce = losses.BinaryCrossentropy(from_logits=True)
+cce = losses.CategoricalCrossentropy(from_logits=True)   # one-hot y
+sce = losses.SparseCategoricalCrossentropy(from_logits=True)  # integer y
+# ALWAYS use from_logits=True in practice — numerically stable
+# (combines softmax + log in one pass, avoids log(0))
+
+# ── Distribution matching: KL divergence ────────────────────────
+kl  = losses.KLDivergence()        # for teacher-student, VAEs
+# KL(p‖q) = Σ p(x) log(p(x)/q(x)) — not symmetric!
+
+# ── Rare-class focus: focal loss (manual) ───────────────────────
+def focal_loss(gamma=2.0, alpha=0.25):
+    def loss(y_true, y_pred):
+        p_t = tf.where(tf.equal(y_true, 1), y_pred, 1 - y_pred)
+        alpha_t = tf.where(tf.equal(y_true, 1), alpha, 1 - alpha)
+        return -tf.reduce_mean(alpha_t * tf.pow(1-p_t, gamma)
+                               * tf.math.log(p_t + 1e-8))
+    return loss
+
+# ── L1 / L2 regularisation ≡ Laplace / Gaussian prior on weights ─
+model = tf.keras.Sequential([
+    layers.Dense(128, activation="relu",
+        kernel_regularizer=regularizers.l2(1e-4)),         # Gaussian prior
+    layers.Dense(64,  activation="relu",
+        kernel_regularizer=regularizers.l1(1e-5)),         # Laplace prior
+    layers.Dense(32,  activation="relu",
+        kernel_regularizer=regularizers.l1_l2(1e-5, 1e-4)),# ElasticNet
+    layers.Dense(1),
+])
+
+# Custom NLL: model predicts (μ, log σ) of a Gaussian
+def gaussian_nll(y_true, y_pred):
+    mu, log_sigma = y_pred[..., 0], y_pred[..., 1]
+    sigma = tf.exp(log_sigma)
+    return 0.5 * tf.reduce_mean(
+        tf.math.log(2*3.14159) + 2*log_sigma
+        + ((y_true - mu) / sigma) ** 2
+    )  # this IS MSE when σ is constant — now it's learned</pre></div>
+    </div>
+
+    <div class="flow">
+      <div class="box" style="border-top:3px solid var(--mle);">
+        <h4 style="color:var(--mle);">Chapter 15 &mdash; Core Checklist</h4>
+        <div class="cols c11" style="gap:4px;">
+          <ul class="sm">
+            <li>Loss = NLL under an assumed $p(y\mid x;\theta)$</li>
+            <li>Gaussian &rarr; MSE &middot; Bernoulli &rarr; BCE &middot; Laplace &rarr; MAE</li>
+            <li>Always use <code>from_logits=True</code> — fused softmax+log is stable</li>
+            <li>MSE on classification: gradients vanish at saturation</li>
+            <li>Huber = MSE core + MAE tail (robust to outliers)</li>
+          </ul>
+          <ul class="sm">
+            <li>Prior on $\theta$ &rarr; adds regularisation term</li>
+            <li>Gaussian prior &rArr; L2 (ridge) &middot; Laplace prior &rArr; L1 (lasso)</li>
+            <li>L1 sparsifies; L2 shrinks smoothly; ElasticNet mixes both</li>
+            <li>$\lambda$ = prior strength; tune on validation set</li>
+            <li>Focal / weighted loss: correct the prior over classes, not the labels</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="warn" style="margin-top:6px;">
+        <strong>&#9888; Never mix <code>from_logits=False</code> with a softmax output layer.</strong> Doing so applies softmax twice — once in the model, once inside the loss — and yields silently wrong gradients. Prefer a bare <code>Dense(n_classes)</code> final layer and <code>from_logits=True</code>, or use an explicit softmax and <code>from_logits=False</code>. Pick one convention and enforce it.
+      </div>
+
+      <div class="bridge" style="margin-top:6px;">
+        <strong>Loss Functions &rarr; TensorBoard (Ch.16)</strong><br>
+        <span class="sm">Choosing the right loss gives the model the right objective — but a single scalar loss in the console is a blunt instrument. Is the gradient flowing through layer 4? Are weights drifting or collapsing? Is the validation curve quietly diverging at epoch 47? Ch.16 upgrades the observability: TensorBoard turns the training loop from a black box into a dashboard — scalars, histograms, distributions, embeddings — so you can diagnose failure before the loss tells you.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.15 PAGE 5 — INTERVIEW ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.15 &mdash; MLE &amp; LOSS FUNCTIONS &middot; INTERVIEW PREPARATION</div>
+<div class="flow">
+
+  <div class="cols c11" style="gap:8px;">
+    <div class="flow">
+
+      <div class="box sepia">
+        <h4>Q: Derive MSE from Maximum Likelihood.</h4>
+        <p class="sm"><strong>A:</strong> Assume $y_i = f_\theta(x_i) + \varepsilon_i$ with $\varepsilon_i \sim \mathcal N(0,\sigma^2)$ i.i.d. Then $p(y_i\mid x_i;\theta) = \tfrac{1}{\sigma\sqrt{2\pi}}\exp\!\left(-\tfrac{(y_i - f_\theta(x_i))^2}{2\sigma^2}\right)$. Taking logs and negating: $-\log p = \tfrac{1}{2\sigma^2}(y_i - f_\theta(x_i))^2 + \text{const}$. Summing over $i$ and dropping terms that do not depend on $\theta$: $\hat\theta_{\mathrm{MLE}} = \arg\min_\theta \sum_i (y_i - f_\theta(x_i))^2$ — i.e., MSE. The key: <em>Gaussian noise</em> is the hidden assumption. Change the noise (Laplace &rarr; MAE, Student-t &rarr; robust NLL) and MSE is no longer justified.</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: Why does MSE fail for classification at $\hat y \approx 0.99$?</h4>
+        <p class="sm"><strong>A:</strong> Classification heads end in a sigmoid $\hat y = \sigma(z)$ whose derivative $\sigma'(z) = \hat y(1-\hat y)$ collapses toward zero as $\hat y\to 0$ or $1$. Under MSE, the gradient w.r.t. the logit $z$ is $(y-\hat y)\cdot\sigma'(z)$ — a tiny mistake ($y=0$, $\hat y=0.99$) gets multiplied by $0.99\cdot0.01\approx 10^{-2}$, so the model <em>cannot</em> correct a confident wrong prediction. BCE's gradient is $(\hat y - y)$ directly — no sigmoid-derivative factor, so the same mistake produces a gradient of magnitude 0.99. This is the saturation problem that drove the field from squared-error to log-loss for classification.</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: L1 vs L2 — why does L1 produce exact zeros?</h4>
+        <p class="sm"><strong>A:</strong> Consider a single weight $w$. Its gradient contribution from L2 is $2\lambda w$ — zero at $w=0$, so nothing holds the weight <em>at</em> zero. From L1 it is $\lambda\cdot\mathrm{sign}(w)$, a discontinuous jump of $2\lambda$ across zero. Equivalently, the L1 subgradient at $w=0$ is the interval $[-\lambda,\lambda]$. As long as the data-fit gradient at $w=0$ lies inside that interval, the KKT optimum stays at $w=0$. Only when the data-fit gradient exceeds $\lambda$ in magnitude does $w$ move off zero. Result: weights with weak support in the data get exactly zeroed — feature selection for free.</p>
+      </div>
+
+    </div>
+
+    <div class="flow">
+
+      <div class="box sepia">
+        <h4>Q: KL divergence vs cross-entropy — when would you use each?</h4>
+        <p class="sm"><strong>A:</strong> They differ by the entropy of the target: $\mathrm{CE}(p,q) = H(p) + \mathrm{KL}(p\|q)$. If $p$ is a hard label (one-hot), $H(p)=0$ and CE = KL; they are interchangeable. If $p$ is a soft distribution (teacher logits in distillation, noisy labels with label smoothing, VAE posteriors), $H(p)$ is a constant w.r.t. the model, so minimising CE still minimises KL — but you cannot interpret the absolute loss value as a distance. Use CE for standard supervised classification; use KL explicitly when the target distribution is itself parameterised (VAEs where $q$ is the approximate posterior and $p$ is a prior, or policy gradient methods).</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: What problem does focal loss solve?</h4>
+        <p class="sm"><strong>A:</strong> Extreme class imbalance (e.g. dense object detection, where background vastly outnumbers objects). Standard BCE gives every example equal weight — thousands of easy negatives dominate the gradient, and the rare hard positives contribute almost nothing. Focal loss multiplies BCE by $(1-p_t)^\gamma$ where $p_t$ is the predicted probability of the true class: confident-correct examples ($p_t\to 1$) get down-weighted by $(1-p_t)^\gamma\to 0$, freeing the gradient to focus on hard examples. $\gamma=2$ is typical. It can be derived as NLL under a re-weighted Bernoulli where the effective class prior depends on the prediction — so it is still a principled loss, not a hack.</p>
+      </div>
+
+      <div class="box tint">
+        <h4>Traps &amp; Assumptions</h4>
+        <ul class="sm">
+          <li><strong>Trap:</strong> Using <code>from_logits=False</code> with a softmax final layer — applies softmax twice; loss still decreases but gradients are wrong.</li>
+          <li><strong>Trap:</strong> Adding L2 without re-tuning the learning rate — weight decay shifts the optimal LR.</li>
+          <li><strong>Trap:</strong> Treating Huber $\delta$ as a free parameter — it should roughly match the noise scale (e.g., the residual std at epoch 5).</li>
+          <li><strong>Assumption:</strong> MSE assumes Gaussian i.i.d. residuals. Long-tailed errors &rarr; switch to MAE / Huber / Student-t.</li>
+          <li><strong>Assumption:</strong> BCE/CE assume labels are correct. With noisy labels, label smoothing or focal loss regularises the posterior toward the prior.</li>
+        </ul>
+      </div>
+
+      <div class="lock">
+        <strong>&#128274; Bridge fact:</strong> Every "choose a loss" decision reduces to "choose a noise model for $p(y\mid x)$ and a prior for $p(\theta)$". Interviewers test this by asking why your choice — if you can state the implied noise and prior, you demonstrate that you understand the model, not just the library call.
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.16 SPLASH ═══════════════════════════ -->
+<div class="page" style="padding:0;">
+<div class="splash">
+  <svg viewBox="0 0 400 190" width="340" style="margin-bottom:1.1rem;">
+    <rect width="400" height="190" fill="#0d0d1a" rx="6"/>
+    <text x="200" y="14" text-anchor="middle" fill="#e67e22" font-size="8" font-weight="700" font-family="Georgia,serif" letter-spacing="1.5">READ THE INSTRUMENTS, NOT JUST THE OUTPUT</text>
+
+    <!-- Panel A: Scalars (loss curves) -->
+    <text x="60" y="30" text-anchor="middle" fill="#e67e22" font-size="6.5" font-weight="700" font-family="Georgia,serif">Scalars</text>
+    <rect x="15" y="34" width="90" height="62" rx="3" fill="#1a1a2a" stroke="#e67e22" stroke-width=".8"/>
+    <!-- train (blue, decreasing) -->
+    <polyline points="20,88 30,78 42,66 55,56 70,48 88,44 100,42" fill="none" stroke="#2E86C1" stroke-width="1.4"/>
+    <!-- val (orange, diverging after mid) -->
+    <polyline points="20,86 30,76 42,64 55,56 70,56 88,62 100,68" fill="none" stroke="#e67e22" stroke-width="1.4" stroke-dasharray="2,1"/>
+    <text x="60" y="108" text-anchor="middle" fill="#aaa" font-size="5.5" font-family="Georgia,serif">train ↘  val ↘ then ↗</text>
+
+    <!-- Panel B: Histograms (3D-ish bars) -->
+    <text x="200" y="30" text-anchor="middle" fill="#117a65" font-size="6.5" font-weight="700" font-family="Georgia,serif">Histograms</text>
+    <rect x="155" y="34" width="90" height="62" rx="3" fill="#1a1a2a" stroke="#117a65" stroke-width=".8"/>
+    <!-- ridge plots -->
+    <path d="M 160,88 Q 200,74 240,88" fill="#117a65" opacity=".25" stroke="#117a65" stroke-width=".8"/>
+    <path d="M 160,78 Q 200,60 240,78" fill="#117a65" opacity=".40" stroke="#117a65" stroke-width=".8"/>
+    <path d="M 160,68 Q 200,46 240,68" fill="#117a65" opacity=".55" stroke="#117a65" stroke-width=".8"/>
+    <path d="M 160,58 Q 200,36 240,58" fill="#117a65" opacity=".70" stroke="#117a65" stroke-width=".8"/>
+    <text x="200" y="108" text-anchor="middle" fill="#aaa" font-size="5.5" font-family="Georgia,serif">weights spreading per epoch</text>
+
+    <!-- Panel C: Projector (clusters) -->
+    <text x="340" y="30" text-anchor="middle" fill="#8e44ad" font-size="6.5" font-weight="700" font-family="Georgia,serif">Projector</text>
+    <rect x="295" y="34" width="90" height="62" rx="3" fill="#1a1a2a" stroke="#8e44ad" stroke-width=".8"/>
+    <!-- three clusters -->
+    <g fill="#27ae60" opacity=".85">
+      <circle cx="310" cy="55" r="1.6"/><circle cx="313" cy="58" r="1.6"/>
+      <circle cx="308" cy="60" r="1.6"/><circle cx="315" cy="53" r="1.6"/>
+    </g>
+    <g fill="#2E86C1" opacity=".85">
+      <circle cx="370" cy="54" r="1.6"/><circle cx="372" cy="58" r="1.6"/>
+      <circle cx="366" cy="59" r="1.6"/><circle cx="374" cy="52" r="1.6"/>
+    </g>
+    <g fill="#e67e22" opacity=".85">
+      <circle cx="340" cy="82" r="1.6"/><circle cx="343" cy="85" r="1.6"/>
+      <circle cx="336" cy="86" r="1.6"/><circle cx="344" cy="79" r="1.6"/>
+    </g>
+    <text x="340" y="108" text-anchor="middle" fill="#aaa" font-size="5.5" font-family="Georgia,serif">clean clusters ⇒ good features</text>
+
+    <!-- Bottom strip: diagnostic map -->
+    <text x="10" y="128" fill="#e67e22" font-size="7" font-weight="700" font-family="Georgia,serif">What to check — in order</text>
+    <text x="10" y="141" fill="#aaa" font-size="6.3" font-family="Georgia,serif">1. Scalars: is val_loss still falling?  2. Histograms: are early layers moving?</text>
+    <text x="10" y="153" fill="#aaa" font-size="6.3" font-family="Georgia,serif">3. Gradients: ribbons around 0 or spike at 0?  4. Projector: clean classes or blob?</text>
+    <text x="10" y="170" fill="#e74c3c" font-size="6.5" font-weight="700" font-family="Georgia,serif">A loss curve alone cannot distinguish a vanishing gradient from a tiny learning rate</text>
+    <text x="10" y="183" fill="#555" font-size="6" font-family="Georgia,serif">TensorBoard = the training loop's dashboard. Diagnose before the loss tells you.</text>
+  </svg>
+  <div class="ctag">Chapter 16</div>
+  <h1 style="font-size:2.4rem;font-weight:900;letter-spacing:.05em;line-height:1.08;margin-bottom:.28em;color:#fff;">TensorBoard</h1>
+  <div style="font-size:.95rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.7em;font-weight:700;">SCALARS &middot; HISTOGRAMS &middot; PROJECTOR &middot; PROFILER</div>
+  <p style="color:#aaa;max-width:120mm;font-size:.84rem;">Ch.15 gave you the right loss. But a single scalar in the console is a blunt instrument — it cannot distinguish a vanishing gradient from an over-regularised model, a frozen early layer from a perfectly converged one, or a useful embedding from a noisy blob. TensorBoard instruments the training loop: per-epoch scalars, per-layer weight and gradient histograms, per-run projector views of the learned representation. This chapter is about <em>reading</em> training, not just running it.</p>
+  <div style="margin-top:.8rem;font-size:.7rem;color:#666;">Scalars &middot; Histograms &middot; Distributions &middot; Projector &middot; Images &middot; Graphs &middot; Profile &middot; callback &middot; histogram_freq &middot; update_freq</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.16 PAGE 1 — THE MATH ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.16 &mdash; TENSORBOARD &middot; WHAT THE PANELS TELL YOU</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--tb);">Diagnostics, Not Metrics</h2>
+  <p>TensorBoard has no mathematics of its own — it reads event files written during training and renders them. The <em>value</em> comes from mapping each panel to a mathematical failure mode you learned in earlier chapters.</p>
+
+  <div class="note"><strong>Bridge from Ch.15.</strong> Ch.15 told you the loss <em>is</em> the negative log-likelihood under an assumed noise model. Ch.16 asks: once that loss is decreasing, is the <em>inside</em> of the model actually learning, or are most layers silently frozen while one does all the work? A single scalar cannot answer that; TensorBoard can.</p></div>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--tb);">Six panels &rarr; six diagnostics</h3>
+      <table style="font-size:.68rem;">
+        <tr><th>Panel</th><th>What it logs</th><th>Diagnoses</th></tr>
+        <tr><td><strong>Scalars</strong></td><td>loss, metrics per epoch</td><td>Underfit / overfit / LR too high</td></tr>
+        <tr><td><strong>Histograms</strong></td><td>weight &amp; gradient distributions</td><td>Vanishing / exploding gradients</td></tr>
+        <tr><td><strong>Distributions</strong></td><td>percentile ribbons of same data</td><td>Activation collapse, dead neurons</td></tr>
+        <tr><td><strong>Projector</strong></td><td>hidden-layer embeddings in 2D/3D</td><td>Feature quality (cluster separation)</td></tr>
+        <tr><td><strong>Images</strong></td><td>arbitrary tensors as images</td><td>Sample predictions, feature maps</td></tr>
+        <tr><td><strong>Profile</strong></td><td>GPU/CPU utilisation timeline</td><td>Training bottlenecks (dataloader, H2D)</td></tr>
+      </table>
+
+      <div class="box tint">
+        <h4>Why a loss curve is not enough</h4>
+        <p class="sm">Loss is an <em>aggregate</em> — $\mathcal L(\theta) = \tfrac{1}{n}\sum_i \ell(y_i,\hat y_i)$ collapses every gradient flow, every weight update, every representation into one number per epoch. Two <em>very</em> different models can produce the same curve: a healthy deep network and a shallow one whose first four layers are frozen. Histograms and the projector tell them apart in one glance.</p>
+      </div>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--tb);">Gradient flow — the math behind histograms</h3>
+      <div class="math-block">
+        $$\frac{\partial \mathcal L}{\partial \mathbf W^{(1)}} \;=\; \frac{\partial \mathcal L}{\partial \mathbf W^{(L)}} \cdot \prod_{k=2}^{L} \frac{\partial \mathbf h^{(k)}}{\partial \mathbf h^{(k-1)}}$$
+      </div>
+      <p class="sm">That product of $L-1$ Jacobians is why deep networks break. If each factor has operator norm $\approx 0.5$, the gradient at layer 1 is $0.5^{L-1}$ times the gradient at layer $L$ — exponentially small. TensorBoard's gradient histogram for layer 1 collapses to a spike at zero; layer $L$ stays wide. That visual <em>is</em> the vanishing-gradient problem.</p>
+
+      <div class="warn">
+        <strong>&#9888; Three failure signatures you can only see in histograms:</strong>
+        <ul class="sm" style="margin:4px 0 0 0;">
+          <li><strong>Vanishing:</strong> early-layer weight histogram does not change between epochs</li>
+          <li><strong>Exploding:</strong> gradient histogram widens without bound; $\|\nabla\|\to\infty$</li>
+          <li><strong>Dead ReLU:</strong> gradient histogram for a layer collapses to a delta at 0 by epoch 5 — and stays there</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="lock">
+    <strong>&#128274; The diagnostic question:</strong> "My loss is decreasing — is my model actually learning everywhere, or is one layer doing all the work?" Only TensorBoard's histograms and projector answer this. Interviewers who ask "how would you debug a stalled training run?" expect: <em>(1) check Scalars for LR or regularisation issues, (2) check Histograms for vanishing/exploding/dead signatures, (3) check Projector for collapsed representations, (4) then code.</em>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.16 PAGE 2 — CORE CONCEPT ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.16 &mdash; TENSORBOARD &middot; READING THE DASHBOARD</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--tb);">The Four Panels You Actually Use</h2>
+
+  <figure class="diagram">
+    <img src="img/ch16-tensorboard-dashboard.png" alt="Mock TensorBoard dashboard with Scalars, Histograms, Distributions, and Embedding Projector panels annotated with diagnostic cues" style="width:100%;border-radius:4px;"/>
+    <figcaption>Scalars reveal overfitting (run B's val curve climbs after epoch 25). Histograms show healthy weight drift per epoch — a flat ridge at epoch 1 would mean the layer is frozen. Distributions summarise the same data as percentile ribbons — symmetric around 0 = healthy gradient flow. The Projector confirms the final hidden layer separates classes — the learned representation is semantically meaningful.</figcaption>
+  </figure>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--tb);">Scalar curves — three shapes</h3>
+      <table style="font-size:.68rem;">
+        <tr><th>Shape</th><th>Diagnosis</th><th>Fix</th></tr>
+        <tr><td>train &darr; &nbsp; val &darr; &nbsp; small gap</td><td>Healthy</td><td>Keep going</td></tr>
+        <tr><td>train &darr; &nbsp; val &uarr; &nbsp; widening</td><td>Overfitting</td><td>Regularise, early-stop, more data</td></tr>
+        <tr><td>both flat / barely moving</td><td>Underfitting or bad LR</td><td>Increase capacity, raise LR, longer warmup</td></tr>
+        <tr><td>both spiky / diverging</td><td>LR too high, exploding grads</td><td>Lower LR, clip gradients</td></tr>
+        <tr><td>val drops then plateaus</td><td>LR too low in late phase</td><td>LR schedule (cosine / step decay)</td></tr>
+      </table>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--tb);">Histogram signatures</h3>
+      <div class="box tint">
+        <h4>Healthy weight histogram</h4>
+        <p class="sm">A roughly Gaussian distribution whose <em>centre and spread drift</em> between epochs. "Moving" is the key word — frozen histograms are the danger signal, not wide ones.</p>
+      </div>
+      <div class="box tint">
+        <h4>Vanishing gradient</h4>
+        <p class="sm">Early-layer histograms become visually identical across epochs 5 onwards. Gradient histograms for those layers are a sharp spike at zero. <strong>Fix:</strong> He init + ReLU, residual connections (Ch.7), batch norm (Ch.6).</p>
+      </div>
+      <div class="box tint">
+        <h4>Dead ReLU</h4>
+        <p class="sm">A spike at exactly zero in the gradient histogram for a <em>specific</em> layer. That layer's neurons output 0 on every example — no gradient can flow. <strong>Fix:</strong> LeakyReLU, lower LR, He init.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.16 PAGE 3 — WORKFLOW ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.16 &mdash; TENSORBOARD &middot; CALLBACK DIAL &amp; WORKFLOW</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--tb);">Instrumenting a Run — What to Turn On</h2>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--tb);">The TensorBoard callback dial</h3>
+      <table style="font-size:.67rem;">
+        <tr><th>Argument</th><th>Off / Low</th><th>Sweet spot</th><th>Too high</th></tr>
+        <tr><td><code>histogram_freq</code></td><td>0: no histograms</td><td>1 (every epoch)</td><td>per-batch &rarr; huge disk, no value</td></tr>
+        <tr><td><code>update_freq</code></td><td>'epoch' = one scalar/epoch</td><td>'epoch' for long runs</td><td>'batch' &rarr; floods Scalars UI</td></tr>
+        <tr><td><code>profile_batch</code></td><td>0: off</td><td>2 (skip warmup batch 1)</td><td>many batches &rarr; training slowdown</td></tr>
+        <tr><td><code>write_graph</code></td><td>False</td><td>True once, to verify</td><td>Re-logging every run: wasted I/O</td></tr>
+        <tr><td><code>embeddings_freq</code></td><td>0: no projector</td><td>5&ndash;10 epochs</td><td>1 &rarr; very slow; large payload</td></tr>
+      </table>
+
+      <div class="dial" style="margin-top:6px;">Rule of thumb &middot; scalars: epoch &middot; histograms: epoch &middot; profiler: batch 2 only</div>
+
+      <div class="box tint" style="margin-top:6px;">
+        <h4>One run = one subdirectory</h4>
+        <p class="sm">Write every run to <code>logs/run_YYYYMMDD_HHMMSS/</code>. If two runs share a directory, TensorBoard aggregates their curves and overlays become unreadable. Treating the log directory as <em>append-only</em> is the single most common mistake.</p>
+      </div>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--tb);">Triage workflow — 30 seconds per run</h3>
+      <ol class="sm">
+        <li><strong>Scalars first.</strong> Is val_loss still decreasing? Did it diverge from train_loss? If yes to either, stop here — the rest will not help until this is understood.</li>
+        <li><strong>Histograms, layer 1.</strong> Is the weight distribution different at epoch 1 vs epoch 20? If <em>no</em>, that layer is frozen — vanishing gradient. Investigate init and activations.</li>
+        <li><strong>Gradient histograms.</strong> Is every layer's gradient a symmetric blob around 0? A spike at 0 in any layer = dead neurons there.</li>
+        <li><strong>Projector, last hidden layer.</strong> Do classes cluster? If the embedding is one giant blob, the features are not discriminative — independent of what the loss says.</li>
+        <li><strong>Profile.</strong> Only if the first four are healthy and training is slow — identifies whether the bottleneck is GPU compute, data loading, or H2D transfer.</li>
+      </ol>
+
+      <div class="warn" style="margin-top:6px;">
+        <strong>&#9888; TensorBoard is not a debugger.</strong> It will not catch a shape mismatch, a wrong label pipeline, or an indexing bug. It diagnoses <em>training dynamics</em> once training runs. If your loss is <code>NaN</code> at step 0, open the code; do not open TensorBoard.
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.16 PAGE 4 — TF CODE ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.16 &mdash; TENSORBOARD &middot; TENSORFLOW IMPLEMENTATION</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--tb);">Instrumenting Ch.5's Training Loop</h2>
+
+  <div class="cols c21" style="gap:10px;">
+    <div class="flow">
+      <div class="code-block"><pre>import tensorflow as tf
+from tensorflow import keras
+import datetime, os, numpy as np
+
+# One timestamped subdirectory per run
+log_dir = 'logs/ch16_' + datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+
+tb_cb = keras.callbacks.TensorBoard(
+    log_dir        = log_dir,
+    histogram_freq = 1,        # weight + bias histograms/epoch
+    write_graph    = True,
+    update_freq    = 'epoch',  # avoid 'batch' in prod
+    profile_batch  = 0,        # '2,4' = profile batches 2..4
+)
+
+# Train (model = Ch.5's 3-layer Dense net)
+model.fit(X_tr, y_tr, validation_data=(X_va, y_va),
+          epochs=50, batch_size=256,
+          callbacks=[tb_cb], verbose=0)
+
+# Custom scalar — learning rate on its own tag
+writer = tf.summary.create_file_writer(log_dir + '/custom')
+class LRLogger(keras.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        with writer.as_default():
+            tf.summary.scalar('learning_rate',
+                self.model.optimizer.learning_rate.numpy(),
+                step=epoch)
+
+# Embedding Projector: hidden-layer activations
+emb = keras.Model(model.input,
+                  model.get_layer('hidden_3').output)
+Z = emb.predict(X_te[:500], verbose=0)          # (500, 16)
+pdir = os.path.join(log_dir, 'projector')
+os.makedirs(pdir, exist_ok=True)
+np.savetxt(os.path.join(pdir, 'feature_vecs.tsv'),
+           Z, delimiter='\t')
+with open(os.path.join(pdir, 'metadata.tsv'), 'w') as f:
+    f.write('MedHouseVal\n')
+    for v in y_te[:500, 0]:
+        f.write(f'{v:.3f}\n')
+
+# tensorboard --logdir logs/</pre></div>
+    </div>
+
+    <div class="flow">
+      <div class="box" style="border-top:3px solid var(--tb);">
+        <h4 style="color:var(--tb);">Chapter 16 &mdash; Core Checklist</h4>
+        <div class="cols c2" style="gap:4px;">
+          <ul class="sm">
+            <li>One run &rarr; one timestamped subdirectory</li>
+            <li><code>histogram_freq=1</code>, <code>update_freq='epoch'</code></li>
+            <li>Scalars: compare train vs val — shape of divergence</li>
+            <li>Histograms: weights should <em>move</em> every epoch</li>
+            <li>Gradients: spike at 0 = dead layer</li>
+          </ul>
+          <ul class="sm">
+            <li>Projector: load hidden-layer activations + metadata</li>
+            <li>Profiler: enable only to diagnose throughput</li>
+            <li>Custom scalars via <code>tf.summary.scalar(tag, v, step)</code></li>
+            <li>Never point two runs at the same log_dir</li>
+            <li>TB is for dynamics, not for code bugs</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="warn" style="margin-top:6px;">
+        <strong>&#9888; Disk and UI blow-ups.</strong> <code>update_freq='batch'</code> + 100k steps creates hundreds of thousands of scalar events per run; the UI lags and the event file swells. Use <code>'epoch'</code> by default; switch to <code>'batch'</code> only for a single short debug run.
+      </div>
+
+      <div class="bridge" style="margin-top:6px;">
+        <strong>TensorBoard &rarr; Sequences &amp; Attention (Ch.17)</strong><br>
+        <span class="sm">Instrumentation tells you <em>that</em> a layer is frozen — but why do deep sequence models freeze so easily? Ch.8's LSTM fought vanishing gradients with gating; Ch.17 shows the deeper fix: abandon recurrence entirely and let every position in a sequence look at every other position in parallel via <em>attention</em>. Before Ch.18's full transformer, we need one mental model — attention as a soft dictionary lookup — and three building blocks: dot-product similarity, differentiable softmax, and the QKV projection triangle.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.16 PAGE 5 — INTERVIEW ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.16 &mdash; TENSORBOARD &middot; INTERVIEW PREPARATION</div>
+<div class="flow">
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+
+      <div class="box sepia">
+        <h4>Q: Training loss is decreasing — how do you tell if the model is actually learning in every layer?</h4>
+        <p class="sm"><strong>A:</strong> Open the Histograms panel and compare the weight distribution for each layer at epoch 1 vs epoch $N$. In a healthy network, every layer's histogram shifts and spreads between epochs. If layer 1's histogram is indistinguishable from its epoch-1 shape, that layer is frozen — the gradient is vanishing before it reaches layer 1, even though the loss (driven by later layers) is still decreasing. Confirm by looking at the gradient histogram for that layer: a sharp spike at zero means no signal is flowing through. Loss alone cannot diagnose this because later layers can carry the loss down while early layers sit idle.</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: What does a "spike at zero" in a gradient histogram mean?</h4>
+        <p class="sm"><strong>A:</strong> The gradient w.r.t. that layer's weights is almost exactly zero for almost every example in the batch. Two common causes: (1) <em>dead ReLU</em> — the pre-activation of every neuron in the layer is negative for every input, so $\mathrm{ReLU}'=0$ and nothing propagates back; (2) <em>saturated sigmoid/tanh</em> — the activation has been pushed into its flat region by a too-high learning rate or bad initialisation. Fix: switch to LeakyReLU (keeps a small gradient for negative pre-activations), use He initialisation (scales variance correctly for ReLU), and lower the learning rate. Batch norm (Ch.6) also helps by re-centring activations.</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: Why never use <code>update_freq='batch'</code> in production?</h4>
+        <p class="sm"><strong>A:</strong> Two reasons. First, disk: a run with 10k steps writes one scalar event per step per metric, so a modest multi-metric run produces hundreds of thousands of events and hundreds of megabytes of log data. Second, UI: TensorBoard downsamples to render, but with that many points the Scalars view becomes laggy and noisy — any real signal is buried in batch-level noise. Epoch-level granularity is sufficient to diagnose all the patterns you actually care about (over/underfit, LR, divergence). Use <code>'batch'</code> only for a <em>single</em> short debug run (&lt;1000 steps) where you need to see a spike location precisely.</p>
+      </div>
+
+    </div>
+
+    <div class="flow">
+
+      <div class="box sepia">
+        <h4>Q: What is the Embedding Projector useful for, and how do you log to it?</h4>
+        <p class="sm"><strong>A:</strong> It answers "did the model learn a meaningful representation?" — independent of the loss. Take the activations of the last hidden layer on a held-out set, write them as a TSV of vectors plus a metadata TSV (labels or target values), and Projector will reduce them to 2D/3D via PCA or t-SNE in the browser. If the points of the same class cluster tightly and clusters are well-separated, the network has learned discriminative features. If everything is a single blob, you have a high-loss <em>and</em> a non-informative representation — consider capacity, regularisation, or data quality. This catches the failure mode where loss is low but features are degenerate (e.g. a collapsed embedding in contrastive learning).</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: When would you enable profiling?</h4>
+        <p class="sm"><strong>A:</strong> Only when training is <em>slow</em> and Scalars/Histograms show the model is otherwise healthy. Set <code>profile_batch=2</code> (or a small range like <code>'2,4'</code>) — batch 1 is warmup and should be excluded. Open the Profile tab to see the per-step timeline: if the GPU kernel bar is narrow and there are large gaps of CPU-side dataloader activity, your input pipeline is the bottleneck — use <code>tf.data.AUTOTUNE</code>, prefetching, and <code>cache()</code>. If kernel launches dominate, batch size is too small. If H2D (host-to-device) bars are long, move more preprocessing onto the GPU. Profiling more than a few batches adds measurable overhead — do it surgically.</p>
+      </div>
+
+      <div class="box tint">
+        <h4>Traps &amp; Assumptions</h4>
+        <ul class="sm">
+          <li><strong>Trap:</strong> Reusing the same log directory across runs — curves overlap and become unreadable. Timestamp every run.</li>
+          <li><strong>Trap:</strong> Interpreting TensorBoard as a debugger for code errors — it diagnoses dynamics, not bugs.</li>
+          <li><strong>Trap:</strong> Setting <code>histogram_freq=1</code> on a very large model (doubles per-epoch time due to extra forward passes over the data). Use 5 on big runs.</li>
+          <li><strong>Trap:</strong> Comparing Scalars across runs without matching LR schedules — the "better" curve may just be trained longer.</li>
+          <li><strong>Assumption:</strong> The Projector's t-SNE is stochastic; rerun with a different seed before concluding clusters are real.</li>
+        </ul>
+      </div>
+
+      <div class="lock">
+        <strong>&#128274; Bridge fact:</strong> TensorBoard exposes the <em>dynamics</em> of training. Every failure mode from Ch.5&ndash;Ch.7 (vanishing gradients, dead ReLUs, overfit) has a visual signature in one of the panels. Interviewers who ask "how would you debug a stalled training run?" expect the triage order: <em>Scalars &rarr; Histograms &rarr; Gradients &rarr; Projector &rarr; Profiler</em>.
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.17 SPLASH ═══════════════════════════ -->
+<div class="page" style="padding:0;">
+<div class="splash">
+  <svg viewBox="0 0 400 190" width="340" style="margin-bottom:1.1rem;">
+    <rect width="400" height="190" fill="#0d0d1a" rx="6"/>
+    <text x="200" y="14" text-anchor="middle" fill="#0e7490" font-size="8" font-weight="700" font-family="Georgia,serif" letter-spacing="1.5">ATTENTION IS A SOFT DICTIONARY LOOKUP</text>
+
+    <!-- Panel A: hard dict -->
+    <text x="60" y="30" text-anchor="middle" fill="#aaa" font-size="6.5" font-weight="700" font-family="Georgia,serif">HARD dict</text>
+    <rect x="20" y="36" width="80" height="62" rx="3" fill="#1a1a2a" stroke="#555" stroke-width=".7"/>
+    <text x="30" y="48" fill="#aaa" font-size="5.5" font-family="monospace">"apple"</text>
+    <text x="60" y="48" fill="#aaa" font-size="5.5" font-family="monospace">→</text>
+    <text x="78" y="48" fill="#f39c12" font-size="5.5" font-family="monospace">0.80</text>
+    <text x="30" y="60" fill="#555" font-size="5.5" font-family="monospace">"banana"</text>
+    <text x="60" y="60" fill="#555" font-size="5.5" font-family="monospace">→</text>
+    <text x="78" y="60" fill="#555" font-size="5.5" font-family="monospace">0.30</text>
+    <text x="30" y="72" fill="#555" font-size="5.5" font-family="monospace">"cherry"</text>
+    <text x="60" y="72" fill="#555" font-size="5.5" font-family="monospace">→</text>
+    <text x="78" y="72" fill="#555" font-size="5.5" font-family="monospace">2.50</text>
+    <line x1="25" y1="82" x2="95" y2="82" stroke="#555" stroke-width=".4"/>
+    <text x="60" y="92" text-anchor="middle" fill="#f39c12" font-size="6" font-family="Georgia,serif">one match → one value</text>
+
+    <!-- Arrow hard→soft -->
+    <text x="125" y="68" text-anchor="middle" fill="#aaa" font-size="8" font-weight="700">→</text>
+
+    <!-- Panel B: soft attention -->
+    <text x="200" y="30" text-anchor="middle" fill="#0e7490" font-size="6.5" font-weight="700" font-family="Georgia,serif">SOFT attention</text>
+    <rect x="150" y="36" width="100" height="62" rx="3" fill="#1a1a2a" stroke="#0e7490" stroke-width=".8"/>
+    <!-- bars representing weights -->
+    <rect x="158" y="46" width="60" height="4" fill="#0e7490" opacity=".9"/>
+    <text x="222" y="50" fill="#aaa" font-size="5" font-family="monospace">0.51 · v₁</text>
+    <rect x="158" y="54" width="20" height="4" fill="#0e7490" opacity=".5"/>
+    <text x="222" y="58" fill="#aaa" font-size="5" font-family="monospace">0.17 · v₂</text>
+    <rect x="158" y="62" width="12" height="4" fill="#0e7490" opacity=".4"/>
+    <text x="222" y="66" fill="#aaa" font-size="5" font-family="monospace">0.11 · v₃</text>
+    <rect x="158" y="70" width="8" height="4" fill="#0e7490" opacity=".3"/>
+    <text x="222" y="74" fill="#aaa" font-size="5" font-family="monospace">... Σ = 1</text>
+    <text x="200" y="92" text-anchor="middle" fill="#0e7490" font-size="6" font-family="Georgia,serif">all keys scored → blended value</text>
+
+    <!-- Panel C: QKV triangle -->
+    <text x="340" y="30" text-anchor="middle" fill="#e67e22" font-size="6.5" font-weight="700" font-family="Georgia,serif">Q · K · V</text>
+    <polygon points="340,38 295,92 385,92" fill="none" stroke="#e67e22" stroke-width="1"/>
+    <circle cx="340" cy="38" r="9" fill="#1a1a2a" stroke="#2E86C1" stroke-width="1.2"/>
+    <text x="340" y="41" text-anchor="middle" fill="#2E86C1" font-size="7" font-weight="700">Q</text>
+    <text x="340" y="30" text-anchor="middle" fill="#2E86C1" font-size="5" font-family="Georgia,serif">question</text>
+    <circle cx="295" cy="92" r="9" fill="#1a1a2a" stroke="#27ae60" stroke-width="1.2"/>
+    <text x="295" y="95" text-anchor="middle" fill="#27ae60" font-size="7" font-weight="700">K</text>
+    <text x="285" y="103" fill="#27ae60" font-size="5" font-family="Georgia,serif">label</text>
+    <circle cx="385" cy="92" r="9" fill="#1a1a2a" stroke="#8e44ad" stroke-width="1.2"/>
+    <text x="385" y="95" text-anchor="middle" fill="#8e44ad" font-size="7" font-weight="700">V</text>
+    <text x="378" y="103" fill="#8e44ad" font-size="5" font-family="Georgia,serif">payload</text>
+    <text x="340" y="117" text-anchor="middle" fill="#aaa" font-size="5" font-family="Georgia,serif">three projections, one input</text>
+
+    <!-- Footer: RNN vs attention speed -->
+    <text x="10" y="136" fill="#0e7490" font-size="7" font-weight="700" font-family="Georgia,serif">Why attention wins on GPUs</text>
+    <text x="10" y="148" fill="#aaa" font-size="6.3" font-family="Georgia,serif">RNN (Ch.8): token t+1 must wait for token t — O(T) sequential steps</text>
+    <text x="10" y="160" fill="#aaa" font-size="6.3" font-family="Georgia,serif">Attention (Ch.18): all positions attend to all positions in ONE parallel step</text>
+    <text x="10" y="178" fill="#e67e22" font-size="6.3" font-family="Georgia,serif">Cost: O(T²·d) — the quadratic that makes long contexts expensive but parallel</text>
+  </svg>
+  <div class="ctag">Chapter 17</div>
+  <h1 style="font-size:2.4rem;font-weight:900;letter-spacing:.05em;line-height:1.08;margin-bottom:.28em;color:#fff;">From Sequences<br>to Attention</h1>
+  <div style="font-size:.95rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.7em;font-weight:700;">DOT-PRODUCT &middot; SOFTMAX &middot; SOFT LOOKUP &middot; Q / K / V</div>
+  <p style="color:#aaa;max-width:120mm;font-size:.84rem;">Ch.8's LSTM fixed the vanishing gradient but paid with serialisation — token $t+1$ cannot start until token $t$ finishes. Ch.18's transformer throws that away and replaces recurrence with <em>attention</em>: a single differentiable operation that lets every position look directly at every other position, all at once. This bridge chapter is deliberately short — one mental model (soft dictionary lookup), three building blocks (dot-product similarity, softmax, Q/K/V projections), and the permutation-equivariance fact that forces Ch.18 to invent positional encoding.</p>
+  <div style="margin-top:.8rem;font-size:.7rem;color:#666;">dot-product similarity &middot; softmax temperature &middot; soft lookup &middot; self-attention &middot; Q = question &middot; K = label &middot; V = payload &middot; permutation equivariance</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.17 PAGE 1 — THE MATH ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.17 &mdash; FROM SEQUENCES TO ATTENTION &middot; THREE BUILDING BLOCKS</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn1);">Dot Product &middot; Softmax &middot; Soft Lookup</h2>
+  <p>Everything Ch.18 does — scaled dot-product attention, multi-head, self-attention, cross-attention — is an elaboration of <em>one</em> equation. Before we can appreciate transformers, we need the three ingredients that equation rests on.</p>
+
+  <div class="note"><strong>Bridge from Ch.16.</strong> Instrumentation told us <em>that</em> deep sequence models freeze easily — but why do they have to be deep in the first place? Because LSTMs process tokens one at a time. Attention removes the serial chain entirely, at the cost of a new dependency: every token looks at every other token, producing an explicit $T\times T$ weight matrix we can inspect directly.</p></div>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--attn1);">1. Dot product = similarity</h3>
+      <div class="math-block">
+        $$\mathbf{a}\cdot\mathbf{b} \;=\; \sum_{i=1}^{d} a_i\,b_i \;=\; \|\mathbf{a}\|\,\|\mathbf{b}\|\cos\theta$$
+      </div>
+      <p class="sm">Positive = aligned ("similar"). Zero = orthogonal ("unrelated"). Negative = opposed. If both vectors are unit-norm, the dot product <em>is</em> cosine similarity — the measure every attention mechanism is built on.</p>
+
+      <h3 style="color:var(--attn1);">2. Softmax = differentiable argmax</h3>
+      <div class="math-block">
+        $$\text{softmax}_\tau(s_i) \;=\; \frac{\exp(s_i/\tau)}{\sum_j \exp(s_j/\tau)}$$
+      </div>
+      <p class="sm">Converts any vector of scores into a probability distribution. Temperature $\tau$: as $\tau\to 0$ the distribution collapses to one-hot (hard argmax); as $\tau\to\infty$ it becomes uniform. Softmax is <em>differentiable everywhere</em> — argmax is not. That single fact is the only reason attention can be trained by gradient descent.</p>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--attn1);">3. Soft lookup</h3>
+      <div class="math-block">
+        $$\text{attend}(q;\{k_i\},\{v_i\}) \;=\; \sum_{i=1}^{n} \underbrace{\text{softmax}_i\!\left(\tfrac{q\cdot k_i}{\tau}\right)}_{w_i} \,v_i$$
+      </div>
+
+      <div class="box tint">
+        <h4>Three moves</h4>
+        <ol class="sm" style="margin:0;padding-left:18px;">
+          <li>Compare query $q$ to every key $k_i$ &rArr; $n$ scores.</li>
+          <li>Softmax those scores &rArr; $n$ weights summing to 1.</li>
+          <li>Return the weighted sum of the values $v_i$.</li>
+        </ol>
+        <p class="sm" style="margin-top:4px;">If one key matches much better than the rest, softmax concentrates almost all weight there and the soft lookup <em>becomes</em> hard. If several match, the output is a blend. That is the entire concept.</p>
+      </div>
+
+      <div class="warn" style="margin-top:6px;">
+        <strong>&#9888; Scores too big &rArr; softmax saturates.</strong> If $q\cdot k_i$ grows large (e.g. because $d$ is large and vectors are not normalised), softmax becomes essentially one-hot and the gradient vanishes. Ch.18's $\sqrt{d_k}$ denominator is exactly the $\tau$ from above &mdash; it keeps the softmax in its useful regime. Cosmetic? No. Essential.
+      </div>
+    </div>
+  </div>
+
+  <div class="lock">
+    <strong>&#128274; One-sentence definition:</strong> Attention is a softmax-weighted sum of values, where the weights come from comparing a query to every key. Ch.18's $\text{softmax}(QK^\top/\sqrt{d_k})V$ is this same equation written in matrix form with a variance-control denominator. Nothing more.
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.17 PAGE 2 — CORE CONCEPT ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.17 &mdash; FROM SEQUENCES TO ATTENTION &middot; HARD vs SOFT LOOKUP</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn1);">The Mental Model: Hard Dict &rarr; Soft Dict</h2>
+
+  <figure class="diagram">
+    <img src="img/ch17-soft-lookup.png" alt="Side-by-side comparison of a hard Python dict lookup that matches one key and returns one value, versus soft attention that scores every key, softmaxes the scores, and returns a weighted blend of all values" style="width:100%;border-radius:4px;"/>
+    <figcaption>Left: a Python dict does exact key matching — one key wins, one value returns, nothing is differentiable. Right: attention compares the query to <em>every</em> key, softmaxes the similarities into weights, and returns a weighted blend of <em>every</em> value. If one score dominates (here MedInc, weight 0.51) the output leans toward that value; if several are close, the output is a genuine mixture.</figcaption>
+  </figure>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--attn1);">Why "soft" is the right word</h3>
+      <p class="sm">A hard dict makes a binary decision per key: matches or not. That decision is non-differentiable — you cannot pass a gradient through an <code>if</code>. The softmax replaces the hard branch with a smooth interpolation: every key contributes, weighted by how well it matches. The output is never exactly one value &mdash; it is always a <em>convex combination</em> over all values.</p>
+
+      <div class="box tint">
+        <h4>From soft back to hard</h4>
+        <p class="sm">When the scores are very spread out ($q\cdot k_1 \gg q\cdot k_j$ for all $j\neq 1$), the softmax concentrates almost all mass on index 1 — the output is essentially $v_1$. This is "attention acting like a dictionary". When scores are close, the output is a true mixture. The <em>dial</em> between these two regimes is the softmax temperature / $\sqrt{d_k}$ factor.</p>
+      </div>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--attn1);">RNN vs attention</h3>
+      <table style="font-size:.68rem;">
+        <tr><th></th><th>RNN / LSTM (Ch.8)</th><th>Attention</th></tr>
+        <tr><td>Dependence</td><td>$h_t$ needs $h_{t-1}$</td><td>all positions parallel</td></tr>
+        <tr><td>Compute time</td><td>$O(T)$ sequential steps</td><td>$O(1)$ parallel step</td></tr>
+        <tr><td>Total FLOPs</td><td>$O(T\cdot d^2)$</td><td>$O(T^2\cdot d)$</td></tr>
+        <tr><td>Long-range links</td><td>fades across $T$ steps</td><td>one softmax hop</td></tr>
+        <tr><td>GPU fit</td><td>poor (serial)</td><td>excellent (matmul)</td></tr>
+      </table>
+      <p class="sm">The $T^2$ term is attention's one weakness — it is why a 100k-token context is expensive. But on modern GPUs, a big $T^2$ matmul still beats $T$ sequential cell updates for any realistic $T$.</p>
+
+      <div class="box tint">
+        <h4>Attention is set-valued</h4>
+        <p class="sm">If you shuffle the input tokens, the output tokens shuffle in the same order — attention is <em>permutation-equivariant</em>. "The dog bit the man" and "the man bit the dog" are identical to raw attention. That fact forces Ch.18 to inject position explicitly via <em>positional encoding</em>.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.17 PAGE 3 — QKV & WORKFLOW ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.17 &mdash; FROM SEQUENCES TO ATTENTION &middot; Q / K / V AND THE ATTENTION MATRIX</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn1);">Q, K, V &mdash; Three Roles, One Input</h2>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <p>Every transformer block takes one sequence of input embeddings and projects each token into three <em>different</em> roles via three learned weight matrices:</p>
+      <div class="math-block">
+        $$Q = X\,W_Q,\quad K = X\,W_K,\quad V = X\,W_V$$
+        $$\text{Attention}(Q,K,V) \;=\; \text{softmax}\!\left(\tfrac{Q K^\top}{\sqrt{d_k}}\right) V$$
+      </div>
+
+      <table style="font-size:.68rem;">
+        <tr><th>Symbol</th><th>Role</th><th>Analogy</th></tr>
+        <tr><td><strong style="color:#2E86C1;">Q — query</strong></td><td>what this token is looking for</td><td>the question I ask of the sequence</td></tr>
+        <tr><td><strong style="color:#27ae60;">K — key</strong></td><td>what this token advertises</td><td>the label I wear so others can find me</td></tr>
+        <tr><td><strong style="color:#8e44ad;">V — value</strong></td><td>what this token actually carries</td><td>the payload I deliver when selected</td></tr>
+      </table>
+
+      <div class="box tint">
+        <h4>Why three projections, not one?</h4>
+        <p class="sm">Using the same vector for $Q$, $K$, and $V$ forces "what I want" to equal "how I advertise" to equal "what I carry". That is rarely true: a token might <em>ask for</em> an adjective, <em>advertise itself</em> as a noun, and <em>carry</em> a specific lemma. Three learned projections decouple these roles — which is what makes attention an expressive learnable operator rather than a fixed similarity.</p>
+      </div>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--attn1);">The attention matrix</h3>
+      <p class="sm">The key object produced by a single attention layer is a $T\times T$ matrix of weights:</p>
+      <div class="code-block"><pre>            k1   k2   k3   k4
+         ┌──────────────────────┐
+    q1 → │ 0.70 0.10 0.10 0.10 │  row 1: distribution over all keys
+    q2 → │ 0.20 0.50 0.20 0.10 │
+    q3 → │ 0.10 0.30 0.40 0.20 │
+    q4 → │ 0.10 0.20 0.20 0.50 │
+         └──────────────────────┘
+         every row sums to 1</pre></div>
+      <p class="sm">Row $i$ is a probability distribution over keys: "when I am at position $i$, how much attention do I pay to each other position?" The matrix is <em>not</em> symmetric — position 1 attending to position 2 is not the same as position 2 attending to position 1 (different queries, different keys).</p>
+
+      <div class="warn" style="margin-top:6px;">
+        <strong>&#9888; Attention weights are not explanations.</strong> They tell you <em>where the model looked</em>, not <em>why it decided</em>. They are a useful diagnostic signal — do the weights concentrate sensibly? — but they are not a causal interpretation of the prediction.
+      </div>
+
+      <div class="dial" style="margin-top:6px;">Softmax temperature &middot; low &rArr; one-hot (gradient dies) &middot; $\sqrt{d_k}$ &middot; high &rArr; uniform (no info)</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.17 PAGE 4 — CODE + BRIDGE ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.17 &mdash; FROM SEQUENCES TO ATTENTION &middot; ATTENTION FROM FIRST PRINCIPLES</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn1);">30 Lines of NumPy — No Transformer Required</h2>
+
+  <div class="cols c21" style="gap:10px;">
+    <div class="flow">
+      <div class="code-block"><pre>import numpy as np
+
+def softmax(x, axis=-1):
+    x = x - x.max(axis=axis, keepdims=True)   # numerical stability
+    e = np.exp(x)
+    return e / e.sum(axis=axis, keepdims=True)
+
+def soft_lookup(q, keys, values, tau=1.0):
+    """Attention from first principles — one query."""
+    scores  = keys @ q / tau                  # (n_keys,)
+    weights = softmax(scores)                 # (n_keys,)
+    output  = weights @ values                # (d_value,)
+    return output, weights
+
+# 8 California-housing features as "tokens" in R^4.
+# (In Ch.18 these come from learned projections W_Q, W_K, W_V.)
+rng  = np.random.default_rng(42)
+feats = ["MedInc","HouseAge","AveRooms","AveBedrms",
+         "Population","AveOccup","Latitude","Longitude"]
+X    = rng.normal(size=(8, 4))               # (T=8, d=4)
+
+# Single-query soft lookup (query = MedInc)
+q      = X[0]
+out, w = soft_lookup(q, X, X)
+for name, wi in zip(feats, w):
+    print(f"{name:12s}  attention = {wi:.3f}")
+
+# Full self-attention (every token as its own query)
+def self_attention(X, tau=None):
+    d = X.shape[-1]
+    tau = tau or np.sqrt(d)                  # Ch.18 convention
+    scores = X @ X.T / tau                   # (T, T)
+    W      = softmax(scores, axis=-1)        # rows sum to 1
+    return W @ X, W                          # (T, d), (T, T)
+
+Y, A = self_attention(X)
+print("Attention matrix (rows sum to 1):\n", A.round(2))
+print("A.sum(axis=1) =", A.sum(axis=1))      # all 1.0</pre></div>
+    </div>
+
+    <div class="flow">
+      <div class="box" style="border-top:3px solid var(--attn1);">
+        <h4 style="color:var(--attn1);">Chapter 17 &mdash; Core Checklist</h4>
+        <div class="cols c2" style="gap:4px;">
+          <ul class="sm">
+            <li>Attention = softmax-weighted sum of values</li>
+            <li>Dot product measures similarity</li>
+            <li>Softmax = differentiable argmax</li>
+            <li>Temperature / $\sqrt{d_k}$ controls sharpness</li>
+            <li>Q, K, V are three <em>different</em> projections</li>
+          </ul>
+          <ul class="sm">
+            <li>Attention matrix is $T\times T$, rows sum to 1</li>
+            <li>Cost is $O(T^2 d)$ — the $T^2$ is the bottleneck</li>
+            <li>Attention is permutation-equivariant</li>
+            <li>&rArr; positional encoding is mandatory (Ch.18)</li>
+            <li>Weights show <em>where</em>, not <em>why</em></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="warn" style="margin-top:6px;">
+        <strong>&#9888; Sharing Q and K.</strong> A common beginner bug: using the same vector for both. The model can still train but loses expressiveness — it can only express "tokens attend to similar tokens", not the richer "token asking for X attends to token offering X". Always project $Q$, $K$, $V$ with <em>independent</em> weight matrices.
+      </div>
+
+      <div class="bridge" style="margin-top:6px;">
+        <strong>Soft Lookup &rarr; Transformers (Ch.18)</strong><br>
+        <span class="sm">You now have the <em>only</em> equation you need. Ch.18 takes this single soft-lookup, writes it in matrix form with the $\sqrt{d_k}$ variance control, stacks $h$ independent copies (multi-head), adds positional encoding to break permutation equivariance, sandwiches each attention block between a feed-forward network and a residual + LayerNorm, and stacks $N$ of those blocks. That is the entire transformer. Every new concept in Ch.18 maps back to a line of the code on the left.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.17 PAGE 5 — INTERVIEW ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.17 &mdash; FROM SEQUENCES TO ATTENTION &middot; INTERVIEW PREPARATION</div>
+<div class="flow">
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+
+      <div class="box sepia">
+        <h4>Q: Explain attention without writing $QK^\top/\sqrt{d_k}$.</h4>
+        <p class="sm"><strong>A:</strong> Attention is a soft dictionary lookup. You have a query, a set of keys, and a set of values. Instead of matching one key exactly (like a Python dict), you compute the similarity (dot product) between the query and <em>every</em> key, turn those similarities into weights with a softmax, and return the weighted average of <em>every</em> value. If one key matches much better than the rest, softmax concentrates the weight there and the result approximates a hard lookup; otherwise you get a principled blend. That is the entire mechanism — the transformer formula is just this written in matrix form with a variance-control factor.</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: Why softmax instead of argmax?</h4>
+        <p class="sm"><strong>A:</strong> Differentiability. Argmax is not differentiable — its derivative is zero almost everywhere and undefined at ties — so you cannot backpropagate through it. Softmax is smooth and differentiable everywhere, so the attention mechanism has a well-defined gradient with respect to the query and key projections. A secondary reason is that softmax preserves information: it assigns <em>some</em> weight to every key, so the model can recover from an imperfect initial alignment. Argmax would commit to one key per step and lose the signal from the rest. Without softmax there is no trainable attention.</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: Why do transformers need positional encoding?</h4>
+        <p class="sm"><strong>A:</strong> Because attention is permutation-equivariant. If you permute the input tokens, the output tokens are permuted <em>in exactly the same way</em> — the set of output representations does not change. Mathematically, attention operates on an unordered set; it has no built-in notion of "first" vs "second". For a sequence model this is fatal: "the dog bit the man" and "the man bit the dog" would produce the same representation. Positional encoding injects the index as an additive (or concatenated) signal to the token embedding so that position becomes part of what the model sees. Without it, the transformer loses order entirely.</p>
+      </div>
+
+    </div>
+
+    <div class="flow">
+
+      <div class="box sepia">
+        <h4>Q: Why three projections $W_Q, W_K, W_V$ and not one?</h4>
+        <p class="sm"><strong>A:</strong> Because the three roles — asking, advertising, and delivering — are genuinely different and need different linear subspaces. $W_Q$ projects the input into the space of "questions this token might ask"; $W_K$ into the space of "labels this token advertises"; $W_V$ into the space of "content this token contributes". Tying them (e.g. $W_Q=W_K$) forces the similarity to be symmetric and the attended content to equal the key — a severe restriction. With independent projections, a token can <em>ask for</em> an adjective while <em>advertising</em> as a noun while <em>carrying</em> its lemma. The three-matrix design is what makes attention a flexible learnable operator rather than a fixed similarity.</p>
+      </div>
+
+      <div class="box sepia">
+        <h4>Q: What is the computational cost of attention, and which term matters?</h4>
+        <p class="sm"><strong>A:</strong> $O(T^2 \cdot d)$ where $T$ is sequence length and $d$ is model dimension. The $T^2$ term is what matters — it comes from comparing every query to every key, i.e. computing the $T\times T$ attention matrix. Doubling context length quadruples compute <em>and</em> memory for the matrix; that is why long-context transformers are expensive. The $d$ factor is the per-dot-product cost; compared to $T^2$ it is usually modest. Approximations (sparse, linear, Performer, Longformer) trade some expressivity for sub-quadratic cost in $T$. Interviewers ask this because they want to hear you name $T^2$, not the FLOP count.</p>
+      </div>
+
+      <div class="box tint">
+        <h4>Traps &amp; Assumptions</h4>
+        <ul class="sm">
+          <li><strong>Trap:</strong> Describing attention as "it's like a database lookup" without naming the <em>blend</em> — output is a weighted sum over all values, not one value.</li>
+          <li><strong>Trap:</strong> Saying "softmax normalises" without naming differentiability — that is the whole reason it is used over argmax.</li>
+          <li><strong>Trap:</strong> Conflating $Q$ and $K$ because "they come from the same input" — they play different roles and live in different projected subspaces.</li>
+          <li><strong>Trap:</strong> Interpreting attention weights as causal explanations — they are a diagnostic, not a justification.</li>
+          <li><strong>Assumption:</strong> Permutation equivariance means pure attention is a <em>set</em> operator; the sequence-ness is <em>entirely</em> in positional encoding.</li>
+        </ul>
+      </div>
+
+      <div class="lock">
+        <strong>&#128274; Bridge fact:</strong> Ch.18's $\text{softmax}(QK^\top/\sqrt{d_k})V$ is the same equation as this chapter's soft lookup, written in matrix form. If you can explain soft lookup in one sentence, you can explain the transformer's attention in one sentence. Everything else in Ch.18 — multi-head, positional encoding, LayerNorm, residuals — is infrastructure around this single operator.
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.18 SPLASH ═══════════════════════════ -->
+<div class="page" style="padding:0;">
+<div class="splash">
+  <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:520px;margin-bottom:1.1rem;">
+    <defs>
+      <linearGradient id="ch18grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#3730a3"/>
+        <stop offset="1" stop-color="#0e7490"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="400" height="220" fill="url(#ch18grad)" opacity="0.08"/>
+
+    <!-- Panel A: scaled dot-product attention matrix -->
+    <text x="70" y="18" text-anchor="middle" fill="#3730a3" font-size="7" font-weight="700" font-family="Georgia,serif">softmax( QKᵀ / √dₖ ) · V</text>
+    <g font-family="monospace" font-size="5" fill="#aaa">
+      <rect x="20" y="24" width="14" height="10" fill="#3730a3" opacity=".85"/><rect x="34" y="24" width="14" height="10" fill="#3730a3" opacity=".35"/><rect x="48" y="24" width="14" height="10" fill="#3730a3" opacity=".15"/><rect x="62" y="24" width="14" height="10" fill="#3730a3" opacity=".25"/><rect x="76" y="24" width="14" height="10" fill="#3730a3" opacity=".12"/><rect x="90" y="24" width="14" height="10" fill="#3730a3" opacity=".18"/>
+      <rect x="20" y="34" width="14" height="10" fill="#3730a3" opacity=".30"/><rect x="34" y="34" width="14" height="10" fill="#3730a3" opacity=".80"/><rect x="48" y="34" width="14" height="10" fill="#3730a3" opacity=".22"/><rect x="62" y="34" width="14" height="10" fill="#3730a3" opacity=".40"/><rect x="76" y="34" width="14" height="10" fill="#3730a3" opacity=".17"/><rect x="90" y="34" width="14" height="10" fill="#3730a3" opacity=".10"/>
+      <rect x="20" y="44" width="14" height="10" fill="#3730a3" opacity=".18"/><rect x="34" y="44" width="14" height="10" fill="#3730a3" opacity=".26"/><rect x="48" y="44" width="14" height="10" fill="#3730a3" opacity=".72"/><rect x="62" y="44" width="14" height="10" fill="#3730a3" opacity=".45"/><rect x="76" y="44" width="14" height="10" fill="#3730a3" opacity=".13"/><rect x="90" y="44" width="14" height="10" fill="#3730a3" opacity=".09"/>
+      <rect x="20" y="54" width="14" height="10" fill="#3730a3" opacity=".12"/><rect x="34" y="54" width="14" height="10" fill="#3730a3" opacity=".20"/><rect x="48" y="54" width="14" height="10" fill="#3730a3" opacity=".35"/><rect x="62" y="54" width="14" height="10" fill="#3730a3" opacity=".78"/><rect x="76" y="54" width="14" height="10" fill="#3730a3" opacity=".16"/><rect x="90" y="54" width="14" height="10" fill="#3730a3" opacity=".11"/>
+      <rect x="20" y="64" width="14" height="10" fill="#3730a3" opacity=".08"/><rect x="34" y="64" width="14" height="10" fill="#3730a3" opacity=".12"/><rect x="48" y="64" width="14" height="10" fill="#3730a3" opacity=".20"/><rect x="62" y="64" width="14" height="10" fill="#3730a3" opacity=".18"/><rect x="76" y="64" width="14" height="10" fill="#3730a3" opacity=".82"/><rect x="90" y="64" width="14" height="10" fill="#3730a3" opacity=".30"/>
+      <rect x="20" y="74" width="14" height="10" fill="#3730a3" opacity=".07"/><rect x="34" y="74" width="14" height="10" fill="#3730a3" opacity=".13"/><rect x="48" y="74" width="14" height="10" fill="#3730a3" opacity=".14"/><rect x="62" y="74" width="14" height="10" fill="#3730a3" opacity=".22"/><rect x="76" y="74" width="14" height="10" fill="#3730a3" opacity=".28"/><rect x="90" y="74" width="14" height="10" fill="#3730a3" opacity=".76"/>
+    </g>
+    <text x="70" y="94" text-anchor="middle" fill="#aaa" font-size="5.2" font-family="Georgia,serif">T × T attention map — every position attends to every other</text>
+
+    <!-- Panel B: Multi-head parallelism -->
+    <text x="200" y="18" text-anchor="middle" fill="#0e7490" font-size="7" font-weight="700" font-family="Georgia,serif">H heads in parallel</text>
+    <g stroke="#0e7490" stroke-width="0.8" fill="none">
+      <rect x="155" y="24" width="30" height="20"/><text x="170" y="37" text-anchor="middle" fill="#0e7490" font-size="5.5" font-family="Georgia,serif">head₁</text>
+      <rect x="190" y="24" width="30" height="20"/><text x="205" y="37" text-anchor="middle" fill="#0e7490" font-size="5.5" font-family="Georgia,serif">head₂</text>
+      <rect x="225" y="24" width="30" height="20"/><text x="240" y="37" text-anchor="middle" fill="#0e7490" font-size="5.5" font-family="Georgia,serif">head₃</text>
+    </g>
+    <text x="205" y="55" text-anchor="middle" fill="#aaa" font-size="5.2" font-family="Georgia,serif">each learns a different relationship</text>
+    <line x1="170" y1="60" x2="205" y2="70" stroke="#0e7490" stroke-width="0.7"/>
+    <line x1="205" y1="44" x2="205" y2="70" stroke="#0e7490" stroke-width="0.7"/>
+    <line x1="240" y1="60" x2="205" y2="70" stroke="#0e7490" stroke-width="0.7"/>
+    <rect x="170" y="70" width="70" height="14" fill="none" stroke="#27ae60" stroke-width="0.9"/>
+    <text x="205" y="80" text-anchor="middle" fill="#27ae60" font-size="5.8" font-family="Georgia,serif">Concat · Wᴼ</text>
+    <text x="205" y="96" text-anchor="middle" fill="#aaa" font-size="5.2" font-family="Georgia,serif">back to dₘₒdₑₗ</text>
+
+    <!-- Panel C: Positional wave -->
+    <text x="340" y="18" text-anchor="middle" fill="#e67e22" font-size="7" font-weight="700" font-family="Georgia,serif">Positional encoding</text>
+    <g stroke-width="0.9" fill="none">
+      <path d="M 290,60 Q 297,42 304,60 T 318,60 T 332,60 T 346,60 T 360,60 T 374,60 T 388,60" stroke="#e67e22"/>
+      <path d="M 290,72 Q 300,60 310,72 T 330,72 T 350,72 T 370,72 T 390,72" stroke="#8e44ad" opacity="0.75"/>
+      <path d="M 290,82 Q 312,70 334,82 T 378,82" stroke="#2E86C1" opacity="0.65"/>
+    </g>
+    <text x="340" y="96" text-anchor="middle" fill="#aaa" font-size="5.2" font-family="Georgia,serif">sin/cos at different frequencies &rarr; unique signature per pos</text>
+
+    <!-- Bottom: full encoder block -->
+    <text x="200" y="120" text-anchor="middle" fill="#3730a3" font-size="7.5" font-weight="700" font-family="Georgia,serif">One Encoder Block</text>
+    <g font-family="Georgia,serif" font-size="5.5" fill="#ddd">
+      <rect x="30" y="128" width="340" height="14" fill="#1a1a2a" stroke="#3730a3" stroke-width="0.7"/>
+      <text x="40" y="138" fill="#aaa">X (T, dₘ)</text>
+      <text x="110" y="138" fill="#3730a3">&rarr; LayerNorm</text>
+      <text x="175" y="138" fill="#0e7490">&rarr; MultiHead-Attention</text>
+      <text x="285" y="138" fill="#27ae60">&rarr; + residual</text>
+
+      <rect x="30" y="146" width="340" height="14" fill="#1a1a2a" stroke="#3730a3" stroke-width="0.7"/>
+      <text x="40" y="156" fill="#aaa">X</text>
+      <text x="110" y="156" fill="#3730a3">&rarr; LayerNorm</text>
+      <text x="175" y="156" fill="#0e7490">&rarr; FFN (4·dₘ, ReLU, dₘ)</text>
+      <text x="285" y="156" fill="#27ae60">&rarr; + residual</text>
+    </g>
+    <text x="200" y="174" text-anchor="middle" fill="#3730a3" font-size="6" font-family="Georgia,serif">Stack N of these &rarr; encoder. Add a causal mask &rarr; decoder. That is a transformer.</text>
+    <text x="200" y="192" text-anchor="middle" fill="#e67e22" font-size="6.3" font-family="Georgia,serif">Complexity: O(T² · d) &middot; parallelisable across T &middot; no recurrence</text>
+  </svg>
+  <div class="ctag">Chapter 18</div>
+  <h1 style="font-size:2.4rem;font-weight:900;letter-spacing:.05em;line-height:1.08;margin-bottom:.28em;color:#fff;">Transformers<br>&amp; Attention</h1>
+  <div style="font-size:.95rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.7em;font-weight:700;">SCALED DOT-PRODUCT &middot; MULTI-HEAD &middot; POSITIONAL ENCODING</div>
+  <p style="color:#aaa;max-width:120mm;font-size:.84rem;">Ch.17 established attention as a soft dictionary lookup. This chapter dresses that one mechanism up into the <em>transformer</em> — the architecture inside every LLM, every embedding model, every image foundation model in use today. Learned $W_Q, W_K, W_V$ projections, a $\sqrt{d_k}$ denominator to keep softmax gradients healthy, $H$ heads running in parallel so the model sees several relationship patterns at once, sinusoidal positional encoding to inject order, and residual + LayerNorm + FFN sub-layers. As of 2017 this replaced RNNs for nearly every sequence task.</p>
+  <div style="margin-top:.8rem;font-size:.7rem;color:#666;">scaled dot-product &middot; √d<sub>k</sub> variance control &middot; multi-head &middot; positional encoding &middot; residual &middot; LayerNorm &middot; encoder vs decoder &middot; O(T²d)</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.18 PAGE 1 — THE MATH ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.18 &mdash; TRANSFORMERS &middot; SCALED DOT-PRODUCT + MULTI-HEAD</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn2);">From Soft Lookup to Learned Attention</h2>
+  <p>Ch.17's soft-lookup equation $\sum_i \text{softmax}(q\cdot k_i/\tau)\,v_i$ assumed $q, k_i, v_i$ were given. Transformers learn them. Given an input sequence $\mathbf{X}\in\mathbb{R}^{T\times d_\text{model}}$, three projection matrices turn every token into its own query, key, and value:</p>
+
+  <div class="math-block">
+    $$\mathbf{Q} = \mathbf{X}\,\mathbf{W}^Q, \quad \mathbf{K} = \mathbf{X}\,\mathbf{W}^K, \quad \mathbf{V} = \mathbf{X}\,\mathbf{W}^V$$
+  </div>
+
+  <p class="sm">$\mathbf{W}^Q,\mathbf{W}^K\in\mathbb{R}^{d_\text{model}\times d_k}$, $\mathbf{W}^V\in\mathbb{R}^{d_\text{model}\times d_v}$. So $\mathbf{Q},\mathbf{K}\in\mathbb{R}^{T\times d_k}$ and $\mathbf{V}\in\mathbb{R}^{T\times d_v}$. These are the only new learned parameters — attention itself has no weights.</p>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--attn2);">Scaled dot-product attention</h3>
+      <div class="math-block">
+        $$\text{Attention}(\mathbf{Q},\mathbf{K},\mathbf{V}) \;=\; \text{softmax}\!\left(\frac{\mathbf{Q}\,\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}$$
+      </div>
+      <p class="sm">$\mathbf{Q}\mathbf{K}^\top\in\mathbb{R}^{T\times T}$ is the matrix of raw similarity scores between <em>every</em> pair of positions. Row-wise softmax turns each row into a distribution over positions; multiplying by $\mathbf{V}$ produces, for each query, a weighted average of all values.</p>
+
+      <div class="warn">
+        <strong>&#9888; Why $\sqrt{d_k}$?</strong> If $q$ and $k$ have components with variance 1, their dot product has variance $d_k$. As $d_k$ grows, dot products grow too, pushing softmax into a near-one-hot regime where its derivative is ~0 &mdash; gradients vanish. Dividing by $\sqrt{d_k}$ holds the variance at 1. This is Ch.17's temperature $\tau$ with a principled value.
+      </div>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--attn2);">Multi-head: run it $H$ times in parallel</h3>
+      <div class="math-block">
+        $$\text{head}_h \;=\; \text{Attention}(\mathbf{X}\mathbf{W}^Q_h,\,\mathbf{X}\mathbf{W}^K_h,\,\mathbf{X}\mathbf{W}^V_h)$$
+        $$\text{MultiHead}(\mathbf{X}) \;=\; \text{Concat}(\text{head}_1,\ldots,\text{head}_H)\,\mathbf{W}^O$$
+      </div>
+      <p class="sm">Each head has its own small projections of width $d_k=d_v=d_\text{model}/H$. Concatenating gives $H\cdot d_v = d_\text{model}$, and $\mathbf{W}^O\in\mathbb{R}^{d_\text{model}\times d_\text{model}}$ mixes the heads back. Total attention parameter count: $4\,d_\text{model}^2$ (one $d_\text{model}\times d_\text{model}$ matrix per Q/K/V/O when $d_k=d_\text{model}/H$).</p>
+
+      <div class="box tint">
+        <h4>Why <em>multiple</em> heads?</h4>
+        <p class="sm" style="margin:0;">One softmax distribution can only emphasise <em>one</em> pattern per query. With $H$ heads, the model can track $H$ relationship types at once — e.g. one head follows syntactic dependencies, another tracks co-reference, a third anchors to a pivot feature.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="lock">
+    <strong>&#128274; One-line summary:</strong> Learn three projections of the input ($Q,K,V$), compute $\text{softmax}(QK^\top/\sqrt{d_k})V$, do that $H$ times in parallel with different projections, concatenate, project with $W^O$. That is multi-head self-attention — the only truly new operation in a transformer.
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.18 PAGE 2 — MULTI-HEAD ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.18 &mdash; TRANSFORMERS &middot; MULTI-HEAD SPECIALISATION</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn2);">Each Head Looks at a Different Relationship</h2>
+
+  <figure class="diagram">
+    <img src="img/ch18-multi-head-attention.png" alt="Left: structural diagram of H parallel attention heads each with their own W_Q, W_K, W_V, feeding into a concat and final W_O output projection. Right: three toy 8×8 attention heatmaps on California Housing features illustrating that head 1 attends along feature-family pairs, head 2 anchors every query to Lat/Long, head 3 anchors every query to MedInc." style="width:100%;border-radius:4px;"/>
+    <figcaption>Left: <em>one</em> input sequence fans out into $H$ independent attention heads, each with its own small Q/K/V projections; the heads' outputs are concatenated and projected back to $d_\text{model}$ by $\mathbf{W}^O$. Right: three toy heads on 8 California-Housing features, each learning a different pattern — feature-family pairing, a geographic anchor, and an income anchor. The final output carries all three views simultaneously.</figcaption>
+  </figure>
+
+  <div class="cols c21" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--attn2);">Parameter budget</h3>
+      <p class="sm">For $d_\text{model}=512, H=8$, each head has $d_k=64$. Attention parameters:</p>
+      <div class="math-block" style="font-size:.75rem;">
+        $$H\!\cdot\!3(d_\text{model}\,d_k) + d_\text{model}^2 \;=\; 8\!\cdot\!3\!\cdot\!(512\!\cdot\!64) + 512^2 \approx 1.05\text{M}$$
+      </div>
+      <p class="sm">Roughly 1 M parameters for one multi-head attention block — less than one FFN sub-layer of the same block.</p>
+
+      <h3 style="color:var(--attn2);">Encoder vs decoder: one mask</h3>
+      <p class="sm">Add $\mathbf{M}$ to the scaled scores before softmax: $M_{ij}=0$ if $j\le i$, $-\infty$ otherwise. An upper-triangular $-\infty$ mask reduces softmax to lower-triangular weights — future positions get zero attention. That single line is the entire BERT-vs-GPT architectural distinction.</p>
+    </div>
+
+    <div class="flow">
+      <div class="box sepia">
+        <h4>Reading an attention map</h4>
+        <ul class="sm" style="margin:0;padding-left:18px;">
+          <li><strong>Row</strong> = query position ("I am this token, who do I look at?")</li>
+          <li><strong>Column</strong> = key position ("this token is being attended to")</li>
+          <li><strong>Diagonal heavy</strong> = self-loop / identity-like head</li>
+          <li><strong>Column heavy</strong> = anchor head (everyone looks here)</li>
+          <li><strong>Block diagonal</strong> = segment / family head</li>
+        </ul>
+      </div>
+
+      <div class="dial">
+        <strong>Dial: $H$.</strong> Too low (1–2) &rArr; a single pattern dominates. Sweet spot: $H\in\{4,8,16\}$, with $d_\text{model}/H$ a nice divisor. Too high &rArr; each head gets too few channels to be useful. Doubling $d_\text{model}$ is usually a better lever than doubling $H$.
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.18 PAGE 3 — POSITIONAL ENCODING ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.18 &mdash; TRANSFORMERS &middot; POSITIONAL ENCODING</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn2);">Attention is Permutation-Equivariant &mdash; Fix It By Adding Position</h2>
+
+  <p class="sm">Shuffle the input tokens and multi-head attention's output shuffles identically — the mechanism has no inherent notion of order. We inject position by <em>adding</em> a $(T, d_\text{model})$ positional-encoding vector to the token embeddings <em>before</em> the first attention layer:</p>
+
+  <div class="math-block">
+    $$\text{PE}_{(pos,\,2i)} = \sin\!\left(\tfrac{pos}{10000^{2i/d_\text{model}}}\right), \quad \text{PE}_{(pos,\,2i+1)} = \cos\!\left(\tfrac{pos}{10000^{2i/d_\text{model}}}\right)$$
+  </div>
+
+  <figure class="diagram">
+    <img src="img/ch18-positional-encoding.png" alt="Left: heatmap of the PE matrix for T=64, d_model=128, showing sinusoidal bands that go from fast oscillation at low dimensions to slow oscillation at high dimensions. Right: four individual dimensions plotted across positions, illustrating frequencies ranging from one cycle per few positions to less than one cycle across the whole sequence." style="width:100%;border-radius:4px;"/>
+    <figcaption>Each column of the PE matrix oscillates at a different frequency. Low-index dimensions change quickly (fine-grained position signal); high-index dimensions change slowly (coarse, long-range signal). The right panel shows four dimensions plotted as curves: the model can combine them to represent any position uniquely and interpolate to lengths it was never trained on.</figcaption>
+  </figure>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="box tint">
+      <h4>Why sinusoidal?</h4>
+      <ul class="sm" style="margin:0;padding-left:18px;">
+        <li>Deterministic &mdash; zero extra parameters.</li>
+        <li>Every position has a unique signature (no collisions).</li>
+        <li>Relative position $\text{PE}(pos+k)$ is a <em>linear</em> function of $\text{PE}(pos)$ &mdash; attention can learn to attend at fixed offsets.</li>
+        <li>Extrapolates to sequence lengths unseen in training.</li>
+      </ul>
+    </div>
+
+    <div class="box sepia">
+      <h4>Modern alternatives</h4>
+      <ul class="sm" style="margin:0;padding-left:18px;">
+        <li><strong>Learned PE</strong> (BERT, early GPT) &mdash; a trainable $(T_\text{max}, d_\text{model})$ table. Simpler, often better, but capped at training length.</li>
+        <li><strong>RoPE</strong> (Llama, most modern LLMs) &mdash; rotates $Q$ and $K$ by a position-dependent angle; encodes <em>relative</em> position directly inside attention.</li>
+        <li><strong>ALiBi</strong> (BLOOM) &mdash; adds a linear distance bias to the attention scores; cheap and length-extrapolation-friendly.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="lock">
+    <strong>&#128274; Principle:</strong> Position is <em>not</em> free in attention. Some injection mechanism — additive, rotary, or bias — is mandatory. The exact choice is a modern engineering dial, not a fundamental requirement. Understand the sinusoidal form; assume learned or RoPE in production.
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.18 PAGE 4 — CODE + BRIDGE ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.18 &mdash; TRANSFORMERS &middot; ENCODER BLOCK IN KERAS</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn2);">One Encoder Block &mdash; Attention + FFN + Residual &times; 2</h2>
+
+  <div class="code-block"><pre><code>import tensorflow as tf
+from tensorflow.keras import layers, Input, Model
+
+def encoder_block(d_model=64, num_heads=4, ffn_dim=256, dropout=0.1):
+    """Pre-norm encoder block: LN &rarr; MHA &rarr; +res; LN &rarr; FFN &rarr; +res."""
+    inp = Input(shape=(None, d_model))          # (T, d_model)
+
+    # --- sub-layer 1: multi-head self-attention ---
+    x = layers.LayerNormalization(epsilon=1e-6)(inp)
+    x = layers.MultiHeadAttention(
+            num_heads=num_heads,
+            key_dim=d_model // num_heads,       # d_k per head
+            dropout=dropout)(x, x)              # self-attention: Q = K = V = x
+    x = layers.Add()([inp, x])                  # residual 1
+
+    # --- sub-layer 2: position-wise feed-forward ---
+    z = layers.LayerNormalization(epsilon=1e-6)(x)
+    z = layers.Dense(ffn_dim, activation='relu')(z)   # expand to 4 &times; d_model
+    z = layers.Dropout(dropout)(z)
+    z = layers.Dense(d_model)(z)                      # project back
+    out = layers.Add()([x, z])                        # residual 2
+    return Model(inp, out, name='EncoderBlock')</code></pre></div>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="note">
+      <strong>Checklist before you train.</strong>
+      <ul class="sm" style="margin:.2em 0;padding-left:18px;">
+        <li>Added positional encoding to inputs before the first block? (Keras' <code>MultiHeadAttention</code> won't do it for you.)</li>
+        <li>$d_\text{model}$ divisible by $H$?</li>
+        <li>FFN hidden dim = $4\,d_\text{model}$? (Canonical &mdash; don't deviate without reason.)</li>
+        <li>Residual connections present both times? Missing one &rArr; training diverges.</li>
+        <li>LayerNorm, <em>not</em> BatchNorm. LN is per-token, so it handles variable sequence lengths.</li>
+        <li>LR warmup (linear over 5&ndash;10% of steps) &mdash; plain constant LR blows up early training.</li>
+      </ul>
+    </div>
+
+    <div class="tip">
+      <strong>Tip &mdash; pre-norm vs post-norm.</strong> The original Vaswani paper used <em>post</em>-norm (norm <em>after</em> the residual add). Modern transformers use <em>pre</em>-norm (norm <em>before</em> MHA / FFN, as above). Pre-norm is dramatically more stable and often trains without warmup. Default to it.
+    </div>
+  </div>
+
+  <div class="bridge">
+    <strong>&rarr; Ch.19:</strong> Transformers have $\sim 8$ dials before you even look at the training recipe &mdash; $d_\text{model}$, $H$, $N$ layers, FFN ratio, dropout, warmup, schedule, weight decay. Which one do you turn first? In what order? How much does each matter? That is exactly what Ch.19 (Hyperparameter Tuning) formalises.
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.18 PAGE 5 — INTERVIEW Q&A ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.18 &mdash; TRANSFORMERS &middot; INTERVIEW PLAYBOOK</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--attn2);">Interview Q&amp;A</h2>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="box sepia">
+      <h4>Q1. Why divide by $\sqrt{d_k}$?</h4>
+      <p class="sm">Dot products of $d_k$-dim vectors with unit-variance components have variance $d_k$. Without scaling, scores grow with $d_k$ and softmax saturates — the derivative collapses and gradients through attention vanish. Dividing by $\sqrt{d_k}$ holds the score variance at 1 regardless of head width.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q2. Why multiple heads instead of one big head?</h4>
+      <p class="sm">A single softmax distribution can only concentrate on one pattern per query. Multi-head runs $H$ smaller attentions in parallel, each able to specialise in a different relationship (syntactic, co-reference, anchor, etc.). It is the same parameter budget as one giant head, sliced into $H$ independent projections and then mixed with $W^O$.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q3. Why residual + LayerNorm?</h4>
+      <p class="sm">Residuals let gradients flow around attention and FFN sub-layers, preventing vanishing gradients in deep stacks — the same trick as ResNet (Ch.7). LayerNorm normalises across the feature dimension per token, which is scale-invariant to batch size <em>and</em> to sequence length — unlike BatchNorm.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q4. Why is positional encoding needed?</h4>
+      <p class="sm">Self-attention is permutation-equivariant — shuffle inputs, outputs shuffle identically. The model has no ordering signal. PE (sinusoidal, learned, RoPE, or ALiBi) injects it. Without PE, "the dog bit the man" and "the man bit the dog" are indistinguishable.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q5. What is the encoder/decoder distinction, architecturally?</h4>
+      <p class="sm">One line of code: add an upper-triangular $-\infty$ mask to the attention scores. That's it. Encoder (BERT-style) sees the full sequence; decoder (GPT-style) sees only past positions and is trained with next-token prediction.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q6. What is attention's complexity?</h4>
+      <p class="sm">Time and memory are $O(T^2\cdot d)$ — quadratic in sequence length because $QK^\top$ is $T\times T$. This is why context windows are expensive. FlashAttention recomputes softmax on tiles to reduce memory to $O(T)$ without changing the output; it is the main reason 100k+ context is affordable.</p>
+    </div>
+  </div>
+
+  <div class="box tint" style="margin-top:6px;">
+    <h4>Traps &amp; assumptions</h4>
+    <ul class="sm" style="margin:0;padding-left:18px;">
+      <li><strong>Trap:</strong> Using BatchNorm instead of LayerNorm — breaks under variable-length batches and small batches.</li>
+      <li><strong>Trap:</strong> Dropping the $\sqrt{d_k}$ — training is unstable as $d_k$ grows.</li>
+      <li><strong>Trap:</strong> Forgetting positional encoding &mdash; the model silently becomes a set encoder; no error is thrown.</li>
+      <li><strong>Assumption:</strong> $d_\text{model}\bmod H = 0$. Frameworks often enforce this; home-grown code often forgets.</li>
+      <li><strong>Assumption:</strong> Pre-norm is the modern default. Post-norm needs aggressive warmup and careful init to train at all.</li>
+    </ul>
+  </div>
+
+  <div class="lock">
+    <strong>&#128274; One-sentence chapter:</strong> A transformer is $N$ stacked pre-norm blocks, each one multi-head self-attention + feed-forward, with positional encoding added to the input and a single $-\infty$ causal mask turning an encoder into a decoder. Every elaboration since 2017 — FlashAttention, RoPE, GQA, mixture-of-experts — is an optimisation of one of these ingredients, not a replacement for them.
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.19 SPLASH ═══════════════════════════ -->
+<div class="page" style="padding:0;">
+<div class="splash">
+  <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:520px;margin-bottom:1.1rem;">
+    <defs>
+      <linearGradient id="ch19grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#F39C12"/>
+        <stop offset="1" stop-color="#8e44ad"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="400" height="220" fill="url(#ch19grad)" opacity="0.08"/>
+
+    <!-- Panel A: LR loss curves (too low / right / too high) -->
+    <text x="70" y="18" text-anchor="middle" fill="#F39C12" font-size="7" font-weight="700" font-family="Georgia,serif">Learning rate &mdash; the first dial</text>
+    <g fill="none" stroke-width="1.1">
+      <path d="M 20,70 Q 55,65 100,60 T 130,58" stroke="#2E86C1"/>
+      <path d="M 20,70 Q 45,45 70,38 T 130,35" stroke="#27ae60"/>
+      <path d="M 20,70 Q 35,42 55,60 T 80,40 T 110,70 T 130,30" stroke="#e74c3c"/>
+    </g>
+    <text x="135" y="60" fill="#2E86C1" font-size="5.2" font-family="Georgia,serif">too low</text>
+    <text x="135" y="38" fill="#27ae60" font-size="5.2" font-family="Georgia,serif">sweet spot</text>
+    <text x="135" y="32" fill="#e74c3c" font-size="5.2" font-family="Georgia,serif">too high</text>
+    <text x="20" y="88" fill="#aaa" font-size="5.2" font-family="Georgia,serif">epoch &rarr;</text>
+    <text x="10" y="40" fill="#aaa" font-size="5.2" font-family="Georgia,serif" transform="rotate(-90 10 40)">loss</text>
+
+    <!-- Panel B: dial stack -->
+    <text x="265" y="18" text-anchor="middle" fill="#F39C12" font-size="7" font-weight="700" font-family="Georgia,serif">In this order</text>
+    <g font-family="Georgia,serif" font-size="5.5">
+      <rect x="215" y="24" width="100" height="9" fill="none" stroke="#F39C12" stroke-width="0.7"/>
+      <text x="220" y="31" fill="#fff">1 &middot; learning rate</text>
+      <rect x="215" y="34" width="100" height="9" fill="none" stroke="#e67e22" stroke-width="0.7"/>
+      <text x="220" y="41" fill="#ddd">2 &middot; batch size</text>
+      <rect x="215" y="44" width="100" height="9" fill="none" stroke="#e67e22" stroke-width="0.7"/>
+      <text x="220" y="51" fill="#ddd">3 &middot; optimiser</text>
+      <rect x="215" y="54" width="100" height="9" fill="none" stroke="#2E86C1" stroke-width="0.7"/>
+      <text x="220" y="61" fill="#ddd">4 &middot; init</text>
+      <rect x="215" y="64" width="100" height="9" fill="none" stroke="#8e44ad" stroke-width="0.7"/>
+      <text x="220" y="71" fill="#ddd">5 &middot; depth / width</text>
+      <rect x="215" y="74" width="100" height="9" fill="none" stroke="#27ae60" stroke-width="0.7"/>
+      <text x="220" y="81" fill="#ddd">6 &middot; regularisation</text>
+      <rect x="215" y="84" width="100" height="9" fill="none" stroke="#1F3A5F" stroke-width="0.7"/>
+      <text x="220" y="91" fill="#ddd">7 &middot; more data</text>
+    </g>
+
+    <!-- Panel C: bias-variance -->
+    <text x="200" y="116" text-anchor="middle" fill="#F39C12" font-size="7" font-weight="700" font-family="Georgia,serif">Every tune answers one question: bias or variance?</text>
+    <g font-family="Georgia,serif" font-size="5.8" fill="#ddd">
+      <rect x="60" y="126" width="100" height="30" fill="none" stroke="#e74c3c" stroke-width="0.9"/>
+      <text x="110" y="138" text-anchor="middle" fill="#e74c3c">High bias</text>
+      <text x="110" y="148" text-anchor="middle" fill="#aaa">training loss &uarr;</text>
+      <text x="110" y="154" text-anchor="middle" fill="#aaa">bigger model, more epochs</text>
+
+      <rect x="240" y="126" width="100" height="30" fill="none" stroke="#8e44ad" stroke-width="0.9"/>
+      <text x="290" y="138" text-anchor="middle" fill="#8e44ad">High variance</text>
+      <text x="290" y="148" text-anchor="middle" fill="#aaa">gap between train &amp; val</text>
+      <text x="290" y="154" text-anchor="middle" fill="#aaa">more data, reg, smaller model</text>
+    </g>
+    <text x="200" y="172" text-anchor="middle" fill="#27ae60" font-size="6.3" font-family="Georgia,serif">Small gap &middot; both losses low &rarr; ship it.</text>
+    <text x="200" y="192" text-anchor="middle" fill="#F39C12" font-size="6.3" font-family="Georgia,serif">Change ONE dial &middot; re-run on validation &middot; attribute the delta &middot; repeat</text>
+  </svg>
+  <div class="ctag">Chapter 19</div>
+  <h1 style="font-size:2.4rem;font-weight:900;letter-spacing:.05em;line-height:1.08;margin-bottom:.28em;color:#fff;">Hyperparameter<br>Tuning</h1>
+  <div style="font-size:.95rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.7em;font-weight:700;">WHICH DIAL &middot; HOW FAR &middot; IN WHAT ORDER</div>
+  <p style="color:#aaa;max-width:120mm;font-size:.84rem;">You now have every piece — a neural network (Ch.4), backprop and optimisers (Ch.5), regularisation (Ch.6), loss functions (Ch.15), and the transformer (Ch.18). Time to pick numbers. This chapter is the decision guide: which knob, what it does, which direction to turn it, in what order, and how to tell whether a change actually helped or was noise.</p>
+  <div style="margin-top:.8rem;font-size:.7rem;color:#666;">learning rate &middot; batch size &middot; optimiser &middot; init &middot; depth &middot; width &middot; dropout &middot; weight decay &middot; schedule &middot; loss &middot; data &middot; grid / random / Bayesian search</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.19 PAGE 1 — THE MATH ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.19 &mdash; HYPERPARAMETER TUNING &middot; THE FIRST DIAL IS LEARNING RATE</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--gold);">Learning Rate, Noise, and the Two Rules That Matter</h2>
+
+  <p class="sm">A model's <em>parameters</em> ($W,b$) are <em>learned</em> from data. A model's <em>hyperparameters</em> are <em>chosen</em> before training begins and define <em>how</em> learning happens. Among them, one dial dominates:</p>
+
+  <div class="math-block">
+    $$\mathbf{W}_{t+1} \;=\; \mathbf{W}_t \;-\; \eta \, g_t$$
+  </div>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="flow">
+      <h3 style="color:var(--gold);">Rule 1 &mdash; LR-range test</h3>
+      <p class="sm">Start at $\eta=10^{-7}$, multiply by $1.1$ every step, and plot loss vs $\log\eta$. Pick $\eta$ one order of magnitude <em>below</em> the loss-curve minimum — where the loss is still dropping sharply, but not yet erratic.</p>
+
+      <div class="box tint">
+        <h4>Good starting values</h4>
+        <ul class="sm" style="margin:0;padding-left:18px;">
+          <li>SGD: $\eta = 10^{-2}$</li>
+          <li>SGD + momentum ($\mu=0.9$): $\eta = 10^{-2}$</li>
+          <li>Adam / AdamW: $\eta = 10^{-3}$</li>
+          <li>Transformers: $\eta = 10^{-4}$ with linear warmup</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow">
+      <h3 style="color:var(--gold);">Rule 2 &mdash; linear scaling with batch</h3>
+      <p class="sm">Gradient noise scales as $1/\sqrt{B}$. If you multiply batch size by $k$, multiply the learning rate by $k$ too — up to the point where the large-batch LR becomes unstable. Beyond that, you need warmup.</p>
+
+      <div class="math-block" style="font-size:.85rem;">
+        $$\text{grad noise} \;\propto\; \frac{1}{\sqrt{B}} \qquad \Rightarrow \qquad \eta_\text{new} \;=\; k \cdot \eta_\text{old}$$
+      </div>
+
+      <div class="warn">
+        <strong>&#9888; Trap.</strong> A 1024+ batch gives smooth gradients and converges to <em>sharp</em> minima that generalise worse. If you need the throughput, pair it with a schedule and extra regularisation.
+      </div>
+    </div>
+  </div>
+
+  <div class="lock">
+    <strong>&#128274; Principle.</strong> 90% of "this architecture doesn't work" is a bad learning rate. Tune $\eta$ first, second, and third. Then tune everything else with $\eta$ already at a good value.
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.19 PAGE 2 — CORE CONCEPT ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.19 &mdash; HYPERPARAMETER TUNING &middot; DIAL PRIORITY</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--gold);">The Tuning Order</h2>
+
+  <figure class="diagram">
+    <img src="img/ch19-tune-order.png" alt="Ten-row priority table of hyperparameter dials, ranked top-to-bottom by tuning order: learning rate (sensitivity 5/5), batch size (3/5), optimiser (3/5), weight init (2/5), depth and width (4/5), dropout (3/5), weight decay (3/5), LR schedule and warmup (2/5), loss function (n/a), more data (5/5). Each row shows a first-pass default and what the dial trades off." style="width:100%;border-radius:4px;"/>
+    <figcaption>Ten dials, ranked by the order you should touch them. Higher bar = higher leverage per unit of tuning effort. Loss isn't tuned — it's <em>chosen</em> to match the noise model of your target. More data is always the strongest lever on variance, but it's the most expensive to acquire — so plot a learning curve first (§3.10) before collecting more.</figcaption>
+  </figure>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="box sepia">
+      <h4>Bias vs variance decision</h4>
+      <ul class="sm" style="margin:0;padding-left:18px;">
+        <li><strong>Training loss high.</strong> High bias &mdash; underfitting. Bigger model, more epochs, better features, <em>less</em> regularisation.</li>
+        <li><strong>Training low, val high.</strong> High variance &mdash; overfitting. More data &raquo; augmentation &raquo; dropout &raquo; weight decay &raquo; smaller model.</li>
+        <li><strong>Both low, small gap.</strong> Ship it.</li>
+      </ul>
+    </div>
+
+    <div class="dial">
+      <strong>One tune at a time.</strong> Change a single dial, retrain on identical data splits, compare validation score. Changing two at once destroys attribution — you cannot tell which one caused the improvement (or the regression). Seed variance is ~1% on most problems; a change smaller than 1–2% is noise.
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.19 PAGE 3 — SEARCH STRATEGIES ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.19 &mdash; HYPERPARAMETER TUNING &middot; SEARCH STRATEGIES</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--gold);">How To Explore The Space &mdash; Without Burning the Budget</h2>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="box tint">
+      <h4>Grid search</h4>
+      <p class="sm" style="margin:0;">Tries every combination on a regular lattice. For $k$ dials with $n$ values each: $n^k$ runs. Wastes budget sweeping dials that barely matter. Fine for 1&ndash;2 dials, terrible beyond.</p>
+    </div>
+
+    <div class="box tint">
+      <h4>Random search</h4>
+      <p class="sm" style="margin:0;">Samples each dial independently from its prior (log-uniform for LR and WD, categorical for optimiser). 5&ndash;10&times; more efficient than grid in high dimensions — because most dials don't matter and random search doesn't over-sample them.</p>
+    </div>
+
+    <div class="box tint">
+      <h4>Bayesian / TPE</h4>
+      <p class="sm" style="margin:0;">Fits a surrogate $P(\text{loss}\mid\text{hyperparams})$ and proposes the next point with the highest expected improvement. Needs the fewest trials — essential when a single training run costs hours (Optuna, Hyperopt, Vizier).</p>
+    </div>
+
+    <div class="box tint">
+      <h4>Population-based training</h4>
+      <p class="sm" style="margin:0;">A population of models trains in parallel; periodically, low-performers copy the weights <em>and</em> hyperparams of high-performers, then perturb. Best at huge scale where re-starting a run is prohibitively expensive.</p>
+    </div>
+  </div>
+
+  <div class="cols c21" style="gap:8px;margin-top:4px;">
+    <div class="box sepia">
+      <h4>What can go wrong</h4>
+      <ul class="sm" style="margin:0;padding-left:18px;">
+        <li><strong>Tuning on the test set.</strong> Every selection you make by looking at test scores leaks information — the test number is optimistic. Tune on a validation split; touch the test set once.</li>
+        <li><strong>Over-fitting the validation set.</strong> 1000 random-search trials will produce a "best" by chance alone. Hold out a final test fold.</li>
+        <li><strong>Ignoring seed variance.</strong> Re-run the top-3 candidates with 3+ seeds and compare <em>distributions</em>, not single numbers.</li>
+        <li><strong>Changing multiple dials.</strong> The causal attribution is gone the moment you do.</li>
+      </ul>
+    </div>
+
+    <div class="warn">
+      <strong>Early stopping = free.</strong> Always monitor validation loss and stop when it hasn't improved for patience 10&ndash;20 epochs. Combined with a schedule, it makes "how many epochs?" a non-question. It also protects you against over-fitting during long random searches.
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.19 PAGE 4 — CODE + BRIDGE ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.19 &mdash; HYPERPARAMETER TUNING &middot; CODE</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--gold);">Random Search With Optuna</h2>
+
+  <div class="code-block"><pre><code>import optuna
+from sklearn.datasets import fetch_california_housing
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neural_network import MLPRegressor
+from sklearn.metrics import r2_score
+
+X, y = fetch_california_housing(return_X_y=True)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)
+sc = StandardScaler().fit(X_tr); X_tr, X_te = sc.transform(X_tr), sc.transform(X_te)
+
+def objective(trial):
+    lr    = trial.suggest_float("lr", 1e-5, 1e-1, log=True)          # most sensitive
+    width = trial.suggest_categorical("width", [32, 64, 128, 256])   # power-of-two
+    depth = trial.suggest_int("depth", 1, 5)
+    alpha = trial.suggest_float("alpha", 1e-6, 1e-2, log=True)       # sklearn L2
+    bs    = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
+
+    model = MLPRegressor(
+        hidden_layer_sizes=tuple([width] * depth),
+        activation="relu", solver="adam",
+        learning_rate_init=lr, alpha=alpha, batch_size=bs,
+        early_stopping=True, n_iter_no_change=10,
+        max_iter=200, random_state=42)
+    model.fit(X_tr, y_tr)
+    return r2_score(y_te, model.predict(X_te))
+
+study = optuna.create_study(direction="maximize")
+study.optimize(objective, n_trials=40, show_progress_bar=True)
+print("best R&sup2;:", study.best_value); print("best params:", study.best_params)</code></pre></div>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="note">
+      <strong>Checklist before you sweep.</strong>
+      <ul class="sm" style="margin:.2em 0;padding-left:18px;">
+        <li>Priors log-uniform for LR and weight decay; categorical for optimiser, width, batch.</li>
+        <li>Dedicated validation fold &mdash; never the test fold.</li>
+        <li>Early stopping enabled on every trial.</li>
+        <li>Fixed seed per trial (but vary it for the final re-run).</li>
+        <li>Budget planned: random-search 20&ndash;40 trials, then Bayesian-refine top region with another 10&ndash;20.</li>
+      </ul>
+    </div>
+
+    <div class="tip">
+      <strong>Practical recipe.</strong> Baseline &rarr; LR-range test &rarr; pick batch &rarr; check capacity (bigger? smaller?) &rarr; add regularisation &rarr; add schedule &rarr; plot learning-curve-vs-dataset-size &rarr; <em>only then</em> sweep architecture. Most teams tune architecture far too early, before their LR is even correct.
+    </div>
+  </div>
+
+  <div class="bridge">
+    <strong>&rarr; The end of <em>Neural Chronicles</em>.</strong> You now have the full stack: from a single neuron (Ch.1&ndash;4), through optimisation and regularisation (Ch.5&ndash;6), the three canonical architectures (CNN, RNN/LSTM, Ch.7&ndash;8), evaluation and sequences (Ch.9&ndash;14), MLE, instrumentation, attention, transformers (Ch.15&ndash;18), and the tuning recipe that brings them all together (Ch.19). The remaining books go beyond: <em>ML Chronicles</em> deepens the classical side; <em>Multimodal Chronicles</em> extends to vision-language and diffusion; <em>Multi-Agent Chronicles</em> puts these models in conversation with each other. But everything that follows sits on this foundation.
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ CH.19 PAGE 5 — INTERVIEW Q&A ═══════════════════════════ -->
+<div class="page">
+<div class="ch-nav">CH.19 &mdash; HYPERPARAMETER TUNING &middot; INTERVIEW PLAYBOOK</div>
+<div class="flow">
+
+  <h2 style="border-color:var(--gold);">Interview Q&amp;A</h2>
+
+  <div class="cols c2" style="gap:8px;">
+    <div class="box sepia">
+      <h4>Q1. Which hyperparameter has the highest leverage, and why?</h4>
+      <p class="sm">Learning rate. It directly controls step size; too low &rArr; training crawls, too high &rArr; divergence. An LR-range test finds a good one in minutes; no other dial has that short a feedback loop.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q2. Grid vs random vs Bayesian &mdash; when to use which?</h4>
+      <p class="sm">1–2 dials &rarr; grid is fine. 3–8 dials on a cheap model &rarr; random search. Expensive runs (transformer pre-training) &rarr; Bayesian (Optuna TPE). Huge scale with parallel resources &rarr; population-based training.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q3. How do you know overfitting, not underfitting?</h4>
+      <p class="sm">Look at the gap. Training loss low, validation loss high and rising &rArr; overfitting &rArr; regularise / more data. Both losses high and flat &rArr; underfitting &rArr; bigger model, better features, or train longer. The gap, not the absolute numbers, is the diagnostic.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q4. Linear LR scaling — what, when, why?</h4>
+      <p class="sm">If you multiply batch size by $k$, multiply learning rate by $k$. Rationale: gradient noise scales as $1/\sqrt{B}$, so bigger batches give smoother gradients and a bigger step is safe. Breaks at very large batch, where you also need warmup.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q5. Why might more data not help?</h4>
+      <p class="sm">If you are bias-limited (train loss already high), collecting more of the same data keeps the ceiling the same. The fix is a bigger model, better features, or longer training. More data is only the fix for high <em>variance</em>, not high <em>bias</em>.</p>
+    </div>
+
+    <div class="box sepia">
+      <h4>Q6. Why not just tune every dial at once?</h4>
+      <p class="sm">Attribution. Changing two dials and getting a 2% gain tells you nothing — you don't know which dial earned the gain, or whether they partially cancelled. Change one, measure, attribute, repeat. Budget permitting, run 3+ seeds before declaring a winner, because seed variance is typically ~1%.</p>
+    </div>
+  </div>
+
+  <div class="box tint" style="margin-top:6px;">
+    <h4>Traps &amp; assumptions</h4>
+    <ul class="sm" style="margin:0;padding-left:18px;">
+      <li><strong>Trap:</strong> Tuning depth and width before finding a good LR &mdash; 90% of the time that's the real problem.</li>
+      <li><strong>Trap:</strong> Looking at the test set to pick hyperparams. Every peek leaks. Hold it out and touch it once.</li>
+      <li><strong>Trap:</strong> Treating random-search's "best" as the best. On 500 trials, 5 look great by chance. Re-run the top candidates with fresh seeds.</li>
+      <li><strong>Assumption:</strong> Your validation set is representative of your test / deployment distribution. If not, tuning optimises for the wrong target.</li>
+      <li><strong>Assumption:</strong> Early stopping is always on. Disabling it is almost never correct.</li>
+    </ul>
+  </div>
+
+  <div class="lock">
+    <strong>&#128274; Closing principle.</strong> Hyperparameter tuning is a <em>process</em>, not a product: baseline &rarr; LR-range test &rarr; batch / optimiser / init &rarr; capacity check &rarr; regularisation &rarr; schedule &rarr; data. One dial at a time, validation set only, multiple seeds at the end. That loop is what separates a working model from one that just compiles.
+  </div>
 
 </div>
 </div>
