@@ -191,33 +191,26 @@
   <polyline points="790,435 880,495 925,525 970,550 1060,570 1150,550 1195,525 1240,495 1330,435"
     fill="none" stroke="#1E8449" stroke-width="2.5" stroke-dasharray="10,5"/>
 
-  <!-- Hinge: max(0,1-y*yhat). Assume y=1 so L=max(0,1-yhat). yhat=ŷ=e+y=e+1 here treat e as yhat-y, so yhat=e+1 -->
-  <!-- Actually let's treat x-axis as ŷ (predicted score) with y=1 (true). L=max(0,1-ŷ) -->
-  <!-- ŷ=e+1 mapped: e=-3->ŷ=-2, L=max(0,1-(-2))=3, e=-2->ŷ=-1,L=2, e=-1->ŷ=0,L=1, e=0->ŷ=1,L=0, e=1->ŷ=2,L=0, e=2,3->L=0 -->
-  <!-- y=570-L*40 -->
-  <!-- (790,570-3*40=450)(880,570-2*40=490)(970,570-1*40=530)(1060,570-0=570)(1150,570)(1240,570)(1330,570) -->
-  <polyline points="790,450 880,490 970,530 1060,570 1150,570 1240,570 1330,570"
-    fill="none" stroke="#8E44AD" stroke-width="2.5" stroke-dasharray="5,5"/>
+  <!-- Hinge loss removed from this plot: its natural axis is the margin y·ŷ, not the regression residual ŷ−y. See ch11 (SVM) for the correct margin-based plot. -->
 
   <!-- Legend -->
-  <rect x="1070" y="115" width="280" height="130" rx="8" fill="#F8F9FA" stroke="#BDC3C7" stroke-width="1"/>
-  <text x="1210" y="135" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C3E50">Legend</text>
+  <rect x="1070" y="115" width="280" height="110" rx="8" fill="#F8F9FA" stroke="#BDC3C7" stroke-width="1"/>
+  <text x="1210" y="135" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C3E50">Legend (regression losses)</text>
   <line x1="1085" y1="154" x2="1125" y2="154" stroke="#2E86C1" stroke-width="3"/>
   <text x="1135" y="159" font-size="11" fill="#333">MSE — squared (parabola)</text>
   <line x1="1085" y1="177" x2="1125" y2="177" stroke="#E67E22" stroke-width="3"/>
   <text x="1135" y="182" font-size="11" fill="#333">MAE — absolute (V-shape)</text>
   <line x1="1085" y1="200" x2="1125" y2="200" stroke="#1E8449" stroke-width="2.5" stroke-dasharray="8,4"/>
   <text x="1135" y="205" font-size="11" fill="#333">Huber — hybrid</text>
-  <line x1="1085" y1="223" x2="1125" y2="223" stroke="#8E44AD" stroke-width="2.5" stroke-dasharray="5,4"/>
-  <text x="1135" y="228" font-size="11" fill="#333">Hinge — SVM</text>
 
   <!-- Annotations on curves -->
   <text x="1290" y="205" font-size="10" fill="#2E86C1" font-style="italic">Penalises outliers</text>
   <text x="1290" y="225" font-size="10" fill="#2E86C1" font-style="italic">heavily</text>
   <text x="1295" y="445" font-size="10" fill="#E67E22" font-style="italic">Robust to</text>
   <text x="1295" y="460" font-size="10" fill="#E67E22" font-style="italic">outliers</text>
-  <text x="793" y="428" font-size="10" fill="#8E44AD" font-style="italic">Zero loss when</text>
-  <text x="793" y="442" font-size="10" fill="#8E44AD" font-style="italic">correct &amp; confident</text>
+  <text x="780" y="260" font-size="10" fill="#8E44AD" font-style="italic">Hinge loss uses the margin</text>
+  <text x="780" y="274" font-size="10" fill="#8E44AD" font-style="italic">axis y·ŷ — not ŷ−y.</text>
+  <text x="780" y="288" font-size="10" fill="#8E44AD" font-style="italic">See ch11 (SVM).</text>
 
   <!-- Comparison table below plot -->
   <text x="1060" y="625" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C3E50">Quick Comparison</text>

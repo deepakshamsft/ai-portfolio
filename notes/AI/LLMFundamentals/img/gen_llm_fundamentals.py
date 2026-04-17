@@ -12,7 +12,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 import numpy as np
 
-plt.xkcd(scale=0.8, length=100, randomness=2)
+# Gentle xkcd: keep sketchy look but keep text legible (no stroke outlines).
+plt.xkcd(scale=0.3, length=100, randomness=1)
+plt.rcParams["path.effects"] = []
 
 fig = plt.figure(figsize=(18, 11), facecolor="white")
 fig.suptitle("LLM Fundamentals", fontsize=22, fontweight="bold", y=0.98)

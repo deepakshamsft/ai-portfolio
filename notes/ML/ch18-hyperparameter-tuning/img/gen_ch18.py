@@ -11,7 +11,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-plt.xkcd(scale=0.7, length=100, randomness=2)
+# Gentle xkcd: keep sketchy look but keep text legible (no stroke outlines).
+plt.xkcd(scale=0.3, length=100, randomness=1)
+plt.rcParams["path.effects"] = []
 
 fig = plt.figure(figsize=(20, 16), facecolor="white")
 fig.suptitle("Hyperparameter Tuning — What Each Dial Does",
@@ -191,22 +193,20 @@ mse = x ** 2
 mae = np.abs(x)
 huber = np.where(np.abs(x) < 1, 0.5 * x ** 2, np.abs(x) - 0.5)
 
-# cross entropy vs predicted prob (for y=1)
-p_axis = np.linspace(0.01, 0.99, 200)
-ce = -np.log(p_axis)
-
-ax.plot(x, mse, color=BLUE, lw=2, label="MSE (reg.)")
-ax.plot(x, mae, color=ORANGE, lw=2, label="MAE (reg., robust)")
+ax.plot(x, mse, color=BLUE, lw=2, label="MSE")
+ax.plot(x, mae, color=ORANGE, lw=2, label="MAE (robust)")
 ax.plot(x, huber, color=GREEN, lw=2, label="Huber (mix)")
-ax.plot((p_axis - 0.5) * 6, ce, color=RED, lw=2, ls="--",
-        label="cross-entropy (cls)")
-ax.set_title("06 · Loss functions", fontsize=13, fontweight="bold", color=DARK, pad=8)
-ax.set_xlabel("residual  (or  p̂ rescaled)")
+ax.set_title("06 · Regression loss functions", fontsize=13, fontweight="bold", color=DARK, pad=8)
+ax.set_xlabel("residual  ŷ − y")
 ax.set_ylabel("loss")
 ax.set_xlim(-3, 3)
 ax.set_ylim(0, 6)
 ax.legend(loc="upper center", fontsize=8)
-annotate(ax, "MSE: smooth, outlier-sensitive\nMAE: robust, non-smooth\nCE: use for probabilities",
+annotate(ax,
+         "MSE: smooth, outlier-sensitive\n"
+         "MAE: robust, non-smooth\n"
+         "Classification losses (CE, hinge)\n"
+         "live on p̂ / margin axes — see ch15",
          loc=(0.02, 0.98))
 
 # ═════════════════════════════════════════════════════════════════
