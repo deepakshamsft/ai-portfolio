@@ -14,6 +14,16 @@
 :root {
   --kai:#0984e3; --oracle:#6c5ce7; --gini:#00b894; --knight:#c0392b;
   --bag:#e67e22; --boost:#e91e63; --alc:#1abc9c; --gate:#ff5722;
+  /* deep-learning arc characters (Ch.11–Ch.19) */
+  --seer:#3498db;     /* young Oracle / Linear Regression */
+  --judge:#8e44ad;    /* Judge-Priest / Logistic Regression */
+  --riddle:#d35400;   /* Puzzle Box / XOR */
+  --council:#2980b9;  /* Council of Oracles / Neural Networks */
+  --forge:#b7410e;    /* Forge-Smith / Backprop */
+  --monk:#555d50;     /* Monk of Restraint / Regularisation */
+  --scribe:#16a085;   /* Scribe of Patterns / CNNs */
+  --keeper:#f39c12;   /* Keepers of Memory / RNNs */
+  --herald:#4a1c80;   /* Parliament of Heralds / Transformers */
   --gold:#f1c40f; --ink:#1a1a2e; --paper:#f5f0e8; --panel:#fff;
   --gutter:6px; --radius:4px;
 }
@@ -138,6 +148,15 @@ body{background:var(--ink);font-family:'Georgia',serif;color:#222;}
 .spk.alc{color:var(--alc);}
 .spk.gate{color:var(--gate);}
 .spk.db{color:#9b59b6;}
+.spk.seer{color:var(--seer);}
+.spk.judge{color:var(--judge);}
+.spk.riddle{color:var(--riddle);}
+.spk.council{color:var(--council);}
+.spk.forge{color:var(--forge);}
+.spk.monk{color:var(--monk);}
+.spk.scribe{color:var(--scribe);}
+.spk.keeper{color:var(--keeper);}
+.spk.herald{color:var(--herald);}
 
 /* ── SFX ── */
 .sfx{
@@ -222,7 +241,8 @@ p{font-size:.78rem;line-height:1.5;margin:.3em 0;}
     <h2>The Pattern Codex</h2>
     <p class="sub">
       Kai investigates the world's hidden structure — one algorithm at a time.<br><br>
-      KNN · Decision Trees · Ensembles · SVM · Clustering · DBSCAN · Feature Engineering · Evaluation · Activations
+      <strong style="color:#ddd;">Classical arc:</strong> KNN · Decision Trees · Ensembles · SVM · Clustering · DBSCAN · Feature Engineering · Evaluation · Activations<br>
+      <strong style="color:#ddd;">Deep-learning arc:</strong> Linear &amp; Logistic Regression · XOR · Neural Networks · Backprop &amp; Optimisers · Regularisation · CNNs · RNNs · Transformers
     </p>
     <div style="margin-top:2em;font-size:.7rem;color:#666;letter-spacing:.15em;">LEARN ML THROUGH STORY</div>
   </div>
@@ -256,6 +276,15 @@ p{font-size:.78rem;line-height:1.5;margin:.3em 0;}
         <div><span class="ava">⚗️</span><p class="center small bold" style="color:var(--alc);">THE ALCHEMIST</p><p class="center small">Feature Engineering</p></div>
         <div><span class="ava">⚖️</span><p class="center small bold" style="color:#888;">THE JUDGES</p><p class="center small">Evaluation Metrics</p></div>
         <div><span class="ava">⚡</span><p class="center small bold" style="color:var(--gate);">GATE KEEPER</p><p class="center small">Activation Functions</p></div>
+        <div><span class="ava">📏</span><p class="center small bold" style="color:var(--seer);">THE YOUNG SEER</p><p class="center small">Linear Regression</p></div>
+        <div><span class="ava">⚖️</span><p class="center small bold" style="color:var(--judge);">JUDGE-PRIEST</p><p class="center small">Logistic Regression</p></div>
+        <div><span class="ava">🧩</span><p class="center small bold" style="color:var(--riddle);">THE PUZZLE BOX</p><p class="center small">XOR Problem</p></div>
+        <div><span class="ava">🏛️</span><p class="center small bold" style="color:var(--council);">THE COUNCIL</p><p class="center small">Neural Networks</p></div>
+        <div><span class="ava">🔨</span><p class="center small bold" style="color:var(--forge);">FORGE-SMITH</p><p class="center small">Backprop &amp; Optimisers</p></div>
+        <div><span class="ava">🧘</span><p class="center small bold" style="color:var(--monk);">MONK OF RESTRAINT</p><p class="center small">Regularisation</p></div>
+        <div><span class="ava">📜</span><p class="center small bold" style="color:var(--scribe);">SCRIBE OF PATTERNS</p><p class="center small">CNNs</p></div>
+        <div><span class="ava">🏮</span><p class="center small bold" style="color:var(--keeper);">LANTERN-BEARERS</p><p class="center small">RNNs / LSTMs</p></div>
+        <div><span class="ava">👁️‍🗨️</span><p class="center small bold" style="color:var(--herald);">PARLIAMENT OF HERALDS</p><p class="center small">Transformers</p></div>
       </div>
     </div>
   </div>
@@ -1349,6 +1378,343 @@ model = nn.Sequential(
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
+     DEEP-LEARNING ARC — Ch.11 through Ch.19
+     Each chapter currently has: splash + 1 placeholder content page.
+     TODO: replace each TODO panel with 2–4 authored manga pages +
+     interview Q&A page, using notes/ML/chNN-*/ as the source material.
+     Rules: keep Kai as POV, land the "same dial" callback in a .lock box,
+     reuse manga CSS (.mg, .pnl, .spd, .tone, .bbl, .spk, .sfx).
+══════════════════════════════════════════════════════════ -->
+
+<!-- ── CH 11: LINEAR REGRESSION ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">📏</div>
+    <div class="chapter-tag">Chapter 11</div>
+    <h1 style="font-size:2.4rem;">The First<br>Prophecy</h1>
+    <h2 style="font-size:1rem;">Linear Regression</h2>
+    <p class="sub">
+      Before the Oracle voted with its neighbours, a younger seer drew a single line through the world and called it fate.<br>
+      "You are who you stand next to" began as "you are the line that passes through."
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      ŷ = wx + b · MSE · gradient descent · R² · assumptions · feature scaling
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.11 — LINEAR REGRESSION</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--seer);">THE ELDEST ARCHIVE</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk seer">THE YOUNG SEER</p>
+      <div class="bbl fl">Before I became the Oracle, I could only predict numbers — never categories. Give me points, I gave you a line. MSE was my whole universe.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">So you were the original dial? Learning rate, not K?</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 The Dial Returns — first appearance:</strong> learning rate in gradient descent. Same tradeoff Kai will meet again as K, depth, n_estimators, C. TODO: expand this chapter with a full GD walkthrough, a loss-bowl panel, the R²-vs-Adj-R² trap, feature scaling warning, and the sklearn <code>LinearRegression</code> snippet from <code>notes/ML/ch01-linear-regression/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.11 body — 2–4 pages, pull math + code from <code>notes/ML/ch01-linear-regression/</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CH 12: LOGISTIC REGRESSION ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">⚖️</div>
+    <div class="chapter-tag">Chapter 12</div>
+    <h1 style="font-size:2.4rem;">The Verdict<br>Stone</h1>
+    <h2 style="font-size:1rem;">Logistic Regression</h2>
+    <p class="sub">
+      The Seer's line could not answer "yes or no" — only "how much."<br>
+      Enter the Judge-Priest, who pressed every prophecy through a sigmoid and rendered a verdict.
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      sigmoid · log-loss · decision boundary · class imbalance · calibration
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.12 — LOGISTIC REGRESSION</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--judge);">THE VERDICT STONE</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk judge">JUDGE-PRIEST</p>
+      <div class="bbl fl">The Seer gave you numbers. I give you <em>probabilities</em>. σ(wx+b) maps any real number into (0,1). Cross a threshold, pronounce a verdict.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">And the loss function? Not MSE anymore?</div>
+      <p class="spk judge" style="margin-top:8px;">JUDGE-PRIEST</p>
+      <div class="bbl fl">Log-loss. Punish confident wrong answers exponentially. MSE would let you be lazy.</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 Bridge to Ch.10:</strong> the Gate Keeper's sigmoid has always lived here — this is where it was born, on the output layer of a one-neuron network. TODO: expand with decision-boundary panel, log-loss derivation, class-imbalance discussion, and the <code>LogisticRegression(class_weight='balanced')</code> hyperparameter table from <code>notes/ML/ch02-logistic-regression/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.12 body — 2–4 pages, pull math + code from <code>notes/ML/ch02-logistic-regression/</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CH 13: XOR ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">🧩</div>
+    <div class="chapter-tag">Chapter 13</div>
+    <h1 style="font-size:2.4rem;">The Twin-Mirror<br>Riddle</h1>
+    <h2 style="font-size:1rem;">The XOR Problem</h2>
+    <p class="sub">
+      Four points on a plane. No straight line could separate them. The Seer failed. The Judge-Priest failed.<br>
+      The Puzzle Box laughed.
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      linear non-separability · hidden layer · feature transformation · why depth matters
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.13 — XOR</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--riddle);">THE LATTICE ROOM</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk riddle">THE PUZZLE BOX</p>
+      <div class="bbl fl">(0,0)→0. (0,1)→1. (1,0)→1. (1,1)→0. Draw me a single line, Detective. I'll wait.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">…no single line works. I need two lines. I need a <em>transformation</em>.</div>
+      <p class="spk riddle" style="margin-top:8px;">THE PUZZLE BOX</p>
+      <div class="bbl fl">Then you need a hidden layer. One neuron cannot solve me. Two can.</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 The First Case for Depth:</strong> this is the historic Minsky–Papert result that froze neural nets for a decade. Solving XOR requires at least one hidden layer with a non-linear activation — the same Gate Keeper wisdom from Ch.10, dramatized. TODO: expand with 2-hidden-neuron diagram, the feature-space rotation panel, and the PyTorch snippet from <code>notes/ML/ch03-xor-problem/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.13 body — 2–4 pages, pull math + code from <code>notes/ML/ch03-xor-problem/</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CH 14: NEURAL NETWORKS ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">🏛️</div>
+    <div class="chapter-tag">Chapter 14</div>
+    <h1 style="font-size:2.4rem;">The Council<br>Assembles</h1>
+    <h2 style="font-size:1rem;">Neural Networks</h2>
+    <p class="sub">
+      One seer is a line. Two are a plane. A whole council, arranged in layers, can bend reality into any shape needed.<br>
+      Kai had cracked the riddle. Now he met the architecture that answered all such riddles.
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      forward pass · layers · weights &amp; biases · universal approximation · width vs depth
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.14 — NEURAL NETWORKS</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--council);">THE COUNCIL CHAMBER</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk council">THE COUNCIL</p>
+      <div class="bbl fl">We are the Seer, multiplied. Each of us computes wx+b, squashes it through the Gate Keeper's sigil, and passes the answer to the next bench.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">Width vs depth — which matters more?</div>
+      <p class="spk council" style="margin-top:8px;">THE COUNCIL</p>
+      <div class="bbl fl">Width buys representation capacity. Depth buys compositional abstraction. Deep networks can express functions shallow ones would need exponentially more width to mimic.</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 The Dial Now:</strong> number of hidden units + number of layers. Too small = can't fit. Too large = memorises, overfits, takes forever. Same dial, new clothing. TODO: expand with a forward-pass diagram, the universal-approximation note, the Keras <code>Sequential</code> snippet, and an initialisation warning from <code>notes/ML/ch04-neural-networks/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.14 body — 2–4 pages, pull math + code from <code>notes/ML/ch04-neural-networks/</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CH 15: BACKPROP & OPTIMISERS ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">🔨</div>
+    <div class="chapter-tag">Chapter 15</div>
+    <h1 style="font-size:2.4rem;">The Backforge</h1>
+    <h2 style="font-size:1rem;">Backpropagation &amp; Optimisers</h2>
+    <p class="sub">
+      The Council could speak. It could not yet <em>learn</em>. Kai descended into the Backforge where the Smith hammered every wrong answer backward through the chain rule.
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      chain rule · gradient descent · SGD · momentum · Adam · learning-rate schedules
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.15 — BACKPROP &amp; OPTIMISERS</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--forge);">THE BACKFORGE</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk forge">FORGE-SMITH</p>
+      <div class="bbl fl">Forward pass is only half the work. When the loss is wrong, I push the error <em>backward</em> — layer by layer — hammering each weight until the chain rule's anvil reshapes it.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">And Adam is… what exactly?</div>
+      <p class="spk forge" style="margin-top:8px;">FORGE-SMITH</p>
+      <div class="bbl fl">Momentum remembers which direction you were falling. RMSProp scales each weight's step by its recent gradient magnitude. Adam is both at once. It's not magic — it's two accumulators.</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 The Dial Returns:</strong> learning rate — the loudest knob in the entire Codex. Too high: the Smith's hammer smashes through the anvil. Too low: the iron cools before it's shaped. TODO: expand with chain-rule walkthrough, momentum/RMSProp/Adam comparison table, the vanishing/exploding gradient panels, and LR-schedule curves from <code>notes/ML/ch05-backprop-optimisers/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.15 body — 2–4 pages, pull math + code from <code>notes/ML/ch05-backprop-optimisers/</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CH 16: REGULARISATION ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">🧘</div>
+    <div class="chapter-tag">Chapter 16</div>
+    <h1 style="font-size:2.4rem;">The Vow<br>of Less</h1>
+    <h2 style="font-size:1rem;">Regularisation</h2>
+    <p class="sub">
+      The Council could now learn. It learned too well — fitting every grain of noise in the training data.<br>
+      The Monk of Restraint offered three vows: L2, L1, and Dropout. Each asks the model to give something up.
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      L1 / L2 · dropout · early stopping · data augmentation · batch norm · overfitting
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.16 — REGULARISATION</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--monk);">THE CLOISTER</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk monk">MONK OF RESTRAINT</p>
+      <div class="bbl fl">You can fit every point in the training set, Detective. You will also fit every mistake in it. That is not wisdom — that is memory.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">So the penalty terms in the loss — they're a tax on complexity?</div>
+      <p class="spk monk" style="margin-top:8px;">MONK OF RESTRAINT</p>
+      <div class="bbl fl">L2 shrinks all weights toward zero. L1 snaps the weakest to zero entirely — a monk's sparse cell. Dropout removes random neurons during training so the network cannot lean on any single one.</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 The Dial Returns:</strong> regularisation strength (λ for L1/L2, p for Dropout). Too strong: the model is too humble to learn. Too weak: it memorises. TODO: expand with L1-vs-L2 contour panel, the dropout-during-training diagram, the early-stopping loss-curve example, and the <code>keras.regularizers.l2</code> snippet from <code>notes/ML/ch06-regularisation/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.16 body — 2–4 pages, pull math + code from <code>notes/ML/ch06-regularisation/</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CH 17: CNNs ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">📜</div>
+    <div class="chapter-tag">Chapter 17</div>
+    <h1 style="font-size:2.4rem;">The Tile<br>Reader</h1>
+    <h2 style="font-size:1rem;">Convolutional Neural Networks</h2>
+    <p class="sub">
+      The Council could weigh every pixel independently — and drowned. The Scribe read images the way a human reads text: one small tile at a time, reusing the same kernel across the page.
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      convolution · kernels · stride · padding · pooling · translation invariance · parameter sharing
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.17 — CNNs</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--scribe);">THE SCRIPTORIUM</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk scribe">SCRIBE OF PATTERNS</p>
+      <div class="bbl fl">A dense layer reading a 224×224 image needs fifty thousand weights per neuron. I use one 3×3 kernel — nine weights — and slide it across the whole image. Same edge detector, everywhere.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">Parameter sharing. And stacking kernels builds up from edges, to textures, to shapes, to objects.</div>
+      <p class="spk scribe" style="margin-top:8px;">SCRIBE OF PATTERNS</p>
+      <div class="bbl fl">Exactly. Add pooling to coarsen. Add stride to skip. The hierarchy writes itself.</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 The Dial Now:</strong> kernel size, stride, channel count, depth. Same tradeoff — bigger channels and deeper stacks buy capacity at the cost of memory and overfitting risk. TODO: expand with a 3×3 convolution animation panel, a receptive-field diagram, a Conv→Pool→Conv→Pool stack, and the Keras snippet from <code>notes/ML/ch07-cnns/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.17 body — 2–4 pages, pull math + code from <code>notes/ML/ch07-cnns/</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CH 18: RNNs / LSTMs ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">🏮</div>
+    <div class="chapter-tag">Chapter 18</div>
+    <h1 style="font-size:2.4rem;">The Lantern-<br>Bearers</h1>
+    <h2 style="font-size:1rem;">RNNs, LSTMs, and GRUs</h2>
+    <p class="sub">
+      Images lay flat. Sentences unfold in time. The Keepers of Memory walked each token's lantern forward, passing a hidden state from one step to the next.
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      hidden state · BPTT · vanishing gradients · LSTM gates · GRU · teacher forcing
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.18 — RNNs / LSTMs</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--keeper);">THE LANTERN ROAD</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk keeper">LANTERN-BEARERS</p>
+      <div class="bbl fl">We hand the lantern forward. At each step: read the next token, update the hidden state, pass the flame along.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">And when the sequence is long, the flame dims — gradients vanish.</div>
+      <p class="spk keeper" style="margin-top:8px;">LANTERN-BEARERS</p>
+      <div class="bbl fl">Which is why we built the LSTM. A forget gate to drop old ash. An input gate to catch new sparks. An output gate to decide what the next bearer sees. A cell state that travels along an express path, barely touched.</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 The Backforge Returns:</strong> backpropagation through time is the Forge-Smith working a chain that stretches across every token. Gradients either vanish (sigmoid saturation) or explode (no clipping) — both are the same dial, badly tuned. TODO: expand with unrolled-RNN diagram, LSTM-gate equations, the GRU-vs-LSTM comparison table, and the <code>nn.LSTM</code> snippet from <code>notes/ML/ch08-rnns-lstms/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.18 body — 2–4 pages, pull math + code from <code>notes/ML/ch08-rnns-lstms/</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CH 19: TRANSFORMERS ── -->
+<div class="page">
+  <div class="splash">
+    <div style="font-size:3rem;">👁️‍🗨️</div>
+    <div class="chapter-tag">Chapter 19</div>
+    <h1 style="font-size:2.4rem;">The Many-Eyed<br>Court</h1>
+    <h2 style="font-size:1rem;">From Sequences to Transformers</h2>
+    <p class="sub">
+      The Lantern-Bearers walked in single file. The Parliament of Heralds looked at everyone at once, each Herald trained to attend to a different thread of meaning.<br>
+      This is where every modern model lives.
+    </p>
+    <div style="margin-top:1.5em;font-size:.75rem;color:#888;">
+      attention as soft dictionary · Q/K/V · scaled dot-product · multi-head · positional encoding · residuals + LayerNorm
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="ch-nav">CH.19 — TRANSFORMERS</div>
+  <div class="mg g1" style="height:100%;">
+    <div class="pnl dark spd" style="min-height:70px;">
+      <span class="sfx" style="color:var(--herald);">THE MANY-EYED COURT</span>
+    </div>
+    <div class="pnl" style="flex:1;">
+      <p class="spk herald">PARLIAMENT OF HERALDS</p>
+      <div class="bbl fl">Every token raises three banners: a Query, a Key, and a Value. Every Herald reads every other token's Key, scores the match against their own Query, softmaxes the scores, and takes a weighted sum of the Values.</div>
+      <p class="spk kai" style="margin-top:10px;">KAI</p>
+      <div class="bbl fr">A soft dictionary lookup. No recurrence. Everything in parallel.</div>
+      <p class="spk herald" style="margin-top:8px;">PARLIAMENT OF HERALDS</p>
+      <div class="bbl fl">Multi-head so different Heralds specialise. Positional encoding so order is not lost. Residuals and LayerNorm so gradients travel freely. That is the whole Court.</div>
+      <div class="lock" style="margin-top:10px;">
+        <strong>🔒 The Final Dial:</strong> attention heads × layers × hidden dim. The same old tension — capacity against overfit, cost against signal — just at scale. Every model you will meet for the rest of your career is built from this chapter's primitives. TODO: expand with the Q·Kᵀ/√dₖ scaled-dot-product panel, the multi-head concat-project diagram, sinusoidal positional-encoding curves, encoder-vs-decoder-only comparison, and the <code>nn.MultiheadAttention</code> snippet — pulling from both <code>notes/ML/ch17-sequences-to-attention/</code> and <code>notes/ML/ch18-transformers/</code>.
+      </div>
+      <p class="small" style="margin-top:10px;color:#888;font-style:italic;">TODO: Ch.19 body — 2–4 pages; merges <code>notes/ML/ch17-sequences-to-attention/</code> (bridge) and <code>notes/ML/ch18-transformers/</code> (architecture).</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
      EPILOGUE
 ══════════════════════════════════════════════════════════ -->
 <div class="page">
@@ -1358,14 +1724,15 @@ model = nn.Sequential(
     <h1 style="font-size:2rem;">The Codex<br>Closes</h1>
     <p class="sub">
       Kai had not finished learning. He had finished accumulating tools blindly.<br><br>
-      Every algorithm had revealed the same underlying tension: <em>fit tightly, generalise badly; fit loosely, miss everything</em>. K in Ch.1, depth in Ch.2, n_estimators in Ch.3, C in Ch.4 — always the same dial.<br><br>
+      Every algorithm had revealed the same underlying tension: <em>fit tightly, generalise badly; fit loosely, miss everything</em>. K in Ch.1, depth in Ch.2, n_estimators in Ch.3, C in Ch.4, learning rate in Ch.15, dropout rate in Ch.16, attention heads in Ch.19 — always the same dial.<br><br>
       The Cartographer had shown that high-dimensional data hides structure humans cannot see. Dr. Density had shown that clusters have no obligation to be round. The Alchemist had reminded him that models are only as good as their inputs. The Judges had shown that the wrong metric is worse than no metric. The Gate Keeper had revealed that even unlimited layers are powerless without non-linearity.<br><br>
+      Then the deep-learning arc widened the Codex. The Young Seer drew the first line. The Judge-Priest rendered the first verdict. The Puzzle Box forced the first hidden layer. The Council gave it voice, the Forge-Smith gave it learning, the Monk gave it restraint. The Scribe read pictures, the Lantern-Bearers read sequences, and the Parliament of Heralds learned to read everything at once.<br><br>
       The city of Datum was no quieter. But Kai was a better detective.
     </p>
-    <div style="margin-top:2em;">
-      <div class="lock" style="text-align:left;max-width:150mm;margin:0 auto;">
-        <strong>The Codex — Ten Principles Kai Earned:</strong>
-        <ol style="margin-top:6px;font-size:.78rem;line-height:1.8;">
+    <div style="margin-top:1.5em;">
+      <div class="lock" style="text-align:left;max-width:155mm;margin:0 auto;">
+        <strong>The Codex — Principles Kai Earned (Ch.1–Ch.19):</strong>
+        <ol style="margin-top:6px;font-size:.74rem;line-height:1.65;">
           <li>Every algorithm has a complexity dial. Tune it with cross-validation, not intuition.</li>
           <li>The bias-variance tradeoff is not a problem to solve — it is a constraint to navigate.</li>
           <li>Interpretability and accuracy are a spectrum, not a binary choice.</li>
@@ -1375,6 +1742,11 @@ model = nn.Sequential(
           <li>Accuracy is almost always the wrong metric. Start with the confusion matrix.</li>
           <li>Data leakage is the most common cause of surprisingly good results.</li>
           <li>Non-linearity is the foundation of representation learning. Activations are not optional.</li>
+          <li>A single line cannot separate XOR. One hidden layer can. Depth is how models compose abstraction.</li>
+          <li>Backpropagation is just the chain rule, repeated. Optimisers are just momentum plus per-parameter scaling.</li>
+          <li>Regularisation is a vow of less. L2 shrinks, L1 selects, Dropout randomises — all trade training fit for generalisation.</li>
+          <li>Parameter sharing (CNN kernels) and sequential state (RNN cells) are two escapes from the curse of dimensionality.</li>
+          <li>Attention is a soft dictionary lookup. Every modern model is stacks of it with residuals and LayerNorm around each layer.</li>
           <li>The model is not the answer. The model is the question crystallised into arithmetic.</li>
         </ol>
       </div>
@@ -1399,6 +1771,12 @@ model = nn.Sequential(
     <tr><td>UMAP</td><td>Dim Reduction</td><td>n_neighbors</td><td>Yes</td><td>N/A</td><td>Faster t-SNE</td></tr>
     <tr><td>DBSCAN</td><td>Clustering</td><td>eps, min_samples</td><td>Yes</td><td>Partial</td><td>Arbitrary shapes + outliers</td></tr>
     <tr><td>HDBSCAN</td><td>Clustering</td><td>min_cluster_size</td><td>Yes</td><td>Partial</td><td>Variable density clusters</td></tr>
+    <tr><td>Linear Regression</td><td>Parametric</td><td>learning rate</td><td>Yes</td><td>Yes</td><td>Continuous target, linear relationship</td></tr>
+    <tr><td>Logistic Regression</td><td>Parametric</td><td>C (inverse λ)</td><td>Yes</td><td>Yes</td><td>Binary output with calibrated probs</td></tr>
+    <tr><td>MLP / NN</td><td>Neural</td><td>width, depth, lr</td><td>Yes</td><td>No</td><td>Non-linear boundaries, tabular DL</td></tr>
+    <tr><td>CNN</td><td>Neural</td><td>kernel, stride, channels</td><td>Yes</td><td>Partial (Grad-CAM)</td><td>Images, spatial data</td></tr>
+    <tr><td>RNN / LSTM</td><td>Neural</td><td>hidden size, lr</td><td>Yes</td><td>No</td><td>Sequences where order matters</td></tr>
+    <tr><td>Transformer</td><td>Neural</td><td>heads × layers × dim</td><td>Yes</td><td>Partial (attn maps)</td><td>Any sequence, at scale</td></tr>
   </table>
 
   <h3 style="margin:12px 0 6px;text-align:center;">Evaluation Metrics — When to Use What</h3>

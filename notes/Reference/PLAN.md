@@ -1,3 +1,90 @@
+# ML Chronicles — Expansion Plan
+
+> Parked plan. Do not execute without checking in first. When resuming, read this top-to-bottom and re-read `AUTHORING_GUIDE.md` for Neural-Chronicles tone, but author in the manga tone established by the existing `ML_Chronicles.html` pages.
+
+---
+
+## Scope
+
+**Only** the manga story-arc expansion of `ML_Chronicles.html`. Everything else previously parked in this plan (Neural Chronicles Ch.15–19, the standalone AI Chronicles book, the Node/Puppeteer PDF pipeline, pre-commit hooks, per-book authoring guides) is **out of scope** — that material is already covered in depth under `notes/AI/`, `notes/MultiAgentAI/`, `notes/MultimodalAI/`, `notes/AIInfrastructure/`, and `notes/ML/ch15-*` through `notes/ML/ch19-*`, and does not need a second surface.
+
+---
+
+## Current state
+
+- `ML_Chronicles.html` has **10 manga chapters** covering classical ML only: KNN, Decision Trees, Ensembles, SVM, Comparison, t-SNE/UMAP, DBSCAN/HDBSCAN, Feature Engineering, Evaluation, Activation Functions.
+- `notes/ML/` has **19 chapters** (Ch.1–Ch.19). The book is silent on chapters that map to deep-learning material: Linear/Logistic Regression, XOR, Neural Networks, Backprop & Optimisers, Regularisation, CNNs, RNNs/LSTMs, Transformers.
+- Ch.10 (Activations) explicitly closes on Kai saying *"The gate is open. I know what's on the other side now."* — a ready-made hand-off into the deep-learning arc.
+
+---
+
+## Target roster — 19 chapters
+
+Existing 10 stay as-is. Nine new chapters (Ch.11–Ch.19) extend the saga into deep learning, keeping Kai as the POV detective and introducing new characters to fit the lore.
+
+| New Ch | Title | Character | Maps to `notes/ML/` |
+|---|---|---|---|
+| 11 | The First Prophecy | Oracle precursor (young Oracle) — "you are who you stand next to" generalised to "you are the line that passes through" | `ch01-linear-regression` |
+| 12 | The Verdict Stone | Judge-Priest (Gatekeeper precursor) — binary prophecy via sigmoid | `ch02-logistic-regression` |
+| 13 | The Twin-Mirror Riddle | The Puzzle Box — a cursed lattice no single seer can read | `ch03-xor-problem` |
+| 14 | The Council Assembles | The Council of Oracles — many seers voting through weighted channels | `ch04-neural-networks` |
+| 15 | The Backforge | The Forge-Smith — hammering gradients backward through the chain rule | `ch05-backprop-optimisers` |
+| 16 | The Vow of Less | The Monk of Restraint — L1/L2/Dropout as ascetic disciplines | `ch06-regularisation` |
+| 17 | The Tile Reader | The Scribe of Patterns — reading an image tile by tile | `ch07-cnns` |
+| 18 | The Lantern-Bearers | The Keepers of Memory — carrying hidden state through time | `ch08-rnns-lstms` |
+| 19 | The Many-Eyed Court | Parliament of Heralds — attention as routed gaze; one chapter covers both the sequences→attention bridge and full transformers | `ch17-sequences-to-attention` + `ch18-transformers` |
+
+**Intentionally excluded from the manga:** MLE & Loss Functions (Ch.15), TensorBoard (Ch.16), Hyperparameter Tuning (Ch.19) — these are reference-style and don't carry a narrative arc. They remain in `notes/ML/` only.
+
+Target length: **~55 new pages** once chapter bodies are authored (splash + 2–4 content + interview per chapter).
+
+---
+
+## Execution in phases
+
+### Phase A — Foundation + skeleton (DONE in this pass)
+
+Applied to `ML_Chronicles.html`:
+- CSS colour vars for the nine new characters.
+- Cover page topic keywords extended to include DL material.
+- Prologue **Cast of Characters** expanded with the nine new figures.
+- Nine splash pages + one placeholder content page per new chapter inserted before the Epilogue, each marked with a `TODO` comment.
+- Quick Reference card extended with the new algorithm rows.
+- Epilogue wording refreshed so it closes over 19 chapters, not 10.
+
+### Phase B — Author chapter bodies (NOT DONE — resume here)
+
+For each new chapter:
+1. Replace the single placeholder page with 2–4 manga content pages using the established CSS language (`.mg`, `.pnl`, `.spd`, `.tone`, `.bbl`, `.spk`, `.sfx`, `.lock`, `.note`, `.correct`, `.check`, `.warn`, `.ava`, `.bridge`).
+2. Add a 5th page: dedicated interview Q&A plus the 3-column checklist, matching the pattern used in existing chapters.
+3. Preserve the recurring **"same dial"** callback from the classical-ML arc (K → depth → n_estimators → C → … → learning rate → dropout rate → attention heads). Every new chapter must land one of these callbacks.
+4. Pull math, code snippets, and diagrams from the matching `notes/ML/ch*/` folder — do not re-derive.
+
+### Phase C — Regenerate PDF (NOT DONE)
+
+`ML_Chronicles.pdf` is stale. The repo currently has no PDF generator under version control — when a pipeline is added (or via any local Chromium print-to-PDF), regenerate `ML_Chronicles.pdf` after Phase B.
+
+---
+
+## Authoring rules (carry-over from existing chapters)
+
+- One page per `<div class="page">`. Never split a page. Never exceed 297 mm content height — if it overflows, split a panel or remove a sub-figure.
+- Every non-splash page begins with `<div class="ch-nav">CH.N — TOPIC</div>`.
+- Speech bubbles attribute with `.spk kai|oracle|gini|knight|bag|boost|alc|gate|...`; add a new CSS class for each new speaker introduced.
+- `.lock` boxes carry the recurring-dial callbacks. At least one per chapter.
+- Keep Kai as the POV throughout. New characters speak to Kai, not about him.
+- Avoid the reference-style voice used in Neural Chronicles — the ML Chronicles is deliberately narrative.
+
+---
+
+## Resume checklist
+
+When asked to proceed:
+1. Re-read this file.
+2. Confirm the target chapter to author next (start Ch.11 and progress in order — the bias-variance callback chain depends on preceding chapters existing).
+3. Open the matching `notes/ML/ch*/` folder for content; do not invent facts.
+4. Author against the placeholder page marked `TODO: Ch.NN body` in `ML_Chronicles.html`.
+5. Eyeball pages for overflow after every chapter by opening the HTML in a browser.
 # Reference Books — Expansion Plan
 
 > Parked plan. Do not execute until explicitly asked. When resuming, read this top-to-bottom and also re-read `AUTHORING_GUIDE.md` for tone/structure rules before touching any HTML.
