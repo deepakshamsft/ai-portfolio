@@ -49,6 +49,47 @@ A 19-chapter bottom-up curriculum built from the **Neural Chronicles** reference
 
 > See [ML/AUTHORING_GUIDE.md](ML/AUTHORING_GUIDE.md) for the chapter authoring guide and build tracker.
 
+### How We Got Here — A Short History of Machine Learning
+
+The chapters below are not in arbitrary order. They follow the actual historical sequence in which each idea was invented, frustrated, and then rescued by the next one. Reading the timeline once makes the curriculum feel inevitable.
+
+| Era | Year | Breakthrough | Chapter it seeds |
+|---|---|---|---|
+| **Pre-ML statistics** | 1805 / 1809 | **Least squares** (Legendre, Gauss) | [Ch.1 Linear Regression](ML/ch01-linear-regression/) |
+| | 1922 | **Maximum Likelihood Estimation** (R. A. Fisher) — the justification for our loss functions | [Ch.15 MLE & Loss Functions](ML/ch15-mle-loss-functions/) |
+| | 1944 | **Logistic function for binary outcomes** (Berkson) | [Ch.2 Logistic Regression](ML/ch02-logistic-regression/) |
+| **First neural era** | 1943 | **McCulloch–Pitts neuron** — first mathematical model of a neuron | [Ch.4 Neural Networks](ML/ch04-neural-networks/) |
+| | 1958 | **Perceptron** (Rosenblatt) — first *learning* neural model | [Ch.4](ML/ch04-neural-networks/) |
+| | 1969 | **"Perceptrons"** (Minsky & Papert) — proved single-layer nets cannot learn XOR | [Ch.3 The XOR Problem](ML/ch03-xor-problem/) |
+| | 1969–1986 | **First AI winter** — funding collapses for over a decade | — |
+| **Backprop revival** | 1974 / 1986 | **Backpropagation** (Werbos 1974; Rumelhart, Hinton & Williams 1986) | [Ch.5 Backprop & Optimisers](ML/ch05-backprop-optimisers/) |
+| | 1989 | **LeNet** (LeCun) — CNN for handwritten digits | [Ch.7 CNNs](ML/ch07-cnns/) |
+| | 1997 | **LSTM** (Hochreiter & Schmidhuber) — solves vanishing gradients in RNNs | [Ch.8 RNNs / LSTMs / GRUs](ML/ch08-rnns-lstms/) |
+| **Statistical learning era** | 1984 | **CART decision trees** (Breiman) | [Ch.10 Classical Classifiers](ML/ch10-classical-classifiers/) |
+| | 1995 | **Support Vector Machines** (Cortes & Vapnik) | [Ch.11 SVM & Ensembles](ML/ch11-svm-ensembles/) |
+| | 1996 / 2001 | **AdaBoost / Random Forests** (Freund–Schapire; Breiman) | [Ch.11](ML/ch11-svm-ensembles/) |
+| | 2014 | **XGBoost** (Chen & Guestrin) — gradient boosting wins Kaggle | [Ch.11](ML/ch11-svm-ensembles/) |
+| **Clustering & geometry** | 1957 | **k-Means** (Lloyd, published 1982) | [Ch.12 Clustering](ML/ch12-clustering/) |
+| | 1901 / 2008 | **PCA** (Pearson); **t-SNE** (van der Maaten & Hinton) | [Ch.13 Dimensionality Reduction](ML/ch13-dimensionality-reduction/) |
+| | 1996 / 2018 | **DBSCAN** (Ester et al.); **UMAP** (McInnes et al.) | [Ch.12](ML/ch12-clustering/), [Ch.13](ML/ch13-dimensionality-reduction/) |
+| **Second AI winter → recovery** | late 1990s | Neural nets fall out of favour; SVMs dominate | — |
+| | 2006 | **Deep Belief Nets** (Hinton) — layer-wise pretraining revives deep learning | [Ch.4](ML/ch04-neural-networks/) |
+| **Modern deep learning** | 2010 | **ReLU + Xavier init** make deep training stable | [Ch.4](ML/ch04-neural-networks/) |
+| | 2012 | **AlexNet** wins ImageNet on two GPUs — deep learning goes mainstream | [Ch.7](ML/ch07-cnns/) |
+| | 2014 | **Dropout** (Srivastava et al.) | [Ch.6 Regularisation](ML/ch06-regularisation/) |
+| | 2014 | **Adam optimiser** (Kingma & Ba) | [Ch.5](ML/ch05-backprop-optimisers/) |
+| | 2015 | **Batch Normalisation**; **ResNet** | [Ch.6](ML/ch06-regularisation/), [Ch.7](ML/ch07-cnns/) |
+| | 2015 | **TensorBoard** ships with TensorFlow 0.6 — training becomes observable | [Ch.16 TensorBoard](ML/ch16-tensorboard/) |
+| **Attention era** | 2014 | **Bahdanau attention** for seq2seq translation | [Ch.17 From Sequences to Attention](ML/ch17-sequences-to-attention/) |
+| | 2015–2017 | AUC-ROC, AUC-PR become standard model-selection currency | [Ch.9 Metrics Deep Dive](ML/ch09-metrics/) |
+| | 2017 | **"Attention Is All You Need"** (Vaswani et al.) — the Transformer | [Ch.18 Transformers & Attention](ML/ch18-transformers/) |
+| | 2018 | **BERT / GPT** — the pretraining revolution we still live in | [Ch.18](ML/ch18-transformers/) |
+| **Tuning as a discipline** | 2012 → 2019 | **Random Search** (Bergstra & Bengio); **Hyperband**; **Bayesian Optimization**; **Population-Based Training** | [Ch.19 Hyperparameter Tuning](ML/ch19-hyperparameter-tuning/) |
+
+**The through-line:** the Perceptron failed at XOR (1969), so we needed hidden layers (Ch.3 → Ch.4). Hidden layers couldn't train until backprop was rediscovered (Ch.5). Deep nets overfit, so we needed regularisation (Ch.6). Vision needed spatial priors (Ch.7); sequences needed memory (Ch.8). When neural nets stalled in the 1990s, the classical branch (Ch.10–11) carried the field. Unsupervised learning matured (Ch.12–14). MLE gave everything a probabilistic foundation (Ch.15). Instrumentation (Ch.16) and tuning (Ch.19) became first-class when models got serious. Finally, attention (Ch.17) scaled into the Transformer (Ch.18) — the foundation the rest of this portfolio stands on.
+
+> Want to feel backprop in your hands? Before opening Ch.5, spend ten minutes on the [**TensorFlow Playground**](https://playground.tensorflow.org/) — a browser-based neural network trainer that animates every weight, activation, and decision boundary as you tweak the architecture. It is the single best intuition-builder for Chapters 3–6. For Ch.18, the companion animation [`multihead_attention.gif`](ML/ch18-transformers/img/multihead_attention.gif) walks through scaled dot-product attention one query at a time and replays it across three heads that learn different relationship patterns.
+
 **Depth labels** — a realism tag next to each chapter, so you can plan pacing honestly:
 
 - **F — Foundational**: accessible with the stated prerequisites; core track.

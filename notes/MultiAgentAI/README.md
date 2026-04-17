@@ -61,6 +61,35 @@ The key constraint: **OrderFlow must handle 1,000 purchase orders per day, each 
 
 ---
 
+## How We Got Here — A Short History of Multi-Agent AI
+
+Multi-agent systems are not a 2023 invention — the field has been reborn three times. Understanding each revival explains why our chapters look the way they do.
+
+| Era | Year | Breakthrough | Why it set up the next chapter |
+|---|---|---|---|
+| **Classical MAS** | 1973 | **Actor model** (Hewitt) | First formalism for concurrent entities that communicate only by messages — the intellectual ancestor of every agent protocol. |
+| | 1975 | **Hearsay-II** (CMU) — blackboard architecture for speech | The original "shared memory where specialists cooperate without talking directly." → [SharedMemory](./SharedMemory/). |
+| | 1986 | **"Society of Mind"** (Minsky) | Argued intelligence *is* many small cooperating agents. The philosophical frame we still use. |
+| | 1990s | **KQML → FIPA ACL** — agent communication language standards | First attempt to make agents *protocol-compatible* across vendors. Too rigid; died in the 2000s. Its ghost haunts MCP and A2A. → [MCP](./MCP/), [A2A](./A2A/). |
+| | 2001 | **JADE** — Java Agent DEvelopment framework | Multi-agent systems as enterprise middleware; mostly research, not production. |
+| **Distributed-systems era** | 2005–2015 | **Kafka, RabbitMQ, actor frameworks (Akka, Erlang/OTP)** | Pub/sub, event sourcing, sagas, idempotency — the *coordination* primitives agents would later borrow wholesale. → [EventDrivenAgents](./EventDrivenAgents/). |
+| **LLM-agent era** | 2022 Oct | **ReAct** (Yao et al.) | A single agent loop strong enough to be useful — but the ceiling of "one context window, one tool list" was obvious immediately. |
+| | 2023 Mar | **AutoGPT / BabyAGI** — viral autonomous-agent demos | Proved long-horizon goal pursuit was within reach, and also that one agent quickly drowns in its own context. Made *decomposition* urgent. → [MessageFormats](./MessageFormats/). |
+| | 2023 Mar | **GPT-4 function calling** (OpenAI) | Structured tool use; made tool protocols (soon MCP) feasible. |
+| | 2023 Aug | **AutoGen** (Microsoft Research) | First widely adopted multi-agent framework with conversable agents, group chat, critic/proposer debate. → [AgentFrameworks](./AgentFrameworks/). |
+| | 2023 Sep | **LangGraph** (LangChain) | Acknowledged agent orchestration is a stateful graph, not a chain. |
+| | 2023 | **CrewAI**, **Semantic Kernel Planner → AgentGroupChat** | Enterprise patterns for role-based crews and planner-executor graphs. |
+| **Protocol era** | 2024 Nov | **Model Context Protocol (MCP)** released by Anthropic | The first *open* protocol for tool/resource exposure that multiple model vendors adopted. Replaced bespoke glue code. → [MCP](./MCP/). |
+| | 2025 Apr | **Agent-to-Agent (A2A) protocol** announced by Google + 50+ partners | Standardised *agent → agent* delegation: Agent Cards, task lifecycle, SSE streaming. → [A2A](./A2A/). |
+| | 2025 | **MCP + A2A composition** patterns emerge | Distinct jobs: MCP = "agent talks to tools," A2A = "agent talks to agents." The two stack cleanly. |
+| **Safety era** | 2023 | **Greshake et al.** — indirect prompt injection paper | Showed retrieved content is executable attack surface. Changed how the industry treats inter-agent messages. → [TrustAndSandboxing](./TrustAndSandboxing/). |
+| | 2024–2025 | **OWASP LLM Top 10**, **NIST AI RMF**, enterprise red-team patterns | Multi-agent security became a discipline: HMAC-signed envelopes, schema-validated outputs, capability-scoped tools. |
+| **Production era** | 2025–2026 | **Event-driven agent platforms** (Temporal, Inngest, Azure Durable Functions + agents) | Agent workflows inherit decades of workflow-engine maturity: retries, compensation, DLQs, observability. |
+
+**The through-line:** every chapter in this track is a rediscovery. Blackboards (1975) became [SharedMemory](./SharedMemory/). KQML (1990s) became [MCP](./MCP/) + [A2A](./A2A/). Kafka-era pub/sub became [EventDrivenAgents](./EventDrivenAgents/). What's actually new is that the *agent inside each node* is now an LLM — which means it's non-deterministic, expensive, and vulnerable to prompt injection. That delta is why [TrustAndSandboxing](./TrustAndSandboxing/) exists and why [MessageFormats](./MessageFormats/) cares about token budgets.
+
+---
+
 ## The Conceptual Architecture
 
 ```

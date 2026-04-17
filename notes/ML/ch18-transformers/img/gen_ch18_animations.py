@@ -1,4 +1,4 @@
-"""Generate ch17 attention animation GIF.
+"""Generate Ch.18 multi-head attention animation GIF.
 
 Output (saved next to this script):
     multihead_attention.gif — walks through scaled dot-product attention one
@@ -9,7 +9,7 @@ Output (saved next to this script):
 The 8 "tokens" are the California Housing features used throughout Ch.18,
 so the visual continues the chapter's running example.
 
-Run:  python gen_ch17_animations.py
+Run:  python gen_ch18_animations.py
 """
 from __future__ import annotations
 

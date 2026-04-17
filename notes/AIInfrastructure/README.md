@@ -62,6 +62,41 @@ The key constraint: **InferenceBase has a $15,000/month cloud compute budget to 
 
 ---
 
+## How We Got Here — A Short History of AI Infrastructure
+
+AI infrastructure is one of the few disciplines where you can point at a specific chip, a specific paper, or a specific open-source release and say "before this, you couldn't; after this, you could." The chapters in this track follow that ladder of enabling technologies.
+
+| Era | Year | Breakthrough | Why it set up the next chapter |
+|---|---|---|---|
+| **GPU as GPU** | 1999 | **NVIDIA GeForce 256** — first chip marketed as a "GPU" | Fixed-function graphics pipeline; not yet programmable for general compute. |
+| | 2006 | **CUDA** released — general-purpose GPU programming | The moment GPUs stopped being graphics cards and became parallel compute engines. → [GPUArchitecture](./GPUArchitecture/). |
+| **GPU + deep learning** | 2009 | **Raina et al.** — first paper training deep nets on GPUs | Proved the speedup was real (~70×). |
+| | 2012 | **AlexNet** on two GTX 580s wins ImageNet | The shot heard around the world. Every AI lab on the planet started buying GPUs. |
+| | 2014 | **NVIDIA cuDNN** — hand-tuned kernels for conv/matmul | Removed the "write your own CUDA" barrier; PyTorch/TF were built on top. |
+| **Purpose-built AI silicon** | 2016 | **NVIDIA P100 + NVLink** — HBM2 memory, fast inter-GPU fabric | Memory bandwidth became the headline spec, not FLOPS. → [MemoryAndComputeBudgets](./MemoryAndComputeBudgets/), [NetworkingAndClusterArchitecture](./NetworkingAndClusterArchitecture/). |
+| | 2016 | **Google TPU v1** (inference) | First large custom AI ASIC. |
+| | 2017 | **NVIDIA V100** — first **Tensor Cores** (FP16 matmul) | Made mixed precision mandatory. Started the "lower precision is free speed" trend. → [QuantizationAndPrecision](./QuantizationAndPrecision/). |
+| | 2018 | **BERT** (340M) and **GPT-2** (1.5B) | First models that forced "which GPU fits this?" to be a daily question. |
+| **Scale-out training** | 2018 | **Horovod** (Uber) — simple data-parallel training with all-reduce | Made distributed training tractable for teams without supercomputers. → [ParallelismAndDistributedTraining](./ParallelismAndDistributedTraining/). |
+| | 2019 | **Megatron-LM** (NVIDIA) — tensor parallelism for 8B+ models | Proved models bigger than a single GPU were practical. |
+| | 2020 | **ZeRO / DeepSpeed** (Microsoft) — partition optimizer states, gradients, params | Collapsed the memory cost of huge models. Still the memory-budgeting framework we use. |
+| | 2020 | **GPT-3** (175B) — $4.6M to train | Scale laws (Kaplan et al.) made "just make it bigger" a strategy. |
+| | 2023 | **PyTorch FSDP** (Meta) — ZeRO-3-style sharding, first-class in PyTorch | Distributed training became idiomatic, not exotic. |
+| **Inference optimisation** | 2022 | **Flash Attention** (Tri Dao) — IO-aware attention kernel | Made long-context training/inference feasible; now baked into every serving framework. → [InferenceOptimization](./InferenceOptimization/). |
+| | 2022 | **Orca** paper — continuous batching of requests | Replaced static batching; ~10× throughput for serving. |
+| | 2022 | **NVIDIA H100 + FP8 + Transformer Engine** | Transformer-native silicon; FP8 mainstreamed. |
+| | 2023 | **vLLM + PagedAttention** (Kwon et al., Berkeley) | Turned the KV cache into a paged virtual memory system; made high-throughput LLM serving open source. → [ServingFrameworks](./ServingFrameworks/). |
+| | 2023 | **llama.cpp + GGUF**, **GPTQ**, **AWQ** — 4-bit quantisation that works | Moved inference from A100s to laptops. Democratisation moment. |
+| | 2023 | **Speculative decoding** (Leviathan et al., Google) | Draft-model + target-model pattern; major latency wins, now standard. |
+| **MLOps + platforms** | 2018–2022 | **MLflow, W&B, Kubeflow, Ray** | The discipline that experiment tracking, registry, and pipelines became first-class. → [MLOpsAndExperimentManagement](./MLOpsAndExperimentManagement/). |
+| | 2020+ | **Cloud GPU economy** — AWS p4/p5, Azure ND-series, Lambda Labs, CoreWeave, RunPod | Spot / reserved / on-demand pricing became an engineering decision. → [CloudAIInfrastructure](./CloudAIInfrastructure/). |
+| **Frontier hardware** | 2024 | **NVIDIA B100 / B200 (Blackwell)**, **AMD MI300X**, **Google TPU v5p**, **AWS Trainium 2** | Vendor diversity at the top end; portability suddenly matters. |
+| | 2024–2026 | **Production AI platform patterns** — SLO-driven autoscaling, shadow deploys, GPU cost attribution | Inference cost became a board-level line item. → [ProductionAIPlatform](./ProductionAIPlatform/). |
+
+**The through-line:** every chapter in this track exists because an earlier bottleneck moved. Compute was the bottleneck → tensor cores. Memory was the bottleneck → HBM + ZeRO + Flash Attention. Throughput was the bottleneck → continuous batching + PagedAttention. Cost was the bottleneck → quantisation + speculative decoding + cloud arbitrage. The reading order follows the bottleneck that was hardest at the time.
+
+---
+
 ## The Conceptual Architecture
 
 ```
