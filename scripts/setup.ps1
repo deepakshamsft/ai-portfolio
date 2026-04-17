@@ -208,6 +208,14 @@ Install-Group "Utilities" @(
     "pydantic"
 )
 
+# Docs / study site (MkDocs Material — browse notes/ in a web browser)
+# mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
+Install-Group "Docs site (MkDocs Material)" @(
+    "mkdocs-material",
+    "pymdown-extensions",
+    "mkdocs-jupyter"
+)
+
 # Notebook extras — dependencies pulled in by per-notes setup scripts
 #   notes/AIInfrastructure : mlflow
 #   notes/MultiAgentAI     : tiktoken, mcp, fastapi, uvicorn, anyio, redis,
@@ -240,6 +248,10 @@ Write-Ok "Kernel 'ml-notes' registered"
 Write-Ok "Kernel 'ai-infrastructure' registered"
 & python -m ipykernel install --user --name "multi-agent-ai"     --display-name "Multi-Agent AI"             2>&1 | Out-Null
 Write-Ok "Kernel 'multi-agent-ai' registered"
+
+Write-Step "Setting default kernel on every notebook under notes/"
+& python (Join-Path $PSScriptRoot "set_default_kernel.py")
+if ($LASTEXITCODE -ne 0) { Write-Warn "set_default_kernel.py exited with code $LASTEXITCODE" }
 
 # ─── STEP 2: Visual Studio Code ─────────────────────────────────────────────
 
@@ -576,6 +588,47 @@ while ($true) {
     Write-Ok "Written: scripts/ollama-watcher.ps1"
 }
 
+# ── 5c. Workspace settings: make notebooks read-only in VS Code ─────────────
+#
+# Rationale: notebooks are edited LIVE in Jupyter Lab at http://localhost:8888.
+# If VS Code also opens the same .ipynb with its own kernel, you get:
+#   - concurrent writes that clobber each other
+#   - two kernels holding GPU/RAM for the same notebook
+# Marking *.ipynb read-only in this workspace keeps VS Code as a preview only.
+
+Write-Step "Writing .vscode/settings.json (notebooks read-only in VS Code)"
+
+$SettingsJsonPath = Join-Path $VscodeDirPath "settings.json"
+$readOnlyPatch = [ordered]@{
+    "files.readonlyInclude" = [ordered]@{ "**/*.ipynb" = $true }
+    "notebook.defaultKernel" = "ai-ml-dev"
+}
+
+if (Test-Path $SettingsJsonPath) {
+    try {
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            $existing = Get-Content $SettingsJsonPath -Raw | ConvertFrom-Json -AsHashtable
+        } else {
+            $jsonObj = Get-Content $SettingsJsonPath -Raw | ConvertFrom-Json
+            $existing = @{}
+            $jsonObj.PSObject.Properties | ForEach-Object { $existing[$_.Name] = $_.Value }
+        }
+    } catch {
+        $existing = @{}
+    }
+    # Merge files.readonlyInclude map
+    if (-not $existing.ContainsKey("files.readonlyInclude")) {
+        $existing["files.readonlyInclude"] = @{}
+    }
+    $existing["files.readonlyInclude"]["**/*.ipynb"] = $true
+    $existing["notebook.defaultKernel"] = "ai-ml-dev"
+    $existing | ConvertTo-Json -Depth 10 | Set-Content $SettingsJsonPath -Encoding UTF8
+    Write-Ok "Merged read-only rule into existing .vscode/settings.json"
+} else {
+    $readOnlyPatch | ConvertTo-Json -Depth 10 | Set-Content $SettingsJsonPath -Encoding UTF8
+    Write-Ok "Written: .vscode/settings.json"
+}
+
 # ─── STEP 6: Pull Best SLM for AI/ML Coding ──────────────────────────────────
 #
 # Primary:  qwen2.5-coder:7b  (~4.7 GB, needs ~8 GB free RAM)
@@ -689,11 +742,111 @@ if (Test-Path $VsSettingsPath) {
     Write-Ok "settings.json created with Twinny model settings"
 }
 
+# ─── STEP 7: Launch Study Servers (Jupyter Lab + MkDocs) ─────────────────────
+#
+# Fixed local ports so bookmarks stay stable:
+#   • Jupyter Lab  → http://localhost:8888   (hands-on coding in notebooks)
+#   • MkDocs site  → http://localhost:8000   (read notes/ in a web browser)
+#
+# Both run as detached background processes so this script can exit.
+# PIDs are saved to .jupyter.pid / .mkdocs.pid for a later stop command.
+
+Write-Host ""
+Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
+Write-Host "  AI/ML Dev Environment Setup — Step 7/7" -ForegroundColor White
+Write-Host "  Launch Study Servers (Jupyter + MkDocs)" -ForegroundColor White
+Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
+
+$JupyterPort  = 8888
+$MkdocsPort   = 8000
+$JupyterPid   = Join-Path $RepoRoot ".jupyter.pid"
+$MkdocsPid    = Join-Path $RepoRoot ".mkdocs.pid"
+$JupyterLog   = Join-Path $RepoRoot ".jupyter.log"
+$MkdocsLog    = Join-Path $RepoRoot ".mkdocs.log"
+$VenvPython   = Join-Path $VenvPath "Scripts\python.exe"
+
+function Test-PortInUse { param([int]$Port)
+    try {
+        $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop
+        return [bool]$conn
+    } catch { return $false }
+}
+
+# ── 7a. Jupyter Lab ──────────────────────────────────────────────────────────
+
+Write-Step "Starting Jupyter Lab on port $JupyterPort"
+
+if (Test-PortInUse -Port $JupyterPort) {
+    Write-Ok "Port $JupyterPort already in use — assuming Jupyter Lab is running"
+} else {
+    $jupyterArgs = @(
+        "-m", "jupyter", "lab",
+        "--no-browser",
+        "--ServerApp.ip=127.0.0.1",
+        "--ServerApp.port=$JupyterPort",
+        "--ServerApp.port_retries=0",
+        "--ServerApp.root_dir=$RepoRoot",
+        "--ServerApp.open_browser=False"
+    )
+    $jupyterProc = Start-Process -FilePath $VenvPython `
+        -ArgumentList $jupyterArgs `
+        -WorkingDirectory $RepoRoot `
+        -RedirectStandardOutput $JupyterLog `
+        -RedirectStandardError  "$JupyterLog.err" `
+        -WindowStyle Hidden `
+        -PassThru
+    $jupyterProc.Id | Set-Content $JupyterPid
+    Write-Ok "Jupyter Lab started (PID $($jupyterProc.Id)) — log: .jupyter.log"
+    Write-Host "    Check .jupyter.log for the one-time login token/URL." -ForegroundColor DarkGray
+}
+
+# ── 7b. MkDocs site ──────────────────────────────────────────────────────────
+
+Write-Step "Starting MkDocs site on port $MkdocsPort"
+
+if (Test-PortInUse -Port $MkdocsPort) {
+    Write-Ok "Port $MkdocsPort already in use — assuming MkDocs is running"
+} else {
+    $mkdocsArgs = @(
+        "-m", "mkdocs", "serve",
+        "-f", (Join-Path $RepoRoot "mkdocs.yml"),
+        "-a", "127.0.0.1:$MkdocsPort"
+    )
+    $mkdocsProc = Start-Process -FilePath $VenvPython `
+        -ArgumentList $mkdocsArgs `
+        -WorkingDirectory $RepoRoot `
+        -RedirectStandardOutput $MkdocsLog `
+        -RedirectStandardError  "$MkdocsLog.err" `
+        -WindowStyle Hidden `
+        -PassThru
+    $mkdocsProc.Id | Set-Content $MkdocsPid
+    Write-Ok "MkDocs started (PID $($mkdocsProc.Id)) — log: .mkdocs.log"
+}
+
 # ─── ALL DONE ─────────────────────────────────────────────────────────────────────
 
 Write-Host ""
 Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
-Write-Host "  Setup complete (all 6 steps)" -ForegroundColor Green
+Write-Host "  Setup complete (all 7 steps)" -ForegroundColor Green
+Write-Host "" 
+Write-Host "  Python env  : $VenvPath" -ForegroundColor White
+Write-Host "  Activate    : .\.venv\Scripts\Activate.ps1" -ForegroundColor White
+Write-Host "  VS Code     : $CodeCmd" -ForegroundColor White
+Write-Host "  Twinny ext  : $TwinnyExtId" -ForegroundColor White
+Write-Host "  Ollama      : $OllamaBaseUrl" -ForegroundColor White
+Write-Host "  SLM model   : $ChosenModel" -ForegroundColor White
+Write-Host ""
+Write-Host "  Study servers (running in background):" -ForegroundColor Cyan
+Write-Host "    Hands-on notebooks  → http://localhost:$JupyterPort" -ForegroundColor White
+Write-Host "    Reading (MkDocs)    → http://localhost:$MkdocsPort"  -ForegroundColor White
+Write-Host ""
+Write-Host "  To stop them:" -ForegroundColor DarkGray
+Write-Host "    Get-Content .jupyter.pid,.mkdocs.pid | % { Stop-Process -Id ([int]`$_) -Force }" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "  Next: open VS Code in this folder — Ollama will start automatically." -ForegroundColor Cyan
+Write-Host "  If prompted, click 'Allow Automatic Tasks' to enable the watcher." -ForegroundColor Cyan
+Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
+Write-Host ""
 Write-Host "" 
 Write-Host "  Python env  : $VenvPath" -ForegroundColor White
 Write-Host "  Activate    : .\.venv\Scripts\Activate.ps1" -ForegroundColor White

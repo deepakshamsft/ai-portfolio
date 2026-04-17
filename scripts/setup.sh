@@ -219,6 +219,11 @@ install_group "Generative AI / LLM utilities" \
 install_group "Utilities" \
     python-dotenv tqdm pillow requests httpx pydantic
 
+# Docs / study site (MkDocs Material — browse notes/ in a web browser)
+# mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
+install_group "Docs site (MkDocs Material)" \
+    mkdocs-material pymdown-extensions mkdocs-jupyter
+
 # Notebook extras — dependencies pulled in by per-notes setup scripts
 #   notes/AIInfrastructure : mlflow
 #   notes/MultiAgentAI     : tiktoken, mcp, fastapi, uvicorn, anyio, redis,
@@ -240,6 +245,9 @@ python -m ipykernel install --user --name "ai-infrastructure" --display-name "Py
 ok "Kernel 'ai-infrastructure' registered"
 python -m ipykernel install --user --name "multi-agent-ai"    --display-name "Multi-Agent AI"             &>/dev/null
 ok "Kernel 'multi-agent-ai' registered"
+
+step "Setting default kernel on every notebook under notes/"
+python "$SCRIPT_DIR/set_default_kernel.py" || warn "set_default_kernel.py exited non-zero"
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 
@@ -594,6 +602,46 @@ WATCHER
     ok "Written: scripts/ollama-watcher.sh"
 fi
 
+# ── 5c. Workspace settings: make notebooks read-only in VS Code ─────────────
+#
+# Rationale: notebooks are edited LIVE in Jupyter Lab at http://localhost:8888.
+# If VS Code also opens the same .ipynb with its own kernel, you get:
+#   - concurrent writes that clobber each other
+#   - two kernels holding GPU/RAM for the same notebook
+# Marking *.ipynb read-only in this workspace keeps VS Code as a preview only.
+
+step "Writing .vscode/settings.json (notebooks read-only in VS Code)"
+
+SETTINGS_JSON="$VSCODE_DIR/settings.json"
+
+if [ -f "$SETTINGS_JSON" ]; then
+    python - "$SETTINGS_JSON" << 'PYEOF'
+import json, sys
+p = sys.argv[1]
+try:
+    with open(p, "r") as f:
+        data = json.load(f)
+except Exception:
+    data = {}
+ro = data.setdefault("files.readonlyInclude", {})
+ro["**/*.ipynb"] = True
+data["notebook.defaultKernel"] = "ai-ml-dev"
+with open(p, "w") as f:
+    json.dump(data, f, indent=4)
+print("  \u2713 Merged read-only rule into existing .vscode/settings.json")
+PYEOF
+else
+    cat > "$SETTINGS_JSON" << 'SETTINGSJSON'
+{
+    "files.readonlyInclude": {
+        "**/*.ipynb": true
+    },
+    "notebook.defaultKernel": "ai-ml-dev"
+}
+SETTINGSJSON
+    ok "Written: .vscode/settings.json"
+fi
+
 # ─── STEP 6: Pull Best SLM for AI/ML Coding ──────────────────────────────────
 #
 # Primary:  qwen2.5-coder:7b  (~4.7 GB, needs ~8 GB free RAM)
@@ -716,11 +764,80 @@ else
     ok "settings.json created with Twinny model settings"
 fi
 
+# ─── STEP 7: Launch Study Servers (Jupyter Lab + MkDocs) ─────────────────────
+#
+# Fixed local ports so bookmarks stay stable:
+#   • Jupyter Lab  → http://localhost:8888   (hands-on coding in notebooks)
+#   • MkDocs site  → http://localhost:8000   (read notes/ in a web browser)
+#
+# Both run as detached background processes so this script can exit.
+# PIDs saved to .jupyter.pid / .mkdocs.pid for a later stop command.
+
+echo ""
+echo "══════════════════════════════════════════════"
+echo "  AI/ML Dev Environment Setup — Step 7/7"
+echo "  Launch Study Servers (Jupyter + MkDocs)"
+echo "══════════════════════════════════════════════"
+
+JUPYTER_PORT=8888
+MKDOCS_PORT=8000
+JUPYTER_PID_FILE="$REPO_ROOT/.jupyter.pid"
+MKDOCS_PID_FILE="$REPO_ROOT/.mkdocs.pid"
+JUPYTER_LOG="$REPO_ROOT/.jupyter.log"
+MKDOCS_LOG="$REPO_ROOT/.mkdocs.log"
+
+port_in_use() {
+    local port="$1"
+    if command -v lsof &>/dev/null; then
+        lsof -iTCP:"$port" -sTCP:LISTEN &>/dev/null
+    elif command -v ss &>/dev/null; then
+        ss -ltn "sport = :$port" 2>/dev/null | grep -q ":$port"
+    else
+        # Last resort: try to bind
+        (echo > "/dev/tcp/127.0.0.1/$port") &>/dev/null
+    fi
+}
+
+# ── 7a. Jupyter Lab ──────────────────────────────────────────────────────────
+
+step "Starting Jupyter Lab on port $JUPYTER_PORT"
+
+if port_in_use "$JUPYTER_PORT"; then
+    ok "Port $JUPYTER_PORT already in use — assuming Jupyter Lab is running"
+else
+    nohup python -m jupyter lab \
+        --no-browser \
+        --ServerApp.ip=127.0.0.1 \
+        --ServerApp.port="$JUPYTER_PORT" \
+        --ServerApp.port_retries=0 \
+        --ServerApp.root_dir="$REPO_ROOT" \
+        --ServerApp.open_browser=False \
+        > "$JUPYTER_LOG" 2>&1 &
+    echo $! > "$JUPYTER_PID_FILE"
+    ok "Jupyter Lab started (PID $(cat "$JUPYTER_PID_FILE")) — log: .jupyter.log"
+    echo "    Check .jupyter.log for the one-time login token/URL."
+fi
+
+# ── 7b. MkDocs site ──────────────────────────────────────────────────────────
+
+step "Starting MkDocs site on port $MKDOCS_PORT"
+
+if port_in_use "$MKDOCS_PORT"; then
+    ok "Port $MKDOCS_PORT already in use — assuming MkDocs is running"
+else
+    nohup python -m mkdocs serve \
+        -f "$REPO_ROOT/mkdocs.yml" \
+        -a "127.0.0.1:$MKDOCS_PORT" \
+        > "$MKDOCS_LOG" 2>&1 &
+    echo $! > "$MKDOCS_PID_FILE"
+    ok "MkDocs started (PID $(cat "$MKDOCS_PID_FILE")) — log: .mkdocs.log"
+fi
+
 # ─── ALL DONE ─────────────────────────────────────────────────────────────────────
 
 echo ""
 echo "══════════════════════════════════════════════"
-echo "  Setup complete (all 6 steps)"
+echo "  Setup complete (all 7 steps)"
 echo ""
 echo "  Python env  : $VENV_PATH"
 echo "  Activate    : source .venv/bin/activate"
@@ -728,6 +845,13 @@ echo "  VS Code     : ${CODE_CMD}"
 echo "  Twinny ext  : $TWINNY_EXT_ID"
 echo "  Ollama      : $OLLAMA_BASE_URL"
 echo "  SLM model   : $CHOSEN_MODEL"
+echo ""
+echo "  Study servers (running in background):"
+echo "    Hands-on notebooks  → http://localhost:$JUPYTER_PORT"
+echo "    Reading (MkDocs)    → http://localhost:$MKDOCS_PORT"
+echo ""
+echo "  To stop them:"
+echo "    kill \$(cat .jupyter.pid .mkdocs.pid 2>/dev/null)"
 echo ""
 echo "  Next: open VS Code in this folder — Ollama will start automatically."
 echo "  If prompted, click 'Allow Automatic Tasks' to enable the watcher."

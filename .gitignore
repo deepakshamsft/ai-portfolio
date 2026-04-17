@@ -67,3 +67,9 @@ checkpoints/
 *.log
 logs/
 runs/
+
+# ── Local server runtime (Ollama / Jupyter / MkDocs) ────────────────────────
+.ollama.pid
+.jupyter.pid
+.mkdocs.pid
+.mkdocs-site/
