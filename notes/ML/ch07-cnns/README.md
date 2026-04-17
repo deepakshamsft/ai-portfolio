@@ -263,3 +263,8 @@ def conv2d(x, kernel, stride=1, padding=0):
 ## Bridge to Ch.8
 
 CNNs exploit spatial locality. But what if your data is a **sequence** — house prices by month, a sentence, a time series? Sequential data has temporal locality and long-range dependencies that pooling discards. Chapter 8 — **RNNs / LSTMs / GRUs** — introduces networks that carry a hidden state forward through time, capturing context that CNNs cannot.
+
+
+## Illustrations
+
+![Convolutional filters — sliding kernel feature extraction from input images](img/ch7%20cnn%20filters.png)

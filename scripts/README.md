@@ -1,6 +1,6 @@
 # scripts/ — AI/ML Dev Environment Setup
 
-This directory contains cross-platform setup scripts that provision a complete local AI/ML development environment in a single run.
+This directory contains the **single uber setup script** (Windows + macOS/Linux) that provisions the entire local AI/ML development environment in one run. It covers every track under `notes/` — `ML/`, `AI/`, `MultiAgentAI/`, `MultimodalAI/`, and `AIInfrastructure/` — so no per-folder setup scripts are required.
 
 ---
 
@@ -39,11 +39,28 @@ Run from the repo root. No arguments required. The scripts are fully idempotent 
 scripts/
 ├── setup.ps1              ← Main setup script — Windows / PowerShell
 ├── setup.sh               ← Main setup script — macOS / Linux
+├── install-hooks.ps1      ← Installs git pre-commit secret scanner (Windows)
+├── install-hooks.sh       ← Installs git pre-commit secret scanner (macOS / Linux)
+├── hooks/                 ← Source git hooks (pre-commit secret scan)
 ├── ollama-watcher.ps1     ← Written by setup.ps1 — monitors VS Code, stops Ollama on exit
 └── ollama-watcher.sh      ← Written by setup.sh  — monitors VS Code, stops Ollama on exit
 ```
 
 > `ollama-watcher.*` are generated during Step 5 of the setup run. Do not edit them manually — re-run the setup script to regenerate.
+
+---
+
+## Git hooks
+
+Install the pre-commit secret scanner (scans staged changes for AWS/GitHub/OpenAI/Azure keys, JWTs, DB connection strings, private keys, etc.):
+
+```powershell
+.\scripts\install-hooks.ps1       # Windows
+```
+
+```bash
+bash scripts/install-hooks.sh     # macOS / Linux
+```
 
 ---
 
@@ -72,6 +89,16 @@ scripts/
 | Notebooks | notebook, ipykernel, ipywidgets, jupyterlab |
 | Generative AI / LLM | transformers, diffusers, accelerate, datasets, tokenizers, huggingface-hub, openai, langchain, langchain-community, sentence-transformers, faiss-cpu, chromadb |
 | Utilities | python-dotenv, tqdm, pillow, requests, httpx, pydantic |
+| Notebook extras (AIInfrastructure + MultiAgentAI) | mlflow, tiktoken, mcp, fastapi, uvicorn[standard], anyio, redis, langgraph, langchain-core, langchain-openai, autogen-agentchat, semantic-kernel, ollama |
+
+## Jupyter kernels registered
+
+| Kernel name | Display name | Used by |
+|---|---|---|
+| `ai-ml-dev` | AI/ML Dev (venv) | general-purpose notebooks |
+| `ml-notes` | ML Notes (venv) | `notes/ML/` |
+| `ai-infrastructure` | Python (AI Infrastructure) | `notes/AIInfrastructure/` |
+| `multi-agent-ai` | Multi-Agent AI | `notes/MultiAgentAI/` |
 
 ---
 

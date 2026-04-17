@@ -208,11 +208,38 @@ Install-Group "Utilities" @(
     "pydantic"
 )
 
-# ─── 1e. Register Jupyter kernel ──────────────────────────────────────────────
+# Notebook extras — dependencies pulled in by per-notes setup scripts
+#   notes/AIInfrastructure : mlflow
+#   notes/MultiAgentAI     : tiktoken, mcp, fastapi, uvicorn, anyio, redis,
+#                            langgraph, langchain-core, langchain-openai,
+#                            autogen-agentchat, semantic-kernel, ollama
+Install-Group "Notebook extras (AIInfrastructure + MultiAgentAI)" @(
+    "mlflow",
+    "tiktoken",
+    "mcp",
+    "fastapi",
+    "uvicorn[standard]",
+    "anyio",
+    "redis",
+    "langgraph",
+    "langchain-core",
+    "langchain-openai",
+    "autogen-agentchat",
+    "semantic-kernel",
+    "ollama"
+)
 
-Write-Step "Registering Jupyter kernel"
-& python -m ipykernel install --user --name "ai-ml-dev" --display-name "AI/ML Dev (venv)" 2>&1 | Out-Null
+# ─── 1e. Register Jupyter kernels ─────────────────────────────────────────────
+
+Write-Step "Registering Jupyter kernels"
+& python -m ipykernel install --user --name "ai-ml-dev"          --display-name "AI/ML Dev (venv)"           2>&1 | Out-Null
 Write-Ok "Kernel 'ai-ml-dev' registered"
+& python -m ipykernel install --user --name "ml-notes"           --display-name "ML Notes (venv)"            2>&1 | Out-Null
+Write-Ok "Kernel 'ml-notes' registered"
+& python -m ipykernel install --user --name "ai-infrastructure"  --display-name "Python (AI Infrastructure)" 2>&1 | Out-Null
+Write-Ok "Kernel 'ai-infrastructure' registered"
+& python -m ipykernel install --user --name "multi-agent-ai"     --display-name "Multi-Agent AI"             2>&1 | Out-Null
+Write-Ok "Kernel 'multi-agent-ai' registered"
 
 # ─── STEP 2: Visual Studio Code ─────────────────────────────────────────────
 

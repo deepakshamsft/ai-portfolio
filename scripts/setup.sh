@@ -219,11 +219,27 @@ install_group "Generative AI / LLM utilities" \
 install_group "Utilities" \
     python-dotenv tqdm pillow requests httpx pydantic
 
-# ─── 1e. Register Jupyter kernel ──────────────────────────────────────────────
+# Notebook extras — dependencies pulled in by per-notes setup scripts
+#   notes/AIInfrastructure : mlflow
+#   notes/MultiAgentAI     : tiktoken, mcp, fastapi, uvicorn, anyio, redis,
+#                            langgraph, langchain-core, langchain-openai,
+#                            autogen-agentchat, semantic-kernel, ollama
+install_group "Notebook extras (AIInfrastructure + MultiAgentAI)" \
+    mlflow tiktoken mcp fastapi "uvicorn[standard]" anyio redis \
+    langgraph langchain-core langchain-openai \
+    autogen-agentchat semantic-kernel ollama
 
-step "Registering Jupyter kernel"
-python -m ipykernel install --user --name "ai-ml-dev" --display-name "AI/ML Dev (venv)" &>/dev/null
+# ─── 1e. Register Jupyter kernels ─────────────────────────────────────────────
+
+step "Registering Jupyter kernels"
+python -m ipykernel install --user --name "ai-ml-dev"         --display-name "AI/ML Dev (venv)"           &>/dev/null
 ok "Kernel 'ai-ml-dev' registered"
+python -m ipykernel install --user --name "ml-notes"          --display-name "ML Notes (venv)"            &>/dev/null
+ok "Kernel 'ml-notes' registered"
+python -m ipykernel install --user --name "ai-infrastructure" --display-name "Python (AI Infrastructure)" &>/dev/null
+ok "Kernel 'ai-infrastructure' registered"
+python -m ipykernel install --user --name "multi-agent-ai"    --display-name "Multi-Agent AI"             &>/dev/null
+ok "Kernel 'multi-agent-ai' registered"
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 

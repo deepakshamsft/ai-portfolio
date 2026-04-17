@@ -286,3 +286,8 @@ Ch.15:    MLE & Loss Functions (why the losses are what they are)
 Ch.16:    TensorBoard (diagnosing training with instruments)
 Ch.17:    Transformers & Attention (the architecture behind LLMs)
 ```
+
+
+## Illustrations
+
+![TensorBoard panels — scalars, weight histograms, embedding projector, and diagnostics dashboard](img/ch16%20tensorboard.png)

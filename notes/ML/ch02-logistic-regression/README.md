@@ -131,6 +131,8 @@ Actual  0   [ TN  |  FP ]
          σ(0) = 0.5   (decision boundary is z = 0)
 ```
 
+![Sigmoid S-curve and 2D decision boundary](img/Logistic%20regression.png)
+
 ### Precision–Recall Trade-off (threshold sweep)
 
 ```mermaid
@@ -251,3 +253,8 @@ def bce_loss(y_true, p_hat):
 ## Bridge to Chapter 3
 
 Ch.2 established that a single linear layer with a sigmoid can classify linearly separable problems — districts on one side of a hyperplane get label 1, the rest get 0. Ch.3 (The XOR Problem) exposes the hard limit of this: if the true decision boundary is **not** a straight line (or hyperplane), no amount of tuning $\mathbf{W}$ and $b$ will fix it. That failure motivates the jump to hidden layers.
+
+
+## Illustrations
+
+![Logistic regression — sigmoid curve and 2-D decision boundary overview](img/ch2%20Logistic%20Regression.png)

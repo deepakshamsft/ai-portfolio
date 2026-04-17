@@ -465,3 +465,8 @@ print("LSTM processes tokens one by one — 8 sequential steps.")
 Ch.17 established the transformer encoder — the architecture that turns a sequence of tokens into rich contextual representations. The AI track's `RAGAndEmbeddings` note picks up exactly here: embedding models are transformer **encoders** trained with contrastive loss to produce sentence-level vectors you can compare. If you've done Ch.17, the attention mechanism and the pooling step in those notes are no longer mysterious — start there next.
 
 > *The transformer is the architecture. The LLM is a transformer trained on internet-scale text. The embedding model is a transformer trained to make similar things close in vector space. One mechanism, three deployment patterns.*
+
+
+## Illustrations
+
+![Transformer architecture — multi-head self-attention, encoder stack, and decoder blocks](img/ch17%20Transformers.png)

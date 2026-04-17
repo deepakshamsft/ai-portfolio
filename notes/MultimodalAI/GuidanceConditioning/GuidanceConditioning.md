@@ -196,3 +196,7 @@ In most implementations, the null embedding is the encoded representation of an 
 ## 9 · What's Next
 
 → **[Schedulers.md](../Schedulers/Schedulers.md)** — CFG doubles inference compute. With 1000 DDPM steps and 2 U-Net calls per step, generating one image requires 2000 forward passes. DDIM and DPM-Solver reduce this to 20–50 steps without retraining, cutting generation time from minutes to seconds. Understanding how they achieve this requires understanding the geometry of the diffusion trajectory.
+
+## Illustrations
+
+![Guidance and conditioning - CFG, scale sweep, cross-attention, ControlNet family](img/Guidance%20Conditioning.png)

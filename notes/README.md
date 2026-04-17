@@ -47,14 +47,14 @@ notes/
 
 A 17-chapter bottom-up curriculum built from the **Neural Chronicles** reference book. Every chapter has a technical README and a runnable Jupyter notebook using the **California Housing dataset** throughout.
 
-> See [ML/ML_Chronicles_BuildPlan.md](ML/ML_Chronicles_BuildPlan.md) for the chapter tracker.
+> See [ML/AUTHORING_GUIDE.md](ML/AUTHORING_GUIDE.md) for the chapter authoring guide and build tracker.
 
-**Setup:**
+**Setup:** run the single uber-setup from the repo root — it installs everything (ML, AIInfrastructure, MultiAgentAI) and registers all Jupyter kernels:
 ```powershell
-# Windows (run from repo root)
-.\notes\scripts\setup.ps1
-# macOS / Linux (run from repo root)
-bash notes/scripts/setup.sh
+# Windows
+.\scripts\setup.ps1
+# macOS / Linux
+bash scripts/setup.sh
 ```
 
 | # | Chapter | Core concept |
@@ -109,12 +109,12 @@ Every core note has a companion `_Supplement.md` for production-depth details. R
 
 > → [MultiAgentAI/README.md](MultiAgentAI/README.md) for the full reading map and setup instructions.
 
-**Setup:**
+**Setup:** use the single uber-setup from the repo root — it already installs all MultiAgentAI dependencies and registers the `multi-agent-ai` kernel:
 ```powershell
-# Windows (run from repo root)
-.\notes\MultiAgentAI\scripts\setup.ps1
-# macOS / Linux (run from repo root)
-bash notes/MultiAgentAI/scripts/setup.sh
+# Windows
+.\scripts\setup.ps1
+# macOS / Linux
+bash scripts/setup.sh
 ```
 
 | Chapter | What it covers |
@@ -191,7 +191,7 @@ Working Python experiments that accompany the theory.
 ```
 1. AI/AgenticAI_ReadingMap.md           ← understand the agentic systems architecture
 2. AI/AI_Interview_Primer/              ← Q&A covering every topic in interview format
-3. ML/ML_Chronicles_BuildPlan.md        ← skim Chapter Summaries for ML concepts
+3. ML/AUTHORING_GUIDE.md                ← skim Chapter Summaries for ML concepts
 4. MultiAgentAI/README.md              ← multi-agent protocol interview checklist
 ```
 
@@ -221,7 +221,7 @@ Step 5 — Synthesis
 ### Path C — ML from Scratch (~40–50 hours)
 
 ```
-1. Run: .\notes\scripts\setup.ps1  (Windows)  or  bash notes/scripts/setup.sh  (macOS/Linux)
+1. Run: .\scripts\setup.ps1  (Windows)  or  bash scripts/setup.sh  (macOS/Linux)
 2. Work through ML/ ch01 → ch17 in order — README first, then notebook
 3. After Ch.6 you have enough ML to start Path B in parallel
 ```
@@ -278,12 +278,12 @@ AIInfrastructure/GPUArchitecture/
 git clone <repo-url>
 cd ai-portfolio
 
-# Launch the ML notebooks (installs everything into a .venv)
+# Launch the full dev environment (installs everything into a .venv)
 # Windows
-.\notes\scripts\setup.ps1
+.\scripts\setup.ps1
 
 # macOS / Linux
-bash notes/scripts/setup.sh
+bash scripts/setup.sh
 ```
 
-The setup script creates a `.venv` at the repo root, installs all required packages (`numpy`, `pandas`, `scikit-learn`, `tensorflow`, `matplotlib`, `seaborn`, `scipy`, `notebook`), registers the kernel, and opens Jupyter rooted at `notes/ML/`.
+The single uber setup script creates a `.venv` at the repo root, installs the full AI/ML package stack used across every track (ML, AI, MultiAgentAI, MultimodalAI, AIInfrastructure), registers all Jupyter kernels (`ai-ml-dev`, `ml-notes`, `ai-infrastructure`, `multi-agent-ai`), installs VS Code + Twinny, and starts a local Ollama server.

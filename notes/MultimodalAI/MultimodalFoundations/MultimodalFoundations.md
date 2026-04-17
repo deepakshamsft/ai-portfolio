@@ -205,3 +205,7 @@ Mel spectrograms resemble images: 2-D, spatial patterns, smooth gradients. Many 
 ## 9 · What's Next
 
 → **[VisionTransformers.md](../VisionTransformers/VisionTransformers.md)** — now that you have a `(3, H, W)` image tensor, the next question is: how does the model process it? A ViT splits the image into patches and applies self-attention over the patch sequence. This is the foundational architecture behind CLIP's image encoder, Stable Diffusion's U-Net, and every multimodal LLM's visual frontend.
+
+## Illustrations
+
+![Multimodal foundations - raw signals to tensors, shapes, projection, alignment](img/Multimodal%20Foundations.png)

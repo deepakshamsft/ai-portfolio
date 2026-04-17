@@ -246,3 +246,11 @@ The PizzaBot decision tree applied:
 Fine-Tuning showed how to adapt model behaviour when prompting and RAG aren't enough. `SafetyAndHallucination.md` covers the reliability risks that all three approaches — prompting, RAG, and fine-tuning — must mitigate before a system can be trusted in production.
 
 > *Fine-tuning changes the distribution of outputs. Evaluation (EvaluatingAISystems.md) is what tells you if the new distribution is actually better.*
+
+## Illustrations
+
+![Fine-tuning — full FT vs LoRA, decision tree, QLoRA stack, failure modes](img/Fine-Tuning.png)
+
+## Illustrations
+
+![Fine-tuning — full FT vs LoRA, decision tree, QLoRA stack, failure modes](img/Fine-Tuning.png)

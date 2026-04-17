@@ -216,3 +216,7 @@ Human preference models (HPSv2, ImageReward, PickScore) train a reward model on 
 ## 9 · What's Next
 
 → [LocalDiffusionLab.md](../LocalDiffusionLab/LocalDiffusionLab.md) — Capstone: combine everything you've built across all 12 chapters into a single local diffusion lab.
+
+## Illustrations
+
+![Generative evaluation - FID, CLIPScore, metric coverage, human eval pipeline](img/Generative%20Evaluation.png)

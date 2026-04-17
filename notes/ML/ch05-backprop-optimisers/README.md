@@ -259,3 +259,8 @@ def adam_step(W, g, m, v, t, lr=1e-3, b1=0.9, b2=0.999, eps=1e-8):
 ## Bridge to Chapter 6
 
 You can now train the network and watch the loss decrease. But if you let it run long enough, the training loss keeps falling while the validation loss rises — the model memorises the training districts instead of learning general patterns. Chapter 6 — **Regularisation** — introduces L1, L2, Dropout, and early stopping to close that gap.
+
+
+## Illustrations
+
+![Gradient descent optimisers — SGD, momentum, and Adam loss-surface trajectories](img/ch5%20optimizers.png)

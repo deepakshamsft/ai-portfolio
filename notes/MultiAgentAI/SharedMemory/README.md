@@ -191,3 +191,7 @@ When an agent fails mid-task and the message is re-delivered (at-least-once), th
 ## Next
 
 → [Ch.6 — Trust, Sandboxing & Authentication](../TrustAndSandboxing/) — now that agents share a blackboard and communicate at scale, what are the attack surfaces and how do you close them?
+
+## Illustrations
+
+![Shared memory - blackboard, scopes, in-memory vs external, long-term retrieval](img/Shared%20Memory.png)

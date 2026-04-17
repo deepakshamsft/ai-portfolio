@@ -228,3 +228,7 @@ Always in the `user` role, never the `system` role. The `system` prompt defines 
 ## Next
 
 → [Ch.7 — Agent Frameworks](../AgentFrameworks/) — AutoGen, LangGraph, Semantic Kernel: the high-level frameworks that build on these primitives, and how to choose between them
+
+## Illustrations
+
+![Trust and sandboxing - trust boundary, defence layers, auth models, sandbox](img/Trust%20and%20Sandboxing.png)

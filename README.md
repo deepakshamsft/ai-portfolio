@@ -38,19 +38,21 @@ More projects added as the curriculum progresses.
 
 ## Quick start
 
-**Set up the ML notebook environment (Windows):**
+**Set up the full dev environment (Windows):**
 ```powershell
-.\notes\scripts\setup.ps1
+.\scripts\setup.ps1
 ```
 
-**Set up the ML notebook environment (macOS / Linux):**
+**Set up the full dev environment (macOS / Linux):**
 ```bash
-bash notes/scripts/setup.sh
+bash scripts/setup.sh
 ```
+
+One script installs Python, the full AI/ML package stack (covering `notes/ML`, `notes/AIInfrastructure`, and `notes/MultiAgentAI`), VS Code + Twinny, Ollama, and registers all Jupyter kernels.
 
 **Install git hooks (secret scanning pre-commit):**
 ```bash
-bash notes/scripts/install-hooks.sh     # macOS / Linux
-.\notes\scripts\install-hooks.ps1       # Windows
+bash scripts/install-hooks.sh     # macOS / Linux
+.\scripts\install-hooks.ps1       # Windows
 ```
 

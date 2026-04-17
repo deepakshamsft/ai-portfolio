@@ -281,3 +281,11 @@ This 50–100 question set is your regression test suite. It catches regressions
 Evaluating AI Systems provided the measurement layer that closes the loop on every other AI note — RAG pipelines, reasoning agents, and retrieval systems all need evaluation to move from demo to production. `FineTuning.md` shows the next natural step once evaluation reveals a systematic capability gap that prompt engineering and RAG cannot close.
 
 > *A system you cannot measure is a system you cannot improve. Build the eval suite before you build the application — not after.*
+
+## Illustrations
+
+![Evaluating AI systems — RAGAS radar, reasoning-trace checklist, component-level eval, hallucination gate](img/Evaluating%20AI%20Systems.png)
+
+## Illustrations
+
+![Evaluating AI systems — RAGAS radar, reasoning-trace checklist, component-level eval, hallucination gate](img/Evaluating%20AI%20Systems.png)

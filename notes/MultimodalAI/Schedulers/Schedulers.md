@@ -144,3 +144,7 @@ Timestep sub-sequences:
 ## 9 · What's Next
 
 [LatentDiffusion.md](../LatentDiffusion/LatentDiffusion.md) — the 512×512 pixel image is too expensive to diffuse directly. SD compresses it 8× into a latent space first: that's what makes real-time generation possible.
+
+## Illustrations
+
+![Schedulers - DDPM vs DDIM vs DPM++, trajectory, quality curve, family table](img/Schedulers.png)

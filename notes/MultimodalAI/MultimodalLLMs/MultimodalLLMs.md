@@ -171,3 +171,7 @@ Key trend: higher resolution vision encoders (336px → 448px → variable), lar
 ## 9 · What's Next
 
 [GenerativeEvaluation.md](../GenerativeEvaluation/GenerativeEvaluation.md) — how do you measure the quality of generated images and video? FID, IS, CLIP Score, and human preference models.
+
+## Illustrations
+
+![Multimodal LLMs - architecture, token interleaving, training stages, capabilities](img/Multimodal%20LLMs.png)

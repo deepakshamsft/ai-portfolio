@@ -275,3 +275,8 @@ y_hat = forward(X_test[:5])
 ## Bridge to Chapter 5
 
 You now have a network that can do a forward pass and make predictions. But you don't yet know exactly **how** to compute gradients through it, or which optimiser to use once you have them. Chapter 5 — **Backprop & Optimisers** — derives the chain rule layer by layer and shows why Adam almost always converges faster than vanilla SGD for housing-scale datasets.
+
+
+## Illustrations
+
+![Neural network architecture — layers, neurons, activations, and weight connections](img/ch4%20Network%20architecture.png)

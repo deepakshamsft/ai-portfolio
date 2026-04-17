@@ -297,3 +297,11 @@ Insert approval checkpoints before irreversible actions (delete, send, transact)
 | What is HyDE? | Hypothetical Document Embeddings — embed a generated hypothetical answer instead of the raw query to close the query/document semantic gap. |
 | What is the lost-in-the-middle problem? | LLMs under-attend to middle content in long contexts. Fix: place key chunks first and last. |
 | What is PRM? | Process Reward Model — rewards each reasoning step individually, not just the final answer. Produces more reliably correct reasoning chains. |
+
+## Illustrations
+
+![AI interview primer — CoT, ReAct, LangChain vs SK, embeddings, RAG pipeline, vector DB tradeoff triangle](img/AI%20Interview%20Primer.png)
+
+## Illustrations
+
+![AI interview primer — CoT, ReAct, LangChain vs SK, embeddings, RAG pipeline, vector DB tradeoff triangle](img/AI%20Interview%20Primer.png)

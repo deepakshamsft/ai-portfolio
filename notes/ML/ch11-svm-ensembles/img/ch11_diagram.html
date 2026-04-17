@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: white; font-family: "Segoe UI", Arial, sans-serif; }</style>
+</head>
+<body>
+<svg width="1400" height="900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="900" fill="white"/>
+
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#2C3E50"/></marker>
+    <marker id="arr-g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#1E8449"/></marker>
+    <marker id="arr-o" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#E67E22"/></marker>
+  </defs>
+
+  <!-- ══ Title ══ -->
+  <text x="700" y="44" text-anchor="middle" font-size="26" font-weight="bold" fill="#1A1A2E">SVM &amp; Ensembles</text>
+
+  <!-- ══ Vertical divider ══ -->
+  <line x1="670" y1="60" x2="670" y2="850" stroke="#BDC3C7" stroke-width="1.5"/>
+
+  <!-- ════════════════════════════════════════
+       LEFT — SVM Maximum Margin
+  ════════════════════════════════════════ -->
+
+  <text x="335" y="78" text-anchor="middle" font-size="16" font-weight="bold" fill="#2C3E50">SVM — Maximum Margin Hyperplane</text>
+
+  <!-- Axes -->
+  <line x1="60" y1="620" x2="60"  y2="100" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="60" y1="620" x2="640" y2="620" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="355" y="650" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C3E50">Feature x₁</text>
+  <text x="30"  y="360" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C3E50" transform="rotate(-90,30,360)">Feature x₂</text>
+
+  <!-- Class +1 blue circles -->
+  <circle cx="140" cy="480" r="11" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="170" cy="520" r="11" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="120" cy="540" r="11" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="200" cy="490" r="11" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="160" cy="555" r="11" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="110" cy="510" r="11" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="200" cy="555" r="11" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="140" cy="430" r="11" fill="#2E86C1" opacity="0.85"/>
+
+  <!-- Class -1 red X markers (upper-right) -->
+  <!-- macro: X at cx, cy -->
+  <line x1="390" y1="168" x2="414" y2="192" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="414" y1="168" x2="390" y2="192" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="440" y1="140" x2="464" y2="164" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="464" y1="140" x2="440" y2="164" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="480" y1="185" x2="504" y2="209" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="504" y1="185" x2="480" y2="209" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="510" y1="230" x2="534" y2="254" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="534" y1="230" x2="510" y2="254" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="420" y1="220" x2="444" y2="244" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="444" y1="220" x2="420" y2="244" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="545" y1="160" x2="569" y2="184" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="569" y1="160" x2="545" y2="184" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="365" y1="215" x2="389" y2="239" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="389" y1="215" x2="365" y2="239" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="470" y1="265" x2="494" y2="289" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="494" y1="265" x2="470" y2="289" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+
+  <!-- Decision boundary: diagonal from 60,590 to 580,120 -->
+  <line x1="80" y1="590" x2="590" y2="115" stroke="#1A1A2E" stroke-width="2.5"/>
+  <text x="590" y="110" font-size="12" fill="#1A1A2E" font-weight="bold">Decision boundary</text>
+  <text x="590" y="126" font-size="11" fill="#555">w·x + b = 0</text>
+
+  <!-- Margin lines (dashed, 60px offset each side perpendicular) -->
+  <!-- Approx offset: vector perpendicular to (510,-475) is (475,510)/norm -->
+  <!-- Shift ~55px in perpendicular direction -->
+  <line x1="130" y1="568" x2="640" y2="95"  stroke="#E74C3C" stroke-width="1.6" stroke-dasharray="10,5"/>
+  <line x1="30"  y1="610" x2="540" y2="140" stroke="#2E86C1" stroke-width="1.6" stroke-dasharray="10,5"/>
+
+  <!-- Margin annotation brace -->
+  <line x1="295" y1="372" x2="340" y2="334" stroke="#7D3C98" stroke-width="1.5"/>
+  <line x1="295" y1="372" x2="250" y2="408" stroke="#7D3C98" stroke-width="1.5"/>
+  <text x="200" y="402" font-size="12" fill="#7D3C98" font-weight="bold">margin</text>
+  <text x="200" y="418" font-size="11" fill="#7D3C98">= 2/‖w‖</text>
+  <text x="200" y="434" font-size="10" fill="#7D3C98">← maximise this</text>
+
+  <!-- Support vectors (circled) -->
+  <!-- sv1: blue circle on lower margin -->
+  <circle cx="245" cy="430" r="11" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="245" cy="430" r="19" fill="none" stroke="#7D3C98" stroke-width="2.5" stroke-dasharray="5,3"/>
+  <!-- sv2: red X on upper margin -->
+  <line x1="368" y1="318" x2="392" y2="342" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="392" y1="318" x2="368" y2="342" stroke="#E74C3C" stroke-width="2.8" stroke-linecap="round"/>
+  <circle cx="380" cy="330" r="19" fill="none" stroke="#7D3C98" stroke-width="2.5" stroke-dasharray="5,3"/>
+
+  <!-- Support vectors label -->
+  <text x="80"  y="695" font-size="12" fill="#7D3C98" font-weight="bold">Support vectors</text>
+  <text x="80"  y="713" font-size="11" fill="#555">Points on the margin boundary. Only they define the hyperplane —</text>
+  <text x="80"  y="729" font-size="11" fill="#555">remove any other point → decision boundary unchanged.</text>
+
+  <!-- SVM key table -->
+  <rect x="60" y="745" width="580" height="65" rx="8" fill="#F5EEF8" stroke="#7D3C98" stroke-width="1.2"/>
+  <text x="350" y="766" text-anchor="middle" font-size="12" font-weight="bold" fill="#7D3C98">Soft-Margin (C) &amp; RBF Kernel (γ)</text>
+  <text x="75"  y="786" font-size="11" fill="#333">C large → narrow margin, few violations (low bias, high variance).</text>
+  <text x="75"  y="802" font-size="11" fill="#333">γ large → influence decays fast, complex boundary.  Kernel trick: K(xi,xj)=exp(−γ‖xi−xj‖²)</text>
+
+  <!-- ════════════════════════════════════════
+       RIGHT — Bagging + Boosting
+  ════════════════════════════════════════ -->
+
+  <text x="1035" y="78" text-anchor="middle" font-size="16" font-weight="bold" fill="#2C3E50">Ensembles: Bagging vs Boosting</text>
+
+  <!-- ── BAGGING (top-right) ── -->
+  <text x="1035" y="110" text-anchor="middle" font-size="14" font-weight="bold" fill="#117A65">Bagging — Random Forest</text>
+
+  <!-- Training data box -->
+  <rect x="690" y="125" width="130" height="44" rx="8" fill="#2C3E50"/>
+  <text x="755" y="150" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Training Data</text>
+
+  <!-- Three PARALLEL arrows to three trees -->
+  <line x1="820" y1="147" x2="875" y2="147" stroke="#1E8449" stroke-width="1.8" marker-end="url(#arr-g)"/>
+  <line x1="820" y1="147" x2="875" y2="200" stroke="#1E8449" stroke-width="1.8" marker-end="url(#arr-g)"/>
+  <line x1="820" y1="147" x2="875" y2="250" stroke="#1E8449" stroke-width="1.8" marker-end="url(#arr-g)"/>
+  <text x="845" y="130" font-size="10" fill="#1E8449">Bootstrap</text>
+  <text x="845" y="142" font-size="10" fill="#1E8449">samples</text>
+
+  <!-- Tree 1 -->
+  <rect x="878" y="128" width="90" height="38" rx="8" fill="#1E8449"/>
+  <text x="923" y="152" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Tree 1</text>
+  <!-- Tree 2 -->
+  <rect x="878" y="181" width="90" height="38" rx="8" fill="#117A65"/>
+  <text x="923" y="205" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Tree 2</text>
+  <!-- Tree 3 -->
+  <rect x="878" y="232" width="90" height="38" rx="8" fill="#0E8449"/>
+  <text x="923" y="256" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Tree 3</text>
+
+  <!-- Converge arrows to Vote box -->
+  <line x1="968" y1="147" x2="1020" y2="200" stroke="#1E8449" stroke-width="1.8" marker-end="url(#arr-g)"/>
+  <line x1="968" y1="200" x2="1020" y2="200" stroke="#1E8449" stroke-width="1.8" marker-end="url(#arr-g)"/>
+  <line x1="968" y1="251" x2="1020" y2="200" stroke="#1E8449" stroke-width="1.8" marker-end="url(#arr-g)"/>
+
+  <!-- Vote box -->
+  <rect x="1023" y="176" width="100" height="48" rx="8" fill="#F1C40F" stroke="#D4AC0D" stroke-width="1.5"/>
+  <text x="1073" y="202" text-anchor="middle" font-size="13" font-weight="bold" fill="#7D6608">Vote /</text>
+  <text x="1073" y="216" text-anchor="middle" font-size="13" font-weight="bold" fill="#7D6608">Average</text>
+
+  <!-- Final prediction -->
+  <line x1="1123" y1="200" x2="1178" y2="200" stroke="#2C3E50" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="1181" y="181" width="115" height="40" rx="8" fill="#2C3E50"/>
+  <text x="1238" y="205" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Prediction</text>
+
+  <!-- Bagging note -->
+  <rect x="688" y="285" width="615" height="46" rx="7" fill="#E9F7EF" stroke="#1E8449" stroke-width="1"/>
+  <text x="996" y="305" text-anchor="middle" font-size="11" fill="#196F3D">Trees trained in <tspan font-weight="bold">PARALLEL</tspan> on bootstrap samples (63% of data each, with replacement).</text>
+  <text x="996" y="321" text-anchor="middle" font-size="11" fill="#196F3D">Variance ≈ σ²/N — averaging N independent trees reduces variance without touching bias.</text>
+
+  <!-- ── BOOSTING (bottom-right) ── -->
+  <text x="1035" y="380" text-anchor="middle" font-size="14" font-weight="bold" fill="#E67E22">Boosting — XGBoost / Gradient Boosting</text>
+
+  <!-- Sequential chain -->
+  <!-- Data → Tree 1 → Residuals → Tree 2 → Residuals → Tree 3 → Sum → ŷ -->
+  <!-- Positions: 700, 790, 890, 990, 1090, 1190, 1290 -->
+
+  <!-- Data -->
+  <rect x="688" y="400" width="80" height="40" rx="7" fill="#2C3E50"/>
+  <text x="728" y="424" text-anchor="middle" font-size="11" font-weight="bold" fill="white">Data</text>
+
+  <line x1="768" y1="420" x2="800" y2="420" stroke="#E67E22" stroke-width="2" marker-end="url(#arr-o)"/>
+
+  <!-- Tree 1 -->
+  <rect x="803" y="400" width="80" height="40" rx="7" fill="#1E8449"/>
+  <text x="843" y="424" text-anchor="middle" font-size="11" font-weight="bold" fill="white">Tree 1</text>
+
+  <line x1="883" y1="420" x2="910" y2="420" stroke="#E67E22" stroke-width="2" marker-end="url(#arr-o)"/>
+
+  <!-- Residuals 1 -->
+  <rect x="913" y="400" width="90" height="40" rx="7" fill="#E67E22"/>
+  <text x="958" y="418" text-anchor="middle" font-size="10" font-weight="bold" fill="white">Residuals</text>
+  <text x="958" y="432" text-anchor="middle" font-size="10" fill="white">r₁ = y − ŷ₁</text>
+
+  <line x1="1003" y1="420" x2="1030" y2="420" stroke="#E67E22" stroke-width="2" marker-end="url(#arr-o)"/>
+
+  <!-- Tree 2 -->
+  <rect x="1033" y="400" width="80" height="40" rx="7" fill="#1E8449"/>
+  <text x="1073" y="424" text-anchor="middle" font-size="11" font-weight="bold" fill="white">Tree 2</text>
+
+  <line x1="1113" y1="420" x2="1140" y2="420" stroke="#E67E22" stroke-width="2" marker-end="url(#arr-o)"/>
+
+  <!-- Residuals 2 -->
+  <rect x="1143" y="400" width="90" height="40" rx="7" fill="#E67E22"/>
+  <text x="1188" y="418" text-anchor="middle" font-size="10" font-weight="bold" fill="white">Residuals</text>
+  <text x="1188" y="432" text-anchor="middle" font-size="10" fill="white">r₂ = y − ŷ₂</text>
+
+  <line x1="1233" y1="420" x2="1255" y2="420" stroke="#E67E22" stroke-width="2" marker-end="url(#arr-o)"/>
+
+  <text x="1262" y="425" font-size="18" fill="#888">⋯</text>
+
+  <!-- Sum text -->
+  <rect x="688" y="460" width="615" height="28" rx="5" fill="#FEF9E7" stroke="#F39C12" stroke-width="1"/>
+  <text x="996"  y="479" text-anchor="middle" font-size="11" fill="#7D6608">Final: ŷ = Σ all trees (weighted) · learning rate η.  Each tree fits the residuals of the ensemble so far.</text>
+
+  <!-- Boosting note -->
+  <rect x="688" y="498" width="615" height="46" rx="7" fill="#FEF5E7" stroke="#E67E22" stroke-width="1"/>
+  <text x="996" y="518" text-anchor="middle" font-size="11" fill="#784212">Trees trained <tspan font-weight="bold">SEQUENTIALLY</tspan> — each corrects errors of the previous. Bias drops each round.</text>
+  <text x="996" y="534" text-anchor="middle" font-size="11" fill="#784212">Key params: n_estimators, max_depth (keep shallow!), learning_rate η, subsample, colsample_bytree.</text>
+
+  <!-- ── Comparison table ── -->
+  <text x="1035" y="575" text-anchor="middle" font-size="13" font-weight="bold" fill="#2C3E50">Bagging vs Boosting</text>
+
+  <!-- Header -->
+  <rect x="688" y="585" width="615" height="32" rx="4" fill="#2C3E50"/>
+  <text x="810"  y="606" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Property</text>
+  <text x="1000" y="606" text-anchor="middle" font-size="12" font-weight="bold" fill="#5DADE2">Bagging (Random Forest)</text>
+  <text x="1210" y="606" text-anchor="middle" font-size="12" font-weight="bold" fill="#FDEBD0">Boosting (XGBoost)</text>
+
+  <!-- Rows -->
+  <rect x="688" y="617" width="615" height="34" fill="#F2F3F4"/>
+  <text x="810"  y="638" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">Training</text>
+  <text x="1000" y="638" text-anchor="middle" font-size="11" fill="#333">Parallel</text>
+  <text x="1210" y="638" text-anchor="middle" font-size="11" fill="#333">Sequential</text>
+
+  <rect x="688" y="651" width="615" height="34" fill="white"/>
+  <text x="810"  y="672" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">Reduces</text>
+  <text x="1000" y="672" text-anchor="middle" font-size="11" fill="#333">Variance</text>
+  <text x="1210" y="672" text-anchor="middle" font-size="11" fill="#333">Bias</text>
+
+  <rect x="688" y="685" width="615" height="34" fill="#F2F3F4"/>
+  <text x="810"  y="706" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">Overfitting risk</text>
+  <text x="1000" y="706" text-anchor="middle" font-size="11" fill="#1E8449">Lower (averaging helps)</text>
+  <text x="1210" y="706" text-anchor="middle" font-size="11" fill="#E74C3C">Higher (if η large)</text>
+
+  <rect x="688" y="719" width="615" height="34" fill="white"/>
+  <text x="810"  y="740" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">Accuracy</text>
+  <text x="1000" y="740" text-anchor="middle" font-size="11" fill="#333">High</text>
+  <text x="1210" y="740" text-anchor="middle" font-size="11" fill="#333">Highest (SOTA on tabular)</text>
+
+  <!-- Caption -->
+  <rect x="30" y="840" width="1340" height="48" rx="8" fill="#F8F9FA" stroke="#BDC3C7" stroke-width="1"/>
+  <text x="700" y="860" text-anchor="middle" font-size="11" fill="#555" font-style="italic">SVM finds the widest-margin hyperplane; support vectors alone define it; the kernel trick handles non-linear data.</text>
+  <text x="700" y="878" text-anchor="middle" font-size="11" fill="#555" font-style="italic">Bagging (Random Forest) reduces variance by averaging parallel trees; Boosting (XGBoost) reduces bias by sequentially correcting residuals.</text>
+</svg>
+</body>
+</html>

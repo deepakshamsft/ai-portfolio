@@ -656,3 +656,11 @@ A well-tuned chunking strategy can improve retrieval accuracy by **40%** compare
 [6] https://zilliz.com/ai-models/text-embedding-ada-002
 [7] https://milvus.io/ai-quick-reference/what-is-the-vector-size-of-textembeddingada002
 [8] https://apxml.com/courses/optimizing-rag-for-production/chapter-2-advanced-retrieval-optimization/advanced-document-representations-rag
+
+## Illustrations
+
+![RAG and embeddings — semantic clustering, ingestion pipeline, query pipeline, chunk-size tradeoff](img/RAG%20and%20Embeddings.png)
+
+## Illustrations
+
+![RAG and embeddings — semantic clustering, ingestion pipeline, query pipeline, chunk-size tradeoff](img/RAG%20and%20Embeddings.png)

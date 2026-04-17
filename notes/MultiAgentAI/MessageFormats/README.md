@@ -182,3 +182,7 @@ Token cost compounds multiplicatively: a 4-agent chain where each agent accumula
 ## Next
 
 → [Ch.2 — Model Context Protocol (MCP)](../MCP/) — how to standardise tool access so any agent can call any tool without bespoke integration
+
+## Illustrations
+
+![Message formats - anatomy, payload styles, context growth, serialization](img/Message%20Formats.png)

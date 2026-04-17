@@ -558,3 +558,11 @@ An internal Microsoft wiki on orchestrators captures the positioning succinctly:
 | **Semantic Kernel** model: a `Kernel` is the DI container that holds model connectors, plugins, and memory; plugins are classes with methods decorated `@kernel_function` (Python) or `[KernelFunction]` (C#); the kernel's planner calls the model and routes to the correct plugin method automatically — equivalent to LangChain tools but with stronger type contracts and enterprise filters | "How does Semantic Kernel's plugin model compare to LangChain tools?" | Describing SK plugins as just Python functions — the decorator, return type annotation, and kernel registration are required for auto-invocation |
 | **Multi-agent patterns:** (1) **Orchestrator-worker** — one planner LLM decomposes tasks, spawns worker agents for subtasks, collects results; (2) **Peer-to-peer** — agents communicate via a shared message bus with no central coordinator; (3) **Hierarchical** — recursive layers of orchestrators, each managing a pool of specialists. Choice depends on task complexity and required fault isolation | "Name and explain at least two multi-agent architectures" | Saying "multi-agent just means running multiple LLMs" without describing the coordination model |
 | **Trap:** "more tools = smarter agent" — adding many tools inflates the system prompt, dilutes the model's attention over tool schemas, and sharply increases the rate of hallucinated or misrouted tool calls; best practice is to keep tool count ≤ 10 per agent and use hierarchical agents or tool routing for larger tool sets | "What's a common mistake when designing an agentic system?" | |
+
+## Illustrations
+
+![ReAct loop, LangChain vs Semantic Kernel, planning vs execution modes, multi-agent supervisor](img/ReAct%20and%20Semantic%20Kernel.png)
+
+## Illustrations
+
+![ReAct loop, LangChain vs Semantic Kernel, planning vs execution modes, multi-agent supervisor](img/ReAct%20and%20Semantic%20Kernel.png)

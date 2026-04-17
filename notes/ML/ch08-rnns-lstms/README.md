@@ -405,3 +405,8 @@ gru_model.compile(optimizer='adam', loss='mse')
 ## Bridge to Chapter 9
 
 Ch.8 showed how to train recurrent models and get predictions. But predictions alone are not enough — a model that's 80% accurate on a balanced test set and a model that's 80% accurate on an imbalanced test set are telling you very different things. Ch.9 — **Metrics Deep Dive** — closes the loop: it takes the classifier from Ch.2, the regressor from Ch.1, and examines every angle through which a model can look good or bad on paper while failing in production.
+
+
+## Illustrations
+
+![RNN and LSTM architecture — hidden-state flow and gating through time steps](img/ch8%20rnn.png)

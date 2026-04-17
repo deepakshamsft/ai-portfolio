@@ -226,3 +226,11 @@ GPT-4:      estimated 1.8T parameters in a mixture-of-experts architecture
 LLM Fundamentals established the model: a scaled, aligned next-token predictor with a finite context window and probabilistic sampling. The next document — `CoTReasoning.md` — shows how you exploit that predictor to produce step-by-step reasoning chains, and how those chains become the planning substrate for an agentic loop.
 
 > *The model is the brain. It predicts tokens. Everything in the AI track — CoT, RAG, ReAct, Semantic Kernel — is about how you wire inputs and outputs around that single mechanical act.*
+
+## Illustrations
+
+![LLM fundamentals — BPE tokenisation, sampling, training stages, and the context window](img/LLM%20Fundamentals.png)
+
+## Illustrations
+
+![LLM fundamentals — BPE tokenisation, sampling, training stages, and the context window](img/LLM%20Fundamentals.png)

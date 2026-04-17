@@ -229,3 +229,11 @@ Cost & Latency completed the operational layer. You are now equipped with the fu
 | What prefix caching is and how it eliminates redundant compute on stable prompt prefixes | Explain KV-cache and how speculative decoding reduces generation latency | Confusing time-to-first-token (TTFT) with total latency — for streaming UX, TTFT governs perceived responsiveness; optimising generation throughput does not help TTFT |
 | The latency components: TTFT vs generation throughput, and which matters for interactive vs batch workloads | When should you use the batch API instead of the synchronous API, and what tradeoffs does it introduce? | Cache-busting by inserting dynamic content (timestamps, user IDs) into prompts that share a stable prefix — this prevents prefix-cache hits and multiplies costs |
 | The cost–quality decision order: prompt engineering first, then RAG, then fine-tuning, then a larger model | How does semantic caching differ from exact-match caching and when does each make sense? | Measuring cost only at the generator API — embedding calls, re-ranker calls, and judge-model calls can collectively exceed the generator cost in a production RAG pipeline |
+
+## Illustrations
+
+![Cost and latency — token-cost stack, latency components, cost-vs-accuracy tiers, optimisation patterns](img/Cost%20and%20Latency.png)
+
+## Illustrations
+
+![Cost and latency — token-cost stack, latency components, cost-vs-accuracy tiers, optimisation patterns](img/Cost%20and%20Latency.png)

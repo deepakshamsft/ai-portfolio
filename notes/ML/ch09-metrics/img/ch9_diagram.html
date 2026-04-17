@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: white; font-family: "Segoe UI", Arial, sans-serif; }</style>
+</head>
+<body>
+<svg width="1400" height="920" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="920" fill="white"/>
+
+  <!-- ══ Title ══ -->
+  <text x="700" y="44" text-anchor="middle" font-size="26" font-weight="bold" fill="#1A1A2E">Metrics Deep Dive</text>
+
+  <!-- ══════════════════════════════════════════
+       LEFT HALF — ROC Curve + Confusion Matrix
+  ═══════════════════════════════════════════ -->
+
+  <!-- ── Sub-title ── -->
+  <text x="340" y="80" text-anchor="middle" font-size="15" font-weight="bold" fill="#2C3E50">ROC Curve &amp; Confusion Matrix</text>
+
+  <!-- ── ROC Axes ── -->
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#2C3E50"/></marker>
+    <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#1E8449"/></marker>
+  </defs>
+
+  <!-- Axes -->
+  <line x1="80" y1="340" x2="80"  y2="100" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="80" y1="340" x2="590" y2="340" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="72" y="98"  text-anchor="end" font-size="11" fill="#555">1.0</text>
+  <text x="72" y="220" text-anchor="end" font-size="11" fill="#555">0.5</text>
+  <text x="72" y="342" text-anchor="end" font-size="11" fill="#555">0.0</text>
+  <!-- y-axis label -->
+  <text x="38" y="220" text-anchor="middle" font-size="12" fill="#2C3E50" font-weight="bold" transform="rotate(-90,38,220)">True Positive Rate (Recall)</text>
+  <!-- x-axis label -->
+  <text x="335" y="370" text-anchor="middle" font-size="12" fill="#2C3E50" font-weight="bold">False Positive Rate (FPR)</text>
+  <text x="570" y="356" font-size="10" fill="#555">1.0</text>
+  <text x="318" y="356" font-size="10" fill="#555">0.5</text>
+  <text x="82"  y="356" font-size="10" fill="#555">0.0</text>
+
+  <!-- Diagonal (random) -->
+  <line x1="80" y1="340" x2="570" y2="100" stroke="#AAA" stroke-width="1.5" stroke-dasharray="8,4"/>
+  <text x="440" y="198" font-size="11" fill="#888" font-style="italic">Random classifier</text>
+  <text x="440" y="212" font-size="11" fill="#888" font-style="italic">(AUC = 0.5)</text>
+
+  <!-- AUC fill (area between curve and diagonal) -->
+  <!-- Approximated as a filled path -->
+  <path d="M80,340 C150,240 230,135 340,112 C420,96 500,100 570,100 L340,220 Z"
+        fill="#AED6F1" opacity="0.55"/>
+  <text x="210" y="230" font-size="13" font-weight="bold" fill="#1A5276">AUC-ROC</text>
+
+  <!-- ROC Curve (good model) -->
+  <path d="M80,340 C150,240 230,135 340,112 C420,96 500,100 570,100"
+        fill="none" stroke="#1E8449" stroke-width="3"/>
+  <text x="250" y="132" font-size="12" fill="#1E8449" font-weight="bold">Good model</text>
+
+  <!-- ROC title -->
+  <text x="335" y="96" text-anchor="middle" font-size="13" font-weight="bold" fill="#117A65">ROC Curve</text>
+
+  <!-- ── Confusion Matrix ── -->
+  <text x="335" y="410" text-anchor="middle" font-size="13" font-weight="bold" fill="#2C3E50">2×2 Confusion Matrix</text>
+
+  <!-- Column headers -->
+  <text x="200" y="440" text-anchor="middle" font-size="11" font-weight="bold" fill="#555">Predicted +</text>
+  <text x="350" y="440" text-anchor="middle" font-size="11" font-weight="bold" fill="#555">Predicted −</text>
+  <!-- Row headers -->
+  <text x="76"  y="497" text-anchor="end" font-size="11" font-weight="bold" fill="#555">Actual +</text>
+  <text x="76"  y="567" text-anchor="end" font-size="11" font-weight="bold" fill="#555">Actual −</text>
+
+  <!-- TP -->
+  <rect x="110" y="453" width="150" height="80" rx="6" fill="#1E8449"/>
+  <text x="185" y="490" text-anchor="middle" font-size="22" font-weight="bold" fill="white">TP</text>
+  <text x="185" y="510" text-anchor="middle" font-size="10" fill="#d4efdf">True Positive</text>
+  <!-- FP -->
+  <rect x="265" y="453" width="150" height="80" rx="6" fill="#E74C3C"/>
+  <text x="340" y="490" text-anchor="middle" font-size="22" font-weight="bold" fill="white">FP</text>
+  <text x="340" y="510" text-anchor="middle" font-size="10" fill="#fadbd8">False Positive</text>
+  <!-- FN -->
+  <rect x="110" y="537" width="150" height="80" rx="6" fill="#E67E22"/>
+  <text x="185" y="574" text-anchor="middle" font-size="22" font-weight="bold" fill="white">FN</text>
+  <text x="185" y="592" text-anchor="middle" font-size="10" fill="#fdebd0">False Negative</text>
+  <!-- TN -->
+  <rect x="265" y="537" width="150" height="80" rx="6" fill="#2E86C1"/>
+  <text x="340" y="574" text-anchor="middle" font-size="22" font-weight="bold" fill="white">TN</text>
+  <text x="340" y="592" text-anchor="middle" font-size="10" fill="#d6eaf8">True Negative</text>
+
+  <!-- Precision annotation -->
+  <line x1="420" y1="493" x2="460" y2="493" stroke="#555" stroke-width="1.2" marker-end="url(#arr)"/>
+  <text x="465" y="487" font-size="11" fill="#333" font-weight="bold">Precision</text>
+  <text x="465" y="501" font-size="10" fill="#555">TP / (TP + FP)</text>
+
+  <!-- Recall annotation -->
+  <line x1="420" y1="573" x2="460" y2="573" stroke="#555" stroke-width="1.2" marker-end="url(#arr)"/>
+  <text x="465" y="567" font-size="11" fill="#333" font-weight="bold">Recall</text>
+  <text x="465" y="581" font-size="10" fill="#555">TP / (TP + FN)</text>
+
+  <!-- F1 box -->
+  <rect x="108" y="625" width="310" height="46" rx="6" fill="#F5EEF8" stroke="#7D3C98" stroke-width="1.3"/>
+  <text x="263" y="645" text-anchor="middle" font-size="12" font-weight="bold" fill="#7D3C98">F1 Score  =  2 · Precision · Recall / (Precision + Recall)</text>
+  <text x="263" y="661" text-anchor="middle" font-size="10" fill="#7D3C98">Harmonic mean — punishes imbalance between P and R</text>
+
+  <!-- ══════════════════════════════════════════
+       RIGHT HALF — Regression Metrics + Threshold
+  ═══════════════════════════════════════════ -->
+
+  <!-- ── Sub-title ── -->
+  <text x="1010" y="80" text-anchor="middle" font-size="15" font-weight="bold" fill="#2C3E50">Regression Metrics &amp; Threshold Trade-off</text>
+
+  <!-- ── Regression Metrics Table ── -->
+  <text x="1010" y="108" text-anchor="middle" font-size="13" font-weight="bold" fill="#117A65">Regression Metrics</text>
+
+  <!-- Table header -->
+  <rect x="645" y="118" width="730" height="32" rx="4" fill="#2C3E50"/>
+  <text x="720"  y="139" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Metric</text>
+  <text x="870"  y="139" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Formula</text>
+  <text x="1060" y="139" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Outlier-sensitive</text>
+  <text x="1290" y="139" text-anchor="middle" font-size="12" font-weight="bold" fill="white">Interpretable</text>
+
+  <!-- Rows -->
+  <!-- MSE -->
+  <rect x="645" y="150" width="730" height="36" fill="#F2F3F4"/>
+  <text x="720"  y="173" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">MSE</text>
+  <text x="870"  y="173" text-anchor="middle" font-size="11" fill="#333">Σ(ŷ−y)² / n</text>
+  <text x="1060" y="173" text-anchor="middle" font-size="12" fill="#E74C3C">High ⚠</text>
+  <text x="1290" y="173" text-anchor="middle" font-size="12" fill="#E74C3C">No (squared units)</text>
+  <!-- RMSE -->
+  <rect x="645" y="186" width="730" height="36" fill="white"/>
+  <text x="720"  y="209" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">RMSE</text>
+  <text x="870"  y="209" text-anchor="middle" font-size="11" fill="#333">√(Σ(ŷ−y)² / n)</text>
+  <text x="1060" y="209" text-anchor="middle" font-size="12" fill="#E74C3C">High ⚠</text>
+  <text x="1290" y="209" text-anchor="middle" font-size="12" fill="#1E8449">Yes (same units as y)</text>
+  <!-- MAE -->
+  <rect x="645" y="222" width="730" height="36" fill="#F2F3F4"/>
+  <text x="720"  y="245" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">MAE</text>
+  <text x="870"  y="245" text-anchor="middle" font-size="11" fill="#333">Σ|ŷ−y| / n</text>
+  <text x="1060" y="245" text-anchor="middle" font-size="12" fill="#1E8449">Low ✓</text>
+  <text x="1290" y="245" text-anchor="middle" font-size="12" fill="#1E8449">Yes (same units)</text>
+  <!-- MAPE -->
+  <rect x="645" y="258" width="730" height="36" fill="white"/>
+  <text x="720"  y="281" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">MAPE</text>
+  <text x="870"  y="281" text-anchor="middle" font-size="11" fill="#333">mean(|ŷ−y|/|y|) × 100%</text>
+  <text x="1060" y="281" text-anchor="middle" font-size="12" fill="#1E8449">Low ✓</text>
+  <text x="1290" y="281" text-anchor="middle" font-size="12" fill="#1E8449">Yes (% error)</text>
+  <!-- R² -->
+  <rect x="645" y="294" width="730" height="36" fill="#F2F3F4"/>
+  <text x="720"  y="317" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">R²</text>
+  <text x="870"  y="317" text-anchor="middle" font-size="11" fill="#333">1 − SS_res / SS_tot</text>
+  <text x="1060" y="317" text-anchor="middle" font-size="12" fill="#E67E22">Moderate</text>
+  <text x="1290" y="317" text-anchor="middle" font-size="12" fill="#1E8449">Yes (variance explained)</text>
+  <!-- Adj R² -->
+  <rect x="645" y="330" width="730" height="36" fill="white"/>
+  <text x="720"  y="353" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">Adj R²</text>
+  <text x="870"  y="353" text-anchor="middle" font-size="11" fill="#333">1−(1−R²)·(n−1)/(n−p−1)</text>
+  <text x="1060" y="353" text-anchor="middle" font-size="12" fill="#E67E22">Moderate</text>
+  <text x="1290" y="353" text-anchor="middle" font-size="12" fill="#1E8449">Yes + penalises features</text>
+
+  <!-- Warning note -->
+  <rect x="645" y="372" width="730" height="30" rx="4" fill="#FEF9E7" stroke="#F39C12" stroke-width="1"/>
+  <text x="1010" y="392" text-anchor="middle" font-size="11" fill="#7D6608">⚠  Plain R² always inflates with more features — always report Adjusted R² in multi-feature models</text>
+
+  <!-- ── Precision-Recall vs Threshold ── -->
+  <text x="1010" y="438" text-anchor="middle" font-size="13" font-weight="bold" fill="#2C3E50">Precision, Recall &amp; F1 vs Decision Threshold θ</text>
+
+  <!-- Axes -->
+  <line x1="660" y1="740" x2="660"  y2="460" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="660" y1="740" x2="1360" y2="740" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- y ticks -->
+  <line x1="655" y1="460" x2="665" y2="460" stroke="#555" stroke-width="1"/>
+  <line x1="655" y1="600" x2="665" y2="600" stroke="#555" stroke-width="1"/>
+  <line x1="655" y1="740" x2="665" y2="740" stroke="#555" stroke-width="1"/>
+  <text x="650" y="463" text-anchor="end" font-size="10" fill="#555">1.0</text>
+  <text x="650" y="603" text-anchor="end" font-size="10" fill="#555">0.5</text>
+  <text x="650" y="743" text-anchor="end" font-size="10" fill="#555">0.0</text>
+  <text x="620" y="610" text-anchor="middle" font-size="12" fill="#2C3E50" font-weight="bold" transform="rotate(-90,620,610)">Score</text>
+  <text x="1010" y="775" text-anchor="middle" font-size="12" fill="#2C3E50" font-weight="bold">Threshold θ  (0 → 1)</text>
+
+  <!-- x tick labels -->
+  <text x="662"  y="756" font-size="10" fill="#555">0.0</text>
+  <text x="832"  y="756" font-size="10" fill="#555">0.2</text>
+  <text x="1002" y="756" font-size="10" fill="#555">0.5</text>
+  <text x="1172" y="756" font-size="10" fill="#555">0.8</text>
+  <text x="1338" y="756" font-size="10" fill="#555">1.0</text>
+
+  <!-- Map θ∈[0,1] to x∈[660,1350], score∈[0,1] to y∈[740,460] -->
+  <!-- Precision rises as θ increases: low at θ=0, high at θ=1 -->
+  <!-- curve: ctrl points for cubic-bezier approximation -->
+  <path d="M662,730 C750,720 880,680 1000,600 C1100,530 1200,490 1340,464"
+        fill="none" stroke="#2E86C1" stroke-width="2.5"/>
+  <!-- Recall falls as θ increases -->
+  <path d="M662,464 C750,470 880,500 1000,580 C1100,640 1200,690 1340,730"
+        fill="none" stroke="#E74C3C" stroke-width="2.5"/>
+  <!-- F1 peaks in the middle ~θ=0.5 -->
+  <path d="M662,680 C760,580 880,500 1000,480 C1100,500 1200,580 1340,690"
+        fill="none" stroke="#1E8449" stroke-width="2.5" stroke-dasharray="8,3"/>
+
+  <!-- Best θ vertical dashed -->
+  <line x1="1000" y1="460" x2="1000" y2="740" stroke="#7D3C98" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="1000" y="455" text-anchor="middle" font-size="11" fill="#7D3C98" font-weight="bold">Best θ</text>
+  <text x="1000" y="469" text-anchor="middle" font-size="10" fill="#7D3C98">(max F1)</text>
+
+  <!-- Legend -->
+  <rect x="1170" y="473" width="180" height="75" rx="6" fill="#F8F9F9" stroke="#BDC3C7" stroke-width="1"/>
+  <line x1="1182" y1="493" x2="1208" y2="493" stroke="#2E86C1" stroke-width="2.5"/>
+  <text x="1216" y="497" font-size="11" fill="#333">Precision</text>
+  <line x1="1182" y1="513" x2="1208" y2="513" stroke="#E74C3C" stroke-width="2.5"/>
+  <text x="1216" y="517" font-size="11" fill="#333">Recall</text>
+  <line x1="1182" y1="533" x2="1208" y2="533" stroke="#1E8449" stroke-width="2.5" stroke-dasharray="6,3"/>
+  <text x="1216" y="537" font-size="11" fill="#333">F1</text>
+
+  <!-- ══ Vertical divider ══ -->
+  <line x1="625" y1="60" x2="625" y2="870" stroke="#BDC3C7" stroke-width="1.5"/>
+
+  <!-- ══ Bottom caption ══ -->
+  <rect x="30" y="850" width="1340" height="54" rx="8" fill="#F8F9FA" stroke="#BDC3C7" stroke-width="1"/>
+  <text x="700" y="869" text-anchor="middle" font-size="11" fill="#555" font-style="italic">"Accuracy alone is a lie on imbalanced data. Use the full toolkit: confusion matrix → Precision/Recall/F1,</text>
+  <text x="700" y="887" text-anchor="middle" font-size="11" fill="#555" font-style="italic">ROC/AUC-ROC for ranking quality, Precision-Recall curves under imbalance, RMSE/MAE/R² for regression."</text>
+  <text x="700" y="900" text-anchor="middle" font-size="10" fill="#888">Threshold θ=0.5 is the default — but the optimal threshold depends on business context (cost of FP vs FN).</text>
+</svg>
+</body>
+</html>

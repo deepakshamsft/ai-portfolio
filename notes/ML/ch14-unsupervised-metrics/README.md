@@ -248,3 +248,8 @@ print(f"ARI vs geo-proxy: {ari:.4f}   NMI: {nmi:.4f}")
 ## Bridge to Chapter 15
 
 Ch.12–14 finish the unsupervised arc. Chapter 15 — **MLE & Loss Functions** — steps back to examine the theoretical foundation shared by both supervised and unsupervised learning: maximum likelihood estimation. It shows that MSE is not an arbitrary choice for regression — it falls directly out of assuming Gaussian noise. Cross-entropy falls out of Bernoulli/Categorical noise. Understanding this principle tells you which loss to use for any new problem type.
+
+
+## Illustrations
+
+![Unsupervised metrics — silhouette scores, internal indices, and ARI/NMI for cluster evaluation](img/ch14%20unsupervised%20metrics.png)

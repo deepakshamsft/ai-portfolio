@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: white; font-family: "Segoe UI", Arial, sans-serif; }</style>
+</head>
+<body>
+<svg width="1400" height="900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="900" fill="white"/>
+
+  <!-- ══ Title ══ -->
+  <text x="700" y="44" text-anchor="middle" font-size="26" font-weight="bold" fill="#1A1A2E">Classical Classifiers: Decision Tree &amp; KNN</text>
+
+  <!-- ══ Vertical divider ══ -->
+  <line x1="680" y1="60" x2="680" y2="850" stroke="#BDC3C7" stroke-width="1.5"/>
+
+  <!-- ════════════════════════════════════════
+       LEFT HALF — Decision Tree
+  ════════════════════════════════════════ -->
+
+  <text x="340" y="78" text-anchor="middle" font-size="16" font-weight="bold" fill="#2C3E50">Decision Tree</text>
+
+  <!-- ── Tree nodes ── -->
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#555"/></marker>
+  </defs>
+
+  <!-- Root node -->
+  <rect x="215" y="95" width="250" height="55" rx="14" fill="#2E86C1" stroke="#1A5276" stroke-width="2"/>
+  <text x="340" y="119" text-anchor="middle" font-size="14" font-weight="bold" fill="white">MedInc &gt; 3.2 ?</text>
+  <text x="340" y="138" text-anchor="middle" font-size="11" fill="#D6EAF8">Root split (Gini impurity)</text>
+
+  <!-- Left branch: Yes -->
+  <line x1="280" y1="150" x2="180" y2="208" stroke="#555" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="200" y="196" font-size="11" fill="#1E8449" font-weight="bold">Yes</text>
+
+  <!-- Right branch: No -->
+  <line x1="400" y1="150" x2="500" y2="208" stroke="#555" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="480" y="196" font-size="11" fill="#E74C3C" font-weight="bold">No</text>
+
+  <!-- Level 2 Left: Latitude -->
+  <rect x="80" y="210" width="205" height="50" rx="12" fill="#2E86C1" stroke="#1A5276" stroke-width="1.5"/>
+  <text x="182" y="232" text-anchor="middle" font-size="13" font-weight="bold" fill="white">Latitude &lt; 36.1?</text>
+  <text x="182" y="249" text-anchor="middle" font-size="10" fill="#D6EAF8">2nd split</text>
+
+  <!-- Level 2 Right: AveRooms -->
+  <rect x="395" y="210" width="205" height="50" rx="12" fill="#2E86C1" stroke="#1A5276" stroke-width="1.5"/>
+  <text x="498" y="232" text-anchor="middle" font-size="13" font-weight="bold" fill="white">AveRooms &gt; 5.0?</text>
+  <text x="498" y="249" text-anchor="middle" font-size="10" fill="#D6EAF8">2nd split</text>
+
+  <!-- L2L → Yes leaf (Class 0) -->
+  <line x1="140" y1="260" x2="100" y2="310" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="102" y="302" font-size="10" fill="#1E8449" font-weight="bold">Yes</text>
+  <rect x="30" y="312" width="145" height="50" rx="10" fill="#FADBD8" stroke="#E74C3C" stroke-width="1.5"/>
+  <text x="102" y="333" text-anchor="middle" font-size="12" font-weight="bold" fill="#E74C3C">Class 0</text>
+  <text x="102" y="350" text-anchor="middle" font-size="10" fill="#922B21">Low-value district</text>
+
+  <!-- L2L → No leaf (Class 1) -->
+  <line x1="223" y1="260" x2="262" y2="310" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="255" y="302" font-size="10" fill="#E74C3C" font-weight="bold">No</text>
+  <rect x="190" y="312" width="145" height="50" rx="10" fill="#D5F5E3" stroke="#1E8449" stroke-width="1.5"/>
+  <text x="262" y="333" text-anchor="middle" font-size="12" font-weight="bold" fill="#1E8449">Class 1</text>
+  <text x="262" y="350" text-anchor="middle" font-size="10" fill="#196F3D">High-value district</text>
+
+  <!-- L2R → Yes leaf (Class 1) -->
+  <line x1="456" y1="260" x2="415" y2="310" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="408" y="302" font-size="10" fill="#1E8449" font-weight="bold">Yes</text>
+  <rect x="343" y="312" width="145" height="50" rx="10" fill="#D5F5E3" stroke="#1E8449" stroke-width="1.5"/>
+  <text x="415" y="333" text-anchor="middle" font-size="12" font-weight="bold" fill="#1E8449">Class 1</text>
+  <text x="415" y="350" text-anchor="middle" font-size="10" fill="#196F3D">High-value district</text>
+
+  <!-- L2R → No leaf (Class 0) -->
+  <line x1="540" y1="260" x2="578" y2="310" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="570" y="302" font-size="10" fill="#E74C3C" font-weight="bold">No</text>
+  <rect x="506" y="312" width="145" height="50" rx="10" fill="#FADBD8" stroke="#E74C3C" stroke-width="1.5"/>
+  <text x="578" y="333" text-anchor="middle" font-size="12" font-weight="bold" fill="#E74C3C">Class 0</text>
+  <text x="578" y="350" text-anchor="middle" font-size="10" fill="#922B21">Low-value district</text>
+
+  <!-- ── Key formulas box ── -->
+  <rect x="50" y="390" width="590" height="130" rx="10" fill="#EBF5FB" stroke="#2E86C1" stroke-width="1.3"/>
+  <text x="345" y="413" text-anchor="middle" font-size="13" font-weight="bold" fill="#1A5276">Split Criterion &amp; Regularisation</text>
+  <text x="65"  y="435" font-size="12" fill="#333">Gini impurity:  G(S) = 1 − Σ pᵢ²          (0 = pure node,  0.5 = maximally mixed)</text>
+  <text x="65"  y="455" font-size="12" fill="#333">Info. gain:     IG = G(parent) − weighted average of G(children)</text>
+  <text x="65"  y="475" font-size="12" fill="#333">Split choice:   try every (feature f, threshold t) → pick the one maximising IG</text>
+  <text x="65"  y="498" font-size="11" fill="#E74C3C">Overfitting risk: fully grown tree memorises training set (one leaf per point)</text>
+  <text x="65"  y="515" font-size="11" fill="#1E8449">Regularise with:  max_depth  ·  min_samples_split  ·  min_samples_leaf</text>
+
+  <!-- ── Bias-variance mini table ── -->
+  <rect x="50" y="538" width="590" height="85" rx="8" fill="#F9F9F9" stroke="#BDC3C7" stroke-width="1"/>
+  <text x="345" y="558" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C3E50">Bias-Variance Trade-off</text>
+  <!-- header -->
+  <text x="100" y="576" text-anchor="middle" font-size="11" font-weight="bold" fill="#555">Setting</text>
+  <text x="310" y="576" text-anchor="middle" font-size="11" font-weight="bold" fill="#555">High Bias (underfits)</text>
+  <text x="530" y="576" text-anchor="middle" font-size="11" font-weight="bold" fill="#555">High Variance (overfits)</text>
+  <!-- row -->
+  <text x="100" y="598" text-anchor="middle" font-size="11" fill="#333">Decision Tree</text>
+  <text x="310" y="598" text-anchor="middle" font-size="11" fill="#E67E22">max_depth = 1  (stump)</text>
+  <text x="530" y="598" text-anchor="middle" font-size="11" fill="#E74C3C">Unconstrained depth</text>
+  <text x="100" y="614" text-anchor="middle" font-size="11" fill="#333">KNN</text>
+  <text x="310" y="614" text-anchor="middle" font-size="11" fill="#E67E22">Large k  (smooth boundary)</text>
+  <text x="530" y="614" text-anchor="middle" font-size="11" fill="#E74C3C">k = 1  (memorises noise)</text>
+
+  <!-- ════════════════════════════════════════
+       RIGHT HALF — KNN
+  ════════════════════════════════════════ -->
+
+  <text x="1040" y="78" text-anchor="middle" font-size="16" font-weight="bold" fill="#2C3E50">K-Nearest Neighbours (KNN)</text>
+
+  <!-- Scatter axes -->
+  <line x1="720" y1="580" x2="720" y2="90" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="720" y1="580" x2="1350" y2="580" stroke="#2C3E50" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="1040" y="612" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C3E50">Feature x₁</text>
+  <text x="688" y="340" text-anchor="middle" font-size="12" font-weight="bold" fill="#2C3E50" transform="rotate(-90,688,340)">Feature x₂</text>
+
+  <!-- Class 0 blue circles (lower-left cluster) -->
+  <circle cx="800" cy="520" r="10" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="830" cy="490" r="10" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="760" cy="480" r="10" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="790" cy="450" r="10" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="850" cy="450" r="10" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="820" cy="420" r="10" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="760" cy="540" r="10" fill="#2E86C1" opacity="0.85"/>
+  <circle cx="870" cy="480" r="10" fill="#2E86C1" opacity="0.85"/>
+
+  <!-- Class 1 red X (upper-right cluster) -->
+  <!-- X drawn as two lines crossing -->
+  <!-- helper macro: X at cx, cy, size s -->
+  <line x1="1130" y1="130" x2="1155" y2="155" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1155" y1="130" x2="1130" y2="155" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1190" y1="155" x2="1215" y2="180" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1215" y1="155" x2="1190" y2="180" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1100" y1="170" x2="1125" y2="195" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1125" y1="170" x2="1100" y2="195" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1160" y1="205" x2="1185" y2="230" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1185" y1="205" x2="1160" y2="230" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1220" y1="195" x2="1245" y2="220" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1245" y1="195" x2="1220" y2="220" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1080" y1="210" x2="1105" y2="235" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1105" y1="210" x2="1080" y2="235" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1140" y1="245" x2="1165" y2="270" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1165" y1="245" x2="1140" y2="270" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1200" y1="240" x2="1225" y2="265" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1225" y1="240" x2="1200" y2="265" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Query point (star) -->
+  <circle cx="970" cy="370" r="16" fill="#F1C40F" stroke="#D4AC0D" stroke-width="2"/>
+  <text x="970" y="376" text-anchor="middle" font-size="16" fill="#7D6608">?</text>
+  <text x="970" y="355" text-anchor="middle" font-size="11" fill="#7D6608" font-weight="bold">Query point</text>
+
+  <!-- k=3 neighbourhood circle (dashed) -->
+  <circle cx="970" cy="370" r="140" fill="none" stroke="#7D3C98" stroke-width="2" stroke-dasharray="10,5"/>
+  <text x="1112" y="270" font-size="12" fill="#7D3C98" font-weight="bold">k=3 neighbourhood</text>
+
+  <!-- 3 nearest neighbours: 2 blue circles + 1 red X in range -->
+  <!-- neighbour 1: blue circle at ~870,310 -->
+  <circle cx="870" cy="310" r="10" fill="#2E86C1" opacity="0.85"/>
+  <line x1="970" y1="370" x2="874" y2="314" stroke="#7D3C98" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <!-- neighbour 2: blue circle at ~880,430 -->
+  <circle cx="875" cy="430" r="10" fill="#2E86C1" opacity="0.85"/>
+  <line x1="970" y1="370" x2="879" y2="424" stroke="#7D3C98" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <!-- neighbour 3: red X at ~1060,300 -->
+  <line x1="1048" y1="288" x2="1073" y2="313" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="1073" y1="288" x2="1048" y2="313" stroke="#E74C3C" stroke-width="3" stroke-linecap="round"/>
+  <line x1="970" y1="370" x2="1054" y2="303" stroke="#7D3C98" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+  <!-- Majority vote callout -->
+  <rect x="720" y="600" width="380" height="50" rx="8" fill="#EBF5FB" stroke="#2E86C1" stroke-width="1.3"/>
+  <text x="910"  y="622" text-anchor="middle" font-size="12" font-weight="bold" fill="#1A5276">Majority vote: 2 blue circles vs 1 red X</text>
+  <text x="910"  y="640" text-anchor="middle" font-size="12" fill="#1E8449">→  ŷ = Class 0  (Low-value)</text>
+
+  <!-- Legend -->
+  <rect x="1120" y="600" width="215" height="75" rx="8" fill="#F8F9F9" stroke="#BDC3C7" stroke-width="1"/>
+  <circle cx="1145" cy="623" r="9" fill="#2E86C1" opacity="0.85"/>
+  <text x="1160" y="627" font-size="12" fill="#333">Class 0 — Low-value</text>
+  <line x1="1135" y1="648" x2="1155" y2="668" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="1155" y1="648" x2="1135" y2="668" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="1162" y="662" font-size="12" fill="#333">Class 1 — High-value</text>
+
+  <!-- Distance formula box -->
+  <rect x="720" y="665" width="615" height="80" rx="8" fill="#EAF2FF" stroke="#2E86C1" stroke-width="1.3"/>
+  <text x="1028" y="686" text-anchor="middle" font-size="13" font-weight="bold" fill="#1A5276">KNN Distance &amp; Key Rule</text>
+  <text x="735"  y="706" font-size="11" fill="#333">Euclidean (default):  d(xq, xi) = √Σ(xq,j − xi,j)²</text>
+  <text x="735"  y="724" font-size="11" fill="#333">Manhattan (L1):       d(xq, xi) = Σ|xq,j − xi,j|    ← more robust to outliers in one feature</text>
+  <text x="735"  y="742" font-size="11" fill="#E74C3C">⚠  Always standardise features before KNN — raw scale dominates distance!</text>
+
+  <!-- ══ Bottom caption ══ -->
+  <rect x="30" y="770" width="1340" height="50" rx="8" fill="#F8F9FA" stroke="#BDC3C7" stroke-width="1"/>
+  <text x="700" y="790" text-anchor="middle" font-size="11" fill="#555" font-style="italic">Decision Trees partition feature space into interpretable if/else rules; each split maximises information gain (Gini or entropy).</text>
+  <text x="700" y="808" text-anchor="middle" font-size="11" fill="#555" font-style="italic">KNN classifies by majority vote among the k nearest training points. Both overfit in characteristic ways — deep trees memorise, k=1 fits noise.</text>
+</svg>
+</body>
+</html>

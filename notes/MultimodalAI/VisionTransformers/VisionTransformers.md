@@ -246,3 +246,7 @@ It is a learnable parameter prepended to every input sequence. BERT popularised 
 ## 9 · What's Next
 
 → **[CLIP.md](../CLIP/CLIP.md)** — ViT gives us a 768-dimensional image embedding. CLIP gives us the critical missing piece: a **paired text embedding** in the same space. By training a ViT image encoder and a transformer text encoder jointly with contrastive loss on 400 million image-text pairs, CLIP learns that the embedding of "a photograph of a cat" is close to the embedding of an actual photograph of a cat — enabling zero-shot image classification, semantic image retrieval, and (crucially) the text conditioning mechanism inside Stable Diffusion.
+
+## Illustrations
+
+![Vision Transformers - patchify, ViT architecture, receptive field vs CNN, scale curve](img/Vision%20Transformers.png)

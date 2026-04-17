@@ -209,3 +209,7 @@ You've completed the **12-chapter Multimodal AI** track. Suggested next steps:
 | **Distillation** | LCM or SDXL-Turbo-style consistency distillation for 1-step generation |
 
 > "The best way to understand diffusion is to implement it — which you just did."
+
+## Illustrations
+
+![Local diffusion lab - pipeline, VRAM budget, latency, quality/speed knobs](img/Local%20Diffusion%20Lab.png)

@@ -183,3 +183,7 @@ Strength dial in img2img:
 ## 9 · What's Next
 
 [TextToVideo.md](../TextToVideo/TextToVideo.md) — add a temporal dimension. Generating consistent motion is the key unsolved challenge in T2V.
+
+## Illustrations
+
+![Text-to-image - txt2img, img2img strength, inpainting, ControlNet stack](img/Text%20to%20Image.png)

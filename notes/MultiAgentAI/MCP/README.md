@@ -194,3 +194,7 @@ No. MCP exposes data as Resources that an agent can address by URI — it handle
 ## Next
 
 → [Ch.3 — Agent-to-Agent Protocol (A2A)](../A2A/) — how agents delegate tasks to other agents across service boundaries
+
+## Illustrations
+
+![MCP - N x M to N + M, handshake, primitives, transports](img/MCP.png)

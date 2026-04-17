@@ -390,3 +390,8 @@ print(f"R²: {r2:.4f}  Adjusted R²: {adj_r2:.4f}")
 ## Bridge to Chapter 10
 
 Ch.9 completed the evaluation toolkit: you now know how to measure any model's true quality. Ch.10 — **Classical Classifiers** — steps back from neural networks and looks at **Decision Trees** and **KNN**: interpretable models that make predictions through explicit rules and geometric distance rather than learned weights. They're simpler to debug, faster to train, and still competitive on many real-world tasks.
+
+
+## Illustrations
+
+![Evaluation metrics — confusion matrix, precision, recall, F1, and ROC-AUC](img/ch9%20metrics.png)

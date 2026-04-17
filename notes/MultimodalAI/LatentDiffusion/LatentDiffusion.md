@@ -161,3 +161,7 @@ The trend is: larger latent channels (4→16), larger U-Net or switch to Diffusi
 ## 9 · What's Next
 
 [TextToImage.md](../TextToImage/TextToImage.md) — beyond basic text-to-image: prompt engineering, img2img, inpainting, and ControlNet for spatially guided generation.
+
+## Illustrations
+
+![Latent diffusion - pipeline, pixel vs latent shape, compute savings, VAE tradeoff](img/Latent%20Diffusion.png)

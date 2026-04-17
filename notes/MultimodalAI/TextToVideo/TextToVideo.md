@@ -170,3 +170,7 @@ DiT (Diffusion Transformer) has replaced U-Net as the dominant architecture abov
 ## 9 · What's Next
 
 [MultimodalLLMs.md](../MultimodalLLMs/MultimodalLLMs.md) — combine a vision encoder with a language model to enable image understanding, visual question answering, and chart comprehension.
+
+## Illustrations
+
+![Text-to-video - video tensor, spatial+temporal attention, consistency, compute scaling](img/Text%20to%20Video.png)

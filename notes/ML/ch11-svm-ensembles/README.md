@@ -366,3 +366,8 @@ for name, (preds, _) in models.items():
 ## Bridge to Chapter 12
 
 Ch.11 completed the supervised learning toolkit — we can now classify and regress with neural networks, trees, ensembles, and SVMs. Ch.12 — **Clustering** — shifts to unsupervised learning: no labels, no target variable. The goal is to discover natural structure in the data. The real estate platform's districts will cluster into neighbourhood types nobody defined in advance.
+
+
+## Illustrations
+
+![SVM maximum-margin boundary and ensemble bagging/boosting variance reduction](img/ch11%20svm%20and%20ensembles.png)

@@ -198,3 +198,7 @@ Use an aggregator pattern: each parallel agent publishes its result to a shared 
 ## Next
 
 → [Ch.5 — Shared Memory & Blackboard Architectures](../SharedMemory/) — how parallel agents read and update shared state without overwriting each other
+
+## Illustrations
+
+![Event-driven agents - sync vs async, pub/sub with DLQ, delivery guarantees, fan-out/in](img/Event-Driven%20Agents.png)

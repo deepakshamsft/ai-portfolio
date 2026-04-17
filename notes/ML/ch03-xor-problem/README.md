@@ -244,3 +244,8 @@ print("Labels:     ", y_xor)
 ## Bridge to Chapter 4
 
 Ch.3 established that hidden layers with non-linear activations can represent any function, but only sketched the architecture. Ch.4 (Neural Networks) builds that architecture properly — multiple hidden layers, the full catalogue of activation functions, weight initialisation strategies, and why the choices at each step matter for both performance and trainability.
+
+
+## Illustrations
+
+![XOR problem — why a single linear separator cannot solve non-linear classification](img/ch3%20XOR%20Problem.png)

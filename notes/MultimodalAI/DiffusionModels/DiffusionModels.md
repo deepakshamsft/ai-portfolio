@@ -216,3 +216,7 @@ GANs are faster at inference but harder to train (mode collapse, training instab
 ## 9 · What's Next
 
 → **[GuidanceConditioning.md](../GuidanceConditioning/GuidanceConditioning.md)** — PixelSmith v3 generates unconditional MNIST images. PixelSmith v4 will generate images from text prompts. The bridge is **guidance**: conditioning the denoising process on an additional signal (a text embedding from CLIP) so that the final image reflects your prompt. This requires classifier-free guidance (CFG) — the mechanism that makes "guidance scale 7.5" produce sharper, more prompt-aligned images than "guidance scale 1.0".
+
+## Illustrations
+
+![Diffusion models - forward noising, reverse denoising, noise schedule, loss](img/Diffusion%20Models.png)

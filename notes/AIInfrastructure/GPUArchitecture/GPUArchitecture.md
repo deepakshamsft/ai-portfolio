@@ -337,3 +337,7 @@ TFLOP/s
 ## Bridge to Chapter 2
 
 Ch.1 established the hardware: what a GPU is, where its bottlenecks lie, and how AI operations map to its compute and memory systems. Ch.2 (Memory & Compute Budgets) takes that foundation and asks the next question: *given a specific model architecture, exactly how much VRAM does it need* — at inference, at training, and as the sequence length and batch size grow? The roofline model told you whether you are memory-bound. Ch.2's VRAM calculator tells you whether the model fits at all.
+
+## Illustrations
+
+![GPU architecture — SM hardware stack, memory hierarchy, roofline model, tiled matmul](img/GPU%20Architecture.png)

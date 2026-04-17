@@ -270,3 +270,8 @@ def dropout(h, p, training=True):
 ## Bridge to Chapter 7
 
 You can now train a well-regularised dense network. But dense networks treat every input pixel (or feature) symmetrically — they don't exploit spatial structure. Chapter 7 — **CNNs** — introduces convolutional filters that share weights across positions, making them orders of magnitude more efficient for image-like inputs.
+
+
+## Illustrations
+
+![Regularisation — effect of L1, L2 penalties and dropout on learned weights](img/ch6%20regularization.png)

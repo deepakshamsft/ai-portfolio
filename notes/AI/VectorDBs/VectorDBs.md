@@ -570,3 +570,10 @@ The fundamental insight: **there is no universally "best" vector database or ind
 [14] https://tech.hoomanely.com/how-vector-databases-search-a-practical-guide-to-ivf-hnsw-pq-scann/
 [16] https://oneuptime.com/blog/post/2026-01-30-ivf-index/view
 [18] https://learn.microsoft.com/en-us/data-engineering/playbook/solutions/vector-database/
+## Illustrations
+
+![Vector databases — exact vs ANN, HNSW graph, IVF clustering, recall-vs-latency frontier](img/Vector%20DBs.png)
+
+## Illustrations
+
+![Vector databases — exact vs ANN, HNSW graph, IVF clustering, recall-vs-latency frontier](img/Vector%20DBs.png)

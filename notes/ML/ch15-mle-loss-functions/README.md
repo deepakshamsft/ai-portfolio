@@ -240,3 +240,8 @@ def huber(y_true, y_pred, delta=1.0):
 ## Bridge to Chapter 16
 
 Ch.15 showed that training loss has a mathematical meaning — it's a log-likelihood under a noise model. But watching a single scalar loss decrease across epochs is a crude signal. Chapter 16 — **TensorBoard** — instruments the training loop to emit richer diagnostics: loss curves, metric curves, weight distributions, gradient histograms, and projector visualisations. These are the debugging tools that show *why* a loss is decreasing (or not).
+
+
+## Illustrations
+
+![MLE and loss functions — log-likelihood derivation of MSE and cross-entropy](img/ch15%20MLE%20and%20loss%20funcs.png)

@@ -283,3 +283,8 @@ except ImportError:
 ## Bridge to Chapter 14
 
 Chapters 12 and 13 built the tools: we can cluster data and visualise it. Chapter 14 — **Unsupervised Metrics** — asks how to know if any of this was actually good. Without ground truth labels, how do you score a clustering? Silhouette score, Davies-Bouldin index, and Calinski-Harabasz index each give a different answer. Ch.14 also covers how to pick the number of PCA components using more principled criteria.
+
+
+## Illustrations
+
+![Dimensionality reduction — PCA variance projection and t-SNE neighbourhood layout](img/ch13%20Dimensionality%20reduction.png)

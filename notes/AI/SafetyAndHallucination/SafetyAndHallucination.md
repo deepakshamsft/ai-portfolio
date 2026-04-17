@@ -210,3 +210,11 @@ Safety & Hallucination Mitigation completed the reliability layer. `CostAndLaten
 | What jailbreaking is and the main attack categories (direct role injection, prefix injection, indirect injection via retrieved content) | Walk through how self-consistency sampling detects hallucination at inference time | Relying on a hardened system prompt as the primary safety boundary — sophisticated injections bypass prompt-level defences; output validation is the real backstop |
 | The four structural mitigations: system prompt hardening, input/output separation, rate limiting, minimal tool permissions | What is the difference between direct and indirect prompt injection, and which is harder to defend against? | Using the model itself as the security boundary — never let raw model output drive high-stakes decisions without a deterministic validation layer |
 | How verbosity bias and sycophancy manifest and how to test for them in evaluation | Design a bias testing protocol for a customer-facing LLM | Treating safety as a launch checklist — adversarial failures and bias surface as real-world inputs diversify; build continuous monitoring, not point-in-time audits |
+
+## Illustrations
+
+![Safety and hallucination — taxonomy, mitigation stack, jailbreak categories, production safety checklist](img/Safety%20and%20Hallucination.png)
+
+## Illustrations
+
+![Safety and hallucination — taxonomy, mitigation stack, jailbreak categories, production safety checklist](img/Safety%20and%20Hallucination.png)

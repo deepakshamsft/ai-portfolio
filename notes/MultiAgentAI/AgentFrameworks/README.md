@@ -261,3 +261,7 @@ In all three, MCP tools appear as callables that the agent framework can invoke.
 ## This is the Final Chapter in the Track
 
 ← Return to [README](../README.md) for the full reading path and cross-track connections.
+
+## Illustrations
+
+![Agent frameworks - AutoGen, LangGraph, Semantic Kernel, comparison](img/Agent%20Frameworks.png)

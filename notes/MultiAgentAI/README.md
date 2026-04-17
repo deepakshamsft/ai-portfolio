@@ -270,24 +270,27 @@ Step 6: CHOOSE YOUR FRAMEWORK DELIBERATELY
 
 ## Setup & Notebook Generation
 
-Install dependencies and generate all 7 chapter notebooks in one step:
+Install every dependency from the single uber setup script at the repo root:
 
 ```powershell
 # Windows
-.\notes\MultiAgentAI\scripts\setup.ps1
+.\scripts\setup.ps1
 ```
 
 ```bash
 # macOS / Linux
-bash notes/MultiAgentAI/scripts/setup.sh
+bash scripts/setup.sh
 ```
 
-The setup scripts:
-1. Create / reuse the repo-level `.venv`
-2. Install all chapter dependencies (tiktoken, mcp, fastapi, httpx, redis, pydantic, langgraph, autogen-agentchat, semantic-kernel, ollama)
-3. Register a `Multi-Agent AI` Jupyter kernel
-4. Run `scripts/generate_notebooks.py` to write `notebook.ipynb` into each chapter directory
-5. Smoke-test all imports
+The root setup script:
+1. Creates / reuses the repo-level `.venv`
+2. Installs all chapter dependencies (tiktoken, mcp, fastapi, httpx, redis, pydantic, langgraph, autogen-agentchat, semantic-kernel, ollama) plus the full AI/ML stack
+3. Registers the `multi-agent-ai` Jupyter kernel (along with `ai-ml-dev`, `ml-notes`, `ai-infrastructure`)
+
+If the chapter notebooks are missing, regenerate them with:
+```bash
+python notes/MultiAgentAI/scripts/generate_notebooks.py
+```
 
 **Optional — live model responses in Ch.7 (Agent Frameworks):**
 

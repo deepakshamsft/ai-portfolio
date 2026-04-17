@@ -194,3 +194,7 @@ In a cloud deployment, managed identity is the correct pattern: each agent servi
 ## Next
 
 → [Ch.4 — Event-Driven Agent Messaging](../EventDrivenAgents/) — what happens when you have 1,000 tasks in flight simultaneously and synchronous delegation is no longer viable
+
+## Illustrations
+
+![A2A - tool vs agent, agent card, task lifecycle, MCP+A2A layering](img/A2A.png)

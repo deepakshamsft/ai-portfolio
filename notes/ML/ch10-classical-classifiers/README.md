@@ -307,3 +307,8 @@ for k in k_values:
 ## Bridge to Ch.11
 
 Decision Trees are expressive but fragile — a small change in training data can produce a very different tree. Chapter 11 — **SVM & Ensembles** — attacks variance from two directions: **SVM** finds the single most robust linear boundary (maximum margin), and **bagging / boosting** trains hundreds of trees and aggregates them, turning fragile high-variance learners into a stable, high-accuracy ensemble.
+
+
+## Illustrations
+
+![Classical classifiers — decision tree splits and KNN boundary regions](img/ch10%20classical%20classifiers.png)

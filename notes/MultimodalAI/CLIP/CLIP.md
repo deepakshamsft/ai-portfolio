@@ -225,3 +225,7 @@ After L2 normalisation, the dot product gives cosine similarity in $[-1, 1]$. It
 ## 9 · What's Next
 
 → **[DiffusionModels.md](../DiffusionModels/DiffusionModels.md)** — CLIP gives PixelSmith a shared image-text space, enabling semantic search (v2). The PixelSmith v3 upgrade requires generation: given noise, produce a plausible image. Diffusion models provide this. You need to understand the forward noising process, the reverse denoising process, and the U-Net architecture before you can understand how CLIP's text encoder slots into Stable Diffusion as a conditioning signal.
+
+## Illustrations
+
+![CLIP - dual encoders, contrastive matrix, zero-shot, shared space](img/CLIP.png)

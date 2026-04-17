@@ -304,3 +304,8 @@ except ImportError:
 ## Bridge to Ch.13
 
 Clustering found structure in the full 8-dimensional feature space — but we can't visualise it directly. Chapter 13 — **Dimensionality Reduction** — provides the complementary toolkit: PCA compresses the 8 features into 2 principal components that preserve the most variance, t-SNE reveals local cluster structure for plotting, and UMAP balances local and global topology. The 2D projections from Ch.13 are the standard way to visually validate Ch.12 clusters.
+
+
+## Illustrations
+
+![Clustering — K-Means centroids, DBSCAN density regions, and hierarchical dendrograms](img/ch12%20clustering.png)

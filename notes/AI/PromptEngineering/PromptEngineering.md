@@ -265,3 +265,11 @@ You are PizzaBot, an ordering assistant for Mamma Rosa's Pizza.
 Prompt Engineering established how to get the model to produce reliable, structured output. `CoTReasoning.md` goes deeper on one specific prompting pattern — chain-of-thought — tracing exactly how it turns next-token prediction into multi-step planning. `RAGAndEmbeddings.md` shows how retrieved context is injected into the prompt, and why the injection format matters for both recall and injection resistance.
 
 > *A good prompt is a contract: it specifies the role, the task, the format, and the failure mode. The model signs it by predicting tokens consistent with that contract.*
+
+## Illustrations
+
+![Prompt engineering — message stack, zero-shot vs few-shot, structured output, prompt injection boundary](img/Prompt%20Engineering.png)
+
+## Illustrations
+
+![Prompt engineering — message stack, zero-shot vs few-shot, structured output, prompt injection boundary](img/Prompt%20Engineering.png)
