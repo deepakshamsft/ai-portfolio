@@ -262,9 +262,9 @@ print("Embedding + metadata written for Projector tab")
 
 ---
 
-## Bridge to Ch.17 — Transformers & Attention
+## Bridge to Ch.17 — From Sequences to Attention
 
-Ch.16 gave you the instruments to diagnose a trained network. Ch.17 introduces the architecture that replaced RNNs and CNNs as the default for sequence and language tasks: the transformer. Every concept from the previous 16 chapters feeds into it — gradient flow (Ch.5), regularisation (Ch.6), embeddings (Ch.8), and now the diagnostic skills to read its training behaviour (Ch.16).
+Ch.16 gave you the instruments to diagnose a trained network. Ch.17 is a short **bridge chapter** that introduces attention as a soft dictionary lookup — dot product + softmax + weighted sum of values — without any transformer machinery. It exists so the full transformer architecture in Ch.18 lands softly: every symbol you will meet there ($Q$, $K$, $V$, the $T\times T$ attention matrix, positional encoding) is introduced first in pure-numpy form in Ch.17.
 
 The full 17-chapter arc:
 

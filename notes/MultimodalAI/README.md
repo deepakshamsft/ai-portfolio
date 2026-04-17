@@ -170,10 +170,10 @@ MultimodalFoundations
 
 | Concept from this track | Prerequisite from other tracks |
 |------------------------|-------------------------------|
-| Patch embeddings in ViT | Transformer architecture → [ML Ch.17 — Transformers](../ML/ch17-transformers/README.md) |
+| Patch embeddings in ViT | Transformer architecture → [ML Ch.18 — Transformers](../ML/ch18-transformers/README.md) |
 | InfoNCE contrastive loss | Embedding training objectives → [RAGAndEmbeddings.md](../AI/RAGAndEmbeddings/RAGAndEmbeddings.md) |
 | CLIP text encoder inside Stable Diffusion | Tokenisation + transformer encoder → [LLMFundamentals.md](../AI/LLMFundamentals/LLMFundamentals.md) |
-| CFG conditioning via cross-attention | Attention mechanics → [ML Ch.17 — Transformers](../ML/ch17-transformers/README.md) |
+| CFG conditioning via cross-attention | Attention mechanics → [ML Ch.18 — Transformers](../ML/ch18-transformers/README.md) |
 | VAE (encoder-decoder architecture) | Neural network layers + backprop → [ML Ch.4](../ML/ch04-neural-networks/README.md) + [ML Ch.5](../ML/ch05-backprop-optimisers/README.md) |
 | Fine-tuning LLaVA on visual instructions | Fine-tuning concepts → [FineTuning.md](../AI/FineTuning/FineTuning.md) |
 | FID as a distribution-level metric | Evaluation concepts → [EvaluatingAISystems.md](../AI/EvaluatingAISystems/EvaluatingAISystems.md) |
@@ -266,7 +266,7 @@ Before starting Chapter 1, you should be comfortable with:
 
 | Prerequisite | Where to build it if needed |
 |-------------|----------------------------|
-| What a transformer is and how attention works | [ML Ch.17 — Transformers](../ML/ch17-transformers/README.md) |
+| What a transformer is and how attention works | [ML Ch.17 — From Sequences to Attention](../ML/ch17-sequences-to-attention/README.md) then [ML Ch.18 — Transformers](../ML/ch18-transformers/README.md) |
 | What embeddings are and why cosine similarity matters | [RAGAndEmbeddings.md](../AI/RAGAndEmbeddings/RAGAndEmbeddings.md) |
 | Basic PyTorch tensor operations (`torch.Tensor`, `.view()`, matrix multiply) | [ML Ch.4 — Neural Networks](../ML/ch04-neural-networks/README.md) |
 | What a convolutional layer does (for comparison with ViT) | [ML Ch.7 — CNNs](../ML/ch07-cnns/README.md) |

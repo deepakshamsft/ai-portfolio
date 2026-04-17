@@ -305,6 +305,6 @@ fig.text(0.5, 0.012,
          bbox=dict(boxstyle="round,pad=0.4", facecolor="#F8F9F9",
                    edgecolor="#BDC3C7", lw=0.8))
 
-out = r"c:\repos\AI learning\ai-portfolio\notes\ML\ch18-hyperparameter-tuning\img\ch18 hyperparameter tuning.png"
+out = r"c:\repos\AI learning\ai-portfolio\notes\ML\ch19-hyperparameter-tuning\img\ch19 hyperparameter tuning.png"
 plt.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
 print(f"Saved -> {out}")

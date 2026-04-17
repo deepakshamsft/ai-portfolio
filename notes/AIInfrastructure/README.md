@@ -562,7 +562,7 @@ notes/AIInfrastructure/
 
 | This chapter | Connects to |
 |---|---|
-| Ch.1 (GPU Architecture) | ML Ch.17 (Transformers) — the operations that run on those tensor cores |
+| Ch.1 (GPU Architecture) | ML Ch.18 (Transformers) — the operations that run on those tensor cores |
 | Ch.2 (Memory Budgets) | AI CostAndLatency.md — the VRAM side of the same cost model |
 | Ch.3 (Quantization) | AI FineTuning.md — QLoRA is quantization + LoRA combined |
 | Ch.4 (Parallelism) | AI FineTuning.md — FSDP and DeepSpeed are used for large fine-tuning runs |

@@ -59,6 +59,8 @@ where $\sigma$ can be Sigmoid, ReLU, or Tanh. The hidden layer transforms the in
 
 In plain English: **one hidden layer is enough in theory**. In practice, more layers are more efficient — fewer neurons needed to represent the same function. This is why deep networks exist, but the UAT is why hidden layers exist at all.
 
+> **Play with it live:** [TensorFlow Playground](https://playground.tensorflow.org/) is an in-browser neural-network sandbox — pick the XOR-like "exclusive or" dataset, toggle the number of hidden layers/neurons, and watch the decision boundary bend itself around the classes in real time. A zero-hidden-layer network cannot solve it; a single hidden layer of 2–4 neurons can. It's the fastest way to *feel* what a hidden layer actually does to the representation space.
+
 ---
 
 ## 4 · Step by Step

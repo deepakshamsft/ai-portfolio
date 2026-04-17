@@ -1,6 +1,6 @@
-# Ch.17 — Transformers & Attention
+# Ch.18 — Transformers & Attention
 
-> **Running theme:** The LSTM from Ch.8 solved the vanishing gradient problem but introduced a new one: it processes tokens *sequentially* — step 1 must finish before step 2 starts. That serialisation means it can't parallelise across a GPU, and it still struggles to keep information from very early tokens alive over hundreds of steps. The transformer discards recurrence entirely and replaces it with a single operation — **attention** — that lets every position in a sequence directly compare itself to every other position simultaneously. As of 2017, this replaced RNNs for nearly every sequence task, and it is the architecture inside every LLM, every embedding model, and every image foundation model in use today.
+> **Running theme:** Ch.17 established that **attention is a soft dictionary lookup** — dot-product similarity, softmax, weighted sum of values. This chapter takes that one mechanism and dresses it up into the transformer: learned $W_Q, W_K, W_V$ projections, scaled dot-product attention, multi-head parallelism, positional encoding, residuals + LayerNorm, and a feed-forward sub-layer. As of 2017, this replaced RNNs for nearly every sequence task, and it is the architecture inside every LLM, every embedding model, and every image foundation model in use today.
 
 ---
 
@@ -189,6 +189,20 @@ Long        [ 0.14     0.18      0.09       0.07     0.04   0.04    0.10  0.34 ]
   High weight = strong relationship the model learned
 ```
 
+### Animation — scaled dot-product attention, one query at a time, across heads
+
+Each frame picks a single query token (blue) and fans orange "beams" to every key, with beam thickness proportional to the softmax-attention weight $\text{softmax}(q \cdot K^\top / \sqrt{d_k})$. The heat-map on the right fills in **row-by-row** — that row is exactly the same distribution the beams are showing. When all `T` queries are done, the head's full attention matrix is visible, then the animation switches to the next head.
+
+The three heads are hand-crafted to illustrate that **different heads learn different relationship patterns**:
+
+- **Head 1 — feature-family.** Each feature mostly attends to semantically related features (rooms ↔ bedrooms, population ↔ occupancy, lat ↔ long).
+- **Head 2 — geography.** Every query attends heavily to `Lat` and `Long`, as if asking *"where is this district?"* before interpreting anything else.
+- **Head 3 — income anchor.** Every query attends to `MedInc`, anchoring its interpretation to the district's income level.
+
+The final `MultiHead` output is `Concat(head₁, head₂, head₃)·Wᴼ` — so the model gets all three views of the same sequence in parallel.
+
+![Multi-head attention: one query at a time, three heads showing different learned patterns](img/multihead_attention.gif)
+
 ### Positional encoding heatmap (8 positions × 16 dims)
 
 ```
@@ -228,7 +242,7 @@ flowchart LR
         r1["x₁"] --> r2["h₁"] --> r3["h₂"] --> r4["h₃"] --> r5["ŷ"]
     end
 
-    subgraph TR["Ch.17 — Transformer Encoder"]
+    subgraph TR["Ch.18 — Transformer Encoder"]
         direction TB
         t1["x₁ x₂ x₃"] --> attn["Multi-Head\nAttention\n(parallel)"] --> pool["Pool"] --> out["ŷ"]
     end
@@ -462,7 +476,7 @@ print("LSTM processes tokens one by one — 8 sequential steps.")
 
 ## 10 · Bridge to the Next Chapter
 
-Ch.17 established the transformer encoder — the architecture that turns a sequence of tokens into rich contextual representations. The AI track's `RAGAndEmbeddings` note picks up exactly here: embedding models are transformer **encoders** trained with contrastive loss to produce sentence-level vectors you can compare. If you've done Ch.17, the attention mechanism and the pooling step in those notes are no longer mysterious — start there next.
+Ch.18 established the transformer encoder — the architecture that turns a sequence of tokens into rich contextual representations. The AI track's `RAGAndEmbeddings` note picks up exactly here: embedding models are transformer **encoders** trained with contrastive loss to produce sentence-level vectors you can compare. If you've done Ch.18, the attention mechanism and the pooling step in those notes are no longer mysterious — start there next.
 
 > *The transformer is the architecture. The LLM is a transformer trained on internet-scale text. The embedding model is a transformer trained to make similar things close in vector space. One mechanism, three deployment patterns.*
 

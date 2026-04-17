@@ -24,7 +24,7 @@ This is not a course for data scientists or academic researchers. It is a practi
 
 ### What Makes This Different
 
-Every ML chapter derives the maths from scratch before using it. All 17 ML chapters use the same California Housing dataset from Ch.1 through Ch.17, so the delta between chapters is the concept, not a new dataset to understand. Every note ends with an **Interview Checklist** (Must Know / Likely Asked / Trap to Avoid). Every core AI note has a companion `_Supplement.md` for production depth. Every notebook runs on a stock developer laptop — no A100, no cloud GPU budget required.
+Every ML chapter derives the maths from scratch before using it. All 19 ML chapters use the same California Housing dataset from Ch.1 through Ch.19, so the delta between chapters is the concept, not a new dataset to understand. Every note ends with an **Interview Checklist** (Must Know / Likely Asked / Trap to Avoid). Every core AI note has a companion `_Supplement.md` for production depth. Every notebook runs on a stock developer laptop — no A100, no cloud GPU budget required.
 
 ---
 
@@ -45,9 +45,15 @@ notes/
 
 ## Track 1 — Machine Learning (`ML/`)
 
-A 17-chapter bottom-up curriculum built from the **Neural Chronicles** reference book. Every chapter has a technical README and a runnable Jupyter notebook using the **California Housing dataset** throughout.
+A 19-chapter bottom-up curriculum built from the **Neural Chronicles** reference book. Every chapter has a technical README and a runnable Jupyter notebook using the **California Housing dataset** throughout.
 
 > See [ML/AUTHORING_GUIDE.md](ML/AUTHORING_GUIDE.md) for the chapter authoring guide and build tracker.
+
+**Depth labels** — a realism tag next to each chapter, so you can plan pacing honestly:
+
+- **F — Foundational**: accessible with the stated prerequisites; core track.
+- **D — Deep**: expect to spend ~2× foundational time and re-read.
+- **R — Reference**: consult as needed, not meant cover-to-cover first pass.
 
 **Setup:** run the single uber-setup from the repo root — it installs everything (ML, AIInfrastructure, MultiAgentAI) and registers all Jupyter kernels:
 ```powershell
@@ -57,25 +63,27 @@ A 17-chapter bottom-up curriculum built from the **Neural Chronicles** reference
 bash scripts/setup.sh
 ```
 
-| # | Chapter | Core concept |
-|---|---|---|
-| 1 | [Linear Regression](ML/ch01-linear-regression/) | `ŷ = Wᵀx + b`, MSE, gradient descent, R² |
-| 2 | [Logistic Regression](ML/ch02-logistic-regression/) | Sigmoid, binary cross-entropy, precision/recall |
-| 3 | [The XOR Problem](ML/ch03-xor-problem/) | Why linear models fail, Universal Approximation Theorem |
-| 4 | [Neural Networks](ML/ch04-neural-networks/) | Dense layers, activations (ReLU/Softmax), Xavier/He init |
-| 5 | [Backprop & Optimisers](ML/ch05-backprop-optimisers/) | Chain rule, SGD → Momentum → Adam, LR schedules |
-| 6 | [Regularisation](ML/ch06-regularisation/) | L1/L2, dropout, early stopping |
-| 7 | [CNNs](ML/ch07-cnns/) | Convolution, pooling, feature hierarchies, ResNet idea |
-| 8 | [RNNs / LSTMs / GRUs](ML/ch08-rnns-lstms/) | Hidden state, vanishing gradient, LSTM gates |
-| 9 | [Metrics Deep Dive](ML/ch09-metrics/) | AUC-ROC, AUC-PR, confusion matrix, RMSE vs MAE |
-| 10 | [Classical Classifiers](ML/ch10-classical-classifiers/) | Decision Trees, KNN, Gini impurity |
-| 11 | [SVM & Ensembles](ML/ch11-svm-ensembles/) | Max-margin, kernel trick, bagging vs boosting, XGBoost |
-| 12 | [Clustering](ML/ch12-clustering/) | K-Means, DBSCAN, HDBSCAN |
-| 13 | [Dimensionality Reduction](ML/ch13-dimensionality-reduction/) | PCA, t-SNE, UMAP |
-| 14 | [Unsupervised Metrics](ML/ch14-unsupervised-metrics/) | Silhouette, Davies-Bouldin, ARI |
-| 15 | [MLE & Loss Functions](ML/ch15-mle-loss-functions/) | Derive MSE and Cross-Entropy from maximum likelihood |
-| 16 | [TensorBoard](ML/ch16-tensorboard/) | Instrument training with scalars, histograms, and projector |
-| 17 | [Transformers & Attention](ML/ch17-transformers/) | Scaled dot-product attention, multi-head, positional encoding |
+| # | Chapter | Depth | Core concept |
+|---|---|---|---|
+| 1 | [Linear Regression](ML/ch01-linear-regression/) | F | `ŷ = Wᵀx + b`, MSE, gradient descent, R² |
+| 2 | [Logistic Regression](ML/ch02-logistic-regression/) | F | Sigmoid, binary cross-entropy, precision/recall |
+| 3 | [The XOR Problem](ML/ch03-xor-problem/) | F | Why linear models fail, Universal Approximation Theorem |
+| 4 | [Neural Networks](ML/ch04-neural-networks/) | F | Dense layers, activations (ReLU/Softmax), Xavier/He init |
+| 5 | [Backprop & Optimisers](ML/ch05-backprop-optimisers/) | D | Chain rule, SGD → Momentum → Adam, LR schedules |
+| 6 | [Regularisation](ML/ch06-regularisation/) | F | L1/L2, dropout, early stopping |
+| 7 | [CNNs](ML/ch07-cnns/) | F | Convolution, pooling, feature hierarchies, ResNet idea |
+| 8 | [RNNs / LSTMs / GRUs](ML/ch08-rnns-lstms/) | D | Hidden state, vanishing gradient, LSTM gates |
+| 9 | [Metrics Deep Dive](ML/ch09-metrics/) | F | AUC-ROC, AUC-PR, confusion matrix, RMSE vs MAE |
+| 10 | [Classical Classifiers](ML/ch10-classical-classifiers/) | F | Decision Trees, KNN, Gini impurity |
+| 11 | [SVM & Ensembles](ML/ch11-svm-ensembles/) | F | Max-margin, kernel trick, bagging vs boosting, XGBoost |
+| 12 | [Clustering](ML/ch12-clustering/) | F | K-Means, DBSCAN, HDBSCAN |
+| 13 | [Dimensionality Reduction](ML/ch13-dimensionality-reduction/) | D | PCA, t-SNE, UMAP |
+| 14 | [Unsupervised Metrics](ML/ch14-unsupervised-metrics/) | F | Silhouette, Davies-Bouldin, ARI |
+| 15 | [MLE & Loss Functions](ML/ch15-mle-loss-functions/) | D | Derive MSE and Cross-Entropy from maximum likelihood |
+| 16 | [TensorBoard](ML/ch16-tensorboard/) | R | Instrument training with scalars, histograms, and projector |
+| 17 | [From Sequences to Attention](ML/ch17-sequences-to-attention/) | F | **Bridge chapter.** Soft dictionary lookup — dot product + softmax → attention, without transformers |
+| 18 | [Transformers & Attention](ML/ch18-transformers/) | D | Scaled dot-product attention, multi-head, positional encoding |
+| 19 | [Hyperparameter Tuning](ML/ch19-hyperparameter-tuning/) | R | Learning rate, batch size, optimiser, init, regularisation — tune order and search strategies |
 
 ---
 
@@ -262,8 +270,9 @@ AIInfrastructure/GPUArchitecture/
 |---|---|---|
 | ML Ch.4 Neural Networks | AI/RAGAndEmbeddings | Transformer encoders are neural networks — the same maths |
 | ML Ch.5 Backprop | AI/RAGAndEmbeddings | Contrastive learning (InfoNCE) is trained with the same gradient machinery |
-| ML Ch.8 RNNs/LSTMs | ML Ch.17 Transformers | LSTMs explain *why* attention was invented |
-| ML Ch.17 Transformers | AI track (all) | Load-bearing bridge — read before the AI track |
+| ML Ch.8 RNNs/LSTMs | ML Ch.17 Sequences to Attention | LSTMs motivate *why* attention was invented; Ch.17 introduces attention without transformers |
+| ML Ch.17 Sequences to Attention | ML Ch.18 Transformers | Soft-lookup intuition → learned Q/K/V projections, multi-head, positional encoding |
+| ML Ch.18 Transformers | AI track (all) | Load-bearing bridge — read before the AI track |
 | ML Ch.12 Clustering | AI/VectorDBs | HDBSCAN discovers topic clusters in a vector index |
 | AI/ReActAndSemanticKernel | MultiAgentAI/ | Multi-agent is an extension of single-agent — not a replacement |
 | AI/RAGAndEmbeddings | MultimodalAI/CLIP | CLIP uses the same contrastive training as text embedding models |

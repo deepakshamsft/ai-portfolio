@@ -136,6 +136,16 @@ graph RL
     H1 --> MW1["∂L/∂W₁\n∂L/∂b₁"]
 ```
 
+### Animation — one full training step, neuron by neuron
+
+A 2 → 3 → 2 → 1 network trained on a single fixed sample `(x = [+0.90, −0.40], y = +1.00)`. Each epoch cycles through three phases:
+
+1. **Forward pass (blue).** Neurons light up left → right; their numbers are the activations $h^{(l)}$. Edges feeding the active layer glow to show which weights contributed to that layer's pre-activation.
+2. **Backward pass (red).** Starting at the output, neurons light up right → left showing the error signal $\delta^{(l)} = (W_{l+1}\,\delta^{(l+1)}) \odot \mathbf{1}[z^{(l)} > 0]$. The glowing edges are the weights whose gradient was just computed from that $\delta$.
+3. **Update (green).** One SGD step is applied — every edge flashes green and the weight values drift. Watch the header: $\hat{y}$ moves towards the target `+1.00` and the loss ticks down each epoch.
+
+![Backpropagation: forward activations, backward delta flow, and per-epoch weight updates on a tiny network](img/backprop_neurons.gif)
+
 ### Optimiser convergence comparison (conceptual)
 
 ```

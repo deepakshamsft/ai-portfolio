@@ -150,6 +150,18 @@ Too low:   loss ─────────────────────�
 
 ![Regression line and gradient descent learning rate comparison](img/Gradient%20Descent%20Paths.png)
 
+### Animation — derivative slices compound into the curve
+
+Calculus-intuition check before we touch the loss surface: **every smooth curve is a quilt of tiny straight lines.** Zoom into any point on a circle and the arc looks straight — that locally-straight segment *is* the derivative at that point. Pull the camera back and those millions of tiny straight segments, laid edge-to-edge, are what we see as "the circle". The same is true of any smooth $f(x)$ — it looks blank from far away, but zoom in and it's made of microscopic tangents, each with its own slope $f'(x)$. This is why the first-order approximation $f(x + dx) \approx f(x) + f'(x)\,dx$ exists at all, and it's the reason gradient descent works one small step at a time: step sizes have to be small enough that this *locally straight* picture is still trustworthy.
+
+![A circle and a curve, each shown as a quilt of tiny straight tangent segments revealed by zooming in and out](img/derivative_to_curve.gif)
+
+### Animation — gradient descent: small step vs too-large step
+
+Same loss bowl, same start point, same gradient formula — the **only** difference is the learning rate $\eta$. On the left ($\eta = 0.15$) each step is small enough that the slope estimate stays accurate, and the ball walks down into the minimum. On the right ($\eta = 1.02$) each step overshoots the basin; the next gradient points the other way and is evaluated even farther out, so the iterates spiral outward and never settle. This is why "small steps" isn't a stylistic preference — it's the condition that keeps the linear approximation valid.
+
+![Gradient descent: small-eta convergence vs large-eta overshoot](img/gradient_descent_steps.gif)
+
 ### Feature → Prediction Flow (single input)
 
 ```mermaid

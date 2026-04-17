@@ -8,7 +8,7 @@
 
 ## The Plan
 
-The **Neural_Chronicles HTML book** has 14 chapters. The notes library expanded beyond the HTML source — Ch.15 (MLE & Loss Functions), Ch.16 (TensorBoard), Ch.17 (Transformers & Attention), and Ch.18 (Hyperparameter Tuning) were added as standalone chapters, bringing the total to 18. We're converting each into a standalone, runnable learning module:
+The **Neural_Chronicles HTML book** has 14 chapters. The notes library expanded beyond the HTML source — Ch.15 (MLE & Loss Functions), Ch.16 (TensorBoard), Ch.17 (From Sequences to Attention — bridge chapter), Ch.18 (Transformers & Attention), and Ch.19 (Hyperparameter Tuning) were added as standalone chapters, bringing the total to 19. We're converting each into a standalone, runnable learning module:
 
 ```
 notes/ML/
@@ -51,8 +51,9 @@ This one dataset threads naturally through all 17 chapters:
 | Ch.14 — Unsupervised Metrics | Evaluate the Ch.12 clusters (Silhouette, Davies-Bouldin, ARI) |
 | Ch.15 — MLE & Loss Functions | Derive MSE and Cross Entropy from MLE — when to use which loss |
 | Ch.16 — TensorBoard | Instrument the Ch.5 training loop with TensorBoard scalars, histograms, and projector |
-| Ch.17 — Transformers & Attention | Build a minimal transformer encoder on the housing feature set; observe how attention weights reflect feature correlations (income ↔ value) |
-| Ch.18 — Hyperparameter Tuning | Sweep every major dial (learning rate, optimiser, batch size, init, regularisation, depth, width, data size) on the Ch.4 housing network |
+| Ch.17 — From Sequences to Attention | **Bridge chapter.** Treat each district's 8 features as a sequence of tokens; implement attention as a soft dictionary lookup with nothing beyond `numpy` dot product + softmax |
+| Ch.18 — Transformers & Attention | Build a minimal transformer encoder on the housing feature set; observe how attention weights reflect feature correlations (income ↔ value) |
+| Ch.19 — Hyperparameter Tuning | Sweep every major dial (learning rate, optimiser, batch size, init, regularisation, depth, width, data size) on the Ch.4 housing network |
 
 > **Why this works:** The dataset is built into sklearn (no download required), has both regression and classification targets, has continuous and categorical features, and 20,000 rows — large enough to show real training dynamics without being slow.
 
@@ -147,8 +148,9 @@ Cell structure per notebook:
 | 14 | Unsupervised Metrics | `ch14-unsupervised-metrics/` | ✅ | ✅ | Done |
 | 15 | MLE — Cross Entropy vs MSE | `ch15-mle-loss-functions/` | ✅ | ✅ | Done |
 | 16 | TensorBoard | `ch16-tensorboard/` | ✅ | ✅ | Done |
-| 17 | Transformers & Attention | `ch17-transformers/` | ✅ | ✅ | Done |
-| 18 | Hyperparameter Tuning | `ch18-hyperparameter-tuning/` | ✅ | ✅ | Done |
+| 17 | From Sequences to Attention (bridge) | `ch17-sequences-to-attention/` | ✅ | ✅ | Done |
+| 18 | Transformers & Attention | `ch18-transformers/` | ✅ | ✅ | Done |
+| 19 | Hyperparameter Tuning | `ch19-hyperparameter-tuning/` | ✅ | ✅ | Done |
 
 ---
 
@@ -274,7 +276,15 @@ Brief bullet on what each chapter covers — so you can pick up any chapter with
 - Dial: log_dir, update_freq, histogram_freq
 - Trap: logging every batch (use epoch-level to avoid disk bloat)
 
-### Ch.17 — Transformers & Attention
+### Ch.17 — From Sequences to Attention (bridge chapter)
+- Mental model: **attention is a soft dictionary lookup** — dot product + softmax + weighted sum of values
+- Pre-teaches the three building blocks for Ch.18: dot product as similarity, softmax with temperature, soft-vs-hard lookup
+- Introduces $Q, K, V$ as three **roles** of the same input (question / label / payload) without learned projections
+- Shows self-attention is permutation-equivariant — motivates positional encoding as the price paid
+- Shorter than a full chapter by design; exists so Ch.18 lands softly for learners without prior attention exposure
+- Trap: treating attention weights as an *explanation* of model behaviour rather than a *diagnostic* of where the model looked
+
+### Ch.18 — Transformers & Attention
 - Scaled dot-product attention: `softmax(QKᵀ/√d_k)V` — every position attends to every other in parallel
 - Positional encoding: sinusoidal PE injected additively so the model knows token order
 - Multi-head attention: H parallel attention heads, each learning different relationship patterns
@@ -283,7 +293,7 @@ Brief bullet on what each chapter covers — so you can pick up any chapter with
 - Dial: `d_model` (most impactful), `num_heads` (must divide `d_model`), `num_layers`, LR warmup
 - Trap: forgetting LR warmup (transformers diverge at initialisation without it); `num_heads` not dividing `d_model` silently corrupts projections
 
-### Ch.18 — Hyperparameter Tuning
+### Ch.19 — Hyperparameter Tuning
 - Parameters (`W, b`) are learned; hyperparameters are chosen before training
 - Tuning order: learning rate → batch size → optimiser → initialiser → architecture (depth/width/layer type) → regularisation (dropout, weight decay, early stopping) → loss choice → more data
 - Dials covered: learning rate & schedules, optimisers (SGD/Momentum/Adam/AdamW), batch size, weight init (He/Xavier), dropout, loss choice, layer types, depth, width, activation functions, weight decay, gradient clipping, epochs/early stopping

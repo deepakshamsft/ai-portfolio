@@ -1,4 +1,4 @@
-# Ch.18 — Hyperparameter Tuning
+# Ch.19 — Hyperparameter Tuning
 
 > **Running theme:** You have all the pieces — a neural network (Ch.4), backprop and optimisers (Ch.5), regularisation (Ch.6), and loss functions (Ch.15). Now you have to *pick numbers*. This chapter is the decision guide: which dial, what it does, which direction to turn it, and in what order.
 

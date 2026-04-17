@@ -32,7 +32,7 @@
 | 76–81 | Ch.13 — Dimensionality Reduction (PCA, t-SNE, UMAP) | ✅ Done |
 | 82–87 | Ch.14 — Unsupervised Metrics (Silhouette, Davies-Bouldin, ARI, EVR, reconstruction error) | ✅ Done |
 
-**The HTML source (Neural_Chronicles.html) covers Ch.1–Ch.14. Ch.15 (MLE & Loss Functions), Ch.16 (TensorBoard), and Ch.17 (Transformers & Attention) are notes-library-only chapters written beyond the original HTML book — 17 chapters total.**
+**The HTML source (Neural_Chronicles.html) covers Ch.1–Ch.14. Ch.15 (MLE & Loss Functions), Ch.16 (TensorBoard), Ch.17 (From Sequences to Attention — bridge), Ch.18 (Transformers & Attention), and Ch.19 (Hyperparameter Tuning) are notes-library-only chapters written beyond the original HTML book — 19 chapters total.**
 
 > **Actual HTML line counts (as of last edit):**
 > - Ch.1 Linear Regression: ~lines 369–1107
