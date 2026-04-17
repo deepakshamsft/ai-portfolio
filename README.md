@@ -36,6 +36,25 @@ More projects added as the curriculum progresses.
 
 ---
 
+## Accredited courses this material best supports
+
+This repo is **not accredited** — it's self-authored study material. It is, however, a rigorous companion to paid certifications. Courses below are sorted by how tightly the `notes/` tracks align with the certification's syllabus (tightest fit first).
+
+| Rank | Certification | Tracks that support it | Gap this repo closes |
+|---|---|---|---|
+| 1 | **DeepLearning.AI — *Deep Learning Specialization* (Coursera, Andrew Ng)** | [PreRequisites](notes/PreRequisites/), [ML](notes/ML/) Ch.1–8 · Ch.15 · Ch.17–18 | Derives the math Coursera states as given; adds production depth Coursera skips. |
+| 2 | **DeepLearning.AI — *Machine Learning Specialization* (Coursera)** | [ML](notes/ML/) Ch.1–6 · Ch.9–14 · Ch.19 | California Housing continuity forces real code understanding vs scaffolded notebooks. |
+| 3 | **HuggingFace — *NLP Course* + *LLM Course*** | [AI](notes/AI/) (all), [ML](notes/ML/) Ch.17–18, [MultiAgentAI](notes/MultiAgentAI/) | Supplies the "why" behind every HF snippet — tokenisation, RAG, fine-tuning, evaluation. |
+| 4 | **NVIDIA Deep Learning Institute — *LLMs* / *Inference Optimization* / *Fundamentals of Deep Learning*** | [AIInfrastructure](notes/AIInfrastructure/) (all), [ML](notes/ML/) Ch.4–8 | Vendor-neutral grounding for GPU architecture, quantisation, vLLM, serving. |
+| 5 | **Azure AI Engineer Associate (AI-102)** / **AWS Certified Machine Learning – Specialty (MLS-C01)** | [AI](notes/AI/), [AIInfrastructure](notes/AIInfrastructure/), [MultiAgentAI](notes/MultiAgentAI/) | Cloud exams test services; this repo teaches what the services actually do underneath. |
+| 6 | **Stanford Online — *XCS229 / CS229 Machine Learning* (paid professional track)** | [PreRequisites](notes/PreRequisites/) Ch.5–7, [ML](notes/ML/) Ch.5 · Ch.6 · Ch.9 · Ch.11 · Ch.15 | Practical production framing alongside CS229's academic rigor. |
+| 7 | **DeepLearning.AI — *Generative AI with LLMs* (Coursera)** | [AI](notes/AI/), [ML](notes/ML/) Ch.18, [MultimodalAI](notes/MultimodalAI/) | Adds agent orchestration, multi-agent protocols, and local-inference economics. |
+| 8 | **MIT / edX — *MicroMasters in Statistics and Data Science*** | [PreRequisites](notes/PreRequisites/) Ch.7, [ML](notes/ML/) Ch.9 · Ch.14 · Ch.15 | Use as warm-up, not substitute — MicroMasters is heavier on pure statistics. |
+
+**Recommended primary pairing:** *DeepLearning.AI Deep Learning Specialization + HuggingFace LLM Course*, using [notes/PreRequisites/](notes/PreRequisites/) as the remedial math layer and [notes/AI/](notes/AI/) + [notes/AIInfrastructure/](notes/AIInfrastructure/) as the production layer those courses intentionally skip.
+
+---
+
 ## Quick start
 
 **Set up the full dev environment (Windows):**

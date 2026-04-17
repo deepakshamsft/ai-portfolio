@@ -92,18 +92,7 @@ Reading the mathematics in the order it was *discovered* makes it stick. Every c
 
 ## Authoring conventions
 
-Each chapter folder contains:
-
-```
-chNN-<slug>/
-  README.md        # narrative, math, diagrams, exercises
-  notebook.ipynb   # hands-on Python with interactive widgets
-  img/             # static PNGs referenced from README
-```
-
-**Notebook style.** `numpy` + `matplotlib` + `ipywidgets` + `scipy` as needed. Every slider is paired with an editable numeric text box that syncs *bidirectionally*, so the reader can type exact values or drag for intuition.
-
-**README style.** Short paragraphs, one-sentence-per-line math, no wall of symbols without an inline definition. Each chapter ends with 3–5 short exercises and a pointer to the ML chapter that reuses the material.
+See [AUTHORING_GUIDE.md](./AUTHORING_GUIDE.md) for chapter folder layout, README/notebook style rules, section order, and the running-thread convention.
 
 ---
 
