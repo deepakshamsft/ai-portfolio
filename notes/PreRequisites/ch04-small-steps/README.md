@@ -5,7 +5,7 @@
 >
 > Armstrong's boot-print was 30 cm of motion at the end of a 384 000 km journey, and that sentence is also the best one-line description of how every modern machine-learning model is trained. A neural network learns by taking billions of those 30-cm-class steps — each one a tiny, almost imperceptible parameter adjustment — and the *leap* (recognising faces, translating languages, playing Go) is just the cumulative trajectory. Ch.4 is the chapter where we work out what a single step should look like.
 
-> **Running theme.** You have a release speed you cannot change (strength-limited). You *can* choose the release angle. Which angle sinks the most free throws — or equivalently, which angle throws the ball the farthest from a given launch speed? You *could* solve it with calculus. But the moment you add air drag, wind, or a defender, the equation becomes ugly and the analytical answer vanishes. The fall-back is ancient and universal: **pick a starting guess and walk downhill.**
+> **Running theme.** You're taking a long goal kick: your boot can deliver a fixed strike speed, but you *can* choose the launch angle. Which angle drives the ball the farthest from that fixed launch speed? You *could* solve it with calculus. But the moment you add air drag, a stiff crosswind, or a sloping pitch, the equation becomes ugly and the analytical answer vanishes. The fall-back is ancient and universal: **pick a starting guess and walk downhill.**
 
 ---
 
@@ -26,11 +26,11 @@ The only question is **how big a step?** The answer is the subject of this chapt
 
 ## 2 · Running Example
 
-Free throw, vacuum physics, fixed release speed $v_0 = 8$ m/s, release at ground level for simplicity. The horizontal range when you launch at angle $\theta$ is
+Long goal kick, vacuum physics, fixed strike speed $v_0 = 25$ m/s, ball struck from the turf. The horizontal range when you launch at angle $\theta$ is
 
 $$R(\theta) \;=\; \frac{v_0^2}{g}\,\sin(2\theta)$$
 
-Maximum at $\theta = 45^\circ$, giving $R \approx 6.52$ m. We *know* the answer; this makes it easy to test whether an optimisation algorithm actually finds it.
+Maximum at $\theta = 45^\circ$, giving $R \approx 63.7$ m. We *know* the answer; this makes it easy to test whether an optimisation algorithm actually finds it.
 
 Two twists in this chapter:
 
@@ -85,7 +85,7 @@ Let $\rho = 1 - \eta\,c$. Behaviour depends on $|\rho|$:
 | $\rho = \pm 1$ | perpetual orbit — never converges |
 | $|\rho| > 1$ | **divergence** — iterates blow up |
 
-So the safe range is $0 < \eta < 2/c$. For a free-throw-style range curve, $c$ is set by the second derivative at the peak. Practitioners usually start small ($\eta \sim 10^{-3}$ to $10^{-1}$ relative to the scale of the problem) and tune by watching the loss.
+So the safe range is $0 < \eta < 2/c$. For a goal-kick-style range curve, $c$ is set by the second derivative at the peak. Practitioners usually start small ($\eta \sim 10^{-3}$ to $10^{-1}$ relative to the scale of the problem) and tune by watching the loss.
 
 ### 3.4 · Convergence is not guaranteed to be *global*
 
@@ -113,9 +113,9 @@ In practice you use (1) or (4); (2) and (3) can fire falsely on slow plateaus.
 
 ---
 
-## 4 · Step by Step — maximise free-throw range by gradient ascent
+## 4 · Step by Step — maximise goal-kick range by gradient ascent
 
-1. Set $v_0 = 8$, $g = 9.81$. Define $R(\theta) = (v_0^2/g)\sin(2\theta)$ with $\theta$ in radians.
+1. Set $v_0 = 25$, $g = 9.81$. Define $R(\theta) = (v_0^2/g)\sin(2\theta)$ with $\theta$ in radians.
 2. Compute the analytic derivative: $R'(\theta) = (2 v_0^2 / g)\cos(2\theta)$.
 3. Pick a start $\theta_0$ (say, $20^\circ$ in radians) and a step size $\eta$.
 4. Loop: $\theta \leftarrow \theta + \eta\,R'(\theta)$.
@@ -128,7 +128,7 @@ The whole algorithm is six lines of Python. It scales to billions of parameters 
 
 ## 5 · Key Diagram
 
-![Ch.4 hero: three panels showing iterative optimisation on the free-throw range curve. Left panel: three starting angles (20°, 65°, 80°) all converge via gradient ascent to the 45° optimum on the smooth R(θ) curve. Middle panel: three step sizes — η=2 crawls, η=35 converges cleanly, η=180 overshoots and oscillates. Right panel: a non-convex wind-affected curve where a start at 18° reaches the global optimum at 32° but a start at 72° gets stuck at a local plateau around 68°.](img/ch04-small-steps.png)
+![Ch.4 hero: three panels showing iterative optimisation on the goal-kick range curve. Left panel: three starting angles (20°, 65°, 80°) all converge via gradient ascent to the 45° optimum on the smooth R(θ) curve. Middle panel: three step sizes — η=2 crawls, η=35 converges cleanly, η=180 overshoots and oscillates. Right panel: a non-convex wind-affected curve where a start at 18° reaches the global optimum at 32° but a start at 72° gets stuck at a local plateau around 68°.](img/ch04-small-steps.png)
 
 Left: on a convex curve, the starting point doesn't matter — everyone arrives. Middle: on the *same* curve, a poorly chosen $\eta$ ruins everything; orange overshoots from 20° all the way past the peak on the first step. Right: a windy landscape has a dominant global maximum at $32^\circ$ and a seductive local one near $68^\circ$; the starting angle decides your fate.
 
@@ -139,7 +139,7 @@ Left: on a convex curve, the starting point doesn't matter — everyone arrives.
 ```python
 import numpy as np
 
-v0, g = 8.0, 9.81
+v0, g = 25.0, 9.81
 
 def R(theta):                       # range, theta in RADIANS
     return v0 ** 2 / g * np.sin(2 * theta)

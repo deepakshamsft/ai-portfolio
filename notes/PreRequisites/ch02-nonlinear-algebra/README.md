@@ -1,6 +1,6 @@
 # Ch.2 — Non-Linear Algebra: Polynomials and the Feature-Expansion Trick
 
-> **Running theme.** Gravity bends the basketball's path. The full trajectory is a parabola, not a line. A straight line — the entire Ch.1 — is hopeless as a fit. And yet, the same linear-regression machinery can fit this parabola exactly. The reason is a single trick.
+> **Running theme.** Gravity bends the knuckleball's path. The full trajectory from boot to goal is a parabola, not a line. A straight line — the entire Ch.1 — is hopeless as a fit. And yet, the same linear-regression machinery can fit this parabola exactly. The reason is a single trick.
 
 ---
 
@@ -22,11 +22,11 @@ $$y \;=\; a\,x_1 + b\,x_2 + c$$
 
 ## 2 · Running Example
 
-A free throw from 4.57 m at a 3.05 m hoop, released at 7.5 m/s and 52°. The full trajectory is
+A direct knuckleball free kick from 20 m, with the goal's crossbar at 2.44 m and a defensive wall at 9.15 m. The ball is struck at 25 m/s and released at 15° above horizontal. The full trajectory is
 
 $$y(t) \;=\; v_{0y}\,t \,-\, \tfrac{1}{2}\,g\,t^2$$
 
-Ch.1 gave us the straight-line approximation valid only for the first 0.2 s. Now we want the whole arc — apex, descent, and the moment the ball reaches hoop height on the way down.
+Ch.1 gave us the straight-line approximation valid only for the first 0.1 s. Now we want the whole arc — rise, apex over the wall, and the late dip that drops the ball under the crossbar.
 
 ---
 
@@ -41,9 +41,9 @@ $$p(x) \;=\; a_n\,x^n + a_{n-1}\,x^{n-1} + \cdots + a_1\,x + a_0$$
 | Degree | Shape | Example in the running story |
 |---|---|---|
 | 0 | horizontal line | constant release height only |
-| 1 | straight line | the 0.2 s approximation (Ch.1) |
-| 2 | parabola | free-throw trajectory |
-| 3 | cubic, one inflection | trajectory with a slight sideways spin |
+| 1 | straight line | the 0.1 s approximation (Ch.1) |
+| 2 | parabola | free-kick trajectory |
+| 3 | cubic, one inflection | trajectory with a slight sideways swerve |
 | $n$ | up to $n-1$ bends | anything smooth on a finite range (Weierstrass' theorem) |
 
 **Why this matters.** Polynomials can approximate essentially any continuous curve on a bounded interval arbitrarily closely — a classical result due to Weierstrass (1885). That's why they're the first tool out of the box for non-linear fitting.
@@ -113,7 +113,7 @@ The whole recipe is one feature-engineering line away from Ch.1.
 
 ## 5 · Key Diagram
 
-![Ch.2 hero: left panel shows a parabolic free-throw trajectory with a horizontal best line that obviously fails to fit; middle panel shows a parabola y = a x^2 + b x + c with vertex and y-intercept annotated; right panel is a 3-D view of the same parabola as a flat plane in feature space x1 = x^2, x2 = x](img/ch02-polynomials-and-plane.png)
+![Ch.2 hero: left panel shows a parabolic knuckleball free-kick trajectory with a horizontal best line that obviously fails to fit; middle panel shows a parabola y = a x^2 + b x + c with vertex and y-intercept annotated; right panel is a 3-D view of the same parabola as a flat plane in feature space x1 = x^2, x2 = x](img/ch02-polynomials-and-plane.png)
 
 Left: a straight line is the wrong tool for a parabolic path. Middle: $a$ controls curvature, $b$ shifts the vertex sideways, $c$ is the $y$-intercept. Right: the exact same parabola $y = 3x^2 - 2x + 1$ shown as the *intersection* of a flat plane with the curved constraint surface $x_1 = x_2^2$ in 3-D feature space. The plane *is* linear; the curve looks bent only because we're looking at a 1-D slice of it.
 
@@ -127,10 +127,10 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 
-# --- simulate a free throw ---
-v0, theta, g = 7.5, np.radians(52), 9.81
+# --- simulate a knuckleball free kick ---
+v0, theta, g = 25.0, np.radians(15), 9.81
 v0y = v0 * np.sin(theta)
-t = np.linspace(0, 1.5, 30)
+t = np.linspace(0, 1.0, 30)
 y = v0y * t - 0.5 * g * t ** 2                      # true curve
 y_noisy = y + np.random.normal(0, 0.03, t.shape)     # measurement noise
 
@@ -165,7 +165,7 @@ print(f"fitted b  (~h0 = 0)     : {b:+.3f}")
 2. Apply the feature-expansion trick to $y = 5 x^3 - 2 x$. What are $x_1, x_2, x_3$ and what are the weights $w_1, w_2, w_3$?
 3. Can you turn $y = a \sin(x) + b \cos(x)$ into a linear-in-parameters model via feature expansion? What are the features? (Answer: yes, $\phi_1 = \sin(x), \phi_2 = \cos(x)$ — it's called a *Fourier basis*.)
 4. What about $y = \sin(a\,x)$? Can you do it? Why or why not? (Answer: no — $a$ is inside the $\sin$; the model is genuinely non-linear in $a$.)
-5. For the free-throw simulation in the notebook, fit a degree-5 polynomial to the 30-sample trajectory and plot the residuals. Where does the fit behave badly?
+5. For the free-kick simulation in the notebook, fit a degree-5 polynomial to the 30-sample trajectory and plot the residuals. Where does the fit behave badly?
 
 ---
 

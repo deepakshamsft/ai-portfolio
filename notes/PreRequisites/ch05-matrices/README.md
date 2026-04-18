@@ -1,6 +1,6 @@
 # Ch.5 — Matrices, Linear Systems, and Matrix Calculus
 
-> **Running theme.** Real coaching data doesn't have one variable — it has release angle, release speed, release height, wind speed, wind direction, ball spin, court altitude, fatigue level. Eight variables, 500 recorded shots. Scalars collapse. We need **matrices**: compact containers for "apply the same linear rule to every sample in one shot."
+> **Running theme.** Real set-piece data doesn't have one variable — it has strike speed, launch angle, strike zone on the boot, wall distance, wall height, wind speed, wind direction, pitch wetness, kicker fatigue. Eight-plus variables, 500 recorded free kicks. Scalars collapse. We need **matrices**: compact containers for "apply the same linear rule to every sample in one shot."
 
 ---
 
@@ -16,7 +16,7 @@ That's it. Every rotation, stretch, projection, regression fit, and linear layer
 
 ## 2 · Running Example
 
-Same free throw, full parabolic trajectory. We want to recover the physics constants $(h_0, v_{0y}, -g/2)$ from a set of noisy $(t_i, y_i)$ measurements. In Ch.2 we did this with `sklearn.LinearRegression`; here we do it from scratch with one matrix solve. Then we extend to multi-variable regression — eight shot features predicting made vs missed.
+Same knuckleball free kick, full parabolic trajectory. We want to recover the physics constants $(h_0, v_{0y}, -g/2)$ from a set of noisy $(t_i, y_i)$ measurements. In Ch.2 we did this with `sklearn.LinearRegression`; here we do it from scratch with one matrix solve. Then we extend to multi-variable regression — eight free-kick features predicting scored vs missed.
 
 ---
 
@@ -101,7 +101,7 @@ Take the gradient (Section 4 below has the rules), set it to zero:
 
 $$\nabla_\mathbf{w} \mathcal{L} \;=\; 2\,X^\top X \mathbf{w} \,-\, 2\,X^\top \mathbf{y} \;=\; 0 \;\;\Longrightarrow\;\; \boxed{\hat{\mathbf{w}} \;=\; (X^\top X)^{-1} X^\top \mathbf{y}}$$
 
-These are the **normal equations**. The closed form for linear regression. No iteration, no step size — just one matrix solve. The hero image's right panel shows it fitting the free-throw trajectory in one line.
+These are the **normal equations**. The closed form for linear regression. No iteration, no step size — just one matrix solve. The hero image's right panel shows it fitting the free-kick trajectory in one line.
 
 **In code.** Never use `np.linalg.inv(X.T @ X) @ X.T @ y`. Use `np.linalg.lstsq(X, y, rcond=None)` or `np.linalg.solve(X.T @ X, X.T @ y)`. These are faster, numerically stabler, and handle rank-deficient cases gracefully.
 
@@ -121,7 +121,7 @@ Memorise the first four; the fifth comes up in probability (Ch.7). Every derivat
 
 ---
 
-## 4 · Step by Step — fit the free-throw parabola with one matrix solve
+## 4 · Step by Step — fit the free-kick parabola with one matrix solve
 
 1. Collect $(t_i, y_i)$ for $i = 1, \ldots, N$.
 2. Build the design matrix $X \in \mathbb{R}^{N \times 3}$ with columns $[\mathbf{1},\, \mathbf{t},\, \mathbf{t}^2]$.
@@ -135,7 +135,7 @@ Same procedure generalises to $d$ features. Build $X$, solve, read off weights.
 
 ## 5 · Key Diagram
 
-![Ch.5 hero: three panels illustrating matrices. Left panel shows a 2×2 matrix A = [[1.5, 0.5], [0.3, 1.2]] transforming the unit square into a parallelogram whose sides are the columns of A; det(A) = 1.65 is the area scale. Middle panel is the column view of Ax showing the vector sum x1·col1 + x2·col2 + x3·col3 built tip-to-tail. Right panel shows the normal equations fitting a parabola to noisy free-throw samples, recovering physics constants h0≈2.12 m, v0y≈7.08 m/s, −g/2≈−4.81.](img/ch05-matrix-views.png)
+![Ch.5 hero: three panels illustrating matrices. Left panel shows a 2×2 matrix A = [[1.5, 0.5], [0.3, 1.2]] transforming the unit square into a parallelogram whose sides are the columns of A; det(A) = 1.65 is the area scale. Middle panel is the column view of Ax showing the vector sum x1·col1 + x2·col2 + x3·col3 built tip-to-tail. Right panel shows the normal equations fitting a parabola to noisy free-kick samples, recovering physics constants h0≈0.02 m, v0y≈6.44 m/s, −g/2≈−4.89.](img/ch05-matrix-views.png)
 
 Left: the columns of $A$ tell you *where the basis vectors land*. Middle: every matrix-vector product is a weighted sum of the matrix's columns — a picture worth a thousand index-chasing proofs. Right: the entire chapter pays for itself on the trajectory-fitting problem — `(XᵀX)⁻¹Xᵀy` recovers the laws of motion from noisy data.
 
@@ -155,10 +155,10 @@ b2 = np.array([A[0] @ x, A[1] @ x])      # row view
 b3 = x[0] * A[:, 0] + x[1] * A[:, 1]     # column view
 assert np.allclose(b1, b2) and np.allclose(b1, b3)
 
-# --- free-throw fit via normal equations ---
+# --- free-kick fit via normal equations ---
 rng = np.random.default_rng(0)
-v0y, h0, g = 7.2, 2.10, 9.81
-t = np.linspace(0.05, 1.4, 20)
+v0y, h0, g = 6.5, 0.0, 9.81
+t = np.linspace(0.02, 1.3, 20)
 y = h0 + v0y * t - 0.5 * g * t ** 2 + rng.normal(0, 0.05, t.shape)
 
 X = np.column_stack([np.ones_like(t), t, t ** 2])
@@ -188,7 +188,7 @@ print(f"ŵ₂ (-g/2) = {w_hat[2]:+.3f}   (true {-g/2:.3f})")
 
 1. **Shape drill.** $A$ is $3 \times 5$, $B$ is $5 \times 2$, $\mathbf{x}$ is a 5-vector. Which of these are legal, and what shape do they produce? $A\mathbf{x}$, $B\mathbf{x}$, $AB$, $BA$, $A^\top A$, $B B^\top$, $A^\top \mathbf{x}$.
 2. **Columns are images of basis vectors.** Verify numerically that for any matrix $A$, `A @ np.eye(n)[:, k]` returns the $k$-th column of $A$. What does that tell you about the transformation view?
-3. **Recover physics.** Generate 30 noisy free-throw samples as in Section 6. Vary the noise standard deviation from 0.01 to 0.5; plot the estimated $\hat{v}_{0y}$ against noise level. How does estimation error grow?
+3. **Recover physics.** Generate 30 noisy free-kick samples as in Section 6. Vary the noise standard deviation from 0.01 to 0.5; plot the estimated $\hat{v}_{0y}$ against noise level. How does estimation error grow?
 4. **Over-determined vs under-determined.** Build a $20 \times 3$ design matrix $X$ and compare `np.linalg.lstsq(X, y)` to `np.linalg.solve(X.T @ X, X.T @ y)`. Now try $X$ of shape $3 \times 20$ with a given $y \in \mathbb{R}^3$. What does `lstsq` return? What is $\|X \hat{\mathbf{w}} - y\|$ in each case?
 5. **Matrix-calculus check.** For $f(\mathbf{w}) = \mathbf{w}^\top A \mathbf{w}$ with $A$ a random $5 \times 5$ matrix, verify numerically that $\nabla f(\mathbf{w}) = (A + A^\top)\mathbf{w}$ (not $2A\mathbf{w}$ unless $A$ is symmetric) using finite differences.
 

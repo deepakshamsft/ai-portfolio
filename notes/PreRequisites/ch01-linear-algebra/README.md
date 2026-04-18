@@ -1,6 +1,6 @@
 # Ch.1 — Linear Algebra: Lines, Weights, and Biases
 
-> **Running theme.** A basketball player releases a free throw from 4.57 m out. In the first 0.2 seconds after release, the ball rises *almost* in a straight line — fast enough that gravity's curve is still invisible. That is the regime where a single equation $y = wx + b$ tells us everything, and where every idea in machine learning is simplest to see.
+> **Running theme.** A football (soccer) striker lines up a direct **knuckleball free kick** — struck with almost no spin, so the ball's path is governed by gravity alone. The goal is 20 m away, the crossbar sits 2.44 m off the ground. In the first **0.1 seconds** after the boot leaves the ball, the ball rises *almost* in a straight line — fast enough that gravity's curve is still invisible. That is the regime where a single equation $y = wx + b$ tells us everything, and where every idea in machine learning is simplest to see.
 
 ---
 
@@ -16,11 +16,11 @@ The first number, $w$, tilts the line. The second, $b$, shifts it up or down. Ev
 
 ## 2 · Running Example
 
-A player wants to sink a free throw from 4.57 m (15 ft) at a 3.05 m (10 ft) hoop. The full trajectory is a parabola (that's Ch.2). But in the *first 0.2 seconds* after release, gravity has not yet bent the path noticeably, and the ball's height $h$ as a function of time $t$ is well-approximated by:
+A striker wants to score a direct knuckleball free kick from 20 m, clearing a defensive wall at 9.15 m (10 yd) and dipping the ball under the 2.44 m crossbar. The full trajectory is a parabola (that's Ch.2). But in the *first 0.1 seconds* after the boot strikes the ball, gravity has not yet bent the path noticeably, and the ball's height $h$ as a function of time $t$ is well-approximated by:
 
 $$h(t) \;\approx\; v_{0y}\,t \,+\, h_0$$
 
-where $v_{0y}$ is the vertical release velocity and $h_0$ is the release height. Written in ML notation: $w = v_{0y}$ and $b = h_0$. **That is why machine learning calls them weights and biases** — the weight scales the input, the bias is the starting offset. Same equation, different name tags.
+where $v_{0y}$ is the vertical component of the release velocity and $h_0$ is the release height (for a ball on the turf, $h_0 = 0$). Written in ML notation: $w = v_{0y}$ and $b = h_0$. **That is why machine learning calls them weights and biases** — the weight scales the input, the bias is the starting offset. Same equation, different name tags.
 
 ---
 
@@ -83,9 +83,9 @@ Steps 2–5 are literally what gradient descent (Pre-Req Ch.4 and ML Ch.5) autom
 
 ## 5 · Key Diagram
 
-![Ch.1 hero: top-left varying weight rotates the line around origin, top-right varying bias shifts the line vertically, bottom-left two vectors with their dot product highlighted, bottom-right linear fit to first 0.2 s of a free throw](img/ch01-lines-and-biases.png)
+![Ch.1 hero: top-left varying weight rotates the line around origin, top-right varying bias shifts the line vertically, bottom-left two vectors with their dot product highlighted, bottom-right linear fit to first 0.1 s of a knuckleball free kick](img/ch01-lines-and-biases.png)
 
-Top row: the weight $w$ and the bias $b$ do geometrically *different* jobs — one tilts, one shifts — and every line in two dimensions can be expressed by picking them. Bottom-left: two vectors and their dot product, the operation underneath every weighted sum in ML. Bottom-right: the free-throw running example with two candidate fits — the *criterion* for picking the green one over the red one is the subject of Ch.3 and Ch.4.
+Top row: the weight $w$ and the bias $b$ do geometrically *different* jobs — one tilts, one shifts — and every line in two dimensions can be expressed by picking them. Bottom-left: two vectors and their dot product, the operation underneath every weighted sum in ML. Bottom-right: the free-kick running example with two candidate fits — the *criterion* for picking the green one over the red one is the subject of Ch.3 and Ch.4.
 
 ---
 
@@ -98,8 +98,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # --- 3.1 · line equation ---
-w, b = 7.2, 0.0           # vertical release velocity (m/s) and release height (m)
-t = np.linspace(0, 0.20, 50)
+w, b = 6.5, 0.0           # vertical release velocity (m/s) and release height (m)
+t = np.linspace(0, 0.10, 50)
 h = w * t + b             # height in the straight-line regime
 
 # --- 3.3 · dot product, three equivalent forms ---
@@ -130,7 +130,7 @@ print("prediction:   ", y_hat)
 ## 8 · Exercises
 
 1. Write $2x - 3y = 6$ in the form $y = wx + b$. What are $w$ and $b$?
-2. You shoot from a release height of 2.10 m with a vertical velocity of 6.5 m/s. What is the height at $t = 0.15$ s, in the straight-line regime? Sanity-check against $h(0) = 2.10$.
+2. You strike the ball off the turf ($h_0 = 0$) with a vertical velocity of 6.5 m/s. What is the height at $t = 0.08$ s, in the straight-line regime? Sanity-check against $h(0) = 0$.
 3. Compute $\mathbf{a}\cdot\mathbf{b}$ for $\mathbf{a} = [1,\,2,\,3]$ and $\mathbf{b} = [4,\,-1,\,2]$. Then find a non-zero $\mathbf{c}$ such that $\mathbf{a}\cdot\mathbf{c} = 0$. (There are infinitely many — any one works.)
 4. Using the widget in the notebook, fit a line to the recorded (time, height) samples. Record the $(w, b)$ you landed on. How close is $w$ to the true $v_{0y}$?
 5. If every input is doubled, $\mathbf{x}' = 2\mathbf{x}$, what happens to $\hat{y} = \mathbf{w}\cdot\mathbf{x} + b$? What about if *one* coordinate $x_1$ is doubled and the rest stay the same?

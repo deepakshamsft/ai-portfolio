@@ -34,10 +34,11 @@ Every ML chapter derives the maths from scratch before using it. All 19 ML chapt
 notes/
 ├── AI/               ← Agentic AI: reasoning, retrieval, orchestration (+ notebooks)
 ├── AIInfrastructure/ ← GPU hardware to production serving platforms (+ notebooks)
+├── Archived/         ← Deprecated HTML chronicles kept for historical reference
+├── Chronicles/       ← Manga storyboard plan for the Pitch Chronicles arc
 ├── ML/               ← Machine Learning: 17 chapters, each a README + notebook
 ├── MultiAgentAI/     ← Multi-agent protocols and coordination patterns (+ notebooks)
 ├── MultimodalAI/     ← Diffusion, CLIP, vision transformers, text-to-video (+ notebooks)
-├── Reference/        ← ML Chronicles + Neural Chronicles HTML/PDF reference books
 └── scripts/          ← Cross-platform environment setup and notebook generation
 ```
 

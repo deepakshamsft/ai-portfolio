@@ -2,7 +2,7 @@
 
 ![Bernoulli/Binomial/Gaussian, CLT histogram, and MLE likelihood surface](./img/ch07-probability-mle.png)
 
-> **Running theme.** Up to Ch.6 we pretended a free-throw shot was deterministic: same angle, same speed, same result. Reality is noisier. Muscle fatigue, hand tremor, micro-air currents — every outcome is a *draw* from a distribution. Ch.7 gives us the language to (a) describe those distributions, (b) summarise them with expectations and variances, (c) estimate their parameters from data, and (d) discover why *mean-squared error is not a design choice — it's what Gaussian noise asks for*.
+> **Running theme.** Up to Ch.6 we pretended a knuckleball free kick was deterministic: same angle, same speed, same outcome. Reality is noisier. Muscle fatigue, boot-on-ball contact variance, a divot under the ball, micro gusts of wind — every outcome is a *draw* from a distribution. Ch.7 gives us the language to (a) describe those distributions, (b) summarise them with expectations and variances, (c) estimate their parameters from data, and (d) discover why *mean-squared error is not a design choice — it's what Gaussian noise asks for*.
 
 ---
 
@@ -20,7 +20,7 @@ Almost every machine-learning loss function is the negative-log-likelihood of a 
 
 ## 2 · Probability, in One Page
 
-- **Sample space** $\Omega$ — the set of possible outcomes of a random experiment. (All free-throw trajectories you could ever see.)
+- **Sample space** $\Omega$ — the set of possible outcomes of a random experiment. (All free-kick trajectories you could ever see.)
 - **Event** — a subset of $\Omega$. (The event *"the ball goes in"*.)
 - **Probability** $\mathbb{P}: \text{events} \to [0, 1]$ with $\mathbb{P}(\Omega) = 1$ and countable additivity.
 - **Conditional probability**: $\mathbb{P}(A \mid B) = \mathbb{P}(A \cap B) / \mathbb{P}(B)$ for $\mathbb{P}(B) > 0$.
@@ -39,11 +39,11 @@ A **random variable** $X$ is a function $X: \Omega \to \mathbb{R}$. Its **PMF** 
 | Binomial | discrete, $\{0,\dots,n\}$ | $n, p$ | $\binom{n}{k} p^k (1-p)^{n-k}$ | $np$ | $np(1-p)$ |
 | Gaussian | continuous, $\mathbb{R}$ | $\mu, \sigma^2$ | $\frac{1}{\sqrt{2\pi \sigma^2}} e^{-(x-\mu)^2/(2\sigma^2)}$ | $\mu$ | $\sigma^2$ |
 
-**Free-throw stories:**
+**Free-kick stories:**
 
-- **Bernoulli.** A single shot is make (1) or miss (0) with success probability $p$.
-- **Binomial.** How many makes in $n$ attempts?
-- **Gaussian.** Release-height tremor, noise added to the *continuous* trajectory, measurement error on radar guns.
+- **Bernoulli.** A single free kick is scored (1) or missed (0) with success probability $p$.
+- **Binomial.** How many goals in $n$ free kicks?
+- **Gaussian.** Launch-angle tremor, noise added to the *continuous* trajectory, measurement error on ball-tracking cameras.
 
 Many others matter (Poisson for counts, Exponential for waiting times, Dirichlet for proportions, Beta as Bernoulli's conjugate prior) — but these three carry 80% of ML applications.
 

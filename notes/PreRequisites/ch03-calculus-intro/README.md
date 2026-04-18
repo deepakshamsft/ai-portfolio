@@ -1,6 +1,6 @@
 # Ch.3 — Calculus: Slopes, Areas, and the Meeting in the Middle
 
-> **Running theme.** We want to know two things about the free throw:
+> **Running theme.** We want to know two things about the knuckleball free kick:
 > *how fast is the ball rising at any instant*, and
 > *how high has it gone by time $T$*.
 > Both questions live outside algebra. Calculus — derivative for the first, integral for the second — was invented to answer them.
@@ -20,9 +20,9 @@ The stunning fact — the **Fundamental Theorem of Calculus** — is that these 
 
 ## 2 · Running Example
 
-Free throw, vertical component, release at ground level for clarity:
+Knuckleball free kick, vertical component, ball struck off the turf for clarity:
 
-$$h(t) \;=\; v_{0y}\,t - \tfrac{1}{2}\,g\,t^2 \qquad v_{0y} = 7.2\text{ m/s},\ g = 9.81\text{ m/s}^2$$
+$$h(t) \;=\; v_{0y}\,t - \tfrac{1}{2}\,g\,t^2 \qquad v_{0y} = 6.5\text{ m/s},\ g = 9.81\text{ m/s}^2$$
 
 Two questions:
 
@@ -63,11 +63,11 @@ That's rise over run — the Ch.1 idea. Now shrink $\Delta t$ toward zero. The s
 
 $$h'(t_0) \;=\; \lim_{\Delta t \to 0} \; \frac{h(t_0 + \Delta t) - h(t_0)}{\Delta t}$$
 
-For our free throw $h(t) = v_{0y}\,t - \tfrac{1}{2}g t^2$, algebra (expand, subtract, simplify, let $\Delta t \to 0$) gives
+For our knuckleball free kick $h(t) = v_{0y}\,t - \tfrac{1}{2}g t^2$, algebra (expand, subtract, simplify, let $\Delta t \to 0$) gives
 
 $$h'(t) \;=\; v_{0y} - g\,t$$
 
-This is the **instantaneous vertical velocity** $v(t)$. The apex is where $v(t) = 0$, i.e. $t_\star = v_{0y}/g$. For $v_{0y} = 7.2$, $t_\star \approx 0.734$ s.
+This is the **instantaneous vertical velocity** $v(t)$. The apex is where $v(t) = 0$, i.e. $t_\star = v_{0y}/g$. For $v_{0y} = 6.5$, $t_\star \approx 0.663$ s.
 
 ### 4.2 · Derivative rules you will actually use
 
@@ -93,7 +93,7 @@ The chain rule is the star of the show — we'll spend an entire Ch.6 on it beca
 
 ### 4.3 · Higher derivatives — the second-order story
 
-Differentiate again: $h''(t) = -g$. A constant. It says "the vertical velocity changes at a constant rate" — gravity. This is Newton's second law for our free throw: $F = ma$ with $a = -g$.
+Differentiate again: $h''(t) = -g$. A constant. It says "the vertical velocity changes at a constant rate" — gravity. This is Newton's second law for our knuckleball free kick: $F = ma$ with $a = -g$.
 
 **In ML.** The second derivative of the loss tells you about curvature. Small second derivative: gentle bowl, easy to optimise. Large: steep walls, small learning rates required. Hessian = matrix of second derivatives, central to Newton's method (and its approximations).
 
@@ -113,9 +113,9 @@ This is a **Riemann sum**. Shrink $\Delta t$ toward zero (equivalently, $n \to \
 
 $$\int_0^T v(t)\,dt \;=\; \lim_{n \to \infty}\,S_n$$
 
-That integral *is* the total rise $h(T) - h(0)$. For our free throw with $T = v_{0y}/g$ (release to apex):
+That integral *is* the total rise $h(T) - h(0)$. For our knuckleball free kick with $T = v_{0y}/g$ (release to apex):
 
-$$\int_0^{v_{0y}/g} (v_{0y} - g\,t)\,dt \;=\; \left[v_{0y}\,t - \tfrac{1}{2}g\,t^2\right]_0^{v_{0y}/g} \;=\; \frac{v_{0y}^2}{2g} \;\approx\; 2.64\text{ m}$$
+$$\int_0^{v_{0y}/g} (v_{0y} - g\,t)\,dt \;=\; \left[v_{0y}\,t - \tfrac{1}{2}g\,t^2\right]_0^{v_{0y}/g} \;=\; \frac{v_{0y}^2}{2g} \;\approx\; 2.15\text{ m}$$
 
 ### 5.2 · Fundamental Theorem of Calculus (FTC)
 
@@ -125,11 +125,11 @@ Two statements, one theorem:
 >
 > **(Part 2)** $\int_a^b f(x)\,dx = F(b) - F(a)$, where $F$ is any antiderivative of $f$. So if you can *recognise* $f$ as the derivative of some known $F$, the integral is a one-line subtraction.
 
-**In the free-throw example.** $v(t) = v_{0y} - gt$ is the derivative of $h(t) = v_{0y}t - \tfrac{1}{2}gt^2$. FTC Part 2: $\int_0^T v(t)\,dt = h(T) - h(0)$. Derivative and integral are the two faces of the same coin.
+**In the free-kick example.** $v(t) = v_{0y} - gt$ is the derivative of $h(t) = v_{0y}t - \tfrac{1}{2}gt^2$. FTC Part 2: $\int_0^T v(t)\,dt = h(T) - h(0)$. Derivative and integral are the two faces of the same coin.
 
 ---
 
-## 6 · Step by Step — the derivative of the free-throw height, from scratch
+## 6 · Step by Step — the derivative of the free-kick height, from scratch
 
 1. Start from the definition: $h'(t) = \lim_{\Delta t \to 0} \frac{h(t + \Delta t) - h(t)}{\Delta t}$.
 2. Substitute $h$: numerator $= v_{0y}(t + \Delta t) - \tfrac{1}{2}g(t + \Delta t)^2 - [v_{0y}\,t - \tfrac{1}{2}g t^2]$.
@@ -144,7 +144,7 @@ The modern rule "differentiate $t^2$ → $2t$" just packages this calculation so
 
 ## 7 · Key Diagram
 
-![Ch.3 hero: left panel shows the free-throw height h(t) with three coloured secants at Δt = 0.6, 0.25, 0.08 collapsing onto the dashed tangent; middle panel shows the velocity v(t) filled with orange Riemann rectangles and a legend of left-endpoint sums for n = 4, 16, 64 converging to the exact integral; right panel shows the unit circle inscribed with polygons at n = 4, 8, 16, 64 approaching π](img/ch03-secant-riemann-archimedes.png)
+![Ch.3 hero: left panel shows the knuckleball free-kick height h(t) with three coloured secants at Δt = 0.6, 0.25, 0.08 collapsing onto the dashed tangent; middle panel shows the velocity v(t) filled with orange Riemann rectangles and a legend of left-endpoint sums for n = 4, 16, 64 converging to the exact integral; right panel shows the unit circle inscribed with polygons at n = 4, 8, 16, 64 approaching π](img/ch03-secant-riemann-archimedes.png)
 
 Left: as $\Delta t$ shrinks from 0.60 to 0.08, the secant slope slides from +0.82 up toward the tangent slope +3.77 — that limit is the derivative. Middle: the orange rectangles are gross at $n=8$, but the tabulated sums show convergence 3.30 → 2.81 → 2.68 → 2.64 toward the exact integral. Right: Archimedes had the integral idea 1900 years before Newton — and his polygon method nails $\pi$ to five decimal places with 64 sides.
 
@@ -155,7 +155,7 @@ Left: as $\Delta t$ shrinks from 0.60 to 0.08, the secant slope slides from +0.8
 ```python
 import numpy as np
 
-v0y, g = 7.2, 9.81
+v0y, g = 6.5, 9.81
 h = lambda t: v0y * t - 0.5 * g * t ** 2
 v = lambda t: v0y - g * t   # analytic derivative
 
@@ -190,7 +190,7 @@ for n in [4, 16, 64, 1024]:
 
 1. **Derivatives by rule.** Compute $f'$ for:
    (a) $f(x) = 3x^5 - 2x + 7$,  (b) $f(x) = (2x+1)^3$ (chain rule),  (c) $f(x) = x\,e^x$ (product rule).
-2. **Free-throw apex.** Given $v_{0y} = 7.2$, use $h'(t) = 0$ to find the apex time analytically, then compare to a numerical derivative zero-finder.
+2. **Free-kick apex.** Given $v_{0y} = 6.5$, use $h'(t) = 0$ to find the apex time analytically, then compare to a numerical derivative zero-finder.
 3. **Numerical derivative.** For $f(x) = \sin(x)$ at $x = 1$, plot the error $|f'_\text{numeric}(x) - \cos(1)|$ as $\Delta t$ sweeps from $1$ down to $10^{-14}$. You should see a V-shape: error decreases, bottoms out near $10^{-8}$, then *grows* due to round-off. Confirm.
 4. **Riemann sum convergence.** For $\int_0^\pi \sin(x)\,dx = 2$, tabulate the left-endpoint sum for $n = 4, 16, 64, 256$. How does the error scale with $n$? (Answer: roughly $1/n$ for left-endpoint.)
 5. **FTC in action.** Verify by computer that $\int_0^T (v_{0y} - g t)\,dt = h(T)$ for a handful of $T$ values. The subtraction $h(T) - h(0)$ should agree to machine precision with `scipy.integrate.quad`.

@@ -14,21 +14,21 @@ If that is you, read these seven chapters in order, run every notebook. If not, 
 
 ---
 
-## The running thread — "The Perfect Free Throw"
+## The running thread — "The Perfect Knuckleball Free Kick"
 
-Every chapter uses the *same* real-world problem: a basketball player shoots a free throw from 4.57 m at a 3.05 m hoop. What release angle, velocity, and spin gets the ball through the net? What changes if there's wind, a different court, or a defender raising a hand?
+Every chapter uses the *same* real-world problem: a football (soccer) striker lines up a direct free kick 20 m from goal, aiming to clear a defensive wall at 9.15 m and dip the ball under the 2.44 m crossbar. Because it's struck as a **knuckleball** — almost zero spin, Juninho/Pirlo/Ronaldo style — the ball's path is dominated by gravity alone, so we can model it as a clean 2D parabola and leave the Magnus curve out of the story entirely. What strike speed, angle, and foot contact get the ball in? What changes when the wall gets taller, the pitch gets wet, or the kicker fatigues in the 89th minute?
 
 This thread was picked deliberately — projectile motion is the problem that *forced* Newton and Leibniz to invent calculus in the 1660s–80s, so the mathematics and the example grew up together. Each chapter makes the problem one step more realistic, and in doing so adds exactly one new piece of mathematics to the reader's toolkit.
 
-| Chapter | What we add | Free-throw question it answers |
+| Chapter | What we add | Free-kick question it answers |
 |---|---|---|
-| Ch.1 Linear Algebra | lines, weights, biases | What's the ball's height during the first 0.2 s? |
-| Ch.2 Non-linear Algebra | polynomials, feature expansion | What's the *full* parabolic trajectory? |
+| Ch.1 Linear Algebra | lines, weights, biases | What's the ball's height during the first 0.1 s off the boot? |
+| Ch.2 Non-linear Algebra | polynomials, feature expansion | What's the *full* parabolic trajectory from boot to goal? |
 | Ch.3 Calculus Intro | derivatives + integrals | What's the ball's instantaneous velocity at the apex? |
-| Ch.4 Small Steps on a Curve | iterative optimisation | What release angle maximises range? |
-| Ch.5 Matrices | linear algebra at scale | How do we handle wind + spin + 5 other variables at once? |
+| Ch.4 Small Steps on a Curve | iterative optimisation | What launch angle drives the ball the farthest (long goal kick)? |
+| Ch.5 Matrices | linear algebra at scale | How do we handle wind + wall size + 6 other variables at once? |
 | Ch.6 Derivatives × Matrices | gradient, Jacobian, chain rule | Which variable should we adjust, and by how much? |
-| Ch.7 Probability & Statistics | distributions, likelihood | How do we reason about a *noisy* release? |
+| Ch.7 Probability & Statistics | distributions, likelihood | How do we reason about a *noisy* strike? |
 
 ---
 
@@ -44,15 +44,15 @@ This thread was picked deliberately — projectile motion is the problem that *f
 
 ### [Ch.3 — Calculus: Derivatives and Integrals from Scratch](./ch03-calculus-intro/README.md)
 **Mental model:** a derivative is the slope of a curve at one point; an integral is the area under it. Both are limits — a secant collapsing into a tangent, rectangles shrinking to the curve. The Fundamental Theorem says they're inverses of each other.
-**Artifact:** a secant-to-tangent animation and a Riemann-sum accumulator on the free-throw trajectory.
+**Artifact:** a secant-to-tangent animation and a Riemann-sum accumulator on the free-kick trajectory.
 
 ### [Ch.4 — Small Steps on a Curve](./ch04-small-steps/README.md)
 **Mental model:** when you can't solve $f'(x) = 0$ analytically, walk downhill. The update $x \leftarrow x - \eta f'(x)$ converges if the step size is right — and if the landscape has only one valley. This is gradient descent one dimension early, with all the warts (step-size tuning, non-convexity, local optima) visible.
-**Artifact:** start-angle and step-size sliders on the free-throw range curve, plus a basin-of-attraction map on a wind-affected non-convex version.
+**Artifact:** start-angle and step-size sliders on a long-goal-kick range curve, plus a basin-of-attraction map on a wind-affected non-convex version.
 
 ### [Ch.5 — Matrices, Linear Systems, and Matrix Calculus](./ch05-matrices/README.md)
 **Mental model:** a matrix is a linear map. $A\mathbf{x} = \mathbf{b}$ has three views — row (intersecting hyperplanes), column (weighted sum of columns), transformation (warp of space). Normal equations $\hat{\mathbf{w}} = (X^\top X)^{-1}X^\top \mathbf{y}$ are just high-dimensional line-fitting.
-**Artifact:** a $2 \times 2$ matrix-warping widget with live determinant, plus the full free-throw parabola fitted in one `lstsq` call with physics constants read straight off the weight vector.
+**Artifact:** a $2 \times 2$ matrix-warping widget with live determinant, plus the full free-kick parabola fitted in one `lstsq` call with physics constants read straight off the weight vector.
 
 ### [Ch.6 — Gradient + Matrix Chain Rule](./ch06-gradient-chain-rule/README.md)
 **Mental model:** the gradient $\nabla f$ packs every partial derivative into a vector that points uphill. The matrix chain rule $\nabla_\mathbf{x}(g \circ f) = J_f^\top\,\nabla g$ is the single equation behind every `.backward()` call in PyTorch — reverse-mode autodiff is just that product evaluated right-to-left.
@@ -60,7 +60,7 @@ This thread was picked deliberately — projectile motion is the problem that *f
 
 ### [Ch.7 — Probability & Statistics](./ch07-probability-statistics/README.md)
 **Mental model:** expectation, variance, likelihood. Mean-squared error isn't a design choice — it's what Gaussian noise mathematically demands. Change the noise model and you change the loss: Gaussian→MSE, Laplace→MAE, Bernoulli→cross-entropy. Every supervised loss in ML Ch.15 falls out of this one principle.
-**Artifact:** an interactive CLT widget (switch source distribution and batch size, watch the sample-mean histogram morph to a Gaussian), Gaussian MLE by closed form and grid search agreeing exactly, a confirmation that OLS on the free-throw parabola equals its Gaussian MLE, and a mean-vs-median robustness demo showing why swapping noise models swaps loss functions.
+**Artifact:** an interactive CLT widget (switch source distribution and batch size, watch the sample-mean histogram morph to a Gaussian), Gaussian MLE by closed form and grid search agreeing exactly, a confirmation that OLS on the free-kick parabola equals its Gaussian MLE, and a mean-vs-median robustness demo showing why swapping noise models swaps loss functions.
 
 ---
 

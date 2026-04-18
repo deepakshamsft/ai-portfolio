@@ -2,7 +2,7 @@
 
 ![Gradient field, chain-rule graph, descent trajectories](./img/ch06-gradient-chain-rule.png)
 
-> **Running theme.** Our free-throw coach has gone from tuning one knob (angle) to tuning eight (speed, angle, height, wind, spin, altitude, fatigue, defender-distance). In a scalar world the derivative told us which way was downhill. Now we need a *vector* that points downhill in 8-D — the **gradient** — and a rule for composing many such vectors through deep layers — the **matrix chain rule**. Backpropagation is those two ideas braided together.
+> **Running theme.** Our set-piece coach has gone from tuning one knob (launch angle) to tuning eight (strike speed, angle, strike zone on the boot, wall height, wall distance, wind speed, pitch wetness, kicker fatigue). In a scalar world the derivative told us which way was downhill. Now we need a *vector* that points downhill in 8-D — the **gradient** — and a rule for composing many such vectors through deep layers — the **matrix chain rule**. Backpropagation is those two ideas braided together.
 
 ---
 

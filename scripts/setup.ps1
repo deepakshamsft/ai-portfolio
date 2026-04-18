@@ -6,10 +6,10 @@
 # Steps implemented so far:
 #   1. Python + AI/ML libraries  ✔
 #   2. VS Code install            ✔
-#   3. Twinny (Ollama Copilot) extension  ✔
+#   3. Kilo Code (agentic AI) extension  ✔
 #   4. Ollama server install & first launch  ✔
 #   5. Lifecycle wiring (Ollama runs with VS Code)  ✔
-#   6. Pull best SLM for coding/reasoning  ✔
+#   6. Pull DeepSeek-R1 reasoning SLM for Kilo Code  ✔
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -305,23 +305,27 @@ if (-not $CodeCmd) {
     Write-Ok "Skipping install — VS Code already present"
 }
 
-# ─── STEP 3: Twinny (Ollama AI Copilot) Extension ───────────────────────────
+# ─── STEP 3: Kilo Code (Agentic AI) Extension ───────────────────────────────
+#
+# Kilo Code is an open-source agentic coding assistant (fork of Roo/Cline) that
+# can plan, edit files, and run commands. We point it at a locally-hosted
+# DeepSeek-R1 reasoning SLM via Ollama (configured in Step 6d).
 
 Write-Host ""
 Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
 Write-Host "  AI/ML Dev Environment Setup — Step 3/6" -ForegroundColor White
-Write-Host "  Twinny — Ollama AI Copilot Extension" -ForegroundColor White
+Write-Host "  Kilo Code — Agentic AI Extension" -ForegroundColor White
 Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
 
-$TwinnyExtId = "rjmacarthy.twinny"
+$KiloExtId = "kilocode.kilo-code"
 
-Write-Step "Checking Twinny extension ($TwinnyExtId)"
+Write-Step "Checking Kilo Code extension ($KiloExtId)"
 
 $extensionInstalled = $false
 try {
     $extList = & $CodeCmd --list-extensions 2>&1
-    if ($extList -match [regex]::Escape($TwinnyExtId)) {
-        Write-Ok "Twinny already installed"
+    if ($extList -match [regex]::Escape($KiloExtId)) {
+        Write-Ok "Kilo Code already installed"
         $extensionInstalled = $true
     }
 } catch {
@@ -329,29 +333,30 @@ try {
 }
 
 if (-not $extensionInstalled) {
-    Write-Warn "Twinny not found — installing ..."
+    Write-Warn "Kilo Code not found — installing ..."
     try {
-        & $CodeCmd --install-extension $TwinnyExtId --force 2>&1 | Out-Null
+        & $CodeCmd --install-extension $KiloExtId --force 2>&1 | Out-Null
         # Verify
         $extList = & $CodeCmd --list-extensions 2>&1
-        if ($extList -match [regex]::Escape($TwinnyExtId)) {
-            Write-Ok "Twinny installed successfully"
+        if ($extList -match [regex]::Escape($KiloExtId)) {
+            Write-Ok "Kilo Code installed successfully"
         } else {
             Write-Warn "Install command ran but extension not detected yet — it may appear after VS Code restarts"
         }
     } catch {
-        Write-Warn "Could not install Twinny automatically."
-        Write-Warn "Install manually: open VS Code → Extensions → search 'Twinny' → Install"
+        Write-Warn "Could not install Kilo Code automatically."
+        Write-Warn "Install manually: open VS Code → Extensions → search 'Kilo Code' → Install"
     }
 }
 
-Write-Step "Twinny post-install configuration note"
-Write-Host "" 
+Write-Step "Kilo Code post-install configuration note"
+Write-Host ""
 Write-Host "  After launching VS Code:" -ForegroundColor White
-Write-Host "    1. Open the Twinny sidebar (robot icon on the Activity Bar)" -ForegroundColor DarkGray
-Write-Host "    2. Click the settings cog → choose provider: Ollama" -ForegroundColor DarkGray
-Write-Host "    3. Set hostname: localhost   port: 11434" -ForegroundColor DarkGray
-Write-Host "    4. Set the chat model and FIM model (Step 6 will pull the model)" -ForegroundColor DarkGray
+Write-Host "    1. Open the Kilo Code sidebar (kangaroo icon on the Activity Bar)" -ForegroundColor DarkGray
+Write-Host "    2. Click 'Settings' → API Provider: Ollama" -ForegroundColor DarkGray
+Write-Host "    3. Base URL: http://localhost:11434   (the auto-discover button works too)" -ForegroundColor DarkGray
+Write-Host "    4. Model: deepseek-r1:8b  (or deepseek-r1:1.5b on low-RAM machines)" -ForegroundColor DarkGray
+Write-Host "    5. Save — Kilo Code will now drive agentic edits with DeepSeek-R1 reasoning" -ForegroundColor DarkGray
 Write-Host ""
 
 # ─── STEP 4: Ollama Server Install & First Launch ────────────────────────────
@@ -415,9 +420,24 @@ try {
 if (-not $serverRunning) {
     Write-Warn "Ollama server not running — starting in background ..."
 
+    # Pin Ollama to a single loaded model with no parallelism, so the 8B
+    # reasoning SLM owns the GPU/RAM exclusively while Kilo Code is working.
+    $env:OLLAMA_MAX_LOADED_MODELS = "1"
+    $env:OLLAMA_NUM_PARALLEL      = "1"
+    $env:OLLAMA_CONTEXT_LENGTH    = "4096"
+    [System.Environment]::SetEnvironmentVariable("OLLAMA_MAX_LOADED_MODELS", "1", "User")
+    [System.Environment]::SetEnvironmentVariable("OLLAMA_NUM_PARALLEL",      "1", "User")
+    [System.Environment]::SetEnvironmentVariable("OLLAMA_CONTEXT_LENGTH",    "4096", "User")
+
     # Launch as a hidden background job so this script keeps running
-    $OllamaJob = Start-Job -ScriptBlock { ollama serve } -Name "OllamaServe"
+    $OllamaJob = Start-Job -ScriptBlock {
+        $env:OLLAMA_MAX_LOADED_MODELS = "1"
+        $env:OLLAMA_NUM_PARALLEL      = "1"
+        $env:OLLAMA_CONTEXT_LENGTH    = "4096"
+        ollama serve
+    } -Name "OllamaServe"
     Write-Ok "Ollama server started (background job id: $($OllamaJob.Id))"
+    Write-Ok "Single-model mode: OLLAMA_MAX_LOADED_MODELS=1, OLLAMA_NUM_PARALLEL=1, OLLAMA_CONTEXT_LENGTH=4096"
 
     # Save PID file so the lifecycle step (Step 5) can stop it
     $pidFile = Join-Path $RepoRoot ".ollama.pid"
@@ -541,10 +561,13 @@ if ($writeTasksJson) {
 
 Write-Step "Writing ollama-watcher.ps1"
 
+# Always rewrite: the watcher content evolves (env vars, model pins, ...) and
+# we want re-running setup.ps1 to keep it in sync.
 if (Test-Path $WatcherScript) {
-    Write-Ok "ollama-watcher.ps1 already exists — skipping"
-} else {
-    $watcherContent = @'
+    Write-Ok "Overwriting existing ollama-watcher.ps1"
+}
+
+$watcherContent = @'
 # ollama-watcher.ps1
 # Launched automatically when this VS Code workspace opens (via tasks.json folderOpen).
 # - Starts ollama serve if not already running
@@ -561,7 +584,16 @@ function Is-OllamaRunning {
 
 # Start ollama if not already up
 if (-not (Is-OllamaRunning)) {
-    $job = Start-Job -ScriptBlock { ollama serve }
+    # Pin to a single loaded model with no parallelism and a 4096-token ctx.
+    $env:OLLAMA_MAX_LOADED_MODELS = "1"
+    $env:OLLAMA_NUM_PARALLEL      = "1"
+    $env:OLLAMA_CONTEXT_LENGTH    = "4096"
+    $job = Start-Job -ScriptBlock {
+        $env:OLLAMA_MAX_LOADED_MODELS = "1"
+        $env:OLLAMA_NUM_PARALLEL      = "1"
+        $env:OLLAMA_CONTEXT_LENGTH    = "4096"
+        ollama serve
+    }
     Start-Sleep -Seconds 3
     $proc = Get-Process -Name "ollama" -EA SilentlyContinue | Select-Object -First 1
     if ($proc) { $proc.Id | Set-Content $PidFile }
@@ -584,9 +616,8 @@ while ($true) {
     }
 }
 '@
-    Set-Content -Path $WatcherScript -Value $watcherContent -Encoding UTF8
-    Write-Ok "Written: scripts/ollama-watcher.ps1"
-}
+Set-Content -Path $WatcherScript -Value $watcherContent -Encoding UTF8
+Write-Ok "Written: scripts/ollama-watcher.ps1"
 
 # ── 5c. Workspace settings: make notebooks read-only in VS Code ─────────────
 #
@@ -629,16 +660,21 @@ if (Test-Path $SettingsJsonPath) {
     Write-Ok "Written: .vscode/settings.json"
 }
 
-# ─── STEP 6: Pull Best SLM for AI/ML Coding ──────────────────────────────────
+# ─── STEP 6: Pull DeepSeek-R1 Reasoning SLM ──────────────────────────────────
 #
-# Primary:  qwen2.5-coder:7b  (~4.7 GB, needs ~8 GB free RAM)
-# Fallback: phi3.5            (~2.2 GB, needs ~4 GB free RAM)
+# DeepSeek-R1 is the reasoning model that powers Kilo Code's agentic planning.
+#   Primary:  deepseek-r1:8b-llama-distill-q4_K_M  (~5 GB, needs ~10 GB free RAM)
+#   Fallback: deepseek-r1:1.5b-qwen-distill-q4_0   (~1.1 GB, needs ~3 GB free RAM)
 # Selection is automatic based on detected system RAM.
+#
+# After pulling, we derive a companion model tagged '-ctx4k' with
+# `PARAMETER num_ctx 4096` baked in, so every client (Kilo Code, curl, raw API)
+# gets a 4096-token context window without having to pass num_ctx explicitly.
 
 Write-Host ""
 Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
 Write-Host "  AI/ML Dev Environment Setup — Step 6/6" -ForegroundColor White
-Write-Host "  Pull Best Local SLM" -ForegroundColor White
+Write-Host "  Pull DeepSeek-R1 Reasoning SLM" -ForegroundColor White
 Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
 
 # ── 6a. Detect system RAM ────────────────────────────────────────────────────
@@ -656,52 +692,89 @@ try {
 }
 
 # Choose model based on available RAM
-$PrimaryModel  = "qwen2.5-coder:7b"
-$FallbackModel = "phi3.5"
-$ChosenModel   = if ($TotalRamGB -ge 10) { $PrimaryModel } else { $FallbackModel }
+$PrimaryBase   = "deepseek-r1:8b-llama-distill-q4_K_M"
+$FallbackBase  = "deepseek-r1:1.5b-qwen-distill-q4_0"
+$BaseModel     = if ($TotalRamGB -ge 10) { $PrimaryBase } else { $FallbackBase }
+$CtxTokens     = 4096
+
+# Derived tag: same base with '-ctx4k' suffix. This is what Kilo Code targets.
+$ChosenModel   = "$($BaseModel.Split(':')[0]):$($BaseModel.Split(':')[1])-ctx4k"
 
 if ($TotalRamGB -ge 10) {
-    Write-Ok "RAM ≥ 10 GB — selecting primary model: $ChosenModel"
+    Write-Ok "RAM ≥ 10 GB — selecting primary base: $BaseModel"
 } else {
-    Write-Warn "RAM < 10 GB — selecting fallback model: $ChosenModel"
+    Write-Warn "RAM < 10 GB — selecting fallback base: $BaseModel"
 }
+Write-Ok "Derived model (num_ctx=$CtxTokens): $ChosenModel"
 
-# ── 6b. Check if model already pulled ───────────────────────────────────────────
+# ── 6b. Check if base model already pulled ───────────────────────────────────
 
-Write-Step "Checking if $ChosenModel is already available"
+Write-Step "Checking if $BaseModel is already available"
 
-$modelPresent = $false
+$basePresent = $false
 try {
     $modelList = & ollama list 2>&1
-    # Normalise: qwen2.5-coder:7b appears as "qwen2.5-coder:7b" in the list
-    $modelKey = $ChosenModel.Split(":")[0].ToLower()
-    if ($modelList -match [regex]::Escape($modelKey)) {
-        Write-Ok "$ChosenModel already present in Ollama"
-        $modelPresent = $true
+    if ($modelList -match [regex]::Escape($BaseModel)) {
+        Write-Ok "$BaseModel already present in Ollama"
+        $basePresent = $true
     }
 } catch {
     Write-Warn "Could not query ollama list — will attempt pull"
 }
 
-# ── 6c. Pull the model ────────────────────────────────────────────────────────
+# ── 6c. Pull the base model ──────────────────────────────────────────────────
 
-if (-not $modelPresent) {
-    Write-Step "Pulling $ChosenModel (this may take a few minutes on first run)"
+if (-not $basePresent) {
+    Write-Step "Pulling $BaseModel (this may take a few minutes on first run)"
     Write-Host "  Downloading model — progress shown below:" -ForegroundColor DarkGray
     Write-Host ""
-    & ollama pull $ChosenModel
+    & ollama pull $BaseModel
     if ($LASTEXITCODE -eq 0) {
-        Write-Ok "$ChosenModel pulled successfully"
+        Write-Ok "$BaseModel pulled successfully"
     } else {
-        Write-Warn "Pull exited with code $LASTEXITCODE — check your internet connection and retry: ollama pull $ChosenModel"
+        Write-Warn "Pull exited with code $LASTEXITCODE — check your internet connection and retry: ollama pull $BaseModel"
     }
 } else {
-    Write-Step "Skipping pull — $ChosenModel already present"
+    Write-Step "Skipping pull — $BaseModel already present"
 }
 
-# ── 6d. Configure Twinny to use the model ────────────────────────────────────────
+# ── 6c'. Create the derived -ctx4k model with num_ctx=4096 baked in ──────────
 
-Write-Step "Writing Twinny model settings to VS Code user settings"
+Write-Step "Creating derived model $ChosenModel with num_ctx=$CtxTokens"
+
+$derivedPresent = $false
+try {
+    $modelList = & ollama list 2>&1
+    if ($modelList -match [regex]::Escape($ChosenModel)) {
+        Write-Ok "$ChosenModel already present — skipping create"
+        $derivedPresent = $true
+    }
+} catch { }
+
+if (-not $derivedPresent) {
+    $ModelfilePath = Join-Path $RepoRoot ".ollama.Modelfile"
+    @"
+FROM $BaseModel
+PARAMETER num_ctx $CtxTokens
+"@ | Set-Content -Path $ModelfilePath -Encoding ASCII
+    & ollama create $ChosenModel -f $ModelfilePath
+    if ($LASTEXITCODE -eq 0) {
+        Write-Ok "Created $ChosenModel (num_ctx=$CtxTokens)"
+    } else {
+        Write-Warn "ollama create exited with code $LASTEXITCODE — Kilo Code will have to pass num_ctx itself"
+        $ChosenModel = $BaseModel  # fall back to base
+    }
+    Remove-Item $ModelfilePath -ErrorAction SilentlyContinue
+}
+
+# ── 6d. Configure Kilo Code to use the DeepSeek-R1 model ─────────────────────
+#
+# Kilo Code stores its API provider in extension global state (not plain
+# settings.json), so this step writes a best-effort settings scaffold plus a
+# Kilo Code profile JSON that the user can import from the sidebar.
+# The per-workspace .vscode/settings.json also nudges Kilo Code defaults.
+
+Write-Step "Writing Kilo Code provider settings"
 
 $VsUserSettingsDir  = Join-Path $env:APPDATA "Code\User"
 $VsSettingsPath     = Join-Path $VsUserSettingsDir "settings.json"
@@ -710,12 +783,13 @@ if (-not (Test-Path $VsUserSettingsDir)) {
     New-Item -ItemType Directory -Path $VsUserSettingsDir -Force | Out-Null
 }
 
-$twinnySettings = [ordered]@{
-    "twinny.ollamaApiHostname"    = "localhost"
-    "twinny.ollamaApiPort"        = 11434
-    "twinny.chatModelName"        = $ChosenModel
-    "twinny.fimModelName"         = $ChosenModel
-    "twinny.apiProvider"          = "ollama"
+$kiloSettings = [ordered]@{
+    "kilo-code.apiProvider"         = "ollama"
+    "kilo-code.ollamaBaseUrl"       = "http://localhost:11434"
+    "kilo-code.ollamaModelId"       = $ChosenModel
+    "kilo-code.ollamaNumCtx"        = $CtxTokens
+    "kilo-code.modelMaxTokens"      = $CtxTokens
+    "kilo-code.autoApprovalEnabled" = $false
 }
 
 if (Test-Path $VsSettingsPath) {
@@ -732,15 +806,30 @@ if (Test-Path $VsSettingsPath) {
         $existing = @{}
         Write-Warn "Could not parse existing settings.json — will merge carefully"
     }
-    foreach ($key in $twinnySettings.Keys) {
-        $existing[$key] = $twinnySettings[$key]
+    foreach ($key in $kiloSettings.Keys) {
+        $existing[$key] = $kiloSettings[$key]
     }
     $existing | ConvertTo-Json -Depth 10 | Set-Content $VsSettingsPath -Encoding UTF8
-    Write-Ok "Twinny settings merged into existing settings.json"
+    Write-Ok "Kilo Code settings merged into existing settings.json"
 } else {
-    $twinnySettings | ConvertTo-Json -Depth 10 | Set-Content $VsSettingsPath -Encoding UTF8
-    Write-Ok "settings.json created with Twinny model settings"
+    $kiloSettings | ConvertTo-Json -Depth 10 | Set-Content $VsSettingsPath -Encoding UTF8
+    Write-Ok "settings.json created with Kilo Code provider settings"
 }
+
+# Write an importable Kilo Code profile so users can one-click load it from the
+# Kilo Code sidebar (Settings → Profiles → Import).
+$KiloProfilePath = Join-Path $RepoRoot ".vscode\kilo-code-profile.json"
+$kiloProfile = [ordered]@{
+    name          = "Local DeepSeek-R1 (Ollama, 4k ctx)"
+    apiProvider   = "ollama"
+    ollamaBaseUrl = "http://localhost:11434"
+    ollamaModelId = $ChosenModel
+    ollamaNumCtx  = $CtxTokens
+    modelMaxTokens = $CtxTokens
+}
+$kiloProfile | ConvertTo-Json -Depth 10 | Set-Content $KiloProfilePath -Encoding UTF8
+Write-Ok "Kilo Code profile written: .vscode/kilo-code-profile.json (import from Kilo sidebar)"
+
 
 # ─── STEP 7: Launch Study Servers (Jupyter Lab + MkDocs) ─────────────────────
 #
@@ -832,9 +921,9 @@ Write-Host ""
 Write-Host "  Python env  : $VenvPath" -ForegroundColor White
 Write-Host "  Activate    : .\.venv\Scripts\Activate.ps1" -ForegroundColor White
 Write-Host "  VS Code     : $CodeCmd" -ForegroundColor White
-Write-Host "  Twinny ext  : $TwinnyExtId" -ForegroundColor White
-Write-Host "  Ollama      : $OllamaBaseUrl" -ForegroundColor White
-Write-Host "  SLM model   : $ChosenModel" -ForegroundColor White
+Write-Host "  Kilo Code   : $KiloExtId" -ForegroundColor White
+Write-Host "  Ollama      : $OllamaBaseUrl  (single-model mode, ctx=$CtxTokens)" -ForegroundColor White
+Write-Host "  Reasoning   : $ChosenModel (DeepSeek-R1, $CtxTokens-token ctx)" -ForegroundColor White
 Write-Host ""
 Write-Host "  Study servers (running in background):" -ForegroundColor Cyan
 Write-Host "    Hands-on notebooks  → http://localhost:$JupyterPort" -ForegroundColor White
@@ -851,9 +940,9 @@ Write-Host ""
 Write-Host "  Python env  : $VenvPath" -ForegroundColor White
 Write-Host "  Activate    : .\.venv\Scripts\Activate.ps1" -ForegroundColor White
 Write-Host "  VS Code     : $CodeCmd" -ForegroundColor White
-Write-Host "  Twinny ext  : $TwinnyExtId" -ForegroundColor White
-Write-Host "  Ollama      : $OllamaBaseUrl" -ForegroundColor White
-Write-Host "  SLM model   : $ChosenModel" -ForegroundColor White
+Write-Host "  Kilo Code   : $KiloExtId" -ForegroundColor White
+Write-Host "  Ollama      : $OllamaBaseUrl  (single-model mode, ctx=$CtxTokens)" -ForegroundColor White
+Write-Host "  Reasoning   : $ChosenModel (DeepSeek-R1, $CtxTokens-token ctx)" -ForegroundColor White
 Write-Host ""
 Write-Host "  Next: open VS Code in this folder — Ollama will start automatically." -ForegroundColor Cyan
 Write-Host "  If prompted, click 'Allow Automatic Tasks' to enable the watcher." -ForegroundColor Cyan
