@@ -1,4 +1,4 @@
-# ML Chronicles — Build Plan
+# ML Track — Authoring Guide
 
 > **This document tracks the chapter-by-chapter build of the ML notes library.**  
 > Each chapter lives under `notes/ML/` in its own folder, containing a README and a Jupyter notebook.  
@@ -8,7 +8,7 @@
 
 ## The Plan
 
-The **Neural_Chronicles HTML book** has 14 chapters. The notes library expanded beyond the HTML source — Ch.15 (MLE & Loss Functions), Ch.16 (TensorBoard), Ch.17 (From Sequences to Attention — bridge chapter), Ch.18 (Transformers & Attention), and Ch.19 (Hyperparameter Tuning) were added as standalone chapters, bringing the total to 19. We're converting each into a standalone, runnable learning module:
+The notes library is currently 19 chapters. Ch.1–Ch.14 cover the classical / neural foundations; Ch.15 (MLE & Loss Functions), Ch.16 (TensorBoard), Ch.17 (From Sequences to Attention — bridge chapter), Ch.18 (Transformers & Attention), and Ch.19 (Hyperparameter Tuning) extend the curriculum into modern architectures. We're converting each into a standalone, runnable learning module:
 
 ```
 notes/ML/

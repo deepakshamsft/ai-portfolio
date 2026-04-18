@@ -852,75 +852,127 @@ fi
 
 # ── 6d. Configure Kilo Code to use the DeepSeek-R1 model ─────────────────────
 #
-# Kilo Code stores its API provider in extension global state (not plain
-# settings.json), so this step writes a best-effort settings scaffold plus a
-# Kilo Code profile JSON that the user can import from the sidebar.
+# The current Kilo Code extension (built on the Kilo CLI) reads its config from
+#   ~/.config/kilo/kilo.jsonc        (global, used by both VS Code & CLI)
+# and from a project-level kilo.jsonc / .kilo/kilo.jsonc.
+#
+# We write BOTH:
+#   • the global file → makes our local Ollama model the default everywhere
+#   • a project-level .kilo/kilo.jsonc → shared with anyone who opens this repo
+#
+# Schema reference: https://app.kilo.ai/config.json
+# Docs: https://kilo.ai/docs/code-with-ai/agents/custom-models
 
-step "Writing Kilo Code provider settings"
+step "Writing Kilo Code config (global + project) so DeepSeek-R1 is the default model"
 
-# Locate VS Code user settings directory
-case "$OS" in
-    macos)
-        VSCODE_SETTINGS_DIR="$HOME/Library/Application Support/Code/User"
-        ;;
-    *)
-        VSCODE_SETTINGS_DIR="$HOME/.config/Code/User"
-        ;;
-esac
-VSCODE_SETTINGS_FILE="$VSCODE_SETTINGS_DIR/settings.json"
+KILO_MODEL_KEY="$CHOSEN_MODEL"
+KILO_MODEL_REF="ollama/$KILO_MODEL_KEY"
 
-mkdir -p "$VSCODE_SETTINGS_DIR"
+KILO_CONFIG_JSON=$(cat << KILOCFG
+{
+  "\$schema": "https://app.kilo.ai/config.json",
+  "model": "${KILO_MODEL_REF}",
+  "provider": {
+    "ollama": {
+      "options": {
+        "baseURL": "http://localhost:11434",
+        "timeout": 600000
+      },
+      "models": {
+        "${KILO_MODEL_KEY}": {
+          "name": "DeepSeek-R1 (local Ollama, 4k ctx)",
+          "tool_call": true,
+          "reasoning": true,
+          "limit": {
+            "context": ${CTX_TOKENS},
+            "output": ${CTX_TOKENS}
+          }
+        }
+      }
+    }
+  }
+}
+KILOCFG
+)
 
-if [ -f "$VSCODE_SETTINGS_FILE" ]; then
-    python3 - << PYEOF
-import json
-p = '$VSCODE_SETTINGS_FILE'
+# 1) Global config ── ~/.config/kilo/kilo.jsonc
+KILO_GLOBAL_DIR="$HOME/.config/kilo"
+KILO_GLOBAL_FILE="$KILO_GLOBAL_DIR/kilo.jsonc"
+mkdir -p "$KILO_GLOBAL_DIR"
+if [ -f "$KILO_GLOBAL_FILE" ]; then
+    cp "$KILO_GLOBAL_FILE" "${KILO_GLOBAL_FILE}.bak"
+    warn "Existing global Kilo config backed up to ${KILO_GLOBAL_FILE}.bak"
+fi
+echo "$KILO_CONFIG_JSON" > "$KILO_GLOBAL_FILE"
+ok "Global Kilo config written: $KILO_GLOBAL_FILE"
+
+# 2) Project config ── <repo>/.kilo/kilo.jsonc
+KILO_PROJECT_DIR="$REPO_ROOT/.kilo"
+KILO_PROJECT_FILE="$KILO_PROJECT_DIR/kilo.jsonc"
+mkdir -p "$KILO_PROJECT_DIR"
+echo "$KILO_CONFIG_JSON" > "$KILO_PROJECT_FILE"
+ok "Project Kilo config written: .kilo/kilo.jsonc"
+
+# 3) Auto-launch the Kilo Code sidebar when this workspace opens.
+# Add a folderOpen command-task that focuses the Kilo Code view container.
+step "Wiring Kilo Code sidebar to auto-open with this workspace"
+
+if [ -f "$TASKS_JSON" ] && command -v python3 &>/dev/null; then
+    python3 - "$TASKS_JSON" "$CODE_CMD" << 'PYEOF'
+import json, sys
+p = sys.argv[1]
+code_cmd = sys.argv[2]
 try:
     with open(p, 'r') as f:
-        existing = json.load(f)
+        data = json.load(f)
 except Exception:
-    existing = {}
-patch = {
-    'kilo-code.apiProvider': 'ollama',
-    'kilo-code.ollamaBaseUrl': 'http://localhost:11434',
-    'kilo-code.ollamaModelId': '${CHOSEN_MODEL}',
-    'kilo-code.ollamaNumCtx': ${CTX_TOKENS},
-    'kilo-code.modelMaxTokens': ${CTX_TOKENS},
-    'kilo-code.autoApprovalEnabled': False,
-}
-existing.update(patch)
-with open(p, 'w') as f:
-    json.dump(existing, f, indent=4)
-print('  ✓ Kilo Code settings merged into existing settings.json')
+    data = {"version": "2.0.0", "tasks": []}
+data.setdefault("tasks", [])
+if not any(t.get("label") == "kilo-code-launch" for t in data["tasks"]):
+    data["tasks"].append({
+        "label": "kilo-code-launch",
+        "type": "shell",
+        "command": "bash",
+        "args": ["-c", f"'{code_cmd}' --command kilo-code.SidebarProvider.focus 2>/dev/null; exit 0"],
+        "runOptions": {"runOn": "folderOpen"},
+        "presentation": {"reveal": "never", "panel": "dedicated", "showReuseMessage": False},
+        "problemMatcher": []
+    })
+    with open(p, 'w') as f:
+        json.dump(data, f, indent=4)
+    print("  ✓ Added 'kilo-code-launch' folderOpen task to .vscode/tasks.json")
+else:
+    print("  ✓ tasks.json already has 'kilo-code-launch' — skipping")
 PYEOF
-else
-    cat > "$VSCODE_SETTINGS_FILE" << KILOEOF
-{
-  "kilo-code.apiProvider": "ollama",
-  "kilo-code.ollamaBaseUrl": "http://localhost:11434",
-  "kilo-code.ollamaModelId": "${CHOSEN_MODEL}",
-  "kilo-code.ollamaNumCtx": ${CTX_TOKENS},
-  "kilo-code.modelMaxTokens": ${CTX_TOKENS},
-  "kilo-code.autoApprovalEnabled": false
-}
-KILOEOF
-    ok "settings.json created with Kilo Code provider settings"
 fi
 
-# Write an importable Kilo Code profile (Settings → Profiles → Import in sidebar)
-KILO_PROFILE="$REPO_ROOT/.vscode/kilo-code-profile.json"
-mkdir -p "$(dirname "$KILO_PROFILE")"
-cat > "$KILO_PROFILE" << KILOPROFEOF
+# 4) Recommend the Kilo extension at the workspace level so VS Code surfaces it.
+EXTENSIONS_JSON="$VSCODE_DIR/extensions.json"
+if [ -f "$EXTENSIONS_JSON" ] && command -v python3 &>/dev/null; then
+    python3 - "$EXTENSIONS_JSON" "$KILO_EXT_ID" << 'PYEOF'
+import json, sys
+p, ext = sys.argv[1], sys.argv[2]
+try:
+    with open(p, 'r') as f:
+        data = json.load(f)
+except Exception:
+    data = {}
+recs = data.setdefault("recommendations", [])
+if ext not in recs:
+    recs.append(ext)
+    with open(p, 'w') as f:
+        json.dump(data, f, indent=4)
+print(f"  ✓ Kilo Code present in extensions.json recommendations")
+PYEOF
+else
+    cat > "$EXTENSIONS_JSON" << EXTEOF
 {
-  "name": "Local DeepSeek-R1 (Ollama, 4k ctx)",
-  "apiProvider": "ollama",
-  "ollamaBaseUrl": "http://localhost:11434",
-  "ollamaModelId": "${CHOSEN_MODEL}",
-  "ollamaNumCtx": ${CTX_TOKENS},
-  "modelMaxTokens": ${CTX_TOKENS}
+  "recommendations": ["${KILO_EXT_ID}"]
 }
-KILOPROFEOF
-ok "Kilo Code profile written: .vscode/kilo-code-profile.json (import from Kilo sidebar)"
+EXTEOF
+    ok "Created .vscode/extensions.json with Kilo Code recommended"
+fi
+
 
 # ─── STEP 7: Launch Study Servers (Jupyter Lab + MkDocs) ─────────────────────
 #

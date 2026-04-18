@@ -67,8 +67,7 @@ This repo is **not accredited** — it's self-authored study material. It is, ho
 bash scripts/setup.sh
 ```
 
-One script installs Python, the full AI/ML package stack (covering `notes/ML`, `notes/AIInfrastructure`, and `notes/MultiAgentAI`), VS Code + Twinny, Ollama, registers all Jupyter kernels, and launches both study servers (Jupyter Lab + MkDocs) at fixed local ports so you can start studying immediately.
-
+One script installs Python, the full AI/ML package stack (covering every track under `notes/`), VS Code + the **Kilo Code** extension wired to a local Ollama-served DeepSeek-R1 model, registers all Jupyter kernels, and launches both study servers (Jupyter Lab + MkDocs) at fixed local ports so you can start studying immediately.
 **Install git hooks (secret scanning pre-commit):**
 ```bash
 bash scripts/install-hooks.sh     # macOS / Linux

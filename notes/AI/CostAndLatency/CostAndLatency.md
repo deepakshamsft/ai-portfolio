@@ -215,7 +215,7 @@ Per order: (1390 × 0.00000015) + (150 × 0.00000060) ≈ $0.00021 + $0.00009 = 
 
 ## 9 · Bridge
 
-Cost & Latency completed the operational layer. You are now equipped with the full AI engineering stack: model fundamentals → prompting → reasoning → retrieval → vector storage → agent orchestration → evaluation → safety → operational costs. The `AI_Interview_Primer.md` is your synthesis resource — it covers all of these in the rapid-fire format interviewers use.
+Cost & Latency completed the operational layer. You are now equipped with the full AI engineering stack: model fundamentals → prompting → reasoning → retrieval → vector storage → agent orchestration → evaluation → safety → operational costs. The consolidated [`InterviewGuide/`](../../InterviewGuide/) is your synthesis resource — it covers all of these in the rapid-fire format interviewers use.
 
 > *The best model for the job is the cheapest one that passes your eval threshold. Measure first. Spend last.*
 

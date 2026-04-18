@@ -896,66 +896,147 @@ PARAMETER num_ctx $CtxTokens
 
 # ── 6d. Configure Kilo Code to use the DeepSeek-R1 model ─────────────────────
 #
-# Kilo Code stores its API provider in extension global state (not plain
-# settings.json), so this step writes a best-effort settings scaffold plus a
-# Kilo Code profile JSON that the user can import from the sidebar.
-# The per-workspace .vscode/settings.json also nudges Kilo Code defaults.
+# The current Kilo Code extension (built on the Kilo CLI) reads its config from
+#   ~/.config/kilo/kilo.jsonc        (global, used by both VS Code & CLI)
+# and from a project-level kilo.jsonc / .kilo/kilo.jsonc.
+#
+# We write BOTH:
+#   • the global file → makes our local Ollama model the default everywhere
+#   • a project-level .kilo/kilo.jsonc → checked into the repo so anyone who
+#     opens this workspace gets the same default
+#
+# Schema reference: https://app.kilo.ai/config.json
+# Docs: https://kilo.ai/docs/code-with-ai/agents/custom-models
 
-Write-Step "Writing Kilo Code provider settings"
+Write-Step "Writing Kilo Code config (global + project) so DeepSeek-R1 is the default model"
 
-$VsUserSettingsDir  = Join-Path $env:APPDATA "Code\User"
-$VsSettingsPath     = Join-Path $VsUserSettingsDir "settings.json"
+$KiloModelKey = $ChosenModel  # e.g. deepseek-r1:8b-llama-distill-q4_K_M-ctx4k
+$KiloModelRef = "ollama/$KiloModelKey"
 
-if (-not (Test-Path $VsUserSettingsDir)) {
-    New-Item -ItemType Directory -Path $VsUserSettingsDir -Force | Out-Null
+$kiloConfig = [ordered]@{
+    '$schema' = "https://app.kilo.ai/config.json"
+    model     = $KiloModelRef
+    provider  = [ordered]@{
+        ollama = [ordered]@{
+            options = [ordered]@{
+                baseURL = "http://localhost:11434"
+                timeout = 600000
+            }
+            models = [ordered]@{
+                $KiloModelKey = [ordered]@{
+                    name      = "DeepSeek-R1 (local Ollama, 4k ctx)"
+                    tool_call = $true
+                    reasoning = $true
+                    limit     = [ordered]@{
+                        context = $CtxTokens
+                        output  = $CtxTokens
+                    }
+                }
+            }
+        }
+    }
 }
 
-$kiloSettings = [ordered]@{
-    "kilo-code.apiProvider"         = "ollama"
-    "kilo-code.ollamaBaseUrl"       = "http://localhost:11434"
-    "kilo-code.ollamaModelId"       = $ChosenModel
-    "kilo-code.ollamaNumCtx"        = $CtxTokens
-    "kilo-code.modelMaxTokens"      = $CtxTokens
-    "kilo-code.autoApprovalEnabled" = $false
+$kiloConfigJson = $kiloConfig | ConvertTo-Json -Depth 10
+
+# 1) Global config ── ~/.config/kilo/kilo.jsonc
+$KiloGlobalDir  = Join-Path $env:USERPROFILE ".config\kilo"
+$KiloGlobalPath = Join-Path $KiloGlobalDir "kilo.jsonc"
+if (-not (Test-Path $KiloGlobalDir)) {
+    New-Item -ItemType Directory -Path $KiloGlobalDir -Force | Out-Null
+}
+if (Test-Path $KiloGlobalPath) {
+    Copy-Item $KiloGlobalPath "$KiloGlobalPath.bak" -Force
+    Write-Warn "Existing global Kilo config backed up to $KiloGlobalPath.bak"
+}
+Set-Content -Path $KiloGlobalPath -Value $kiloConfigJson -Encoding UTF8
+Write-Ok "Global Kilo config written: $KiloGlobalPath"
+
+# 2) Project config ── <repo>/.kilo/kilo.jsonc (overrides global for this workspace)
+$KiloProjectDir  = Join-Path $RepoRoot ".kilo"
+$KiloProjectPath = Join-Path $KiloProjectDir "kilo.jsonc"
+if (-not (Test-Path $KiloProjectDir)) {
+    New-Item -ItemType Directory -Path $KiloProjectDir -Force | Out-Null
+}
+Set-Content -Path $KiloProjectPath -Value $kiloConfigJson -Encoding UTF8
+Write-Ok "Project Kilo config written: .kilo/kilo.jsonc"
+
+# 3) Auto-launch the Kilo Code sidebar when this workspace opens.
+# Add a folderOpen command-task that focuses the Kilo Code view container.
+# View ID: kilo-code.SidebarProvider (per the extension's package.json).
+Write-Step "Wiring Kilo Code sidebar to auto-open with this workspace"
+
+$KiloLaunchTask = [ordered]@{
+    label   = "kilo-code-launch"
+    type    = "shell"
+    command = "pwsh"
+    args    = @(
+        "-NonInteractive",
+        "-Command",
+        "& '$CodeCmd' --command kilo-code.SidebarProvider.focus 2>$null; exit 0"
+    )
+    runOptions   = [ordered]@{ runOn = "folderOpen" }
+    presentation = [ordered]@{
+        reveal           = "never"
+        panel            = "dedicated"
+        showReuseMessage = $false
+    }
+    problemMatcher = @()
 }
 
-if (Test-Path $VsSettingsPath) {
+# Merge into existing tasks.json (already created in Step 5a)
+if (Test-Path $TasksJsonPath) {
     try {
-        # ConvertFrom-Json -AsHashtable requires PS 6+; handle PS 5.1 (Windows default) too
         if ($PSVersionTable.PSVersion.Major -ge 6) {
-            $existing = Get-Content $VsSettingsPath -Raw | ConvertFrom-Json -AsHashtable
+            $tasksObj = Get-Content $TasksJsonPath -Raw | ConvertFrom-Json -AsHashtable
         } else {
-            $jsonObj = Get-Content $VsSettingsPath -Raw | ConvertFrom-Json
-            $existing = @{}
-            $jsonObj.PSObject.Properties | ForEach-Object { $existing[$_.Name] = $_.Value }
+            $tj = Get-Content $TasksJsonPath -Raw | ConvertFrom-Json
+            $tasksObj = @{}
+            $tj.PSObject.Properties | ForEach-Object { $tasksObj[$_.Name] = $_.Value }
+        }
+        if (-not $tasksObj.ContainsKey("tasks")) { $tasksObj["tasks"] = @() }
+        $hasKilo = $false
+        foreach ($t in $tasksObj["tasks"]) {
+            if ($t.label -eq "kilo-code-launch") { $hasKilo = $true; break }
+        }
+        if (-not $hasKilo) {
+            $tasksObj["tasks"] = @($tasksObj["tasks"]) + $KiloLaunchTask
+            $tasksObj | ConvertTo-Json -Depth 10 | Set-Content $TasksJsonPath -Encoding UTF8
+            Write-Ok "Added 'kilo-code-launch' folderOpen task to .vscode/tasks.json"
+        } else {
+            Write-Ok "tasks.json already has 'kilo-code-launch' — skipping"
         }
     } catch {
-        $existing = @{}
-        Write-Warn "Could not parse existing settings.json — will merge carefully"
+        Write-Warn "Could not merge kilo-code-launch task into tasks.json: $($_.Exception.Message)"
     }
-    foreach ($key in $kiloSettings.Keys) {
-        $existing[$key] = $kiloSettings[$key]
-    }
-    $existing | ConvertTo-Json -Depth 10 | Set-Content $VsSettingsPath -Encoding UTF8
-    Write-Ok "Kilo Code settings merged into existing settings.json"
-} else {
-    $kiloSettings | ConvertTo-Json -Depth 10 | Set-Content $VsSettingsPath -Encoding UTF8
-    Write-Ok "settings.json created with Kilo Code provider settings"
 }
 
-# Write an importable Kilo Code profile so users can one-click load it from the
-# Kilo Code sidebar (Settings → Profiles → Import).
-$KiloProfilePath = Join-Path $RepoRoot ".vscode\kilo-code-profile.json"
-$kiloProfile = [ordered]@{
-    name          = "Local DeepSeek-R1 (Ollama, 4k ctx)"
-    apiProvider   = "ollama"
-    ollamaBaseUrl = "http://localhost:11434"
-    ollamaModelId = $ChosenModel
-    ollamaNumCtx  = $CtxTokens
-    modelMaxTokens = $CtxTokens
+# 4) Make sure VS Code does NOT disable the Kilo extension on this workspace.
+# Add it to recommended extensions and ensure no workspace-level disabled list.
+$ExtensionsJsonPath = Join-Path $VscodeDirPath "extensions.json"
+$extensionsObj = [ordered]@{ recommendations = @($KiloExtId) }
+if (Test-Path $ExtensionsJsonPath) {
+    try {
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            $exObj = Get-Content $ExtensionsJsonPath -Raw | ConvertFrom-Json -AsHashtable
+        } else {
+            $ex = Get-Content $ExtensionsJsonPath -Raw | ConvertFrom-Json
+            $exObj = @{}
+            $ex.PSObject.Properties | ForEach-Object { $exObj[$_.Name] = $_.Value }
+        }
+        if (-not $exObj.ContainsKey("recommendations")) { $exObj["recommendations"] = @() }
+        if ($exObj["recommendations"] -notcontains $KiloExtId) {
+            $exObj["recommendations"] = @($exObj["recommendations"]) + $KiloExtId
+        }
+        $exObj | ConvertTo-Json -Depth 10 | Set-Content $ExtensionsJsonPath -Encoding UTF8
+        Write-Ok "Kilo Code added to .vscode/extensions.json recommendations"
+    } catch {
+        Write-Warn "Could not update extensions.json: $($_.Exception.Message)"
+    }
+} else {
+    $extensionsObj | ConvertTo-Json -Depth 10 | Set-Content $ExtensionsJsonPath -Encoding UTF8
+    Write-Ok "Created .vscode/extensions.json with Kilo Code recommended"
 }
-$kiloProfile | ConvertTo-Json -Depth 10 | Set-Content $KiloProfilePath -Encoding UTF8
-Write-Ok "Kilo Code profile written: .vscode/kilo-code-profile.json (import from Kilo sidebar)"
 
 
 # ─── STEP 7: Launch Study Servers (Jupyter Lab + MkDocs) ─────────────────────

@@ -20,11 +20,11 @@ This is not a course for data scientists or academic researchers. It is a practi
 | APIs / HTTP | Have called a REST API before; used JSON |
 | Command line | Can navigate directories, run scripts, activate a virtual environment |
 
-**You do not need:** prior ML experience, a GPU, a maths degree, or familiarity with PyTorch/TensorFlow before you start.
+**You do not need:** prior ML experience, a GPU, a math degree, or familiarity with PyTorch/TensorFlow before you start.
 
 ### What Makes This Different
 
-Every ML chapter derives the maths from scratch before using it. All 19 ML chapters use the same California Housing dataset from Ch.1 through Ch.19, so the delta between chapters is the concept, not a new dataset to understand. Every note ends with an **Interview Checklist** (Must Know / Likely Asked / Trap to Avoid). Every core AI note has a companion `_Supplement.md` for production depth. Every notebook runs on a stock developer laptop — no A100, no cloud GPU budget required.
+Every ML chapter derives the math from scratch before using it. All 19 ML chapters use the same California Housing dataset from Ch.1 through Ch.19, so the delta between chapters is the concept, not a new dataset to understand. Every note ends with an **Interview Checklist** (Must Know / Likely Asked / Trap to Avoid). Every core AI note has a companion `_Supplement.md` for production depth. Every notebook runs on a stock developer laptop — no A100, no cloud GPU budget required.
 
 ---
 
@@ -34,19 +34,19 @@ Every ML chapter derives the maths from scratch before using it. All 19 ML chapt
 notes/
 ├── AI/               ← Agentic AI: reasoning, retrieval, orchestration (+ notebooks)
 ├── AIInfrastructure/ ← GPU hardware to production serving platforms (+ notebooks)
-├── Archived/         ← Deprecated HTML chronicles kept for historical reference
 ├── Chronicles/       ← Manga storyboard plan for the Pitch Chronicles arc
-├── ML/               ← Machine Learning: 17 chapters, each a README + notebook
+├── InterviewGuide/   ← Consolidated interview prep — rapid-fire Q&A + checklist index
+├── ML/               ← Machine Learning: 19 chapters, each a README + notebook
 ├── MultiAgentAI/     ← Multi-agent protocols and coordination patterns (+ notebooks)
 ├── MultimodalAI/     ← Diffusion, CLIP, vision transformers, text-to-video (+ notebooks)
-└── scripts/          ← Cross-platform environment setup and notebook generation
+└── PreRequisites/    ← Math foundations: linear algebra, calculus, probability
 ```
 
 ---
 
 ## Track 1 — Machine Learning (`ML/`)
 
-A 19-chapter bottom-up curriculum built from the **Neural Chronicles** reference book. Every chapter has a technical README and a runnable Jupyter notebook using the **California Housing dataset** throughout.
+A 19-chapter bottom-up curriculum. Every chapter has a technical README and a runnable Jupyter notebook using the **California Housing dataset** throughout.
 
 > See [ML/AUTHORING_GUIDE.md](ML/AUTHORING_GUIDE.md) for the chapter authoring guide and build tracker.
 
@@ -147,7 +147,7 @@ Deep-dive notes explaining how LLMs become agents — from token prediction thro
 | [FineTuning/](AI/FineTuning/) | When to fine-tune vs RAG vs prompting, LoRA math, QLoRA |
 | [SafetyAndHallucination/](AI/SafetyAndHallucination/) | Hallucination types, mitigation stack, jailbreaks, alignment failures |
 | [CostAndLatency/](AI/CostAndLatency/) | Token budgets, model cost tiers, KV caching, streaming |
-| [AI_Interview_Primer/](AI/AI_Interview_Primer/) | Rapid-fire Q&A across all topics — designed for interview prep |
+| [InterviewGuide/](InterviewGuide/) | Consolidated interview prep — rapid-fire Q&A plus index of every per-chapter Interview Checklist across all tracks |
 
 Every core note has a companion `_Supplement.md` for production-depth details. Read the core note first.
 
@@ -239,9 +239,9 @@ Working Python experiments that accompany the theory.
 ### Path A — Interview Prep (2–4 hours)
 
 ```
-1. AI/AgenticAI_ReadingMap.md           ← understand the agentic systems architecture
-2. AI/AI_Interview_Primer/              ← Q&A covering every topic in interview format
-3. ML/AUTHORING_GUIDE.md                ← skim Chapter Summaries for ML concepts
+1. InterviewGuide/                     ← single consolidated interview prep entry point
+2. AI/AgenticAI_ReadingMap.md          ← understand the agentic systems architecture
+3. ML/AUTHORING_GUIDE.md               ← skim Chapter Summaries for ML concepts
 4. MultiAgentAI/README.md              ← multi-agent protocol interview checklist
 ```
 
@@ -265,7 +265,7 @@ Step 4 — Multi-agent
   → MultiAgentAI/MessageFormats/ → MCP/ → A2A/ → AgentFrameworks/
 
 Step 5 — Synthesis
-  → AI/AI_Interview_Primer/      (now reads as a self-test)
+  → InterviewGuide/              (now reads as a self-test)
 ```
 
 ### Path C — ML from Scratch (~40–50 hours)
@@ -310,7 +310,7 @@ AIInfrastructure/GPUArchitecture/
 
 | From | To | Connection |
 |---|---|---|
-| ML Ch.4 Neural Networks | AI/RAGAndEmbeddings | Transformer encoders are neural networks — the same maths |
+| ML Ch.4 Neural Networks | AI/RAGAndEmbeddings | Transformer encoders are neural networks — the same math |
 | ML Ch.5 Backprop | AI/RAGAndEmbeddings | Contrastive learning (InfoNCE) is trained with the same gradient machinery |
 | ML Ch.8 RNNs/LSTMs | ML Ch.17 Sequences to Attention | LSTMs motivate *why* attention was invented; Ch.17 introduces attention without transformers |
 | ML Ch.17 Sequences to Attention | ML Ch.18 Transformers | Soft-lookup intuition → learned Q/K/V projections, multi-head, positional encoding |
@@ -337,4 +337,4 @@ cd ai-portfolio
 bash scripts/setup.sh
 ```
 
-The single uber setup script creates a `.venv` at the repo root, installs the full AI/ML package stack used across every track (ML, AI, MultiAgentAI, MultimodalAI, AIInfrastructure), registers all Jupyter kernels (`ai-ml-dev`, `ml-notes`, `ai-infrastructure`, `multi-agent-ai`), installs VS Code + Twinny, and starts a local Ollama server.
+The single uber setup script creates a `.venv` at the repo root, installs the full AI/ML package stack used across every track (ML, AI, MultiAgentAI, MultimodalAI, AIInfrastructure), registers all Jupyter kernels (`ai-ml-dev`, `ml-notes`, `ai-infrastructure`, `multi-agent-ai`), installs VS Code + the **Kilo Code** extension wired to a local Ollama-served DeepSeek-R1 model, and starts the Ollama server.

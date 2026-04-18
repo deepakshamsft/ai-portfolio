@@ -134,7 +134,7 @@ Image generation went from "blurry 32×32 digits" to "photoreal 4K video" in abo
 
 | File | Purpose | Key Questions Answered |
 |------|---------|------------------------|
-| [DiffusionModels.md](./DiffusionModels/DiffusionModels.md) | The maths of DDPM: the forward noising process, the reverse denoising process, score matching, noise schedules; why diffusion beat GANs | What is the forward process? What does the U-Net actually predict — the image or the noise? Why is diffusion more stable than GAN training? |
+| [DiffusionModels.md](./DiffusionModels/DiffusionModels.md) | The math of DDPM: the forward noising process, the reverse denoising process, score matching, noise schedules; why diffusion beat GANs | What is the forward process? What does the U-Net actually predict — the image or the noise? Why is diffusion more stable than GAN training? |
 | [Schedulers.md](./Schedulers/Schedulers.md) | DDPM vs DDIM vs DPM-Solver; how to generate in 4 steps instead of 1,000; deterministic sampling; the speed/quality trade-off | Why does DDIM need fewer steps? What changes when you switch from DDPM to DPM-Solver? What is a sampler doing geometrically? |
 | [LatentDiffusion.md](./LatentDiffusion/LatentDiffusion.md) | Why pixel-space diffusion is too slow; VAEs as a compression layer; the Stable Diffusion architecture (VAE + U-Net + CLIP text encoder); latent space geometry | What is a VAE? Why run diffusion in latent space instead of pixel space? How does text reach the U-Net in Stable Diffusion? |
 

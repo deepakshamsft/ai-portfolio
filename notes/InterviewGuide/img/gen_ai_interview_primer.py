@@ -190,7 +190,7 @@ ax_vdb.text(5, 0.5,
             "Pick two corners — the third suffers.",
             ha="center", fontsize=9.5, color="#555", style="italic")
 
-out = (r"c:\repos\AI learning\ai-portfolio\notes\AI\AI_Interview_Primer"
+out = (r"c:\repos\AI learning\ai-portfolio\notes\InterviewGuide"
        r"\img\AI Interview Primer.png")
 plt.savefig(out, dpi=150, bbox_inches="tight", facecolor="white")
 print(f"Saved -> {out}")

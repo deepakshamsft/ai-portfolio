@@ -1,12 +1,12 @@
 # Ch.2 — Logistic Regression
 
-> **Running theme:** The platform needs a binary signal: is a California district high-value or not? This powers the "premium neighbourhood" badge. The maths is nearly identical to Ch.1 — the only change is squashing the linear output through a sigmoid and swapping MSE for cross-entropy.
+> **Running theme:** The platform needs a binary signal: is a California district high-value or not? This powers the "premium neighbourhood" badge. The math is nearly identical to Ch.1 — the only change is squashing the linear output through a sigmoid and swapping MSE for cross-entropy.
 
 ---
 
 ## 1 · Core Idea
 
-Logistic regression takes the linear combination from Ch.1 and squashes it through a **sigmoid function**, producing a number between 0 and 1 — a probability. Train that probability to match binary labels using binary cross-entropy loss, and you have a classifier. The maths is almost identical to Ch.1; only the output transformation and the loss function change.
+Logistic regression takes the linear combination from Ch.1 and squashes it through a **sigmoid function**, producing a number between 0 and 1 — a probability. Train that probability to match binary labels using binary cross-entropy loss, and you have a classifier. The math is almost identical to Ch.1; only the output transformation and the loss function change.
 
 ---
 

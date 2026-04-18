@@ -45,7 +45,7 @@ Calculus was not invented in a day.
 | 1665–1687 | **Newton** | "Fluxions" — time-based derivative notation $\dot{x}$. Used calculus to derive Kepler's planetary laws from gravity. |
 | 1675–1684 | **Leibniz** | "Differentials" — modern $dy/dx$ and $\int$ notation. Cleaner, taught today. |
 | 1823 | Cauchy | Limits made rigorous. Finally answered "what is $dx$?" |
-| 1872 | Weierstrass | $\varepsilon$–$\delta$ formalisation. Calculus becomes a real branch of maths, not just a tool. |
+| 1872 | Weierstrass | $\varepsilon$–$\delta$ formalisation. Calculus becomes a real branch of math, not just a tool. |
 
 By the time machine learning arrived (1950s onward), calculus was a settled language. Gradient descent, backprop, every loss landscape — all of it rests on Newton and Leibniz.
 

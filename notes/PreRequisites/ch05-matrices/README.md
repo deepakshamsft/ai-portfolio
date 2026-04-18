@@ -176,7 +176,7 @@ print(f"ŵ₂ (-g/2) = {w_hat[2]:+.3f}   (true {-g/2:.3f})")
 ## 7 · What Can Go Wrong
 
 - **Shape mismatches.** The commonest bug. Print `.shape` after every operation while you're learning.
-- **`np.dot` vs `np.matmul` vs `@`.** For 2-D × 2-D, all three agree. For 1-D, they differ (dot product vs broadcasted matrix product). Use `@` — it's unambiguous and matches the maths.
+- **`np.dot` vs `np.matmul` vs `@`.** For 2-D × 2-D, all three agree. For 1-D, they differ (dot product vs broadcasted matrix product). Use `@` — it's unambiguous and matches the math.
 - **Explicit inverse.** `np.linalg.inv(A) @ b` is slower and less accurate than `np.linalg.solve(A, b)`. Avoid `inv()` except in derivations.
 - **Rank deficiency.** If columns of $X$ are linearly dependent (e.g., one feature is a scalar multiple of another), $X^\top X$ is singular and the normal equations have infinitely many solutions. `lstsq` returns the minimum-norm one. Check with `np.linalg.matrix_rank(X)`.
 - **Conditioning.** Even if $X^\top X$ is technically invertible, it can be **ill-conditioned** — tiny input changes cause huge output changes. Polynomial features of high degree are notorious. Rescale your inputs (zero mean, unit variance) before fitting.

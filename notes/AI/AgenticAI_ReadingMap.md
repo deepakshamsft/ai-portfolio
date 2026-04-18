@@ -126,7 +126,7 @@ Every chapter in this track is a response to a specific historical pressure poin
 
 | File | Purpose |
 |------|---------|
-| [AI_Interview_Primer.md](./AI_Interview_Primer/AI_Interview_Primer.md) | Rapid-fire interview reference — crisp answers to every likely interview question across all topics |
+| [InterviewGuide](../InterviewGuide/) | Rapid-fire interview reference (now lives at `notes/InterviewGuide/` and indexes every per-chapter Interview Checklist across all tracks) |
 | **This document** | Reading map and conceptual guide |
 
 ---
@@ -222,7 +222,7 @@ Step 7: APPLY PRODUCTION & OPERATIONS KNOWLEDGE
     │
     ▼
 Step 8: CONSOLIDATE FOR INTERVIEWS
-        AI_Interview_Primer.md
+        ../InterviewGuide/AgenticAI.md
 
         A single file with crisp answers to every likely
         interview question. Best used as a spaced-repetition
@@ -288,12 +288,12 @@ ReActAndSemanticKernel.md
 ## Reading Paths by Goal
 
 ### "I have an interview at an AI company next week"
-1. [AI_Interview_Primer.md](./AI_Interview_Primer/AI_Interview_Primer.md) — full pass, take notes on gaps  
+1. [InterviewGuide/AgenticAI.md](../InterviewGuide/AgenticAI.md) — full pass, take notes on gaps  
 2. [CoTReasoning.md](./CoTReasoning/CoTReasoning.md) §1–3 — fill the CoT gap  
 3. [ReActAndSemanticKernel.md](./ReActAndSemanticKernel/ReActAndSemanticKernel.md) §1–5 + §12 — ReAct loop + comparison table  
 4. [RAGAndEmbeddings.md](./RAGAndEmbeddings/RAGAndEmbeddings.md) §1 + §4–7 — embeddings + RAG pipeline  
 5. [VectorDBs.md](./VectorDBs/VectorDBs.md) §2–4 — distance metrics + HNSW + IVF + comparison table  
-6. Return to [AI_Interview_Primer.md](./AI_Interview_Primer/AI_Interview_Primer.md) — second pass, verify you can answer every question cold
+6. Return to [InterviewGuide/AgenticAI.md](../InterviewGuide/AgenticAI.md) — second pass, verify you can answer every question cold
 
 ### "I'm building a RAG-based agent from scratch"
 1. [RAGAndEmbeddings.md](./RAGAndEmbeddings/RAGAndEmbeddings.md) — complete (ingestion + query pipeline)  
@@ -312,7 +312,7 @@ ReActAndSemanticKernel.md
 ### "I need to choose between LangChain and Semantic Kernel for a production project"
 1. [ReActAndSemanticKernel.md](./ReActAndSemanticKernel/ReActAndSemanticKernel.md) §7–11 — complete comparison  
 2. [ReActAndSemanticKernel_Supplement.md](./ReActAndSemanticKernel/ReActAndSemanticKernel_Supplement.md) §2–5 — LangGraph, HITL, tool design, failure modes  
-3. [AI_Interview_Primer.md](./AI_Interview_Primer/AI_Interview_Primer.md) §3 — crisp summary of tradeoffs
+3. [InterviewGuide/AgenticAI.md](../InterviewGuide/AgenticAI.md) §3 — crisp summary of tradeoffs
 
 ### "I'm optimizing a slow or low-accuracy RAG system"
 1. [RAGAndEmbeddings_Supplement.md](./RAGAndEmbeddings/RAGAndEmbeddings_Supplement.md) §1 — identify which failure mode you have  
