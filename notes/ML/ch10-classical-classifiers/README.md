@@ -1,6 +1,10 @@
 # Ch.10 — Classical Classifiers
 
-> **Running theme:** The real estate platform's data science team is asked: "Can you give us something the business can actually read? The neural network from Ch.4 is a black box." Enter **Decision Trees** and **KNN** — models that make predictions through explicit, inspectable rules and geometric distance. They are faster to train, easier to debug, and often competitive enough for structured tabular data.
+> **The story.** **K-Nearest-Neighbours** is one of the oldest ideas in pattern recognition: the formal version is **Fix & Hodges**, **1951**, in a US Air Force technical report on discrimination in low-information regimes. "To classify a new point, ask its $k$ closest training neighbours and let them vote." There is no training, just lookup. **Decision Trees** matured a generation later: **CART** (Classification and Regression Trees) was published in **1984** by **Leo Breiman, Jerome Friedman, Richard Olshen, and Charles Stone** — splitting on Gini impurity — and **Ross Quinlan's C4.5** (1993) added the information-gain criterion now used in every textbook. Both algorithms refuse to be black boxes: KNN's prediction is "these five districts that look like yours," and a tree's prediction is a sequence of explicit if/then rules. That readability is exactly why they remain in production wherever a model has to face an auditor.
+>
+> **Where you are in the curriculum.** The platform's data science team is asked: "Can you give us something the business can actually read? The neural network from [Ch.4](../ch04-neural-networks/) is a black box." Decision Trees and KNN make predictions through explicit, inspectable rules and geometric distance — faster to train, easier to debug, and often competitive enough for structured tabular data. They are also the building blocks for the ensembles in [Ch.11](../ch11-svm-ensembles/), so getting the single tree right matters.
+>
+> **Notation in this chapter.** $\mathbf{x}\in\mathbb{R}^d$ — feature vector; $y$ — class label; $K$ — number of nearest neighbours (KNN); $d(\mathbf{x}_i,\mathbf{x}_j)$ — distance (Euclidean by default); for decision trees, $G=1-\sum_c p_c^2$ — **Gini impurity** of a node, and $H=-\sum_c p_c\log p_c$ — **entropy**, where $p_c$ is the proportion of class $c$ in the node; **information gain** $=H_{\text{parent}}-\sum_{\text{child}}\tfrac{|n_{\text{child}}|}{|n_{\text{parent}}|}H_{\text{child}}$; for Naive Bayes: $P(y\mid\mathbf{x})\propto P(y)\prod_j P(x_j\mid y)$.
 
 ---
 
@@ -11,9 +15,9 @@
 **K-Nearest Neighbours (KNN):** classify a new point by majority vote among its $k$ nearest training examples. No training — just memorise the dataset and look things up at query time.
 
 ```
-Neural network:  learned weights  →  black box, no interpretable rules
-Decision Tree:   if MedInc > 3.2 and Latitude < 36.1 → predict High-Value
-KNN:             this district's 5 nearest neighbours are all High-Value → predict High-Value
+Neural network: learned weights → black box, no interpretable rules
+Decision Tree: if MedInc > 3.2 and Latitude < 36.1 → predict High-Value
+KNN: this district's 5 nearest neighbours are all High-Value → predict High-Value
 ```
 
 The tradeoff is expressiveness vs interpretability. Both models overfit in characteristic ways: Decision Trees grow too deep, KNN memorises noise at $k=1$.
@@ -24,8 +28,8 @@ The tradeoff is expressiveness vs interpretability. Both models overfit in chara
 
 The platform's compliance team needs an auditable model for classifying districts as high-value or not — one they can explain to regulators. We use the **full 8-feature California Housing dataset** with the same `high_value` binary target from Ch.2.
 
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)  
-Features: all 8 housing features  
+Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`) 
+Features: all 8 housing features 
 Target: `high_value` — 1 if `MedHouseVal > median(MedHouseVal)`, else 0
 
 This lets us cross-compare directly with logistic regression (Ch.2), neural network (Ch.4), and the deep metrics analysis (Ch.9) — same problem, new model family.
@@ -38,7 +42,7 @@ This lets us cross-compare directly with logistic regression (Ch.2), neural netw
 
 At each node, the tree evaluates every possible split $(f, t)$ — feature $f$, threshold $t$ — and picks the one that maximises the **information gain**:
 
-$$\text{IG}(S, f, t) = H(S) - \frac{|S_{\text{left}}|}{|S|}\,H(S_{\text{left}}) - \frac{|S_{\text{right}}|}{|S|}\,H(S_{\text{right}})$$
+$$\text{IG}(S, f, t) = H(S) - \frac{|S_{\text{left}}|}{|S|} H(S_{\text{left}}) - \frac{|S_{\text{right}}|}{|S|} H(S_{\text{right}})$$
 
 | Symbol | Meaning |
 |---|---|
@@ -86,7 +90,7 @@ $$d(\mathbf{x}_q, \mathbf{x}_i) = \sum_{j=1}^{d} |x_{q,j} - x_{i,j}|$$
 
 **Prediction (classification):**
 
-$$\hat{y}_q = \text{mode}\!\left(\{y_i : i \in \mathcal{N}_k(\mathbf{x}_q)\}\right)$$
+$$\hat{y}_q = \text{mode} \left(\{y_i : i \in \mathcal{N}_k(\mathbf{x}_q)\}\right)$$
 
 where $\mathcal{N}_k(\mathbf{x}_q)$ is the set of $k$ nearest neighbours. For regression, use the mean instead of mode.
 
@@ -133,36 +137,36 @@ Node (n=100, Gini=0.48): 52 High-Value, 48 Non-High-Value
 ├── Split: MedInc > 3.2?
 │
 ├── Left (n=38, Gini=0.15): 34 High-Value, 4 Non — very pure
-│   └── predict: High-Value
+│ └── predict: High-Value
 │
 └── Right (n=62, Gini=0.41): 18 High-Value, 44 Non — fairly pure
-    └── ... (recurse)
+ └── ... (recurse)
 ```
 
 ### Decision boundary comparison
 
 ```
-Logistic Regression:   smooth diagonal line (linear)
-Decision Tree:         axis-aligned rectangles (staircase)
-KNN (small k):         irregular, follows every local cluster
-KNN (large k):         smoothed, approaches logistic regression boundary
+Logistic Regression: smooth diagonal line (linear)
+Decision Tree: axis-aligned rectangles (staircase)
+KNN (small k): irregular, follows every local cluster
+KNN (large k): smoothed, approaches logistic regression boundary
 ```
 
 ### KNN: effect of k
 
 ```mermaid
 flowchart LR
-    A["k=1\nMemorises every\ntraining point\nHigh variance"] -->|"increase k"| B["k=5–15\nBalanced\nbias-variance\n(sweet spot)"]
-    B -->|"increase k"| C["k=n\nAlways predicts\nmajority class\nHigh bias"]
+ A["k=1\nMemorises every\ntraining point\nHigh variance"] -->|"increase k"| B["k=5–15\nBalanced\nbias-variance\n(sweet spot)"]
+ B -->|"increase k"| C["k=n\nAlways predicts\nmajority class\nHigh bias"]
 ```
 
 ### Decision Tree: effect of max_depth
 
 ```
-depth=1 (stump):   one split → two regions → underfit
-depth=3:           8 regions  → reasonable boundary
-depth=10:          1024 regions (theoretical max) → overfit on small datasets
-depth=None:        one leaf per training example → perfect train accuracy, poor test
+depth=1 (stump): one split → two regions → underfit
+depth=3: 8 regions → reasonable boundary
+depth=10: 1024 regions (theoretical max) → overfit on small datasets
+depth=None: one leaf per training example → perfect train accuracy, poor test
 ```
 
 ### Feature importance (Decision Tree)
@@ -170,12 +174,12 @@ depth=None:        one leaf per training example → perfect train accuracy, poo
 Decision Trees provide a natural importance score: the sum of impurity reduction (weighted by node sample count) at all splits that use a given feature, normalised over all features.
 
 ```
-High importance:   MedInc     ████████████████ 0.52
-                   AveRooms   ████              0.13
-                   Latitude   ███               0.10
-                   Longitude  ███               0.09
-Low importance:    HouseAge   ██                0.06
-                   ...
+High importance: MedInc ████████████████ 0.52
+ AveRooms ████ 0.13
+ Latitude ███ 0.10
+ Longitude ███ 0.09
+Low importance: HouseAge ██ 0.06
+ ...
 ```
 
 ---
@@ -214,23 +218,23 @@ from sklearn.metrics import accuracy_score, f1_score, classification_report
 # ── Data ──────────────────────────────────────────────────────────────────────
 data = fetch_california_housing()
 X, y_reg = data.data, data.target
-y = (y_reg > np.median(y_reg)).astype(int)   # high-value binary target
+y = (y_reg > np.median(y_reg)).astype(int) # high-value binary target
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42)
+ X, y, test_size=0.2, random_state=42)
 
 scaler = StandardScaler()
 X_train_sc = scaler.fit_transform(X_train)
-X_test_sc  = scaler.transform(X_test)
+X_test_sc = scaler.transform(X_test)
 
 # ── Decision Tree ─────────────────────────────────────────────────────────────
 dt = DecisionTreeClassifier(max_depth=5, random_state=42)
-dt.fit(X_train_sc, y_train)   # scaling has no effect on DT (split thresholds are relative)
+dt.fit(X_train_sc, y_train) # scaling has no effect on DT (split thresholds are relative)
 # Note: DT doesn't need scaling, but we pass scaled data so comparisons are fair
 
 y_pred_dt = dt.predict(X_test_sc)
 print("Decision Tree:")
-print(f"  Accuracy: {accuracy_score(y_test, y_pred_dt):.4f}  F1: {f1_score(y_test, y_pred_dt):.4f}")
+print(f" Accuracy: {accuracy_score(y_test, y_pred_dt):.4f} F1: {f1_score(y_test, y_pred_dt):.4f}")
 
 # Human-readable rules (first 3 levels)
 print(export_text(dt, feature_names=list(data.feature_names), max_depth=3))
@@ -238,18 +242,18 @@ print(export_text(dt, feature_names=list(data.feature_names), max_depth=3))
 # Feature importances
 importances = dt.feature_importances_
 for name, imp in sorted(zip(data.feature_names, importances),
-                         key=lambda x: -x[1]):
-    print(f"  {name:12s}: {imp:.4f}  {'█' * int(imp * 50)}")
+ key=lambda x: -x[1]):
+ print(f" {name:12s}: {imp:.4f} {'█' * int(imp * 50)}")
 ```
 
 ```python
 # ── KNN ───────────────────────────────────────────────────────────────────────
 knn = KNeighborsClassifier(n_neighbors=11, metric='euclidean')
-knn.fit(X_train_sc, y_train)   # critical: use scaled features
+knn.fit(X_train_sc, y_train) # critical: use scaled features
 
 y_pred_knn = knn.predict(X_test_sc)
 print("KNN (k=11):")
-print(f"  Accuracy: {accuracy_score(y_test, y_pred_knn):.4f}  F1: {f1_score(y_test, y_pred_knn):.4f}")
+print(f" Accuracy: {accuracy_score(y_test, y_pred_knn):.4f} F1: {f1_score(y_test, y_pred_knn):.4f}")
 ```
 
 ```python
@@ -257,20 +261,20 @@ print(f"  Accuracy: {accuracy_score(y_test, y_pred_knn):.4f}  F1: {f1_score(y_te
 depths = range(1, 21)
 train_scores, test_scores = [], []
 for d in depths:
-    m = DecisionTreeClassifier(max_depth=d, random_state=42).fit(X_train_sc, y_train)
-    train_scores.append(f1_score(y_train, m.predict(X_train_sc)))
-    test_scores.append(f1_score(y_test,  m.predict(X_test_sc)))
+ m = DecisionTreeClassifier(max_depth=d, random_state=42).fit(X_train_sc, y_train)
+ train_scores.append(f1_score(y_train, m.predict(X_train_sc)))
+ test_scores.append(f1_score(y_test, m.predict(X_test_sc)))
 
 # plot train vs test score → find crossing point where test starts degrading
 ```
 
 ```python
 # ── k sweep (KNN) ─────────────────────────────────────────────────────────────
-k_values = range(1, 51, 2)   # odd values only to avoid ties
+k_values = range(1, 51, 2) # odd values only to avoid ties
 test_f1s = []
 for k in k_values:
-    m = KNeighborsClassifier(n_neighbors=k).fit(X_train_sc, y_train)
-    test_f1s.append(f1_score(y_test, m.predict(X_test_sc)))
+ m = KNeighborsClassifier(n_neighbors=k).fit(X_train_sc, y_train)
+ test_f1s.append(f1_score(y_test, m.predict(X_test_sc)))
 
 # plot: F1 vs k — find the elbow
 ```

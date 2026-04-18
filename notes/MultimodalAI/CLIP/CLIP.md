@@ -1,6 +1,8 @@
 # CLIP — Contrastive Language-Image Pretraining
 
-> **After reading this note** you will understand how CLIP learns to align image and text embeddings without any manual labels, what the InfoNCE contrastive loss is doing geometrically, how zero-shot classification works without a training set, and why CLIP's text encoder is the component inside Stable Diffusion that converts your prompt into a conditioning signal.
+> **The story.** **CLIP** — *Contrastive Language-Image Pretraining* — was published by **Alec Radford** and colleagues at OpenAI in **January 2021**. The recipe was the kind of thing that makes other researchers stop and stare: scrape **400 million image–caption pairs** off the public web, train two encoders (a ViT for images, a transformer for text) with a single objective — *make the embedding of each image close to the embedding of its real caption, and far from every other caption in the batch* — using the **InfoNCE** contrastive loss (van den Oord et al., 2018). No class labels. No human annotation. The result was the first model that could do **zero-shot ImageNet classification** — just describe each class in natural language and pick the closest. **OpenCLIP** (LAION, 2022) reproduced and scaled it openly. CLIP's text encoder is the component inside Stable Diffusion that turns your prompt into a conditioning signal, and CLIP-style contrastive learning is now the default training recipe for every embedding model in the [AI track's RAG chapter](../../AI/RAGAndEmbeddings/).
+>
+> **Where you are in the curriculum.** [VisionTransformers](../VisionTransformers/) gave you the visual encoder. This chapter wires it to a text encoder via contrastive learning, producing a shared image–text embedding space — the substrate for [text-to-image generation](../TextToImage/), [zero-shot classification](../GenerativeEvaluation/), and every modern [multimodal LLM](../MultimodalLLMs/).
 
 ---
 
@@ -15,12 +17,12 @@ The result is a shared embedding space where you can directly compare images and
 ## 2 · Running Example — PixelSmith v2
 
 ```
-Goal:    Build a text-image search index: given a text query, return the most 
-         semantically matching image from a collection.
+Goal: Build a text-image search index: given a text query, return the most 
+ semantically matching image from a collection.
 
 Process: Encode each image → 512-dim embedding (stored in index)
-         For a query, encode the text → 512-dim embedding
-         Rank images by cosine similarity to the text embedding
+ For a query, encode the text → 512-dim embedding
+ Rank images by cosine similarity to the text embedding
 
 Before CLIP (Ch.1+2): we have image embeddings but no text embeddings
 After CLIP (this chapter): image and text live in the SAME space → direct comparison
@@ -68,7 +70,7 @@ $$\tau^{-1} \approx 14.3 \text{ (effective)}$$
 
 Given $K$ class names $\{c_1, \ldots, c_K\}$, construct text prompts: "a photo of a {class}". Encode each → $\mathbf{t}_k$. For a new image $I$, the predicted class is:
 
-$$\hat{y} = \arg\max_k \; \mathbf{v} \cdot \mathbf{t}_k$$
+$$\hat{y} = \arg\max_k \mathbf{v} \cdot \mathbf{t}_k$$
 
 No gradient updates to CLIP. No labelled training data for the new task. The model transfers because it learned general visual-semantic alignment, not dataset-specific patterns.
 
@@ -90,7 +92,7 @@ Text encoder (GPT-like transformer): tokens → 512-dim (from [EOS] token) → L
 
 **Step 3: Similarity matrix**
 ```
-S = V @ T.T   shape (N, N)
+S = V @ T.T shape (N, N)
 S[i,j] = cosine similarity between image i and text j
 S[i,i] = matching pair (positive)
 S[i,j≠i] = non-matching pair (negative)
@@ -122,45 +124,45 @@ Both learn to embed matching pairs close, non-matching pairs far
 ### CLIP Architecture
 
 ```
-  TEXT INPUT                          IMAGE INPUT
-  "a photo of a cat"                  [JPEG of a cat]
-        │                                   │
-  ┌─────▼──────────────┐          ┌────────▼────────────┐
-  │  Text Transformer   │          │  ViT Image Encoder  │
-  │  (GPT-like, 12L)    │          │  (ViT-B/32 or L/14) │
-  │                     │          │                     │
-  │  [EOS] hidden state │          │  [CLS] hidden state │
-  │  → linear → 512-dim │          │  → linear → 512-dim │
-  └─────────┬──────────┘          └──────────┬──────────┘
-            │   L2 norm                        │   L2 norm
-            ▼                                  ▼
-     text embedding t              image embedding v
-       (512-dim unit vector)         (512-dim unit vector)
-            │                                  │
-            └──────────────┬───────────────────┘
-                           │
-               cosine similarity = v · t
-               (same space → directly comparable)
+ TEXT INPUT IMAGE INPUT
+ "a photo of a cat" [JPEG of a cat]
+ │ │
+ ┌─────▼──────────────┐ ┌────────▼────────────┐
+ │ Text Transformer │ │ ViT Image Encoder │
+ │ (GPT-like, 12L) │ │ (ViT-B/32 or L/14) │
+ │ │ │ │
+ │ [EOS] hidden state │ │ [CLS] hidden state │
+ │ → linear → 512-dim │ │ → linear → 512-dim │
+ └─────────┬──────────┘ └──────────┬──────────┘
+ │ L2 norm │ L2 norm
+ ▼ ▼
+ text embedding t image embedding v
+ (512-dim unit vector) (512-dim unit vector)
+ │ │
+ └──────────────┬───────────────────┘
+ │
+ cosine similarity = v · t
+ (same space → directly comparable)
 ```
 
 ### InfoNCE Loss — Batch Similarity Matrix
 
 ```
-                      Text embeddings
-           t₁    t₂    t₃    t₄   ...  tₙ
-         ┌────────────────────────────────┐
-  v₁     │ 0.92  0.11  0.08  0.05  ...│  ← image 1 should match t₁
-  v₂     │ 0.09  0.88  0.12  0.07  ...│  ← image 2 should match t₂
-  v₃     │ 0.06  0.13  0.91  0.04  ...│  ← image 3 should match t₃
-  v₄     │ 0.04  0.08  0.05  0.89  ...│  ← image 4 should match t₄
-  ...    │ ...                        │
-         └────────────────────────────┘
-         
-  Goal: push diagonal entries → 1.0
-        push off-diagonal entries → 0.0
-  
-  Cross-entropy loss treats each row as a classification problem
-  (N-way classification with one correct answer per row)
+ Text embeddings
+ t₁ t₂ t₃ t₄ ... tₙ
+ ┌────────────────────────────────┐
+ v₁ │ 0.92 0.11 0.08 0.05 ...│ ← image 1 should match t₁
+ v₂ │ 0.09 0.88 0.12 0.07 ...│ ← image 2 should match t₂
+ v₃ │ 0.06 0.13 0.91 0.04 ...│ ← image 3 should match t₃
+ v₄ │ 0.04 0.08 0.05 0.89 ...│ ← image 4 should match t₄
+ ... │ ... │
+ └────────────────────────────┘
+ 
+ Goal: push diagonal entries → 1.0
+ push off-diagonal entries → 0.0
+ 
+ Cross-entropy loss treats each row as a classification problem
+ (N-way classification with one correct answer per row)
 ```
 
 ---
@@ -207,11 +209,11 @@ After L2 normalisation, the dot product gives cosine similarity in $[-1, 1]$. It
 
 ### Likely Asked
 - "Why does CLIP use large batch sizes?"
-  → More negatives per sample → harder negatives → sharper representations
+ → More negatives per sample → harder negatives → sharper representations
 - "How is CLIP's text encoder used in Stable Diffusion?"
-  → Frozen CLIP text encoder converts prompt to 77 × 768 token embeddings → fed as cross-attention keys/values inside the U-Net denoiser at every layer
+ → Frozen CLIP text encoder converts prompt to 77 × 768 token embeddings → fed as cross-attention keys/values inside the U-Net denoiser at every layer
 - "What does CLIP's embedding space geometry look like?"
-  → All embeddings are on the unit hypersphere (`L2 norm = 1`); matching pairs are close (high cosine sim); unrelated pairs are near-orthogonal
+ → All embeddings are on the unit hypersphere (`L2 norm = 1`); matching pairs are close (high cosine sim); unrelated pairs are near-orthogonal
 
 ### Trap to Avoid
 - Confusing CLIP (contrastive training, no generation) with DALL-E (generative, uses CLIP as a component)

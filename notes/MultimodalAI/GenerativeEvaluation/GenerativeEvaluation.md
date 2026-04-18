@@ -1,9 +1,11 @@
 # Generative Evaluation — Measuring What You Made
 
-> **Track:** Multimodal AI  
-> **Prerequisites:** DiffusionModels.md, GuidanceConditioning.md, CLIP.md
+> **Track:** Multimodal AI 
+> **Prerequisites:** [DiffusionModels.md](../DiffusionModels/DiffusionModels.md), [GuidanceConditioning.md](../GuidanceConditioning/GuidanceConditioning.md), [CLIP.md](../CLIP/CLIP.md)
 
-How do you know if a generated image is *good*? This chapter answers that with a toolkit of automated metrics and explains why each one can mislead you.
+> **The story.** Evaluating generative images is a 9-year-old subfield. **Inception Score (IS)** (Salimans et al., OpenAI, **2016**) was the first widely-used automatic metric — high IS meant images were both confident and diverse under an Inception classifier — but it was famously gameable. **FID** — *Fréchet Inception Distance* (**Heusel et al.**, **NIPS 2017**) — replaced IS by comparing the distribution of generated and real Inception features under a Gaussian assumption. FID became the field's default metric for half a decade despite its quirks (sample-size sensitivity, blindness to text alignment). **CLIPScore** (Hessel et al., 2021) added text-image alignment by reusing CLIP. **Human Preference Score (HPS)** (Wu et al., 2023) and **PickScore** (Kirstain et al., NeurIPS 2023) trained reward models on millions of human preference pairs from ChatGPT-style A/B comparisons — the first metrics that actually correlated well with what humans like. The 2026 evaluation stack pairs all of these with a multimodal LLM judge.
+>
+> **Where you are in the curriculum.** You can generate images. The honest question is: *are they any good?* This chapter gives the toolkit — FID, IS, CLIPScore, HPS, human preference — and explains why each one can mislead you and which combination to ship in production.
 
 ---
 
@@ -39,7 +41,7 @@ No single metric captures all three. Use at least two.
 Extract features $\mu_r, \Sigma_r$ from **real** images and $\mu_g, \Sigma_g$ from **generated** images using a pre-trained feature extractor (canonically Inception-v3 pool3 layer):
 
 $$
-\text{FID} = \|\mu_r - \mu_g\|^2 + \text{Tr}\!\left(\Sigma_r + \Sigma_g - 2\!\left(\Sigma_r \Sigma_g\right)^{1/2}\right)
+\text{FID} = \|\mu_r - \mu_g\|^2 + \text{Tr} \left(\Sigma_r + \Sigma_g - 2 \left(\Sigma_r \Sigma_g\right)^{1/2}\right)
 $$
 
 - Lower = better.
@@ -51,7 +53,7 @@ $$
 Uses marginal $p(y)$ and conditional $p(y \mid x)$ from the Inception classifier:
 
 $$
-\text{IS} = \exp\!\left(\mathbb{E}_x\bigl[D_\text{KL}(p(y|x)\|p(y))\bigr]\right)
+\text{IS} = \exp \left(\mathbb{E}_x\bigl[D_\text{KL}(p(y|x)\|p(y))\bigr]\right)
 $$
 
 - Higher = better (sharp images → high $p(y|x)$; diverse images → high entropy $p(y)$).
@@ -63,7 +65,7 @@ $$
 Given generated image $x$ and its text prompt $t$:
 
 $$
-\text{CLIP Score} = w \cdot \max(0, \cos(\text{CLIP}_I(x),\, \text{CLIP}_T(t)))
+\text{CLIP Score} = w \cdot \max(0, \cos(\text{CLIP}_I(x), \text{CLIP}_T(t)))
 $$
 
 where $w = 2.5$ is a scaling constant (originates from CLIPScore paper, Hessel et al. 2021).
@@ -120,27 +122,27 @@ $$
 ## 5 · The Key Diagrams
 
 ```
-                   GENERATIVE EVALUATION LANDSCAPE
-                   ─────────────────────────────────
+ GENERATIVE EVALUATION LANDSCAPE
+ ─────────────────────────────────
 
-  Reference-free                    Reference-based
-  (no real images needed)           (compares to real distribution)
+ Reference-free Reference-based
+ (no real images needed) (compares to real distribution)
 
-  ┌─────────────────────┐           ┌──────────────────────────────┐
-  │  CLIP Score         │           │  FID  (distribution match)   │
-  │  text ↔ image align │           │  IS   (fidelity + diversity) │
-  │  HPSv2, ImageReward │           │  Precision / Recall          │
-  │  (human preference) │           │  LPIPS (pixel-level, per img)│
-  └─────────────────────┘           └──────────────────────────────┘
+ ┌─────────────────────┐ ┌──────────────────────────────┐
+ │ CLIP Score │ │ FID (distribution match) │
+ │ text ↔ image align │ │ IS (fidelity + diversity) │
+ │ HPSv2, ImageReward │ │ Precision / Recall │
+ │ (human preference) │ │ LPIPS (pixel-level, per img)│
+ └─────────────────────┘ └──────────────────────────────┘
 
-  Sample-level                      Distribution-level
-  (per image score)                 (needs thousands of images)
+ Sample-level Distribution-level
+ (per image score) (needs thousands of images)
 
-  ┌─────────────────────┐           ┌──────────────────────────────┐
-  │  LPIPS              │           │  FID, IS, Precision/Recall   │
-  │  SSIM, PSNR         │           │  (stable only with N≥5k)     │
-  │  CLIP Score         │           └──────────────────────────────┘
-  └─────────────────────┘
+ ┌─────────────────────┐ ┌──────────────────────────────┐
+ │ LPIPS │ │ FID, IS, Precision/Recall │
+ │ SSIM, PSNR │ │ (stable only with N≥5k) │
+ │ CLIP Score │ └──────────────────────────────┘
+ └─────────────────────┘
 ```
 
 ```
@@ -149,11 +151,11 @@ FID BIAS VS SAMPLE COUNT
 FID
  ↑
 300│ × N=100
-200│   × N=500
-100│       × N=1k
- 50│              × N=5k
- 20│                    × N=50k  ← stabilises here
-  └───────────────────────────→ N (log scale)
+200│ × N=500
+100│ × N=1k
+ 50│ × N=5k
+ 20│ × N=50k ← stabilises here
+ └───────────────────────────→ N (log scale)
 
 True FID attained only at large N; small N inflates FID.
 ```

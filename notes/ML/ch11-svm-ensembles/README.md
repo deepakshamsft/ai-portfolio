@@ -1,6 +1,10 @@
 # Ch.11 — SVM & Ensembles
 
-> **Running theme:** Decision Trees (Ch.10) are fragile — small data changes produce different trees, and a single tree memorises noise. This chapter attacks the problem from two directions: **SVM** finds the most robust linear boundary possible (maximum margin), and **ensembles** (bagging + boosting) aggregate many weak trees into a stable, high-accuracy predictor. XGBoost — the dominant algorithm in tabular ML competitions for a decade — is the end state of the boosting idea.
+> **The story.** Two parallel revolutions in the 1990s. **SVMs** came from **Vladimir Vapnik and Corinna Cortes** at AT&T Bell Labs in **1995** — the maximum-margin classifier plus the kernel trick let SVMs handle non-linear boundaries without explicitly building the feature space. For about a decade SVMs *were* statistical machine learning, dominating bioinformatics and text classification. The ensemble lineage ran in parallel: **Leo Breiman's bagging** (1996) showed that averaging many high-variance trees crushes their variance; the same year **Yoav Freund & Robert Schapire's AdaBoost** built trees *sequentially* with each one focusing on the previous's mistakes; Breiman's **Random Forests** (2001) added feature subsampling to bagging. The end of the boosting line was **Tianqi Chen & Carlos Guestrin's XGBoost** (**2014**) and Microsoft's **LightGBM** (2017), which between them won effectively every tabular Kaggle competition for a decade and remain the production default for structured data.
+>
+> **Where you are in the curriculum.** Single decision trees ([Ch.10](../ch10-classical-classifiers/)) are fragile — small data changes produce different trees, and one tree memorises noise. This chapter attacks the problem from two directions: **SVM** finds the most robust linear (or kernel-warped) boundary possible (maximum margin); **ensembles** (bagging + boosting) aggregate many weak trees into a stable, high-accuracy predictor. After this chapter you have everything you need to ship a serious tabular model — and the conceptual scaffolding for the unsupervised chapters that follow.
+>
+> **Notation in this chapter.** $\mathbf{w}\cdot\mathbf{x}+b=0$ — separating **hyperplane**; **margin** $=2/\|\mathbf{w}\|$ — distance between the two parallel support hyperplanes (SVM maximises this); $\xi_i\geq 0$ — **slack variable** allowing sample $i$ to violate the margin; $C$ — soft-margin penalty (large $C$ → hard margin); $K(\mathbf{x},\mathbf{x}')$ — **kernel** function (RBF, polynomial, linear); $\alpha_i$ — dual variables / support-vector weights; $T$ — number of trees in an ensemble; for boosting: $\eta$ — boosting learning rate (shrinkage), $\gamma$ — minimum split gain; **OOB** — out-of-bag samples used for free validation in Random Forests.
 
 ---
 
@@ -13,10 +17,10 @@
 **Boosting (Gradient Boosting / XGBoost):** train trees sequentially. Each tree fits the residual errors of the ensemble so far. Bias drops with each round. The risk: if the single trees are strong, boosting overfits noise.
 
 ```
-Single Decision Tree:   high variance, interpretable
-Random Forest (Bag N):  low variance, moderate bias, importance scores stable
-XGBoost (Boost N):      low bias, low variance (with tuning), competition-grade accuracy
-SVM:                    maximum-margin linear boundary; kernel trick for non-linear data
+Single Decision Tree: high variance, interpretable
+Random Forest (Bag N): low variance, moderate bias, importance scores stable
+XGBoost (Boost N): low bias, low variance (with tuning), competition-grade accuracy
+SVM: maximum-margin linear boundary; kernel trick for non-linear data
 ```
 
 ---
@@ -25,8 +29,8 @@ SVM:                    maximum-margin linear boundary; kernel trick for non-lin
 
 The platform now wants the **best possible regression model** for median house value — not just a classifier. We benchmark four models on the full 8-feature California Housing regression task: Linear Regression (Ch.1 baseline), Decision Tree, Random Forest, and XGBoost.
 
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)  
-Features: all 8 housing features  
+Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`) 
+Features: all 8 housing features 
 Target: `MedHouseVal` (median house value in $100k units)
 
 We also run a classification comparison (high-value vs not) to include SVM alongside the ensemble models.
@@ -39,13 +43,13 @@ We also run a classification comparison (high-value vs not) to include SVM along
 
 The decision hyperplane is $\mathbf{w}^\top \mathbf{x} + b = 0$. The margin is $\frac{2}{\|\mathbf{w}\|}$. Maximising the margin is equivalent to minimising $\|\mathbf{w}\|^2$:
 
-$$\min_{\mathbf{w}, b}\; \frac{1}{2}\|\mathbf{w}\|^2 \quad \text{subject to}\quad y_i(\mathbf{w}^\top \mathbf{x}_i + b) \geq 1 \;\forall i$$
+$$\min_{\mathbf{w}, b} \frac{1}{2}\|\mathbf{w}\|^2 \quad \text{subject to}\quad y_i(\mathbf{w}^\top \mathbf{x}_i + b) \geq 1 \forall i$$
 
 **Support vectors** are the training points that lie exactly on the margin boundary ($y_i(\mathbf{w}^\top \mathbf{x}_i + b) = 1$). The hyperplane depends only on these points — all others can be removed without changing the solution.
 
 **Soft-margin SVM (C-SVM):** allows some training points to violate the margin, controlled by $C$:
 
-$$\min_{\mathbf{w}, b, \xi}\; \frac{1}{2}\|\mathbf{w}\|^2 + C\sum_i \xi_i \quad \text{s.t.}\quad y_i(\mathbf{w}^\top \mathbf{x}_i + b) \geq 1 - \xi_i,\; \xi_i \geq 0$$
+$$\min_{\mathbf{w}, b, \xi} \frac{1}{2}\|\mathbf{w}\|^2 + C\sum_i \xi_i \quad \text{s.t.}\quad y_i(\mathbf{w}^\top \mathbf{x}_i + b) \geq 1 - \xi_i, \xi_i \geq 0$$
 
 | $C$ | Effect |
 |---|---|
@@ -58,7 +62,7 @@ A kernel $K(\mathbf{x}_i, \mathbf{x}_j) = \phi(\mathbf{x}_i)^\top \phi(\mathbf{x
 
 **RBF (Radial Basis Function) kernel:**
 
-$$K(\mathbf{x}_i, \mathbf{x}_j) = \exp\!\left(-\gamma \|\mathbf{x}_i - \mathbf{x}_j\|^2\right)$$
+$$K(\mathbf{x}_i, \mathbf{x}_j) = \exp \left(-\gamma \|\mathbf{x}_i - \mathbf{x}_j\|^2\right)$$
 
 | $\gamma$ | Effect |
 |---|---|
@@ -153,46 +157,46 @@ XGBoost (Boosting):
 ### SVM: margin maximisation
 
 ```
-Class -1:  × × ×          Class +1:  ○ ○ ○
-              × ×            ○ ○ ○
-               ×              ○
+Class -1: × × × Class +1: ○ ○ ○
+ × × ○ ○ ○
+ × ○
 
-             ×│              │○
-              │← margin  →  │
-          ────┼──────────────┼────  (decision hyperplane w·x + b = 0)
-         w·x+b=-1          w·x+b=+1
-               ↑support vectors↑
+ ×│ │○
+ │← margin → │
+ ────┼──────────────┼──── (decision hyperplane w·x + b = 0)
+ w·x+b=-1 w·x+b=+1
+ ↑support vectors↑
 ```
 
 ### SVM: effect of C
 
 ```
-Small C (wide margin, more violations):    Large C (narrow margin, few violations):
-  × × ×│·      ·│○ ○ ○                     × × ×   │○ ○ ○
-     ×  │  × ···│○ ○               →          × ×   │○ ○
-        │       │                               × × ×│○
-     smooth, may misclassify              tight, follows every training point
+Small C (wide margin, more violations): Large C (narrow margin, few violations):
+ × × ×│· ·│○ ○ ○ × × × │○ ○ ○
+ × │ × ···│○ ○ → × × │○ ○
+ │ │ × × ×│○
+ smooth, may misclassify tight, follows every training point
 ```
 
 ### Bagging vs Boosting
 
 ```mermaid
 flowchart TD
-    subgraph Bagging ["Bagging (Random Forest)"]
-        direction LR
-        D["Training\ndata"] --> T1["Tree 1\n(bootstrap)"]
-        D --> T2["Tree 2\n(bootstrap)"]
-        D --> T3["Tree 3\n(bootstrap)"]
-        T1 & T2 & T3 --> AV["Average\nprediction"]
-    end
+ subgraph Bagging ["Bagging (Random Forest)"]
+ direction LR
+ D["Training\ndata"] --> T1["Tree 1\n(bootstrap)"]
+ D --> T2["Tree 2\n(bootstrap)"]
+ D --> T3["Tree 3\n(bootstrap)"]
+ T1 & T2 & T3 --> AV["Average\nprediction"]
+ end
 
-    subgraph Boosting ["Boosting (XGBoost)"]
-        direction LR
-        B["Training\ndata"] --> BT1["Tree 1"]
-        BT1 -->|"residuals"| BT2["Tree 2"]
-        BT2 -->|"residuals"| BT3["Tree 3"]
-        BT3 --> SUM["Sum of\nweighted trees"]
-    end
+ subgraph Boosting ["Boosting (XGBoost)"]
+ direction LR
+ B["Training\ndata"] --> BT1["Tree 1"]
+ BT1 -->|"residuals"| BT2["Tree 2"]
+ BT2 -->|"residuals"| BT3["Tree 3"]
+ BT3 --> SUM["Sum of\nweighted trees"]
+ end
 ```
 
 ### Bias-variance: single tree vs ensemble
@@ -200,16 +204,16 @@ flowchart TD
 ```
 Error = Bias² + Variance + Irreducible noise
 
-Single tree (deep) :  Bias²=low   Variance=high  → Random Forest reduces Variance
-Single tree (shallow): Bias²=high Variance=low   → Boosting reduces Bias²
+Single tree (deep) : Bias²=low Variance=high → Random Forest reduces Variance
+Single tree (shallow): Bias²=high Variance=low → Boosting reduces Bias²
 ```
 
 ### The boosting residual chain
 
 ```
-Round 1: F_1(x) = tree_1 predicts  →  residual_1 = y - F_1(x)
-Round 2: F_2(x) = F_1(x) + η·tree_2(residual_1)  →  residual_2 = y - F_2(x)
-Round 3: F_3(x) = F_2(x) + η·tree_3(residual_2)  → ...
+Round 1: F_1(x) = tree_1 predicts → residual_1 = y - F_1(x)
+Round 2: F_2(x) = F_1(x) + η·tree_2(residual_1) → residual_2 = y - F_2(x)
+Round 3: F_3(x) = F_2(x) + η·tree_3(residual_2) → ...
 ```
 
 ---
@@ -259,7 +263,7 @@ X, y_reg = data.data, data.target
 y_cls = (y_reg > np.median(y_reg)).astype(int)
 
 X_train, X_test, y_tr, y_te, y_tr_cls, y_te_cls = train_test_split(
-    X, y_reg, y_cls, test_size=0.2, random_state=42)
+ X, y_reg, y_cls, test_size=0.2, random_state=42)
 
 scaler = StandardScaler()
 X_tr_sc = scaler.fit_transform(X_train)
@@ -271,67 +275,67 @@ X_te_sc = scaler.transform(X_test)
 svm = SVC(kernel='rbf', C=10, gamma='scale', probability=True, random_state=42)
 svm.fit(X_tr_sc, y_tr_cls)
 
-print(f"SVM F1:       {f1_score(y_te_cls, svm.predict(X_te_sc)):.4f}")
-print(f"Support vectors: {svm.n_support_}  (one count per class)")
+print(f"SVM F1: {f1_score(y_te_cls, svm.predict(X_te_sc)):.4f}")
+print(f"Support vectors: {svm.n_support_} (one count per class)")
 print(f"Total SVs: {svm.support_vectors_.shape[0]} of {len(X_train)} training points")
 ```
 
 ```python
 # ── Random Forest Regression ──────────────────────────────────────────────────
 rf = RandomForestRegressor(n_estimators=200, max_features='sqrt',
-                            oob_score=True, random_state=42, n_jobs=-1)
-rf.fit(X_train, y_tr)   # tree-based: no scaling needed
+ oob_score=True, random_state=42, n_jobs=-1)
+rf.fit(X_train, y_tr) # tree-based: no scaling needed
 
 y_pred_rf = rf.predict(X_test)
-rmse_rf   = np.sqrt(mean_squared_error(y_te, y_pred_rf))
-print(f"Random Forest — RMSE: {rmse_rf:.4f}  R²: {r2_score(y_te, y_pred_rf):.4f}")
-print(f"OOB R²: {rf.oob_score_:.4f}  (free validation — no test set used)")
+rmse_rf = np.sqrt(mean_squared_error(y_te, y_pred_rf))
+print(f"Random Forest — RMSE: {rmse_rf:.4f} R²: {r2_score(y_te, y_pred_rf):.4f}")
+print(f"OOB R²: {rf.oob_score_:.4f} (free validation — no test set used)")
 ```
 
 ```python
 # ── XGBoost Regression ────────────────────────────────────────────────────────
 try:
-    from xgboost import XGBRegressor
+ from xgboost import XGBRegressor
 
-    X_tr2, X_val, y_tr2, y_val = train_test_split(X_train, y_tr,
-                                                     test_size=0.15, random_state=42)
-    xgb = XGBRegressor(
-        n_estimators=1000,
-        learning_rate=0.05,
-        max_depth=4,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        reg_lambda=1.0,
-        random_state=42,
-        early_stopping_rounds=30,
-        eval_metric='rmse',
-        verbosity=0,
-    )
-    xgb.fit(X_tr2, y_tr2, eval_set=[(X_val, y_val)], verbose=False)
+ X_tr2, X_val, y_tr2, y_val = train_test_split(X_train, y_tr,
+ test_size=0.15, random_state=42)
+ xgb = XGBRegressor(
+ n_estimators=1000,
+ learning_rate=0.05,
+ max_depth=4,
+ subsample=0.8,
+ colsample_bytree=0.8,
+ reg_lambda=1.0,
+ random_state=42,
+ early_stopping_rounds=30,
+ eval_metric='rmse',
+ verbosity=0,
+ )
+ xgb.fit(X_tr2, y_tr2, eval_set=[(X_val, y_val)], verbose=False)
 
-    y_pred_xgb = xgb.predict(X_test)
-    rmse_xgb   = np.sqrt(mean_squared_error(y_te, y_pred_xgb))
-    print(f"XGBoost — RMSE: {rmse_xgb:.4f}  R²: {r2_score(y_te, y_pred_xgb):.4f}")
-    print(f"Best iteration: {xgb.best_iteration}")
+ y_pred_xgb = xgb.predict(X_test)
+ rmse_xgb = np.sqrt(mean_squared_error(y_te, y_pred_xgb))
+ print(f"XGBoost — RMSE: {rmse_xgb:.4f} R²: {r2_score(y_te, y_pred_xgb):.4f}")
+ print(f"Best iteration: {xgb.best_iteration}")
 
 except ImportError:
-    print("XGBoost not installed. Run: pip install xgboost")
+ print("XGBoost not installed. Run: pip install xgboost")
 ```
 
 ```python
 # ── Baseline comparison ───────────────────────────────────────────────────────
-lr  = LinearRegression().fit(X_tr_sc, y_tr)
-dt  = DecisionTreeRegressor(max_depth=8, random_state=42).fit(X_train, y_tr)
+lr = LinearRegression().fit(X_tr_sc, y_tr)
+dt = DecisionTreeRegressor(max_depth=8, random_state=42).fit(X_train, y_tr)
 
 models = {
-    'Linear Regression': (lr.predict(X_te_sc), 'scaled'),
-    'Decision Tree':     (dt.predict(X_test),   'raw'),
-    'Random Forest':     (y_pred_rf,             'raw'),
+ 'Linear Regression': (lr.predict(X_te_sc), 'scaled'),
+ 'Decision Tree': (dt.predict(X_test), 'raw'),
+ 'Random Forest': (y_pred_rf, 'raw'),
 }
 for name, (preds, _) in models.items():
-    rmse = np.sqrt(mean_squared_error(y_te, preds))
-    r2   = r2_score(y_te, preds)
-    print(f"{name:22s}  RMSE: {rmse:.4f}  R²: {r2:.4f}")
+ rmse = np.sqrt(mean_squared_error(y_te, preds))
+ r2 = r2_score(y_te, preds)
+ print(f"{name:22s} RMSE: {rmse:.4f} R²: {r2:.4f}")
 ```
 
 ---

@@ -12,33 +12,9 @@ Modern AI agents are built on a single powerful idea: **an LLM whose next-token 
 
 ## How We Got Here — A Short History of Agentic AI
 
-Every chapter in this track is a response to a specific historical pressure point. Read this timeline once and the order of the chapters will feel inevitable.
+Every chapter in this track is a response to a specific historical pressure point. **The detailed timeline now lives in each chapter's own prelude** — every chapter opens with a *"The story"* blockquote that names the people, papers, and frustrations behind the idea.
 
-| Era | Year | Breakthrough | Why it set up the next chapter |
-|---|---|---|---|
-| **Symbolic era** | 1966 | **ELIZA** (Weizenbaum) — first chatbot, pattern-matching rules | Proved that language *feels* intelligent without any understanding — the illusion we still fight today. |
-| | 1980s | **Expert systems** (MYCIN, Cyc) — hand-coded rules, knowledge bases | Brittle, unscalable. The field learned that knowledge must be *learned*, not hand-written. → motivates the Knowledge Layer (RAG). |
-| **Statistical NLP** | 2003–2013 | **n-gram LMs → word2vec** (Mikolov, 2013) — words as dense vectors | Meaning became a geometry. Cosine similarity on embeddings was born. → [RAGAndEmbeddings](./RAGAndEmbeddings/). |
-| **Transformer era** | 2017 | **"Attention Is All You Need"** (Vaswani et al.) | The architecture that made everything after it possible. → [LLMFundamentals](./LLMFundamentals/). |
-| | 2018 | **BERT** (Google) / **GPT-1** (OpenAI) — pretraining + fine-tuning | Separated *pretraining* from *task* — the two-stage recipe every LLM still uses. |
-| | 2020 | **GPT-3** — 175B params; few-shot prompting "just worked" | Prompting became a discipline. → [PromptEngineering](./PromptEngineering/). |
-| | 2020 | **RAG paper** (Lewis et al., Facebook AI) | Named the pattern of retrieving documents at inference. → [RAGAndEmbeddings](./RAGAndEmbeddings/). |
-| **Alignment era** | 2022 Mar | **InstructGPT / RLHF** (Ouyang et al.) | Turned raw LMs into *instructable* assistants. Why `system` prompts work at all. |
-| | 2022 Nov | **ChatGPT** released | The moment the product category was born; forced every concept in this track into a real engineering problem. |
-| **Reasoning era** | 2022 Jan | **Chain-of-Thought prompting** (Wei et al., Google) | Let the model think out loud and accuracy jumped on reasoning tasks. → [CoTReasoning](./CoTReasoning/). |
-| | 2022 Mar | **Self-Consistency** (Wang et al.) — sample many CoTs, vote | The first cheap reliability trick for reasoning. |
-| | 2022 Oct | **ReAct** (Yao et al., Princeton+Google) — interleave thought + action | The loop the whole agent world is built on. → [ReActAndSemanticKernel](./ReActAndSemanticKernel/). |
-| | 2023 May | **Tree of Thoughts** (Yao et al.) — search over reasoning branches | Reasoning as explicit search, not one-shot sampling. |
-| **Orchestration era** | 2022 Oct | **LangChain** (Harrison Chase) — first popular framework | Codified prompt + tool + memory + retriever as first-class objects. |
-| | 2023 Mar | **GPT-4 + function calling API** (OpenAI) | Tool use moved from "parse-the-text" hacks to structured JSON — agents became reliable enough to ship. |
-| | 2023 Mar | **Semantic Kernel GA** (Microsoft) | Enterprise-grade skills/planners in .NET and Python. |
-| | 2023 | **Vector-DB boom** — Pinecone / Weaviate / Qdrant / pgvector | RAG went from notebook hack to production dependency. → [VectorDBs](./VectorDBs/). |
-| **Agent era** | 2023 Apr | **AutoGPT / BabyAGI** — autonomous goal-pursuing loops | First viral demo of long-horizon agents. Also the first lesson in why they fail. |
-| | 2023 | **LangGraph** — stateful, cyclic agent graphs | Acknowledged that agent control flow is a graph, not a chain. |
-| **Reasoning-native models** | 2024 Sep | **OpenAI o1** — trained to reason before answering | CoT moved from a *prompt trick* to a *training objective*. Reshaped what "prompt engineering" means. |
-| | 2024–2025 | **Claude 3.5/4, GPT-4o, Gemini 2** — million-token contexts, native tool use, multimodal | Pushed the bottleneck from *capability* to *cost, latency, safety, and evaluation*. → [CostAndLatency](./CostAndLatency/), [EvaluatingAISystems/](./EvaluatingAISystems/), [SafetyAndHallucination/](./SafetyAndHallucination/). |
-
-**The through-line:** every chapter in this track exists because an earlier generation hit a wall. Rule systems couldn't scale → we needed learned embeddings. Raw LMs weren't instructable → we needed RLHF and prompting. One-shot answers were unreliable → we needed CoT. Closed-book models hallucinated → we needed RAG. Single prompts couldn't plan → we needed ReAct. Ad-hoc code couldn't compose → we needed LangChain / Semantic Kernel. That chain of frustration *is* the reading order.
+**The through-line in one paragraph.** Every chapter exists because an earlier generation hit a wall. Rule systems (ELIZA 1966, MYCIN/Cyc 1980s) couldn't scale → we needed learned embeddings (word2vec, Mikolov 2013) → [RAGAndEmbeddings](./RAGAndEmbeddings/) and [VectorDBs](./VectorDBs/). Raw LMs (GPT-3, 2020) weren't instructable → we needed RLHF (InstructGPT, Mar 2022) and structured prompting → [LLMFundamentals](./LLMFundamentals/) and [PromptEngineering](./PromptEngineering/). One-shot answers were unreliable → we needed Chain-of-Thought (Wei et al., Jan 2022) → [CoTReasoning](./CoTReasoning/). Closed-book models hallucinated → we needed RAG (Lewis et al., 2020). Single prompts couldn't plan → we needed ReAct (Yao et al., Oct 2022) → [ReActAndSemanticKernel](./ReActAndSemanticKernel/). Ad-hoc code couldn't compose → we needed LangChain (Oct 2022), Semantic Kernel (Mar 2023), and GPT-4 function calling (Mar 2023). By 2024–2025 reasoning-native models (OpenAI o1, Sep 2024) and million-token contexts (Claude 3.5/4, GPT-4o, Gemini 2) pushed the bottleneck from *capability* to *cost, latency, safety, and evaluation* → [CostAndLatency](./CostAndLatency/), [EvaluatingAISystems](./EvaluatingAISystems/), [SafetyAndHallucination](./SafetyAndHallucination/), [FineTuning](./FineTuning/). That chain of frustration *is* the reading order.
 
 ---
 

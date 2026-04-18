@@ -1,6 +1,8 @@
 # Multimodal LLMs — When Language Models Can See
 
-> After reading this you will understand how a vision encoder is connected to a language model, what the Q-Former and projection layer do, and how LLaVA, BLIP-2, and GPT-4V differ architecturally.
+> **The story.** The first practical multimodal LLM architecture was **BLIP-2** (Junnan Li et al., Salesforce, **January 2023**), which introduced the **Q-Former** — a tiny transformer that translated frozen ViT features into the input space of a frozen LLM. The advantage was huge: you could bolt vision onto any existing LLM with relatively cheap training. **LLaVA** (Liu et al., April 2023) simplified the recipe to a single MLP projection and proved you could match GPT-4V on visual instruction-following with academic-budget training. **GPT-4V** (OpenAI, September 2023) brought vision to the public ChatGPT product. **Gemini 1.0** (Google, December 2023) was the first widely-deployed natively-multimodal model (text + image + audio + video tokens trained jointly from scratch). **GPT-4o** (May 2024), **Claude 3.5 Sonnet** (June 2024), and **Llama 3.2 Vision** (September 2024) made multimodal LLMs the default. By 2026, *text-only* is a deliberate niche choice rather than the standard.
+>
+> **Where you are in the curriculum.** [VisionTransformers](../VisionTransformers/) gave you the image encoder. [LLM Fundamentals](../../AI/LLMFundamentals/) gave you the language model. This chapter wires them together: how a vision encoder connects to a language model via a Q-Former or projection layer, what cross-attention does inside the LLM, and how LLaVA, BLIP-2, and GPT-4V differ architecturally. The downstream payoff is captioning, visual question-answering, and document understanding inside any agent in the [Multi-Agent track](../../MultiAgentAI/).
 
 ## 1 · Core Idea
 
@@ -44,7 +46,7 @@ where $t_i$ are text token embeddings.
 
 The Q-Former (Querying Transformer) uses $N_q = 32$ **learnable query tokens** $\mathbf{Q} \in \mathbb{R}^{32 \times d_q}$ that attend over the 197 visual tokens:
 
-$$\text{Q-Former output} = \text{CrossAttn}(\mathbf{Q},\, \mathbf{V}) \in \mathbb{R}^{32 \times d_q}$$
+$$\text{Q-Former output} = \text{CrossAttn}(\mathbf{Q}, \mathbf{V}) \in \mathbb{R}^{32 \times d_q}$$
 
 The 32 output tokens (rather than 197) are projected to the LLM dimension. This achieves:
 - **Compression**: 197 visual tokens → 32 tokens (6× fewer tokens for the LLM to process)
@@ -94,38 +96,38 @@ Why fewer tokens? The LLM's KV-cache memory scales quadratically with sequence l
 ```
 LLaVA Architecture:
 
-  224×224 image
-      │
-  [ViT-L/14, FROZEN]
-      │
-  576 × 1024 visual tokens
-      │
-  [Linear Projection / 2-layer MLP, TRAINED]
-      │
-  576 × 4096 visual tokens (in LLaMA-2 embed space)
-      │         ┌──────────────────────────┐
-      └────────▶│  LLaMA-2 7B (TRAINED)   │◀──── "Question: What's in the photo?"
-                │  [32 transformer layers] │
-                └──────────────────────────┘
-                              │
-                     "A cat sitting on..."
+ 224×224 image
+ │
+ [ViT-L/14, FROZEN]
+ │
+ 576 × 1024 visual tokens
+ │
+ [Linear Projection / 2-layer MLP, TRAINED]
+ │
+ 576 × 4096 visual tokens (in LLaMA-2 embed space)
+ │ ┌──────────────────────────┐
+ └────────▶│ LLaMA-2 7B (TRAINED) │◀──── "Question: What's in the photo?"
+ │ [32 transformer layers] │
+ └──────────────────────────┘
+ │
+ "A cat sitting on..."
 
 
 BLIP-2 Architecture:
 
-  image → [ViT-g, FROZEN] → 256 tokens
-                               │
-                          [Q-Former, TRAINED]  ← 32 learnable query tokens
-                               │
-                           32 × d_q tokens (compressed)
-                               │
-                          [Linear, TRAINED]
-                               │
-                         32 × d_LLM tokens
-                               │
-                     [FlanT5 / OPT, FROZEN or TRAINED]
-                               │
-                          text response
+ image → [ViT-g, FROZEN] → 256 tokens
+ │
+ [Q-Former, TRAINED] ← 32 learnable query tokens
+ │
+ 32 × d_q tokens (compressed)
+ │
+ [Linear, TRAINED]
+ │
+ 32 × d_LLM tokens
+ │
+ [FlanT5 / OPT, FROZEN or TRAINED]
+ │
+ text response
 ```
 
 ## 6 · What Changes at Scale

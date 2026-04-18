@@ -1,6 +1,8 @@
 # Ch.6 — Trust, Sandboxing & Authentication
 
-> **Central question:** Why is inter-agent trust non-trivial even when you own every agent in the system — and what are the concrete patterns for authentication, sandboxing, and prompt-injection defence that make a multi-agent chain safe to deploy in production?
+> **The story.** The classical web has spent 25 years building defences against untrusted input — SQL injection (named by Jeff Forristal in **1998**), XSS (Aaron Spencer, **2000**), CSRF — and the response was OWASP, the Top 10, and a security industry. LLM agents reset the clock to 1998. **Prompt injection** was demonstrated by **Riley Goodside** in September 2022; **Simon Willison** has been documenting variants ever since. **OWASP** published its first **LLM Top 10** in **2023** with prompt injection at #1, and updated it in 2025 to add agent-specific risks (excessive agency, insecure tool plugins, supply-chain compromise). The sandboxing playbook — capability tokens (**Macaroons** by Birgisson et al., NDSS 2014), gVisor / Firecracker for code execution, **HMAC** for inter-service auth (Bellare et al., 1996), constant-time comparisons against timing attacks — is being repurposed for the agent era. Every multi-agent system you ship is, by default, an injection target.
+>
+> **Where you are in the curriculum.** Previous chapters built the protocols ([MCP](../MCP/), [A2A](../A2A/), [event bus](../EventDrivenAgents/), [shared memory](../SharedMemory/)) assuming everyone plays nice. This chapter asks: **why is inter-agent trust non-trivial even when you own every agent in the system, and what are the concrete patterns for authentication, sandboxing, and prompt-injection defence that make a multi-agent chain safe to deploy in production?** Read it before you wire any agent into anything that touches money or PII.
 
 ---
 

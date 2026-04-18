@@ -55,7 +55,7 @@ This thread was picked deliberately — projectile motion is the problem that *f
 **Artifact:** a $2 \times 2$ matrix-warping widget with live determinant, plus the full free-kick parabola fitted in one `lstsq` call with physics constants read straight off the weight vector.
 
 ### [Ch.6 — Gradient + Matrix Chain Rule](./ch06-gradient-chain-rule/README.md)
-**Mental model:** the gradient $\nabla f$ packs every partial derivative into a vector that points uphill. The matrix chain rule $\nabla_\mathbf{x}(g \circ f) = J_f^\top\,\nabla g$ is the single equation behind every `.backward()` call in PyTorch — reverse-mode autodiff is just that product evaluated right-to-left.
+**Mental model:** the gradient $\nabla f$ packs every partial derivative into a vector that points uphill. The matrix chain rule $\nabla_\mathbf{x}(g \circ f) = J_f^\top \nabla g$ is the single equation behind every `.backward()` call in PyTorch — reverse-mode autodiff is just that product evaluated right-to-left.
 **Artifact:** a 2-D descent widget with tunable $(\theta_1^{(0)}, \theta_2^{(0)}, \eta, \text{iters})$, a one-layer neural-net shape drill, finite-difference and PyTorch `autograd` cross-checks, plus a forward-vs-reverse-mode benchmark showing reverse mode's $d$-fold speed-up on deep stacks.
 
 ### [Ch.7 — Probability & Statistics](./ch07-probability-statistics/README.md)
@@ -66,27 +66,9 @@ This thread was picked deliberately — projectile motion is the problem that *f
 
 ## Historical and chronological evolution
 
-Reading the mathematics in the order it was *discovered* makes it stick. Every concept below solved a problem that had no prior answer — understanding *which* problem is half the intuition.
+Reading the mathematics in the order it was *discovered* makes it stick. Every concept below solved a problem that had no prior answer — understanding *which* problem is half the intuition. **The detailed timeline now lives in each chapter's own prelude** — every chapter opens with a *"The story"* blockquote that names the mathematicians, dates, and problems behind the idea.
 
-| Year(s) | Mathematician | Contribution | Ties to |
-|---|---|---|---|
-| c. 300 BCE | **Euclid** | *Elements* — first axiomatic geometry; lines and planes defined precisely. The word *linear* descends from here. | Ch.1 |
-| c. 250 BCE | **Archimedes** | Method of Exhaustion — areas and volumes of curved shapes by squeezing polygons. Intellectual ancestor of the integral. | Ch.3 |
-| c. 820 | **al-Khwārizmī** | *al-Kitāb al-mukhtaṣar fī ḥisāb al-jabr wa-l-muqābala* — the word *algebra* and the first systematic treatment of linear and quadratic equations. | Ch.1, Ch.2 |
-| 1630s | **Descartes, Fermat** | Coordinate geometry — equations become curves, curves become equations. Polynomials gain a geometric meaning. | Ch.2 |
-| 1665–1687 | **Newton** | Fluxions; *Principia Mathematica* — projectile motion and planetary orbits solved with the first calculus. | Ch.3, Ch.4 |
-| 1675–1684 | **Leibniz** | Independent invention of differential and integral calculus. The notation $dy/dx$ and $\int$ we still use is his. | Ch.3 |
-| 1750s | **Euler, Lagrange** | Calculus of variations — derivatives of *functionals*. Multivariable calculus matures. | Ch.4, Ch.6 |
-| 1800s | **Cauchy, Weierstrass, Riemann** | Limits made rigorous; Riemann integral; the modern $\varepsilon$–$\delta$ definitions. | Ch.3 |
-| 1847 | **Cauchy** | Method of steepest descent — iterative minimisation by following the gradient. | Ch.4, Ch.6 |
-| 1850s–1900s | **Cayley, Sylvester** | Matrix algebra established as an object of study with its own laws. | Ch.5 |
-| 1901 | **Karl Pearson** | Least-squares regression popularised; normal equations in routine use. | Ch.5 |
-| 1930s | **Kolmogorov** | Probability given its measure-theoretic foundation. | Ch.7 |
-| 1951 | **Kiefer, Wolfowitz** | Stochastic approximation — gradient descent with noisy gradients. | Ch.4, Ch.6 |
-| 1960s | **Householder, Wilkinson** | Numerical linear algebra — $X^\top X$ solved stably at scale. Modern BLAS is the direct descendant. | Ch.5 |
-| 1986 | **Rumelhart, Hinton, Williams** | Backpropagation — the matrix chain rule applied recursively. This is where the ML book picks up. | Ch.6 → ML Ch.5 |
-
-**Story arc.** Linear equations → curves → calculus that tames curves → matrices that pack many curves together → gradients that navigate them → probability that accepts the noise. Every step addresses a specific problem that had no satisfactory prior answer. Keep that arc in your head as you read.
+**Story arc in one paragraph.** Linear equations (al-Khwārizmī, c. 820) → curves (Descartes & Fermat, 1630s) → calculus that tames curves (Newton & Leibniz, 1665–1684) → matrices that pack many curves together (Cayley & Sylvester, 1850s) → gradients that navigate them (Cauchy, 1847; stochastic version Kiefer & Wolfowitz, 1951) → probability that accepts the noise (Kolmogorov, 1930s). The recursive matrix chain rule from Rumelhart, Hinton & Williams (1986) is where this Pre-Reqs book hands off to [ML Ch.5](../ML/ch05-backprop-optimisers/). Every step addresses a specific problem that had no satisfactory prior answer. Keep that arc in your head as you read.
 
 ---
 

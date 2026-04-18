@@ -1,22 +1,24 @@
 # Ch.2 — Non-Linear Algebra: Polynomials and the Feature-Expansion Trick
 
-> **Running theme.** Gravity bends the knuckleball's path. The full trajectory from boot to goal is a parabola, not a line. A straight line — the entire Ch.1 — is hopeless as a fit. And yet, the same linear-regression machinery can fit this parabola exactly. The reason is a single trick.
+> **The story.** Once Descartes and Fermat had pinned curves to equations in the 1630s, mathematicians spent the next two centuries discovering an awkward truth: most real-world phenomena — falling apples, planetary orbits, vibrating strings — are not lines. They are curves. The breakthrough was that you didn't need new mathematics for them; you just needed a *trick*. Treat the curve's shape as a sum of simpler pieces ($1, x, x^2, x^3, \dots$) and the linear machinery of Ch.1 still works — you just have more knobs to turn. That trick is what kept linear regression alive into the 20th century, and it is the same trick that kernel methods (Ch.11) and neural-network feature learning quietly rely on.
+>
+> **Where you are in the curriculum.** Ch.1 fit a straight line to the *very first* part of the free-kick trajectory. Now we admit gravity. The full trajectory from boot to goal is a parabola, not a line, and a straight line is hopeless as a fit — yet the same linear-regression machinery can fit this parabola exactly. Understanding *why* unlocks every later "non-linear" model in this curriculum, all the way up to deep networks.
+>
+> **Notation in this chapter.** $x$ — scalar input; $a_n,\dots,a_0$ — polynomial coefficients (the parameters we fit); $n$ — polynomial degree; $\phi(x)=[1,x,x^2,\dots,x^n]$ — basis expansion / *polynomial features* (the trick that makes a curve linear in the parameters); $\mathbf{w}$ — weight vector on the expanded features; $\hat{y}$ — prediction; $t$ — time since the boot leaves the ball; $y(t)=v_{0y}t-\tfrac{1}{2}gt^2$ — height of the free-kick parabola; $g\approx 9.81\,\text{m/s}^2$ — gravity.
 
 ---
 
 ## 1 · Core Idea
 
-$a\,x^2 + b\,x + c$ is **non-linear in the input $x$** — plot it and you get a curve. But it is **linear in the coefficients $a, b, c$** — adjust $a$, you get a scaled copy; adjust $c$, you shift. If we invent two new features
+$a x^2 + b x + c$ is **non-linear in the input $x$** — plot it and you get a curve. But it is **linear in the coefficients $a, b, c$** — adjust $a$, you get a scaled copy; adjust $c$, you shift. If we invent two new features
 
-$$x_1 \;=\; x^2 \qquad x_2 \;=\; x$$
+$$x_1 = x^2 \qquad x_2 = x$$
 
 then the equation becomes
 
-$$y \;=\; a\,x_1 + b\,x_2 + c$$
+$$y = a x_1 + b x_2 + c$$
 
 — which is exactly Ch.1's multi-feature linear model. One curve in one dimension has become one *flat plane* in two dimensions. That is **basis expansion** (or, in scikit-learn terminology, **polynomial features**), and it is how "linear" models fit curves.
-
-**Your original intuition was correct.** This chapter justifies it, extends it, and shows where its limits are.
 
 ---
 
@@ -24,7 +26,7 @@ $$y \;=\; a\,x_1 + b\,x_2 + c$$
 
 A direct knuckleball free kick from 20 m, with the goal's crossbar at 2.44 m and a defensive wall at 9.15 m. The ball is struck at 25 m/s and released at 15° above horizontal. The full trajectory is
 
-$$y(t) \;=\; v_{0y}\,t \,-\, \tfrac{1}{2}\,g\,t^2$$
+$$y(t) = v_{0y} t - \tfrac{1}{2} g t^2$$
 
 Ch.1 gave us the straight-line approximation valid only for the first 0.1 s. Now we want the whole arc — rise, apex over the wall, and the late dip that drops the ball under the crossbar.
 
@@ -36,7 +38,7 @@ Ch.1 gave us the straight-line approximation valid only for the first 0.1 s. Now
 
 A polynomial in one variable:
 
-$$p(x) \;=\; a_n\,x^n + a_{n-1}\,x^{n-1} + \cdots + a_1\,x + a_0$$
+$$p(x) = a_n x^n + a_{n-1} x^{n-1} + \cdots + a_1 x + a_0$$
 
 | Degree | Shape | Example in the running story |
 |---|---|---|
@@ -52,14 +54,14 @@ $$p(x) \;=\; a_n\,x^n + a_{n-1}\,x^{n-1} + \cdots + a_1\,x + a_0$$
 
 Compare two statements:
 
-$$(\star)\quad y = 3\,x^2 - 2\,x + 1 \qquad (\text{non-linear in } x)$$
-$$(\dagger)\quad y = 3\,x_1 - 2\,x_2 + 1 \quad \text{where } x_1 = x^2,\, x_2 = x \qquad (\text{linear in } x_1, x_2)$$
+$$(\star)\quad y = 3 x^2 - 2 x + 1 \qquad (\text{non-linear in } x)$$
+$$(\dagger)\quad y = 3 x_1 - 2 x_2 + 1 \quad \text{where } x_1 = x^2, x_2 = x \qquad (\text{linear in } x_1, x_2)$$
 
 Both equations produce identical $y$ for every $x$. They are the same curve, written differently. And equation $(\dagger)$ is in Ch.1's form $\hat{y} = \mathbf{w}\cdot\mathbf{x} + b$, with $\mathbf{w} = [3, -2]$ and $b = 1$.
 
 **The trick generalises.** For any polynomial of degree $n$:
 
-$$\hat{y} \;=\; a_n\,x_n + a_{n-1}\,x_{n-1} + \cdots + a_1\,x_1 + a_0 \quad \text{where } x_k = x^k$$
+$$\hat{y} = a_n x_n + a_{n-1} x_{n-1} + \cdots + a_1 x_1 + a_0 \quad \text{where } x_k = x^k$$
 
 You just *engineered* new features. Linear regression fits $a_0, a_1, \ldots, a_n$ in closed form (Ch.5 will show how). No curve-fitting routine needed.
 
@@ -83,7 +85,7 @@ Feature expansion turns *input* non-linearity into linear fitting. It does **not
 
 **Genuinely non-linear in parameters:**
 
-$$y \;=\; a \cdot e^{b\,x}$$
+$$y = a \cdot e^{b x}$$
 
 Here $b$ sits inside an exponent. No feature substitution turns this into a linear-in-$(a,b)$ model. You need iterative optimisation (Pre-Req Ch.4) — and when the parameter surface is large and non-convex, you need neural networks (ML Ch.4 onwards). That is the reason the ML book exists.
 
@@ -91,7 +93,7 @@ Here $b$ sits inside an exponent. No feature substitution turns this into a line
 
 With two inputs $x$ and $z$, a degree-2 polynomial includes all terms up to total degree 2:
 
-$$y \;=\; a_0 + a_1 x + a_2 z + a_3 x^2 + a_4 x z + a_5 z^2$$
+$$y = a_0 + a_1 x + a_2 z + a_3 x^2 + a_4 x z + a_5 z^2$$
 
 The $x z$ term is an **interaction** — it captures "the effect of $x$ *depends on* $z$". Every new interaction is a new column in the feature matrix; the linear machinery is unchanged.
 
@@ -103,8 +105,8 @@ The $x z$ term is an **interaction** — it captures "the effect of $x$ *depends
 
 1. Record $(t_i, y_i)$ samples along the trajectory.
 2. **Engineer features.** For each sample, produce $\mathbf{x}_i = [t_i, t_i^2]$.
-3. **Fit linearly.** Solve $\hat{y} = w_1\,t + w_2\,t^2 + b$ using any least-squares routine (`np.polyfit`, `sklearn.LinearRegression`, or the normal equations in Ch.5).
-4. **Read off physics.** If the model is $y(t) = v_{0y}\,t - \tfrac{1}{2}g\,t^2$, then the fitted $w_1$ recovers $v_{0y}$ and $w_2$ recovers $-\tfrac{1}{2}g \approx -4.905$.
+3. **Fit linearly.** Solve $\hat{y} = w_1 t + w_2 t^2 + b$ using any least-squares routine (`np.polyfit`, `sklearn.LinearRegression`, or the normal equations in Ch.5).
+4. **Read off physics.** If the model is $y(t) = v_{0y} t - \tfrac{1}{2}g t^2$, then the fitted $w_1$ recovers $v_{0y}$ and $w_2$ recovers $-\tfrac{1}{2}g \approx -4.905$.
 5. **Predict.** Plug any new $t$ into the polynomial to get the ball's height.
 
 The whole recipe is one feature-engineering line away from Ch.1.
@@ -131,20 +133,20 @@ from sklearn.preprocessing import PolynomialFeatures
 v0, theta, g = 25.0, np.radians(15), 9.81
 v0y = v0 * np.sin(theta)
 t = np.linspace(0, 1.0, 30)
-y = v0y * t - 0.5 * g * t ** 2                      # true curve
-y_noisy = y + np.random.normal(0, 0.03, t.shape)     # measurement noise
+y = v0y * t - 0.5 * g * t ** 2 # true curve
+y_noisy = y + np.random.normal(0, 0.03, t.shape) # measurement noise
 
 # --- engineer features: [t, t^2] ---
 poly = PolynomialFeatures(degree=2, include_bias=False)
-T = poly.fit_transform(t.reshape(-1, 1))             # shape (N, 2)
+T = poly.fit_transform(t.reshape(-1, 1)) # shape (N, 2)
 
 # --- fit linearly on those features ---
 model = LinearRegression().fit(T, y_noisy)
 w1, w2 = model.coef_
 b = model.intercept_
-print(f"fitted w1 (~v0y)        : {w1:+.3f}     (true: {v0y:+.3f})")
+print(f"fitted w1 (~v0y) : {w1:+.3f} (true: {v0y:+.3f})")
 print(f"fitted w2 (~-g/2 = -4.905): {w2:+.3f}")
-print(f"fitted b  (~h0 = 0)     : {b:+.3f}")
+print(f"fitted b (~h0 = 0) : {b:+.3f}")
 ```
 
 ---
@@ -164,7 +166,7 @@ print(f"fitted b  (~h0 = 0)     : {b:+.3f}")
 1. Write $y = 2(x+1)^2 - 3$ in the standard form $y = a x^2 + b x + c$. What are $a, b, c$?
 2. Apply the feature-expansion trick to $y = 5 x^3 - 2 x$. What are $x_1, x_2, x_3$ and what are the weights $w_1, w_2, w_3$?
 3. Can you turn $y = a \sin(x) + b \cos(x)$ into a linear-in-parameters model via feature expansion? What are the features? (Answer: yes, $\phi_1 = \sin(x), \phi_2 = \cos(x)$ — it's called a *Fourier basis*.)
-4. What about $y = \sin(a\,x)$? Can you do it? Why or why not? (Answer: no — $a$ is inside the $\sin$; the model is genuinely non-linear in $a$.)
+4. What about $y = \sin(a x)$? Can you do it? Why or why not? (Answer: no — $a$ is inside the $\sin$; the model is genuinely non-linear in $a$.)
 5. For the free-kick simulation in the notebook, fit a degree-5 polynomial to the 30-sample trajectory and plot the residuals. Where does the fit behave badly?
 
 ---

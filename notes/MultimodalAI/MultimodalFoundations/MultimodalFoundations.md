@@ -1,6 +1,8 @@
 # Multimodal Foundations — How Raw Signals Become Tensors
 
-> **After reading this note** you will understand how images, audio, and video are represented as numerical tensors; why modalities cannot be naively mixed in a single model; and why every subsequent chapter in this track begins with "project the signal into a shared embedding space."
+> **The story.** Long before LLMs, *multimodal* meant signal-processing engineers wrestling with how to put pixels and audio into the same model — **Bengio et al.'s** 2013 *Representation Learning* survey was the first systematic treatment, and **Ngiam et al.** (2011) trained the first joint audio–video deep autoencoders. The breakthrough that defines this entire track was **CLIP** (OpenAI, **2021**), which proved that paired text–image data, projected into a shared embedding space, was enough to align modalities without manual labels. **DALL·E** (Jan 2021), **Imagen** (May 2022), and **Stable Diffusion** (Aug 2022) followed in twelve months. **GPT-4V** (Sep 2023) and **Gemini 1.5** (2024) folded vision back into language models. By 2025, *multimodal* is no longer a research speciality — it is the default. Every story in the chapters that follow assumes you can convert a JPEG, an MP3, or a video clip into a tensor, and that two such tensors can live in the same vector space. This chapter teaches that.
+>
+> **Where you are in the curriculum.** This is the foundation chapter for the entire multimodal track. You will learn how images, audio, and video are represented as numerical tensors; why modalities cannot be naively mixed in a single model; and why every subsequent chapter — [VisionTransformers](../VisionTransformers/), [CLIP](../CLIP/), [Diffusion](../DiffusionModels/) and beyond — begins with "project the signal into a shared embedding space." The running scenario is **PixelSmith**, a local AI-powered creative studio that must run on a stock developer laptop.
 
 ---
 

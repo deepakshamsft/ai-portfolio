@@ -1,6 +1,8 @@
 # Text-to-Video — Adding the Temporal Dimension
 
-> After reading this you will understand why video generation is harder than image generation, how models enforce temporal consistency, and the current landscape of T2V architectures (AnimateDiff, Sora, CogVideo).
+> **The story.** Early text-to-video looked like wobbly GIFs — **Make-A-Video** (Meta, September 2022) and **Imagen Video** (Google, October 2022) were impressive *demonstrations* but produced 1–4 second clips with visible flicker. The first community-usable model was **AnimateDiff** (Guo et al., July **2023**), which inserted plug-in motion modules into existing Stable Diffusion checkpoints — video for free, on a consumer GPU. **Stable Video Diffusion** (Stability AI, November 2023) shipped the first open foundational video model. The watershed was **OpenAI Sora** (**February 2024**) — a transformer-based diffusion model trained on "spacetime patches" that produced 60-second high-fidelity clips and reset everyone's expectations of what was possible. **Runway Gen-3** (June 2024), **Luma Dream Machine** (June 2024), **Kling** (Kuaishou, June 2024), and **Pika 1.5** followed in months. The 2026 landscape is a market of foundation video models with steadily rising clip lengths and physics-awareness.
+>
+> **Where you are in the curriculum.** Video is a sequence of frames — a tensor of shape $(T, C, H, W)$. The three new challenges beyond image generation are temporal consistency, exploded compute cost, and motion-quality evaluation. This chapter explains how models enforce temporal coherence (temporal attention, motion modules, spacetime patches) and surveys the architecture choices behind AnimateDiff, Sora, and CogVideo.
 
 ## 1 · Core Idea
 
@@ -39,7 +41,7 @@ $$\mathbf{F}_{hw} \in \mathbb{R}^{T \times d}$$
 
 Run self-attention over the $T$-length sequence:
 
-$$\text{TempAttn}(\mathbf{F}_{hw}) = \text{softmax}\!\left(\frac{\mathbf{F}_{hw}\mathbf{W}_Q (\mathbf{F}_{hw}\mathbf{W}_K)^\top}{\sqrt{d}}\right)\mathbf{F}_{hw}\mathbf{W}_V$$
+$$\text{TempAttn}(\mathbf{F}_{hw}) = \text{softmax} \left(\frac{\mathbf{F}_{hw}\mathbf{W}_Q (\mathbf{F}_{hw}\mathbf{W}_K)^\top}{\sqrt{d}}\right)\mathbf{F}_{hw}\mathbf{W}_V$$
 
 This lets pixel $(h, w)$ at frame $t$ attend to the same pixel location at all other frames — enforcing coherence.
 
@@ -55,7 +57,7 @@ then initialise the temporal kernel weight to be an identity (all frames equal),
 
 The noise process extends naturally:
 
-$$q(x_t^{1:T} | x_0^{1:T}) = \prod_{frame=1}^{T} \mathcal{N}(\sqrt{\bar{\alpha}_t} x_0^{frame},\, (1-\bar{\alpha}_t)\mathbf{I})$$
+$$q(x_t^{1:T} | x_0^{1:T}) = \prod_{frame=1}^{T} \mathcal{N}(\sqrt{\bar{\alpha}_t} x_0^{frame}, (1-\bar{\alpha}_t)\mathbf{I})$$
 
 Noise is added independently per frame, but the denoiser must learn to share information across frames (via temporal attention).
 
@@ -105,28 +107,28 @@ Generating 16 frames at 512×512 per step costs 16× an image. Optimisations:
 ```
 How temporal attention connects frames:
 
-  Frame 1:  [f1_patch_1, f1_patch_2, ..., f1_patch_N]   ← spatial attention (within frame)
-  Frame 2:  [f2_patch_1, f2_patch_2, ..., f2_patch_N]
-  ...
-  Frame T:  [fT_patch_1, fT_patch_2, ..., fT_patch_N]
+ Frame 1: [f1_patch_1, f1_patch_2, ..., f1_patch_N] ← spatial attention (within frame)
+ Frame 2: [f2_patch_1, f2_patch_2, ..., f2_patch_N]
+ ...
+ Frame T: [fT_patch_1, fT_patch_2, ..., fT_patch_N]
 
-  Temporal attention at patch position i:
-    [f1_patch_i, f2_patch_i, ..., fT_patch_i]  ← attend across T frames
-                      ↕ (each frame attends to all others at this position)
+ Temporal attention at patch position i:
+ [f1_patch_i, f2_patch_i, ..., fT_patch_i] ← attend across T frames
+ ↕ (each frame attends to all others at this position)
 
-  Result: patch_i in frame 3 knows what patch_i in frames 1,2,4..T looks like.
-  → objects stay in place; motion is smooth.
+ Result: patch_i in frame 3 knows what patch_i in frames 1,2,4..T looks like.
+ → objects stay in place; motion is smooth.
 
 
 SD → AnimateDiff extension:
 
-  [Spatial ResBlock] → [Spatial Self-Attn] → [Temporal Attn ← NEW] → [Cross-Attn (text)]
-  [Spatial ResBlock] → [Spatial Self-Attn] → [Temporal Attn ← NEW] → [Cross-Attn (text)]
-  ...
+ [Spatial ResBlock] → [Spatial Self-Attn] → [Temporal Attn ← NEW] → [Cross-Attn (text)]
+ [Spatial ResBlock] → [Spatial Self-Attn] → [Temporal Attn ← NEW] → [Cross-Attn (text)]
+ ...
 
-  Spatial layers: frozen (from SD 1.5)
-  Temporal layers: trained on video dataset
-  Text conditioning: unchanged (same CLIP encoder)
+ Spatial layers: frozen (from SD 1.5)
+ Temporal layers: trained on video dataset
+ Text conditioning: unchanged (same CLIP encoder)
 ```
 
 ## 6 · What Changes at Scale

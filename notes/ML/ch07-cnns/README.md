@@ -1,6 +1,10 @@
 # Ch.7 — CNNs
 
-> **Running theme:** The real estate platform now wants to classify **property condition** from synthetic aerial-view image grids — tidy vs distressed neighbourhoods. Dense networks (Ch.4–6) treat each pixel independently and have no notion of spatial neighbourhoods. A CNN shares learned filters across the entire image, cutting parameters by orders of magnitude while learning local patterns like edges, textures, and shapes.
+> **The story.** In **1959** the neurophysiologists **David Hubel** and **Torsten Wiesel** stuck electrodes into a cat's visual cortex and discovered that individual neurons fire in response to *small, local, oriented features* — edges and bars at specific positions. The discovery won them the 1981 Nobel Prize and quietly defined the architecture of every modern computer-vision model. **Kunihiko Fukushima's Neocognitron** (1980) was the first artificial network built on the Hubel–Wiesel principle. **Yann LeCun's LeNet-5** (1989, productionised at AT&T for cheque reading) added backpropagation. The dam broke in **2012** when **AlexNet** (Krizhevsky, Sutskever, Hinton) trained on two consumer GPUs and crushed ImageNet by 11 percentage points — the moment deep learning went mainstream. **ResNet** (He et al., 2015) added residual connections, broke the 100-layer barrier, and has been the backbone shape of vision models ever since.
+>
+> **Where you are in the curriculum.** Dense networks ([Ch.4](../ch04-neural-networks/)–[Ch.6](../ch06-regularisation/)) treat each pixel independently and have no notion of spatial neighbourhoods — they are the wrong tool for images. The platform now wants to classify **property condition** from synthetic aerial-view image grids — tidy vs distressed neighbourhoods. A CNN shares learned filters across the entire image, cutting parameters by orders of magnitude while learning local patterns like edges, textures, and shapes — the exact thing Hubel and Wiesel saw in the cat.
+>
+> **Notation in this chapter.** $X\in\mathbb{R}^{C\times H\times W}$ — input image (channels × height × width); $K\in\mathbb{R}^{C\times f\times f}$ — a learned **kernel / filter** of side $f$; $X*K$ — the **convolution** operation (slide $K$ over $X$ and sum elementwise products); $s$ — stride (how many pixels the kernel jumps each step); $p$ — padding (zeros added around the border); $C_{\text{in}},C_{\text{out}}$ — input/output channel counts of a layer; output spatial size $=\lfloor(H+2p-f)/s\rfloor+1$; $\text{maxpool}_k(\cdot)$ — a $k\times k$ max-pooling operation that downsamples spatially.
 
 ---
 
@@ -12,11 +16,11 @@ A **Convolutional Neural Network** replaces the dense matrix multiply with a **s
 - **Locality:** nearby pixels are more informative about each other than distant ones.
 
 ```
-Dense layer:    each of the 512×512 = 262,144 pixels connects to every neuron
-                → millions of weights per layer, no spatial bias
+Dense layer: each of the 512×512 = 262,144 pixels connects to every neuron
+ → millions of weights per layer, no spatial bias
 
-Conv layer:     a 3×3 filter has only 9 weights;
-                it slides across all positions → same features detected everywhere
+Conv layer: a 3×3 filter has only 9 weights;
+ it slides across all positions → same features detected everywhere
 ```
 
 ---
@@ -35,7 +39,7 @@ This keeps the notebook runnable without downloading a large image dataset, whil
 
 For an input feature map $\mathbf{X} \in \mathbb{R}^{H \times W}$ and a kernel $\mathbf{K} \in \mathbb{R}^{k \times k}$:
 
-$$(\mathbf{X} * \mathbf{K})_{i,j} = \sum_{u=0}^{k-1} \sum_{v=0}^{k-1} \mathbf{X}_{i+u,\, j+v} \cdot \mathbf{K}_{u,v}$$
+$$(\mathbf{X} * \mathbf{K})_{i,j} = \sum_{u=0}^{k-1} \sum_{v=0}^{k-1} \mathbf{X}_{i+u, j+v} \cdot \mathbf{K}_{u,v}$$
 
 Output size with padding $p$ and stride $s$:
 
@@ -59,7 +63,7 @@ where $C_\text{in}$ is input channels and $C_\text{out}$ is the number of filter
 
 **Max pooling** — take the maximum value in each $p \times p$ non-overlapping window:
 
-$$(\text{MaxPool}(\mathbf{X}))_{i,j} = \max_{u,v \in [0,p)} \mathbf{X}_{i \cdot p + u,\, j \cdot p + v}$$
+$$(\text{MaxPool}(\mathbf{X}))_{i,j} = \max_{u,v \in [0,p)} \mathbf{X}_{i \cdot p + u, j \cdot p + v}$$
 
 **Average pooling** — take the mean instead of max. Global Average Pooling (GAP) averages the entire feature map to a single value per channel — often used before the final classifier.
 
@@ -107,48 +111,48 @@ This hierarchy emerges from backprop — not designed by hand.
 ### Convolution: filter sliding across input
 
 ```
-Input (5×5):        Filter (3×3):       Output (3×3):
-┌─────────────┐     ┌───────┐           ┌─────────┐
-│ 1  2  3  0  1│    │1  0  1│           │?  ?  ? │
-│ 4  5  6  1  0│    │0  1  0│    →      │?  ?  ? │
-│ 7  8  9  2  1│    │1  0  1│           │?  ?  ? │
-│ 2  1  3  4  0│    └───────┘           └─────────┘
-│ 0  1  2  1  3│
+Input (5×5): Filter (3×3): Output (3×3):
+┌─────────────┐ ┌───────┐ ┌─────────┐
+│ 1 2 3 0 1│ │1 0 1│ │? ? ? │
+│ 4 5 6 1 0│ │0 1 0│ → │? ? ? │
+│ 7 8 9 2 1│ │1 0 1│ │? ? ? │
+│ 2 1 3 4 0│ └───────┘ └─────────┘
+│ 0 1 2 1 3│
 └─────────────┘
-              ↑ filter slides 1 step at a time (stride=1, no padding)
-              output[0,0] = 1·1 + 2·0 + 3·1 + 4·0 + 5·1 + 6·0 + 7·1 + 8·0 + 9·1 = 25
+ ↑ filter slides 1 step at a time (stride=1, no padding)
+ output[0,0] = 1·1 + 2·0 + 3·1 + 4·0 + 5·1 + 6·0 + 7·1 + 8·0 + 9·1 = 25
 ```
 
 ### CNN architecture (property condition classifier)
 
 ```mermaid
 graph LR
-    A["Input\n1×8×8\n(greyscale grid)"] --> B["Conv2D(8, 3×3)\nReLU\n8×6×6"]
-    B --> C["MaxPool2D(2×2)\n8×3×3"]
-    C --> D["Conv2D(16, 3×3)\nReLU\n16×1×1"]
-    D --> E["Flatten\n16"]
-    E --> F["Dense(32)\nReLU"]
-    F --> G["Dense(1)\nSigmoid\n(tidy vs distressed)"]
+ A["Input\n1×8×8\n(greyscale grid)"] --> B["Conv2D(8, 3×3)\nReLU\n8×6×6"]
+ B --> C["MaxPool2D(2×2)\n8×3×3"]
+ C --> D["Conv2D(16, 3×3)\nReLU\n16×1×1"]
+ D --> E["Flatten\n16"]
+ E --> F["Dense(32)\nReLU"]
+ F --> G["Dense(1)\nSigmoid\n(tidy vs distressed)"]
 ```
 
 ### Feature hierarchy
 
 ```mermaid
 graph TD
-    P1["Pixel values\n(raw brightness)"] --> F1["Layer 1 filters\n(edge detectors)"]
-    F1 --> F2["Layer 2 filters\n(corner / texture detectors)"]
-    F2 --> F3["Layer 3 filters\n(building part detectors)"]
-    F3 --> CL["Classifier\n(tidy vs distressed)"]
+ P1["Pixel values\n(raw brightness)"] --> F1["Layer 1 filters\n(edge detectors)"]
+ F1 --> F2["Layer 2 filters\n(corner / texture detectors)"]
+ F2 --> F3["Layer 3 filters\n(building part detectors)"]
+ F3 --> CL["Classifier\n(tidy vs distressed)"]
 ```
 
 ### Parameter count: Dense vs CNN
 
 ```
 Dense on 8×8 input → 128 hidden units:
-    64 × 128 + 128 = 8,320 parameters (first layer alone)
+ 64 × 128 + 128 = 8,320 parameters (first layer alone)
 
 CNN: 3×3 filter, 8 filters (one conv block):
-    (3×3×1 + 1) × 8 = 80 parameters (entire first layer)
+ (3×3×1 + 1) × 8 = 80 parameters (entire first layer)
 ```
 
 ---
@@ -175,56 +179,56 @@ from sklearn.datasets import fetch_california_housing
 
 # ---- Synthetic image generator for housing scenario ----
 def make_neighbourhood_grids(n_samples=2000, grid_size=8, seed=42):
-    """Create synthetic 8×8 greyscale neighbourhood grids.
-    Tidy (label=0): high mean brightness, low variance.
-    Distressed (label=1): low mean brightness, high variance (patchy).
-    """
-    rng = np.random.default_rng(seed)
-    X, y = [], []
-    for _ in range(n_samples // 2):
-        # Tidy: bright, low noise
-        X.append(rng.normal(0.75, 0.1, (1, grid_size, grid_size)).clip(0, 1))
-        y.append(0)
-        # Distressed: darker, high noise
-        X.append(rng.normal(0.35, 0.3, (1, grid_size, grid_size)).clip(0, 1))
-        y.append(1)
-    return np.array(X, dtype=np.float32), np.array(y, dtype=np.int32)
+ """Create synthetic 8×8 greyscale neighbourhood grids.
+ Tidy (label=0): high mean brightness, low variance.
+ Distressed (label=1): low mean brightness, high variance (patchy).
+ """
+ rng = np.random.default_rng(seed)
+ X, y = [], []
+ for _ in range(n_samples // 2):
+ # Tidy: bright, low noise
+ X.append(rng.normal(0.75, 0.1, (1, grid_size, grid_size)).clip(0, 1))
+ y.append(0)
+ # Distressed: darker, high noise
+ X.append(rng.normal(0.35, 0.3, (1, grid_size, grid_size)).clip(0, 1))
+ y.append(1)
+ return np.array(X, dtype=np.float32), np.array(y, dtype=np.int32)
 
 X_img, y_img = make_neighbourhood_grids()
-print(f"X: {X_img.shape}  y: {y_img.shape}  classes: {np.unique(y_img)}")
+print(f"X: {X_img.shape} y: {y_img.shape} classes: {np.unique(y_img)}")
 
 # ---- Manual 2D convolution (NumPy) ----
 def conv2d(x, kernel, stride=1, padding=0):
-    """Single-channel 2D cross-correlation.
-    x:      (H, W)  input
-    kernel: (k, k)  filter
-    Returns (H_out, W_out) output.
-    """
-    H, W = x.shape
-    k = kernel.shape[0]
-    if padding:
-        x = np.pad(x, padding, mode='constant')
-        H, W = x.shape
-    H_out = (H - k) // stride + 1
-    W_out = (W - k) // stride + 1
-    out = np.zeros((H_out, W_out))
-    for i in range(0, H_out):
-        for j in range(0, W_out):
-            out[i, j] = (x[i*stride:i*stride+k, j*stride:j*stride+k] * kernel).sum()
-    return out
+ """Single-channel 2D cross-correlation.
+ x: (H, W) input
+ kernel: (k, k) filter
+ Returns (H_out, W_out) output.
+ """
+ H, W = x.shape
+ k = kernel.shape[0]
+ if padding:
+ x = np.pad(x, padding, mode='constant')
+ H, W = x.shape
+ H_out = (H - k) // stride + 1
+ W_out = (W - k) // stride + 1
+ out = np.zeros((H_out, W_out))
+ for i in range(0, H_out):
+ for j in range(0, W_out):
+ out[i, j] = (x[i*stride:i*stride+k, j*stride:j*stride+k] * kernel).sum()
+ return out
 
 # ---- Keras model (requires tensorflow) ----
 # from tensorflow import keras
 # from tensorflow.keras import layers
 #
 # model = keras.Sequential([
-#     layers.Input(shape=(1, 8, 8)),
-#     layers.Conv2D(8,  3, activation='relu', data_format='channels_first', padding='valid'),
-#     layers.MaxPooling2D(2, data_format='channels_first'),
-#     layers.Conv2D(16, 3, activation='relu', data_format='channels_first', padding='valid'),
-#     layers.Flatten(),
-#     layers.Dense(32, activation='relu'),
-#     layers.Dense(1, activation='sigmoid'),
+# layers.Input(shape=(1, 8, 8)),
+# layers.Conv2D(8, 3, activation='relu', data_format='channels_first', padding='valid'),
+# layers.MaxPooling2D(2, data_format='channels_first'),
+# layers.Conv2D(16, 3, activation='relu', data_format='channels_first', padding='valid'),
+# layers.Flatten(),
+# layers.Dense(32, activation='relu'),
+# layers.Dense(1, activation='sigmoid'),
 # ])
 # model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 # model.summary()

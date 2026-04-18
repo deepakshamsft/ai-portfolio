@@ -2,7 +2,11 @@
 
 ![Bernoulli/Binomial/Gaussian, CLT histogram, and MLE likelihood surface](./img/ch07-probability-mle.png)
 
-> **Running theme.** Up to Ch.6 we pretended a knuckleball free kick was deterministic: same angle, same speed, same outcome. Reality is noisier. Muscle fatigue, boot-on-ball contact variance, a divot under the ball, micro gusts of wind — every outcome is a *draw* from a distribution. Ch.7 gives us the language to (a) describe those distributions, (b) summarise them with expectations and variances, (c) estimate their parameters from data, and (d) discover why *mean-squared error is not a design choice — it's what Gaussian noise asks for*.
+> **The story.** Probability began in 1654 as a letter exchange between **Pascal** and **Fermat** about a gambler's dice problem; **Jacob Bernoulli** turned it into a science with *Ars Conjectandi* (1713), and **Laplace** (1812) gave it the language of distributions and expectations. **Gauss** (1809) introduced the normal distribution while reconciling astronomical observations and — crucially for us — proved that least-squares regression is the right answer when noise is Gaussian. **R. A. Fisher** (1922) then formalised **maximum likelihood estimation**, which is *the* reason we use mean-squared error for regression and cross-entropy for classification. Finally **Kolmogorov** (1933) put the whole field on a measure-theoretic foundation. Every loss function in this curriculum is, secretly, a likelihood from this chapter.
+>
+> **Where you are in the curriculum.** Up to Ch.6 we pretended a knuckleball free kick was deterministic: same angle, same speed, same outcome. Reality is noisier — muscle fatigue, boot-on-ball contact variance, a divot under the ball, micro gusts of wind. Every outcome is a *draw* from a distribution. This is the chapter that gives you the language to (a) describe those distributions, (b) summarise them with expectations and variances, (c) estimate their parameters from data, and (d) discover why **MSE is not a design choice — it is what Gaussian noise asks for**. ML Ch.15 will pull this idea apart in detail.
+>
+> **Notation in this chapter.** $P(A)$ — probability of event $A$; $X$ — a random variable; $p(x)$ — probability density (continuous) or mass (discrete); $\mathbb{E}[X]$ — expectation (mean); $\text{Var}(X)=\sigma^2$ — variance; $\sigma$ — standard deviation; $\mu$ — distribution mean; $\mathcal{N}(\mu,\sigma^2)$ — Gaussian (normal) distribution with mean $\mu$ and variance $\sigma^2$; $\boldsymbol{\theta}$ — parameter vector of a probabilistic model; $p(y\mid\boldsymbol{\theta})$ — conditional density of $y$ given parameters; $\mathcal{L}(\boldsymbol{\theta})=\prod_i p(y_i\mid\boldsymbol{\theta})$ — **likelihood**; $\hat{\boldsymbol{\theta}}=\arg\max_{\boldsymbol{\theta}}\log\mathcal{L}$ — **maximum-likelihood estimate (MLE)**; $\varepsilon_i$ — a noise term.
 
 ---
 
@@ -53,8 +57,8 @@ Many others matter (Poisson for counts, Exponential for waiting times, Dirichlet
 
 The **expectation** is the probability-weighted average:
 
-- Discrete: $\mathbb{E}[X] = \sum_x x\, p(x)$.
-- Continuous: $\mathbb{E}[X] = \int x\, p(x)\,dx$.
+- Discrete: $\mathbb{E}[X] = \sum_x x p(x)$.
+- Continuous: $\mathbb{E}[X] = \int x p(x) dx$.
 
 **Linearity** is the workhorse property: $\mathbb{E}[aX + bY + c] = a\mathbb{E}[X] + b\mathbb{E}[Y] + c$, independence not required.
 
@@ -71,15 +75,15 @@ Two results we'll lean on:
 
 **Statement.** Let $X_1, \dots, X_n$ be i.i.d. with finite mean $\mu$ and finite variance $\sigma^2$. Let $\bar X_n = \tfrac{1}{n}\sum X_i$. Then
 
-$$\sqrt{n}\,(\bar X_n - \mu) \;\xrightarrow{d}\; \mathcal{N}(0, \sigma^2) \quad \text{as } n \to \infty.$$
+$$\sqrt{n} (\bar X_n - \mu) \xrightarrow{d} \mathcal{N}(0, \sigma^2) \quad \text{as } n \to \infty.$$
 
-Equivalently, for large $n$: $\bar X_n \approx \mathcal{N}(\mu,\, \sigma^2/n)$.
+Equivalently, for large $n$: $\bar X_n \approx \mathcal{N}(\mu, \sigma^2/n)$.
 
 **Why you should care.** This is the reason Gaussians are everywhere:
 
 - Noise in a measurement is the sum of many small independent contributions — it looks Gaussian.
 - A batch-averaged stochastic gradient is Gaussian-ish around the true gradient, which is why SGD behaves predictably.
-- Confidence intervals $\hat\mu \pm 1.96\,\hat\sigma/\sqrt{n}$ use CLT as their authority.
+- Confidence intervals $\hat\mu \pm 1.96 \hat\sigma/\sqrt{n}$ use CLT as their authority.
 
 The middle panel of the hero image shows it viscerally: the *source* distribution is a skewed exponential, but the distribution of 10 000 sample means of size-50 batches is almost perfectly Gaussian.
 
@@ -89,11 +93,11 @@ The middle panel of the hero image shows it viscerally: the *source* distributio
 
 Given observations $\mathbf{y} = (y_1, \dots, y_N)$ drawn i.i.d. from a parametric model $p(y \mid \boldsymbol{\theta})$, the **likelihood** of $\boldsymbol{\theta}$ is
 
-$$\mathcal{L}(\boldsymbol{\theta}) \;=\; \prod_{i=1}^{N} p(y_i \mid \boldsymbol{\theta}).$$
+$$\mathcal{L}(\boldsymbol{\theta}) = \prod_{i=1}^{N} p(y_i \mid \boldsymbol{\theta}).$$
 
 The **MLE** is the $\hat{\boldsymbol{\theta}}$ maximising $\mathcal{L}$, equivalently minimising the **negative log-likelihood** (NLL):
 
-$$\hat{\boldsymbol{\theta}} \;=\; \arg\max_{\boldsymbol{\theta}}\; \log \mathcal{L}(\boldsymbol{\theta}) \;=\; \arg\min_{\boldsymbol{\theta}}\; -\sum_{i=1}^{N} \log p(y_i \mid \boldsymbol{\theta}).$$
+$$\hat{\boldsymbol{\theta}} = \arg\max_{\boldsymbol{\theta}} \log \mathcal{L}(\boldsymbol{\theta}) = \arg\min_{\boldsymbol{\theta}} -\sum_{i=1}^{N} \log p(y_i \mid \boldsymbol{\theta}).$$
 
 Logarithms turn products into sums (numerically stable) and stretch the likelihood axis (smoother gradient landscape). This is the **NLL** that you'll minimise with the Ch.4/Ch.6 tools.
 
@@ -101,13 +105,13 @@ Logarithms turn products into sums (numerically stable) and stretch the likeliho
 
 ## 7 · Headline Derivation — MLE with Gaussian Noise ⟹ MSE
 
-Regression setup: $y_i = f(\mathbf{x}_i; \boldsymbol{\theta}) + \varepsilon_i$ with $\varepsilon_i \sim \mathcal{N}(0, \sigma^2)$ i.i.d. Then $y_i \mid \mathbf{x}_i, \boldsymbol{\theta} \sim \mathcal{N}(f(\mathbf{x}_i;\boldsymbol{\theta}),\, \sigma^2)$ and
+Regression setup: $y_i = f(\mathbf{x}_i; \boldsymbol{\theta}) + \varepsilon_i$ with $\varepsilon_i \sim \mathcal{N}(0, \sigma^2)$ i.i.d. Then $y_i \mid \mathbf{x}_i, \boldsymbol{\theta} \sim \mathcal{N}(f(\mathbf{x}_i;\boldsymbol{\theta}), \sigma^2)$ and
 
-$$\log p(y_i \mid \boldsymbol{\theta}) \;=\; -\tfrac{1}{2}\log(2\pi\sigma^2) \;-\; \frac{(y_i - f(\mathbf{x}_i;\boldsymbol{\theta}))^2}{2\sigma^2}.$$
+$$\log p(y_i \mid \boldsymbol{\theta}) = -\tfrac{1}{2}\log(2\pi\sigma^2) - \frac{(y_i - f(\mathbf{x}_i;\boldsymbol{\theta}))^2}{2\sigma^2}.$$
 
 Summing over $i$ and dropping terms that don't depend on $\boldsymbol{\theta}$:
 
-$$-\log \mathcal{L}(\boldsymbol{\theta}) \;=\; \frac{1}{2\sigma^2}\,\sum_{i=1}^{N} (y_i - f(\mathbf{x}_i;\boldsymbol{\theta}))^2 \;+\; \text{const}.$$
+$$-\log \mathcal{L}(\boldsymbol{\theta}) = \frac{1}{2\sigma^2} \sum_{i=1}^{N} (y_i - f(\mathbf{x}_i;\boldsymbol{\theta}))^2 + \text{const}.$$
 
 Minimising NLL is therefore identical to minimising **sum of squared errors**. Mean-squared error wasn't a "nice convex choice" — it's a mathematical consequence of assuming Gaussian noise. Change the noise distribution and you change the loss:
 

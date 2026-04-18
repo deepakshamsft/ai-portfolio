@@ -1,4 +1,9 @@
 ﻿# ReAct, LangChain, and Semantic Kernel – Patterns and Frameworks for LLM-Based Agents
+
+> **The story.** **ReAct** ("Reason + Act") was published by **Shunyu Yao** and colleagues from Princeton + Google at **ICLR 2023** (the paper appeared on arXiv in October 2022) and was a top-5% paper at that conference. The insight was simple: interleave chain-of-thought reasoning with tool actions in a tight Thought → Action → Observation loop, and the LLM stops hallucinating tool outputs because it can *actually call* the tool. ReAct beat imitation-learning baselines by 34% on ALFWorld. The frameworks followed almost immediately: **Harrison Chase** open-sourced **LangChain** in **October 2022** and it became the default agent library by 2023; **Microsoft's Semantic Kernel** (open-sourced May 2023) brought the same idea to .NET with a stronger emphasis on plugins and telemetry; **LangGraph** (LangChain Inc., 2024) added explicit state machines for production-grade agent loops. Every "agent" you will deploy in 2026 — hosted Foundry agent, OpenAI Assistants, Anthropic Computer Use — is a ReAct-shaped loop in some configuration.
+>
+> **Where you are in the curriculum.** [CoTReasoning](../CoTReasoning/) gave you the reasoning half. This document gives you the *acting* half — how the LLM's structured output becomes a tool call, how the tool's response becomes the next observation, and how frameworks like LangChain and Semantic Kernel automate the loop. After this chapter you can build the kind of agent that powers the [PizzaBot](../AIPrimer.md), and you have the conceptual scaffolding for the entire [Multi-Agent track](../../MultiAgentAI/), where these single-agent loops compose into protocols.
+
 ***
 
 ## The Core Intuition: The LLM as Brain, the App as Body

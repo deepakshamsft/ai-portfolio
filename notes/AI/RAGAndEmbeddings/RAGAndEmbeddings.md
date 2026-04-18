@@ -1,4 +1,9 @@
 ﻿# End-to-End Guide to Embeddings in RAG Pipelines: From Ingestion to Query
+
+> **The story.** **Word2vec** (**Tomas Mikolov** and colleagues, Google, **2013**) was the moment text became vectors you could do arithmetic on — famously, *king − man + woman ≈ queen*. **GloVe** (Pennington, Socher, Manning, Stanford 2014) and **fastText** (Bojanowski et al., Facebook 2016) refined the recipe. **Sentence-BERT** (Reimers & Gurevych, 2019) lifted embeddings from words to whole sentences using a siamese transformer trained with contrastive loss — the foundation of every modern embedding model. **Retrieval-Augmented Generation** itself was named in a **2020** paper by **Patrick Lewis et al. at Facebook AI** — the architecture that staples a vector retriever in front of a generative LLM, letting the model cite documents instead of hallucinating from parametric memory. By 2023, **OpenAI's `text-embedding-ada-002`**, **Cohere's embed-v3**, and open-source models like **BGE** had made embedding-based retrieval the default architecture for any LLM application that touches private data.
+>
+> **Where you are in the curriculum.** This is the chapter where you learn what *exactly* gets stored in a vector index, how an embedding model decides two pieces of text are similar, and how a query is matched against millions of chunks. The next chapter — [VectorDBs](../VectorDBs/) — takes the index itself apart (HNSW, IVF, DiskANN). Together they are the foundation for everything else: agents that retrieve before they answer, evaluation pipelines that check grounding, and the entire RAG project under [`projects/ai/rag-pipeline`](../../../projects/ai/rag-pipeline/).
+
 ***
 
 ## 1. Embeddings Fundamentals: Transforming Data into Vectors

@@ -1,6 +1,10 @@
 # Ch.5 — Matrices, Linear Systems, and Matrix Calculus
 
-> **Running theme.** Real set-piece data doesn't have one variable — it has strike speed, launch angle, strike zone on the boot, wall distance, wall height, wind speed, wind direction, pitch wetness, kicker fatigue. Eight-plus variables, 500 recorded free kicks. Scalars collapse. We need **matrices**: compact containers for "apply the same linear rule to every sample in one shot."
+> **The story.** The matrix as a mathematical object was named by **James Joseph Sylvester in 1850** — from the Latin *matrix*, meaning "womb," because Sylvester saw it as a container giving birth to determinants. His friend **Arthur Cayley** then wrote the 1858 *Memoir on the Theory of Matrices* and gave matrices their algebra: addition, multiplication, the identity, the inverse. In 1901 Karl Pearson dragged matrices into statistics by writing least-squares regression in the now-familiar form $(X^\top X)^{-1} X^\top y$, and the rest of the 20th century was a numerical-analysis story: Householder, Wilkinson, and the LAPACK / BLAS lineage made $X^\top X$ solvable stably and at scale. Every modern deep-learning library — PyTorch, TensorFlow, JAX — sits on top of that BLAS pipeline.
+>
+> **Where you are in the curriculum.** Ch.1–Ch.4 worked with one variable at a time. Real set-piece data doesn't — it has strike speed, launch angle, strike zone on the boot, wall distance, wall height, wind speed, wind direction, pitch wetness, kicker fatigue. Eight-plus variables, 500 recorded free kicks. Scalars collapse. This chapter introduces **matrices**: compact containers for "apply the same linear rule to every sample in one shot," plus the matrix calculus rules you need before backprop in Ch.6.
+>
+> **Notation in this chapter.** $A,B$ — matrices (capital, bold-face in print); $\mathbf{x},\mathbf{y}$ — column vectors; $A_{ij}$ — the entry in row $i$, column $j$; $A\mathbf{x}$ — matrix-vector product; $AB$ — matrix-matrix product; $A^\top$ — transpose (rows and columns swapped); $A^{-1}$ — inverse (when it exists); $I$ — identity matrix; $X\in\mathbb{R}^{N\times d}$ — the **design matrix** (one row per free-kick sample, one column per feature); $\mathbf{w}\in\mathbb{R}^d$ — weight vector; $\hat{\mathbf{y}}=X\mathbf{w}+b\mathbf{1}$ — batched linear prediction.
 
 ---
 
@@ -32,17 +36,17 @@ A matrix is a rectangular block:
 
 $$A = \begin{bmatrix} a_{11} & a_{12} & \cdots & a_{1n} \\ a_{21} & a_{22} & \cdots & a_{2n} \\ \vdots & \vdots & \ddots & \vdots \\ a_{m1} & a_{m2} & \cdots & a_{mn} \end{bmatrix} \in \mathbb{R}^{m \times n}$$
 
-**Shapes first, values second.** While you're learning, stop after every operation and confirm the shape. $A\,B$ is legal only if $A$'s column count equals $B$'s row count; the result has $A$'s rows and $B$'s columns. Most student bugs are shape bugs in disguise.
+**Shapes first, values second.** While you're learning, stop after every operation and confirm the shape. $A B$ is legal only if $A$'s column count equals $B$'s row count; the result has $A$'s rows and $B$'s columns. Most student bugs are shape bugs in disguise.
 
 ### 3.2 · Matrix-vector product — three views of $A\mathbf{x}$
 
 **Row view (dot-products into a column).** Each entry of $A\mathbf{x}$ is the dot product of a row of $A$ with $\mathbf{x}$:
 
-$$(A\mathbf{x})_i \;=\; \sum_j a_{ij}\,x_j \;=\; \text{row}_i(A) \cdot \mathbf{x}$$
+$$(A\mathbf{x})_i = \sum_j a_{ij} x_j = \text{row}_i(A) \cdot \mathbf{x}$$
 
 **Column view (weighted sum of columns).** $A\mathbf{x}$ is a linear combination of $A$'s columns, weighted by $\mathbf{x}$:
 
-$$A\mathbf{x} \;=\; x_1\,\mathbf{a}_1 + x_2\,\mathbf{a}_2 + \cdots + x_n\,\mathbf{a}_n$$
+$$A\mathbf{x} = x_1 \mathbf{a}_1 + x_2 \mathbf{a}_2 + \cdots + x_n \mathbf{a}_n$$
 
 This is the view that explains why the set of achievable $A\mathbf{x}$ (the **column space**) is the span of $A$'s columns.
 
@@ -52,7 +56,7 @@ All three views describe the same computation. Different problems become obvious
 
 ### 3.3 · Matrix-matrix product
 
-$(A B)_{ij} = \sum_k a_{ik}\,b_{kj}$ — dot product of row $i$ of $A$ with column $j$ of $B$. Shape check: $(m \times n) \cdot (n \times p) = (m \times p)$.
+$(A B)_{ij} = \sum_k a_{ik} b_{kj}$ — dot product of row $i$ of $A$ with column $j$ of $B$. Shape check: $(m \times n) \cdot (n \times p) = (m \times p)$.
 
 Compositionally: $A B$ is the matrix that performs "first apply $B$, then apply $A$". Matrix multiplication is associative $(AB)C = A(BC)$, distributive $A(B+C) = AB+AC$, but **not commutative** in general: $AB \neq BA$. A rotation followed by a stretch is different from a stretch followed by a rotation.
 
@@ -91,15 +95,15 @@ Depending on $A$'s shape there are three cases:
 
 This is the algebraic heart of linear regression. Stack $N$ samples into the **design matrix** $X \in \mathbb{R}^{N \times d}$, target vector $\mathbf{y} \in \mathbb{R}^N$. We want weights $\mathbf{w} \in \mathbb{R}^d$ minimising the sum of squared errors:
 
-$$\mathcal{L}(\mathbf{w}) \;=\; \|X\mathbf{w} - \mathbf{y}\|_2^2 \;=\; (X\mathbf{w} - \mathbf{y})^\top (X\mathbf{w} - \mathbf{y})$$
+$$\mathcal{L}(\mathbf{w}) = \|X\mathbf{w} - \mathbf{y}\|_2^2 = (X\mathbf{w} - \mathbf{y})^\top (X\mathbf{w} - \mathbf{y})$$
 
 Expand:
 
-$$\mathcal{L}(\mathbf{w}) \;=\; \mathbf{w}^\top X^\top X \mathbf{w} \,-\, 2\,\mathbf{w}^\top X^\top \mathbf{y} \,+\, \mathbf{y}^\top \mathbf{y}$$
+$$\mathcal{L}(\mathbf{w}) = \mathbf{w}^\top X^\top X \mathbf{w} - 2 \mathbf{w}^\top X^\top \mathbf{y} + \mathbf{y}^\top \mathbf{y}$$
 
 Take the gradient (Section 4 below has the rules), set it to zero:
 
-$$\nabla_\mathbf{w} \mathcal{L} \;=\; 2\,X^\top X \mathbf{w} \,-\, 2\,X^\top \mathbf{y} \;=\; 0 \;\;\Longrightarrow\;\; \boxed{\hat{\mathbf{w}} \;=\; (X^\top X)^{-1} X^\top \mathbf{y}}$$
+$$\nabla_\mathbf{w} \mathcal{L} = 2 X^\top X \mathbf{w} - 2 X^\top \mathbf{y} = 0 \Longrightarrow \boxed{\hat{\mathbf{w}} = (X^\top X)^{-1} X^\top \mathbf{y}}$$
 
 These are the **normal equations**. The closed form for linear regression. No iteration, no step size — just one matrix solve. The hero image's right panel shows it fitting the free-kick trajectory in one line.
 
@@ -124,7 +128,7 @@ Memorise the first four; the fifth comes up in probability (Ch.7). Every derivat
 ## 4 · Step by Step — fit the free-kick parabola with one matrix solve
 
 1. Collect $(t_i, y_i)$ for $i = 1, \ldots, N$.
-2. Build the design matrix $X \in \mathbb{R}^{N \times 3}$ with columns $[\mathbf{1},\, \mathbf{t},\, \mathbf{t}^2]$.
+2. Build the design matrix $X \in \mathbb{R}^{N \times 3}$ with columns $[\mathbf{1}, \mathbf{t}, \mathbf{t}^2]$.
 3. Solve $\hat{\mathbf{w}} = \arg\min_\mathbf{w} \|X\mathbf{w} - \mathbf{y}\|^2$ using `np.linalg.lstsq`.
 4. Read off physics: $\hat{w}_0 \approx h_0$, $\hat{w}_1 \approx v_{0y}$, $\hat{w}_2 \approx -g/2 \approx -4.905$.
 5. Predict at any new $t$: $\hat{y} = \hat{w}_0 + \hat{w}_1 t + \hat{w}_2 t^2$.
@@ -148,11 +152,11 @@ import numpy as np
 
 # --- three views of Ax ---
 A = np.array([[1.5, 0.5],
-              [0.3, 1.2]])
+ [0.3, 1.2]])
 x = np.array([0.7, 0.4])
 b1 = A @ x
-b2 = np.array([A[0] @ x, A[1] @ x])      # row view
-b3 = x[0] * A[:, 0] + x[1] * A[:, 1]     # column view
+b2 = np.array([A[0] @ x, A[1] @ x]) # row view
+b3 = x[0] * A[:, 0] + x[1] * A[:, 1] # column view
 assert np.allclose(b1, b2) and np.allclose(b1, b3)
 
 # --- free-kick fit via normal equations ---
@@ -162,13 +166,13 @@ t = np.linspace(0.02, 1.3, 20)
 y = h0 + v0y * t - 0.5 * g * t ** 2 + rng.normal(0, 0.05, t.shape)
 
 X = np.column_stack([np.ones_like(t), t, t ** 2])
-w_hat, *_ = np.linalg.lstsq(X, y, rcond=None)      # preferred
+w_hat, *_ = np.linalg.lstsq(X, y, rcond=None) # preferred
 # equivalent, slower, less stable:
 # w_hat = np.linalg.solve(X.T @ X, X.T @ y)
 
-print(f"ŵ₀ (h0)   = {w_hat[0]:+.3f}   (true {h0})")
-print(f"ŵ₁ (v0y)  = {w_hat[1]:+.3f}   (true {v0y})")
-print(f"ŵ₂ (-g/2) = {w_hat[2]:+.3f}   (true {-g/2:.3f})")
+print(f"ŵ₀ (h0) = {w_hat[0]:+.3f} (true {h0})")
+print(f"ŵ₁ (v0y) = {w_hat[1]:+.3f} (true {v0y})")
+print(f"ŵ₂ (-g/2) = {w_hat[2]:+.3f} (true {-g/2:.3f})")
 ```
 
 ---

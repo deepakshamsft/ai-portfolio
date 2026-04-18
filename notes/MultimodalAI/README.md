@@ -40,40 +40,9 @@ The key constraint: **PixelSmith must run on a stock developer laptop** — no A
 
 ## How We Got Here — A Short History of Multimodal & Generative AI
 
-Image generation went from "blurry 32×32 digits" to "photoreal 4K video" in about a decade. The ordering of our chapters mirrors the ordering of the breakthroughs that made it possible.
+Image generation went from "blurry 32×32 digits" to "photoreal 4K video" in about a decade. **The detailed timeline now lives in each chapter's own prelude** — every chapter opens with a *"The story"* blockquote that names the papers, dates, and dramatic tensions behind that breakthrough.
 
-| Era | Year | Breakthrough | Why it set up the next chapter |
-|---|---|---|---|
-| **CNN era** | 1998 | **LeNet-5** (LeCun) | Convolutions as the vision primitive. Dominated vision for 20 years. |
-| | 2012 | **AlexNet** — ImageNet by a landslide | Deep learning won vision. Started the representation-learning era. |
-| | 2014 | **VGG / GoogLeNet / Inception**; **ResNet** (2015) | Showed that depth + skip connections scale. |
-| **First generative wave** | 2013 | **VAE** (Kingma & Welling) | First tractable deep latent-variable model. The encoder/decoder duality reappears in Stable Diffusion. → [LatentDiffusion](./LatentDiffusion/). |
-| | 2014 | **GAN** (Goodfellow et al.) | First genuinely convincing image generation. Defined the bar diffusion had to clear. |
-| | 2015 | **U-Net** (Ronneberger) — segmentation architecture | The exact architecture later used as the diffusion denoiser. |
-| | 2015 | **StyleGAN2, BigGAN** (2018–2019) | Peak GAN quality — but notoriously unstable to train. Made the field hungry for something better. |
-| **Attention + vision** | 2017 | **Transformer** (Vaswani et al.) | Made sequence length a compute problem, not an architecture problem. |
-| | 2020 Oct | **Vision Transformer (ViT)** (Dosovitskiy et al., Google) | Images as sequences of patches. Convolutions were no longer required. → [VisionTransformers](./VisionTransformers/). |
-| **Alignment via contrast** | 2021 Jan | **CLIP** (OpenAI, Radford et al.) | 400M image-text pairs + contrastive loss → text and images share one space. The backbone of almost every text-to-image system since. → [CLIP](./CLIP/). |
-| | 2021 Jan | **DALL·E 1** (OpenAI) — discrete VAE + autoregressive transformer | Text-to-image as a *token sequence* problem. Outpaced by diffusion within a year. |
-| **Diffusion revolution** | 2015 | **Diffusion probabilistic models** (Sohl-Dickstein et al.) | Mathematically elegant but slow. Ignored for five years. |
-| | 2020 Jun | **DDPM** (Ho, Jain, Abbeel) | Showed diffusion could match GANs on quality *and* stability. → [DiffusionModels](./DiffusionModels/). |
-| | 2020 Oct | **DDIM** (Song et al.) | Deterministic, ~10× fewer sampling steps. → [Schedulers](./Schedulers/). |
-| | 2021 May | **Classifier-Free Guidance** (Ho & Salimans) | The "guidance scale" knob every user now turns. → [GuidanceConditioning](./GuidanceConditioning/). |
-| | 2022 Apr | **DALL·E 2 / unCLIP** (OpenAI) | CLIP + diffusion, at scale. Mainstream moment. |
-| | 2022 May | **Imagen** (Google) | Proved a frozen text encoder (T5) + diffusion beats training a joint model. |
-| | 2022 Aug | **Stable Diffusion / Latent Diffusion** (Rombach et al.) — **open weights** | Diffusion in VAE latent space, runnable on a consumer GPU. Democratised everything. → [LatentDiffusion](./LatentDiffusion/). |
-| | 2022 Oct | **DPM-Solver / DPM-Solver++** (Lu et al.) | 10–20-step sampling with no quality loss. |
-| **Control era** | 2023 Feb | **ControlNet** (Zhang et al.) | Structural conditioning (pose, edges, depth) without retraining the base model. → [TextToImage](./TextToImage/). |
-| | 2023 | **LoRA for diffusion**, **IP-Adapter**, **InstantID** | Tiny adapters replaced full fine-tuning. |
-| **Multimodal LLMs** | 2023 Mar | **GPT-4V (Vision)**; **LLaVA** (Liu et al.) — instruction-tuned vision-language | Vision encoders projected into an LLM's token space. → [MultimodalLLMs](./MultimodalLLMs/). |
-| | 2023–2024 | **BLIP-2 / Q-Former**, **Gemini**, **Claude 3**, **GPT-4o** | Native-multimodal became the default for frontier models. |
-| **Video era** | 2023 | **AnimateDiff**, **Stable Video Diffusion** | Temporal layers bolted onto image diffusion. |
-| | 2024 Feb | **Sora** (OpenAI) — diffusion transformer over spacetime patches | Text-to-video reached minute-long, coherent clips. → [TextToVideo](./TextToVideo/). |
-| | 2024–2025 | **Runway Gen-3**, **Veo**, **Kling**, **Luma Dream Machine** | Video generation became a product category. |
-| **Local / practical era** | 2023–2026 | **ComfyUI**, **AUTOMATIC1111**, **SDXL / Flux.1**, quantised UNets (fp8, nf4), **LCM / Lightning distillation** | Generation collapsed from minutes on an A100 to seconds on a laptop. → [LocalDiffusionLab](./LocalDiffusionLab/). |
-| **Evaluation era** | 2017 → 2024 | **FID / IS → CLIPScore → HPSv2 → human preference benchmarks** | As quality saturated, evaluation shifted from pixel-distribution metrics to preference alignment. → [GenerativeEvaluation](./GenerativeEvaluation/). |
-
-**The through-line:** each chapter corresponds to a specific obstacle that was removed. Pixels were too high-dimensional → VAE + latent diffusion. Sampling was too slow → DDIM / DPM-Solver. Training was too unstable → diffusion replaced GANs. Text and images lived in separate spaces → CLIP. Base models were too rigid → ControlNet / LoRA. Images weren't enough → MLLMs + video diffusion. Cloud GPUs were too expensive → quantisation + distillation. Reading the chapters in order is reading this list of obstacles falling.
+**The through-line in one paragraph.** Each chapter corresponds to a specific obstacle that was removed. CNNs dominated vision until [ViT](./VisionTransformers/) (Dosovitskiy et al., Oct 2020) showed patches + attention scaled better. Text and images lived in separate spaces until [CLIP](./CLIP/) (Radford et al., Jan 2021) aligned them with 400M web pairs. GANs (Goodfellow, 2014) were unstable until [DDPM](./DiffusionModels/) (Ho et al., Jun 2020) replaced them with stable denoising. Pixel-space diffusion was too expensive until [LatentDiffusion / Stable Diffusion](./LatentDiffusion/) (Rombach et al., Aug 2022) moved to VAE latents and went open-source. Sampling was slow until [DDIM](./Schedulers/) (Song et al., Oct 2020) and DPM-Solver (Lu et al., 2022). Models were uncontrollable until [classifier-free guidance](./GuidanceConditioning/) (Ho & Salimans, Jul 2022) and [ControlNet](./TextToImage/) (Zhang, Feb 2023). Images weren't enough → [MLLMs](./MultimodalLLMs/) (BLIP-2 Jan 2023, GPT-4V Sep 2023) and [video](./TextToVideo/) (AnimateDiff 2023, Sora Feb 2024). Cloud GPUs were too expensive → [LocalDiffusionLab](./LocalDiffusionLab/) via quantisation + LCM distillation. As quality saturated, [evaluation](./GenerativeEvaluation/) shifted from FID (Heusel 2017) to human preference (HPSv2, 2023).
 
 ---
 

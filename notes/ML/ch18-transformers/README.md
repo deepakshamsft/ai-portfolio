@@ -1,6 +1,10 @@
 # Ch.18 — Transformers & Attention
 
-> **Running theme:** Ch.17 established that **attention is a soft dictionary lookup** — dot-product similarity, softmax, weighted sum of values. This chapter takes that one mechanism and dresses it up into the transformer: learned $W_Q, W_K, W_V$ projections, scaled dot-product attention, multi-head parallelism, positional encoding, residuals + LayerNorm, and a feed-forward sub-layer. As of 2017, this replaced RNNs for nearly every sequence task, and it is the architecture inside every LLM, every embedding model, and every image foundation model in use today.
+> **The story.** In June **2017** eight Google researchers — **Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan Gomez, Łukasz Kaiser, and Illia Polosukhin** — published *"Attention Is All You Need."* The thesis was startling: throw away recurrence (LSTMs, GRUs) and convolutions entirely; replace both with stacked self-attention; train it in parallel on TPUs; beat every translation benchmark. Within a year **BERT** (Devlin et al., Google, 2018) and **GPT-1** (Radford et al., OpenAI, 2018) had stamped the transformer onto NLP, and within five years it had taken over vision (ViT, 2020), audio (Whisper, 2022), and protein folding (AlphaFold 2, 2021). **GPT-3** (2020), **ChatGPT** (Nov 2022), **GPT-4** (2023), **Claude**, **Gemini**, **Llama** — every model in this entire curriculum's AI track is a transformer in some configuration. The 2017 paper is the dividing line: pre-transformer ML and post-transformer ML are different fields.
+>
+> **Where you are in the curriculum.** [Ch.17](../ch17-sequences-to-attention/) established that **attention is a soft dictionary lookup** — dot-product similarity, softmax, weighted sum of values. This chapter dresses that one mechanism into the transformer: learned $W_Q, W_K, W_V$ projections, scaled dot-product attention, multi-head parallelism, positional encoding, residuals + LayerNorm, and a feed-forward sub-layer. After this chapter the entire AI track ([RAG](../../AI/RAGAndEmbeddings/), [LLMs](../../AI/LLMFundamentals/), [agents](../../AI/ReActAndSemanticKernel/), [multi-agent](../../MultiAgentAI/)) becomes accessible — because all of it is built on what you assemble here.
+>
+> **Notation in this chapter.** $X\in\mathbb{R}^{n\times d_{\text{model}}}$ — input sequence ($n$ tokens, each a $d_{\text{model}}$-dim embedding); $W_Q,W_K,W_V\in\mathbb{R}^{d_{\text{model}}\times d_k}$ — learned projection matrices producing **queries** $Q=XW_Q$, **keys** $K=XW_K$, **values** $V=XW_V$; $d_k$ — key/query dimension per head; $h$ — number of attention heads; $\text{Attention}(Q,K,V)=\text{softmax}\!\left(\dfrac{QK^\top}{\sqrt{d_k}}\right)V$ — **scaled dot-product attention**; $W_O$ — output projection that re-mixes the $h$ heads; **PE** — positional encoding added to $X$; **LN** — LayerNorm; **FFN** — two-layer feed-forward sub-layer applied position-wise.
 
 ---
 
@@ -9,12 +13,12 @@
 A **transformer** processes an entire sequence in parallel using **scaled dot-product attention** — a learned, differentiable lookup that computes, for each position, a weighted sum over all other positions.
 
 ```
-RNN (Ch.8):         x1 → x2 → x3 → ... → xT       (sequential, information bottlenecked)
+RNN (Ch.8): x1 → x2 → x3 → ... → xT (sequential, information bottlenecked)
 
-Transformer:        x1 ─┐
-                    x2 ─┤─ Attention ─► all positions see all other positions simultaneously
-                    x3 ─┤               no step-by-step bottleneck
-                    xT ─┘
+Transformer: x1 ─┐
+ x2 ─┤─ Attention ─► all positions see all other positions simultaneously
+ x3 ─┤ no step-by-step bottleneck
+ xT ─┘
 ```
 
 The price paid: without recurrence, the model has no inherent sense of order — position must be injected explicitly via **positional encoding**. The price received: full parallelism across all positions, unlimited range dependencies, and gradients that don't vanish with sequence length.
@@ -27,9 +31,9 @@ The real estate platform's data team treats the **8 tabular features** of each C
 
 This is architecturally unconventional — tabular data isn't truly sequential — but it's pedagogically perfect: no new dataset, no text tokenisation to learn, and the attention heatmap has an immediately interpretable meaning. When the attention weight from `MedInc` to `Latitude` is high, the model is saying: "knowing where a district is helps me interpret its income figure."
 
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)  
-Sequence length: `T = 8` (one token per feature)  
-Token dimension: `d_model = 16` (each feature projected to a 16-dim embedding)  
+Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`) 
+Sequence length: `T = 8` (one token per feature) 
+Token dimension: `d_model = 16` (each feature projected to a 16-dim embedding) 
 Task: regression — predict `MedHouseVal`
 
 ---
@@ -40,7 +44,7 @@ Task: regression — predict `MedHouseVal`
 
 Given an input sequence of `T` tokens, each of dimension `d_model`, we project into three matrices:
 
-$$\mathbf{Q} = \mathbf{X}\,\mathbf{W}^Q, \quad \mathbf{K} = \mathbf{X}\,\mathbf{W}^K, \quad \mathbf{V} = \mathbf{X}\,\mathbf{W}^V$$
+$$\mathbf{Q} = \mathbf{X} \mathbf{W}^Q, \quad \mathbf{K} = \mathbf{X} \mathbf{W}^K, \quad \mathbf{V} = \mathbf{X} \mathbf{W}^V$$
 
 | Symbol | Shape | Meaning |
 |---|---|---|
@@ -52,7 +56,7 @@ $$\mathbf{Q} = \mathbf{X}\,\mathbf{W}^Q, \quad \mathbf{K} = \mathbf{X}\,\mathbf{
 
 The attention output:
 
-$$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\!\left(\frac{\mathbf{Q}\,\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}$$
+$$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax} \left(\frac{\mathbf{Q} \mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}$$
 
 **Why divide by $\sqrt{d_k}$?** The raw dot products $\mathbf{Q}\mathbf{K}^\top$ grow in magnitude as $d_k$ increases — large magnitudes push softmax into regions with near-zero gradients. Dividing by $\sqrt{d_k}$ keeps the variance of the dot products at ~1 regardless of $d_k$, keeping gradients healthy.
 
@@ -62,9 +66,9 @@ $$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\!\left(\
 
 Rather than one set of $\mathbf{W}^Q, \mathbf{W}^K, \mathbf{W}^V$, run $H$ independent attention heads in parallel, each with its own projections of dimension $d_k = d_v = d_\text{model} / H$:
 
-$$\text{head}_h = \text{Attention}(\mathbf{X}\,\mathbf{W}^Q_h,\; \mathbf{X}\,\mathbf{W}^K_h,\; \mathbf{X}\,\mathbf{W}^V_h)$$
+$$\text{head}_h = \text{Attention}(\mathbf{X} \mathbf{W}^Q_h, \mathbf{X} \mathbf{W}^K_h, \mathbf{X} \mathbf{W}^V_h)$$
 
-$$\text{MultiHead}(\mathbf{X}) = \text{Concat}(\text{head}_1, \ldots, \text{head}_H)\,\mathbf{W}^O$$
+$$\text{MultiHead}(\mathbf{X}) = \text{Concat}(\text{head}_1, \ldots, \text{head}_H) \mathbf{W}^O$$
 
 Each head learns to attend to a different relationship pattern. One head might track feature-location correlations; another might track income-occupancy interactions. The final $\mathbf{W}^O \in \mathbb{R}^{(H \cdot d_v) \times d_\text{model}}$ projects the concatenated heads back to `d_model`.
 
@@ -80,9 +84,9 @@ Attention is permutation-equivariant: shuffle the input tokens and the output sh
 
 The original (sinusoidal) encoding from Vaswani et al.:
 
-$$\text{PE}_{(pos,\, 2i)} = \sin\!\left(\frac{pos}{10000^{2i/d_\text{model}}}\right)$$
+$$\text{PE}_{(pos, 2i)} = \sin \left(\frac{pos}{10000^{2i/d_\text{model}}}\right)$$
 
-$$\text{PE}_{(pos,\, 2i+1)} = \cos\!\left(\frac{pos}{10000^{2i/d_\text{model}}}\right)$$
+$$\text{PE}_{(pos, 2i+1)} = \cos \left(\frac{pos}{10000^{2i/d_\text{model}}}\right)$$
 
 | Symbol | Meaning |
 |---|---|
@@ -98,28 +102,28 @@ Each dimension oscillates at a different frequency — low dimensions change slo
 One encoder block:
 
 ```
-Input X  (T, d_model)
-  │
-  ├─── LayerNorm(X)
-  │         │
-  │    Multi-Head Attention
-  │         │
-  ├─── Residual: X = X + Attention output
-  │
-  ├─── LayerNorm(X)
-  │         │
-  │    Feed-Forward Network: FFN(x) = max(0, xW₁ + b₁)W₂ + b₂
-  │         │
-  └─── Residual: X = X + FFN output
-  │
-Output X  (T, d_model)
+Input X (T, d_model)
+ │
+ ├─── LayerNorm(X)
+ │ │
+ │ Multi-Head Attention
+ │ │
+ ├─── Residual: X = X + Attention output
+ │
+ ├─── LayerNorm(X)
+ │ │
+ │ Feed-Forward Network: FFN(x) = max(0, xW₁ + b₁)W₂ + b₂
+ │ │
+ └─── Residual: X = X + FFN output
+ │
+Output X (T, d_model)
 ```
 
 The **residual connections** (the `X + ...` additions) allow gradients to flow directly back through the network without passing through the attention or FFN computations — similar to ResNet (Ch.7). **LayerNorm** normalises across the feature dimension (not the batch dimension) — stabilises training when sequence lengths vary.
 
 The FFN typically expands to `4 × d_model` in the hidden layer:
 
-$$\text{FFN}(\mathbf{x}) = \max(0,\; \mathbf{x}\,\mathbf{W}_1 + \mathbf{b}_1)\,\mathbf{W}_2 + \mathbf{b}_2$$
+$$\text{FFN}(\mathbf{x}) = \max(0, \mathbf{x} \mathbf{W}_1 + \mathbf{b}_1) \mathbf{W}_2 + \mathbf{b}_2$$
 
 where $\mathbf{W}_1 \in \mathbb{R}^{d_\text{model} \times 4d_\text{model}}$, $\mathbf{W}_2 \in \mathbb{R}^{4d_\text{model} \times d_\text{model}}$.
 
@@ -136,7 +140,7 @@ The causal mask is an upper-triangular matrix of $-\infty$ added before the soft
 
 $$\mathbf{M}_{ij} = \begin{cases} 0 & \text{if } j \leq i \\ -\infty & \text{if } j > i \end{cases}$$
 
-$$\text{Attention}_\text{causal} = \text{softmax}\!\left(\frac{\mathbf{Q}\mathbf{K}^\top + \mathbf{M}}{\sqrt{d_k}}\right)\mathbf{V}$$
+$$\text{Attention}_\text{causal} = \text{softmax} \left(\frac{\mathbf{Q}\mathbf{K}^\top + \mathbf{M}}{\sqrt{d_k}}\right)\mathbf{V}$$
 
 One line of code changes an encoder into a decoder. That is the entire BERT-vs-GPT distinction at the architectural level.
 
@@ -146,25 +150,25 @@ One line of code changes an encoder into a decoder. That is the entire BERT-vs-G
 
 ```
 1. Project each feature to d_model dimensions
-   └─ Linear layer: (8,) → (8, d_model)  [one embedding per feature/token]
+ └─ Linear layer: (8,) → (8, d_model) [one embedding per feature/token]
 
 2. Add positional encoding
-   └─ Pre-compute PE matrix (T, d_model) using the sinusoidal formula
-   └─ X = X + PE  (broadcast-add)
+ └─ Pre-compute PE matrix (T, d_model) using the sinusoidal formula
+ └─ X = X + PE (broadcast-add)
 
 3. Pass through N encoder blocks
-   └─ Each block: LayerNorm → Multi-Head Attention → Residual
-                  LayerNorm → FFN → Residual
+ └─ Each block: LayerNorm → Multi-Head Attention → Residual
+ LayerNorm → FFN → Residual
 
 4. Pool the output
-   └─ For regression: mean-pool across the T=8 token outputs → (d_model,)
-   └─ For classification (BERT-style): use the [CLS] token (prepend one extra token)
+ └─ For regression: mean-pool across the T=8 token outputs → (d_model,)
+ └─ For classification (BERT-style): use the [CLS] token (prepend one extra token)
 
 5. Project to output
-   └─ Linear(d_model, 1) for regression
+ └─ Linear(d_model, 1) for regression
 
 6. Train
-   └─ Loss: MSE  Optimiser: Adam  Scheduler: cosine warmup (standard for transformers)
+ └─ Loss: MSE Optimiser: Adam Scheduler: cosine warmup (standard for transformers)
 ```
 
 ---
@@ -174,19 +178,19 @@ One line of code changes an encoder into a decoder. That is the entire BERT-vs-G
 ### Attention weight matrix (8×8)
 
 ```
-              MedInc  HouseAge  AveRooms  AveBedrms  Pop  AveOccup  Lat  Long
-MedInc      [ 0.32     0.05      0.12       0.04     0.02   0.08    0.21  0.16 ]
-HouseAge    [ 0.07     0.28      0.08       0.06     0.03   0.05    0.24  0.19 ]
-AveRooms    [ 0.11     0.09      0.30       0.18     0.04   0.07    0.12  0.09 ]
-AveBedrms   [ 0.05     0.06      0.22       0.35     0.05   0.09    0.11  0.07 ]
-Pop         [ 0.03     0.04      0.05       0.06     0.42   0.28    0.07  0.05 ]
-AveOccup    [ 0.06     0.05      0.08       0.10     0.31   0.29    0.06  0.05 ]
-Lat         [ 0.19     0.22      0.13       0.11     0.06   0.05    0.15  0.09 ]
-Long        [ 0.14     0.18      0.09       0.07     0.04   0.04    0.10  0.34 ]
+ MedInc HouseAge AveRooms AveBedrms Pop AveOccup Lat Long
+MedInc [ 0.32 0.05 0.12 0.04 0.02 0.08 0.21 0.16 ]
+HouseAge [ 0.07 0.28 0.08 0.06 0.03 0.05 0.24 0.19 ]
+AveRooms [ 0.11 0.09 0.30 0.18 0.04 0.07 0.12 0.09 ]
+AveBedrms [ 0.05 0.06 0.22 0.35 0.05 0.09 0.11 0.07 ]
+Pop [ 0.03 0.04 0.05 0.06 0.42 0.28 0.07 0.05 ]
+AveOccup [ 0.06 0.05 0.08 0.10 0.31 0.29 0.06 0.05 ]
+Lat [ 0.19 0.22 0.13 0.11 0.06 0.05 0.15 0.09 ]
+Long [ 0.14 0.18 0.09 0.07 0.04 0.04 0.10 0.34 ]
 
 ↑ Row = query position ("I am this feature, who do I attend to?")
-  Col = key position  ("This feature is being attended to")
-  High weight = strong relationship the model learned
+ Col = key position ("This feature is being attended to")
+ High weight = strong relationship the model learned
 ```
 
 ### Animation — scaled dot-product attention, one query at a time, across heads
@@ -206,15 +210,15 @@ The final `MultiHead` output is `Concat(head₁, head₂, head₃)·Wᴼ` — so
 ### Positional encoding heatmap (8 positions × 16 dims)
 
 ```
-Position  dim0   dim1   dim2  ...  dim14  dim15
-  0       0.00   1.00   0.00       0.00   1.00   ← sin(0)=0, cos(0)=1 for all dims
-  1       0.84   0.54   0.10       0.40   0.92
-  2       0.91  -0.42   0.20       0.72   0.70
-  3       0.14  -0.99   0.30       0.93   0.37
-  4      -0.76  -0.65   0.39       0.98  -0.02
-  5      -0.96   0.28   0.48       0.89  -0.41
-  6      -0.28   0.96   0.56       0.66  -0.75
-  7       0.66   0.75   0.64       0.33  -0.94
+Position dim0 dim1 dim2 ... dim14 dim15
+ 0 0.00 1.00 0.00 0.00 1.00 ← sin(0)=0, cos(0)=1 for all dims
+ 1 0.84 0.54 0.10 0.40 0.92
+ 2 0.91 -0.42 0.20 0.72 0.70
+ 3 0.14 -0.99 0.30 0.93 0.37
+ 4 -0.76 -0.65 0.39 0.98 -0.02
+ 5 -0.96 0.28 0.48 0.89 -0.41
+ 6 -0.28 0.96 0.56 0.66 -0.75
+ 7 0.66 0.75 0.64 0.33 -0.94
 
 Low dims (0,1): slow oscillation — coarse position (am I at the start or end?)
 High dims (14,15): fast oscillation — fine position (which exact slot?)
@@ -223,31 +227,31 @@ High dims (14,15): fast oscillation — fine position (which exact slot?)
 ### Causal mask — encoder vs decoder
 
 ```
-Encoder (no mask):          Decoder (causal mask):
-all pairs attend            position t only sees ≤ t
+Encoder (no mask): Decoder (causal mask):
+all pairs attend position t only sees ≤ t
 
-  K0  K1  K2  K3              K0  K1  K2  K3
-Q0 [✓  ✓   ✓   ✓ ]         Q0 [✓  ✗   ✗   ✗ ]
-Q1 [✓  ✓   ✓   ✓ ]         Q1 [✓  ✓   ✗   ✗ ]
-Q2 [✓  ✓   ✓   ✓ ]         Q2 [✓  ✓   ✓   ✗ ]
-Q3 [✓  ✓   ✓   ✓ ]         Q3 [✓  ✓   ✓   ✓ ]
+ K0 K1 K2 K3 K0 K1 K2 K3
+Q0 [✓ ✓ ✓ ✓ ] Q0 [✓ ✗ ✗ ✗ ]
+Q1 [✓ ✓ ✓ ✓ ] Q1 [✓ ✓ ✗ ✗ ]
+Q2 [✓ ✓ ✓ ✓ ] Q2 [✓ ✓ ✓ ✗ ]
+Q3 [✓ ✓ ✓ ✓ ] Q3 [✓ ✓ ✓ ✓ ]
 ```
 
 ### Architecture comparison
 
 ```mermaid
 flowchart LR
-    subgraph RNN["Ch.8 — RNN/LSTM"]
-        direction LR
-        r1["x₁"] --> r2["h₁"] --> r3["h₂"] --> r4["h₃"] --> r5["ŷ"]
-    end
+ subgraph RNN["Ch.8 — RNN/LSTM"]
+ direction LR
+ r1["x₁"] --> r2["h₁"] --> r3["h₂"] --> r4["h₃"] --> r5["ŷ"]
+ end
 
-    subgraph TR["Ch.18 — Transformer Encoder"]
-        direction TB
-        t1["x₁ x₂ x₃"] --> attn["Multi-Head\nAttention\n(parallel)"] --> pool["Pool"] --> out["ŷ"]
-    end
+ subgraph TR["Ch.18 — Transformer Encoder"]
+ direction TB
+ t1["x₁ x₂ x₃"] --> attn["Multi-Head\nAttention\n(parallel)"] --> pool["Pool"] --> out["ŷ"]
+ end
 
-    RNN -.->|"replaces"| TR
+ RNN -.->|"replaces"| TR
 ```
 
 ---
@@ -277,24 +281,24 @@ from sklearn.preprocessing import StandardScaler
 
 # ── Dataset ──────────────────────────────────────────────────────────────────
 data = fetch_california_housing()
-X_raw, y = data.data, data.target        # X: (20640, 8)  y: (20640,)
+X_raw, y = data.data, data.target # X: (20640, 8) y: (20640,)
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X_raw)   # scale features before projecting
+X_scaled = scaler.fit_transform(X_raw) # scale features before projecting
 
 # Reshape to (N, T=8, 1) — treat each feature as a token with 1 dimension
-X_tokens = X_scaled[:, :, np.newaxis]    # (20640, 8, 1)
+X_tokens = X_scaled[:, :, np.newaxis] # (20640, 8, 1)
 ```
 
 ```python
 # ── Sinusoidal positional encoding ───────────────────────────────────────────
 def positional_encoding(T, d_model):
-    """Returns PE matrix of shape (T, d_model)."""
-    PE = np.zeros((T, d_model))
-    for pos in range(T):
-        for i in range(0, d_model, 2):
-            PE[pos, i]   = np.sin(pos / (10000 ** (i / d_model)))
-            PE[pos, i+1] = np.cos(pos / (10000 ** (i / d_model)))
-    return PE
+ """Returns PE matrix of shape (T, d_model)."""
+ PE = np.zeros((T, d_model))
+ for pos in range(T):
+ for i in range(0, d_model, 2):
+ PE[pos, i] = np.sin(pos / (10000 ** (i / d_model)))
+ PE[pos, i+1] = np.cos(pos / (10000 ** (i / d_model)))
+ return PE
 
 PE = positional_encoding(T=8, d_model=16)
 
@@ -311,38 +315,38 @@ plt.tight_layout(); plt.show()
 ```python
 # ── Scaled dot-product attention (NumPy) ─────────────────────────────────────
 def scaled_dot_product_attention(Q, K, V, mask=None):
-    """
-    Q, K: (T, d_k)
-    V:    (T, d_v)
-    Returns: output (T, d_v), weights (T, T)
-    """
-    d_k = Q.shape[-1]
-    scores = Q @ K.T / np.sqrt(d_k)           # (T, T) raw similarity scores
+ """
+ Q, K: (T, d_k)
+ V: (T, d_v)
+ Returns: output (T, d_v), weights (T, T)
+ """
+ d_k = Q.shape[-1]
+ scores = Q @ K.T / np.sqrt(d_k) # (T, T) raw similarity scores
 
-    if mask is not None:
-        scores = scores + mask                 # add -inf where masked
+ if mask is not None:
+ scores = scores + mask # add -inf where masked
 
-    weights = np.exp(scores - scores.max(-1, keepdims=True))
-    weights /= weights.sum(-1, keepdims=True)  # softmax (numerically stable)
+ weights = np.exp(scores - scores.max(-1, keepdims=True))
+ weights /= weights.sum(-1, keepdims=True) # softmax (numerically stable)
 
-    output = weights @ V                       # (T, d_v)
-    return output, weights
+ output = weights @ V # (T, d_v)
+ return output, weights
 
 # Demo with random projections on one sample
 rng = np.random.default_rng(42)
 d_model, d_k = 16, 8
-x_sample = X_tokens[0] + PE        # (8, 1) + (8, 16) — broadcast; use PE directly for demo
+x_sample = X_tokens[0] + PE # (8, 1) + (8, 16) — broadcast; use PE directly for demo
 
 WQ = rng.normal(0, 0.1, (1, d_k))
 WK = rng.normal(0, 0.1, (1, d_k))
 WV = rng.normal(0, 0.1, (1, d_k))
 
-Q = x_sample @ WQ                  # (8, d_k)  — projected queries
-K = x_sample @ WK                  # (8, d_k)  — projected keys
-V = x_sample @ WV                  # (8, d_k)  — projected values
+Q = x_sample @ WQ # (8, d_k) — projected queries
+K = x_sample @ WK # (8, d_k) — projected keys
+V = x_sample @ WV # (8, d_k) — projected values
 
 output, weights = scaled_dot_product_attention(Q, K, V)
-print("Attention output shape:", output.shape)   # (8, 8)
+print("Attention output shape:", output.shape) # (8, 8)
 print("Attention weights shape:", weights.shape) # (8, 8)
 ```
 
@@ -352,8 +356,8 @@ import seaborn as sns
 
 plt.figure(figsize=(8, 6))
 sns.heatmap(weights, annot=True, fmt='.2f', cmap='Blues',
-            xticklabels=data.feature_names,
-            yticklabels=data.feature_names)
+ xticklabels=data.feature_names,
+ yticklabels=data.feature_names)
 plt.title('Attention Weights — which feature attends to which?')
 plt.xlabel('Key (attended to)'); plt.ylabel('Query (attending from)')
 plt.tight_layout(); plt.show()
@@ -370,11 +374,11 @@ output_dec, w_dec = scaled_dot_product_attention(Q, K, V, mask=causal_mask)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 sns.heatmap(w_enc, ax=ax1, cmap='Blues', annot=True, fmt='.2f',
-            xticklabels=data.feature_names, yticklabels=data.feature_names)
+ xticklabels=data.feature_names, yticklabels=data.feature_names)
 ax1.set_title('Encoder — full attention')
 
 sns.heatmap(w_dec, ax=ax2, cmap='Blues', annot=True, fmt='.2f',
-            xticklabels=data.feature_names, yticklabels=data.feature_names)
+ xticklabels=data.feature_names, yticklabels=data.feature_names)
 ax2.set_title('Decoder — causal mask (lower triangle only)')
 plt.tight_layout(); plt.show()
 ```
@@ -386,46 +390,46 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 def transformer_encoder_block(d_model, num_heads, ffn_dim, dropout=0.1):
-    """Returns a Keras model for one encoder block."""
-    inputs = keras.Input(shape=(None, d_model))
+ """Returns a Keras model for one encoder block."""
+ inputs = keras.Input(shape=(None, d_model))
 
-    # Multi-head attention
-    x = layers.LayerNormalization(epsilon=1e-6)(inputs)
-    x = layers.MultiHeadAttention(num_heads=num_heads, key_dim=d_model // num_heads,
-                                   dropout=dropout)(x, x)
-    x = layers.Add()([inputs, x])   # residual
+ # Multi-head attention
+ x = layers.LayerNormalization(epsilon=1e-6)(inputs)
+ x = layers.MultiHeadAttention(num_heads=num_heads, key_dim=d_model // num_heads,
+ dropout=dropout)(x, x)
+ x = layers.Add()([inputs, x]) # residual
 
-    # Feed-forward
-    z = layers.LayerNormalization(epsilon=1e-6)(x)
-    z = layers.Dense(ffn_dim, activation='relu')(z)
-    z = layers.Dropout(dropout)(z)
-    z = layers.Dense(d_model)(z)
-    outputs = layers.Add()([x, z])  # residual
+ # Feed-forward
+ z = layers.LayerNormalization(epsilon=1e-6)(x)
+ z = layers.Dense(ffn_dim, activation='relu')(z)
+ z = layers.Dropout(dropout)(z)
+ z = layers.Dense(d_model)(z)
+ outputs = layers.Add()([x, z]) # residual
 
-    return keras.Model(inputs, outputs, name='EncoderBlock')
+ return keras.Model(inputs, outputs, name='EncoderBlock')
 
 # Full model: project → PE → 2 encoder blocks → mean pool → regression head
 def build_tabular_transformer(T=8, d_in=1, d_model=32, num_heads=4,
-                               num_layers=2, ffn_dim=64, dropout=0.1):
-    inputs = keras.Input(shape=(T, d_in))
-    x = layers.Dense(d_model)(inputs)                   # token projection
+ num_layers=2, ffn_dim=64, dropout=0.1):
+ inputs = keras.Input(shape=(T, d_in))
+ x = layers.Dense(d_model)(inputs) # token projection
 
-    pe = positional_encoding(T, d_model).astype('float32')
-    x = x + pe[np.newaxis, :, :]                        # add PE (broadcasted)
+ pe = positional_encoding(T, d_model).astype('float32')
+ x = x + pe[np.newaxis, :, :] # add PE (broadcasted)
 
-    for _ in range(num_layers):
-        block = transformer_encoder_block(d_model, num_heads, ffn_dim, dropout)
-        x = block(x)
+ for _ in range(num_layers):
+ block = transformer_encoder_block(d_model, num_heads, ffn_dim, dropout)
+ x = block(x)
 
-    x = layers.GlobalAveragePooling1D()(x)              # mean pool over T tokens
-    x = layers.Dense(32, activation='relu')(x)
-    outputs = layers.Dense(1)(x)                        # regression output
+ x = layers.GlobalAveragePooling1D()(x) # mean pool over T tokens
+ x = layers.Dense(32, activation='relu')(x)
+ outputs = layers.Dense(1)(x) # regression output
 
-    return keras.Model(inputs, outputs, name='TabularTransformer')
+ return keras.Model(inputs, outputs, name='TabularTransformer')
 
 model = build_tabular_transformer()
 model.compile(optimizer=keras.optimizers.Adam(1e-3), loss='mse',
-              metrics=[keras.metrics.RootMeanSquaredError(name='rmse')])
+ metrics=[keras.metrics.RootMeanSquaredError(name='rmse')])
 model.summary()
 ```
 
@@ -435,13 +439,13 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Input
 
 lstm_model = Sequential([
-    Input(shape=(8, 1)),
-    LSTM(32),
-    Dense(1)
+ Input(shape=(8, 1)),
+ LSTM(32),
+ Dense(1)
 ])
 
 print("Transformer params:", model.count_params())
-print("LSTM params:       ", lstm_model.count_params())
+print("LSTM params: ", lstm_model.count_params())
 print()
 print("Transformer trains in parallel across all 8 tokens.")
 print("LSTM processes tokens one by one — 8 sequential steps.")

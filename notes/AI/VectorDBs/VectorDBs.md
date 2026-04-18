@@ -1,5 +1,9 @@
 ﻿# Vector Database Indexing Techniques and Architectures
 
+> **The story.** Approximate Nearest Neighbour search has a long pre-LLM history. **Locality-Sensitive Hashing** (Indyk & Motwani, 1998) was the first practical sublinear ANN algorithm. **Inverted File Index (IVF)** with product quantisation came from **Hervé Jégou** and colleagues at Inria, packaged into Facebook's **FAISS** library in **2017**. The big shift was **HNSW** — *Hierarchical Navigable Small World graphs* by **Yu. A. Malkov and D. A. Yashunin**, **2016** — which used multi-layer proximity graphs to deliver near-exact recall at far better latency, and now powers most production vector DBs. Microsoft's **DiskANN** (NeurIPS 2019) extended HNSW-style graphs onto SSDs, allowing billion-scale indexes that don't fit in RAM. The vector-database product wave — **Pinecone** (founded 2019), **Weaviate** (2019), **Milvus** (2019), **Qdrant** (2021), **Chroma** (2022), and **pgvector** (2021) — wrapped these algorithms in production-grade APIs once the LLM era made dense retrieval mainstream.
+>
+> **Where you are in the curriculum.** [RAGAndEmbeddings](../RAGAndEmbeddings/) explained *what* is stored (embeddings) and *why*. This document explains *how* it is searched at scale: the index structures (Flat, IVF, HNSW, DiskANN), distance metrics (cosine, dot product, L2), and the production architecture choices (filters, hybrid retrieval, sharding) that determine whether your RAG pipeline serves 10 users or 10 million.
+
 ***
 
 ## 1. The Baseline: Exact (Brute-Force) Vector Search

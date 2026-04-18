@@ -1,6 +1,10 @@
 # Ch.17 — From Sequences to Attention (Bridge Chapter)
 
-> **Running theme:** Ch.8's LSTM fixed the vanishing gradient but paid for it with **serialisation** — token $t+1$ cannot start until token $t$ finishes. Ch.18's transformer throws that away and replaces recurrence with **attention**: a single differentiable operation that lets every position in a sequence look directly at every other position, all at once. Before we touch $Q$, $K$, $V$, multi-head, and positional encoding, we need one mental model and three building blocks. This chapter is deliberately short — it exists so Ch.18 lands softly.
+> **The story.** Attention as we know it was born in 2014 in a paper by **Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio** — *Neural Machine Translation by Jointly Learning to Align and Translate*. The setting was painfully practical: their encoder–decoder LSTMs for translation kept losing the start of long sentences by the time the decoder needed it. Their fix was to let the decoder, at every output step, *softly look up* relevant positions in the encoder — a weighted sum over encoder hidden states with weights learned end-to-end. **Luong et al. (2015)** simplified it. Three years later **Vaswani et al. (2017)** would prove that attention alone, *without* the recurrence, was enough — and the transformer in [Ch.18](../ch18-transformers/) was born. This bridge chapter makes the soft-lookup intuition rock solid before that explosion of new vocabulary lands.
+>
+> **Where you are in the curriculum.** [Ch.8](../ch08-rnns-lstms/)'s LSTM fixed the vanishing gradient but paid for it with **serialisation** — token $t+1$ cannot start until token $t$ finishes. [Ch.18](../ch18-transformers/)'s transformer throws that away and replaces recurrence with **attention**: a single differentiable operation that lets every position in a sequence look directly at every other position, all at once. Before we touch $Q$, $K$, $V$, multi-head, and positional encoding, we need one mental model and three building blocks. This chapter is deliberately short — it exists so [Ch.18](../ch18-transformers/) lands softly.
+>
+> **Notation in this chapter.** $\mathbf{q}\in\mathbb{R}^{d_k}$ — a single **query** vector ("what am I looking for?"); $\{\mathbf{k}_i\}_{i=1}^{n}$ — **keys** for $n$ candidate items ("what do I offer?"); $\{\mathbf{v}_i\}_{i=1}^{n}$ — corresponding **values** (the actual content to be retrieved); $s_i=\mathbf{q}\cdot\mathbf{k}_i$ — raw similarity score; $\alpha_i=\dfrac{\exp(s_i)}{\sum_j\exp(s_j)}$ — **attention weights** (softmax of the scores; non-negative, sum to 1); $\mathbf{c}=\sum_{i=1}^{n}\alpha_i\mathbf{v}_i$ — the **context vector** (the soft-dictionary lookup result).
 
 ---
 
@@ -32,7 +36,7 @@ You will answer it with nothing more exotic than dot products and a softmax — 
 
 For two vectors $\mathbf{a}, \mathbf{b} \in \mathbb{R}^d$:
 
-$$\mathbf{a} \cdot \mathbf{b} = \sum_{i=1}^{d} a_i b_i = \|\mathbf{a}\|\,\|\mathbf{b}\|\,\cos\theta$$
+$$\mathbf{a} \cdot \mathbf{b} = \sum_{i=1}^{d} a_i b_i = \|\mathbf{a}\| \|\mathbf{b}\| \cos\theta$$
 
 | Result | Meaning |
 |---|---|
@@ -51,9 +55,9 @@ $$\text{softmax}(s_i) = \frac{e^{s_i}}{\sum_{j=1}^{n} e^{s_j}}$$
 The output is a probability distribution: non-negative, sums to 1.
 
 ```
-Input scores:    [2.0,  1.0,  0.1]
-Softmax output:  [0.66, 0.24, 0.10]   ← concentrates mass on the largest score,
-                                        but still leaks some probability to the rest
+Input scores: [2.0, 1.0, 0.1]
+Softmax output: [0.66, 0.24, 0.10] ← concentrates mass on the largest score,
+ but still leaks some probability to the rest
 ```
 
 **With temperature** $\tau$:
@@ -74,12 +78,12 @@ A hard Python dict:
 
 ```python
 prices = {"apple": 0.80, "banana": 0.30, "cherry": 2.50}
-prices["apple"]  # → 0.80 (one key matches, one value returned)
+prices["apple"] # → 0.80 (one key matches, one value returned)
 ```
 
 The soft version:
 
-$$\text{attend}(q;\; \{k_i\}, \{v_i\}) = \sum_{i=1}^{n} \underbrace{\text{softmax}_i\!\left(\frac{q \cdot k_i}{\tau}\right)}_{w_i} \cdot v_i$$
+$$\text{attend}(q; \{k_i\}, \{v_i\}) = \sum_{i=1}^{n} \underbrace{\text{softmax}_i \left(\frac{q \cdot k_i}{\tau}\right)}_{w_i} \cdot v_i$$
 
 In English:
 
@@ -100,17 +104,17 @@ Using the 8-feature housing example with the query `MedInc`:
 ```
 1. Represent each feature as a vector (an "embedding") in R^d.
 
-2. Pick one feature as the query          q = MedInc
+2. Pick one feature as the query q = MedInc
 
-3. For every feature i:  score_i = q · k_i
+3. For every feature i: score_i = q · k_i
 
-4. Apply softmax:        w = softmax([score_1, ..., score_8])
+4. Apply softmax: w = softmax([score_1, ..., score_8])
 
-5. Blend the values:     out = Σ w_i · v_i
+5. Blend the values: out = Σ w_i · v_i
 
 Result: `out` is a context-aware representation of MedInc
-        that mixes in information from every other feature,
-        weighted by how relevant each one turned out to be.
+ that mixes in information from every other feature,
+ weighted by how relevant each one turned out to be.
 ```
 
 In a real transformer we do steps 3–5 **for every feature as the query, simultaneously** — producing one context-aware output per input position. That is self-attention.
@@ -122,19 +126,19 @@ In a real transformer we do steps 3–5 **for every feature as the query, simult
 ### 5.1 Hard vs Soft Lookup (the only diagram you truly need)
 
 ```
-HARD (Python dict)                      SOFT (attention)
+HARD (Python dict) SOFT (attention)
 
- query: "apple"                          query vector q
+ query: "apple" query vector q
 
-   │                                      │
-   ▼                                      ▼
-  match exactly one key               compare to every key
-   │                                      │
-   ▼                                      ▼
-  return that one value               softmax the scores
-                                          │
-                                          ▼
-                                      weighted sum of ALL values
+ │ │
+ ▼ ▼
+ match exactly one key compare to every key
+ │ │
+ ▼ ▼
+ return that one value softmax the scores
+ │
+ ▼
+ weighted sum of ALL values
 ```
 
 ![Hard dict lookup vs soft attention lookup: dict returns one value; attention returns a weighted blend](img/hard_vs_soft_lookup.gif)
@@ -145,26 +149,26 @@ Same sentence, same wall-clock:
 
 ```mermaid
 flowchart LR
-    subgraph RNN["Ch.8 RNN — sequential"]
-        X1["x1"] --> H1["h1"] --> H2["h2"] --> H3["h3"] --> H4["h4"]
-        X2["x2"] --> H2
-        X3["x3"] --> H3
-        X4["x4"] --> H4
-    end
+ subgraph RNN["Ch.8 RNN — sequential"]
+ X1["x1"] --> H1["h1"] --> H2["h2"] --> H3["h3"] --> H4["h4"]
+ X2["x2"] --> H2
+ X3["x3"] --> H3
+ X4["x4"] --> H4
+ end
 ```
 
 ```mermaid
 flowchart LR
-    subgraph ATT["Ch.18 Attention — parallel"]
-        A1["x1"] --> ALL((All positions<br/>attend to<br/>all positions<br/>simultaneously))
-        A2["x2"] --> ALL
-        A3["x3"] --> ALL
-        A4["x4"] --> ALL
-        ALL --> O1["y1"]
-        ALL --> O2["y2"]
-        ALL --> O3["y3"]
-        ALL --> O4["y4"]
-    end
+ subgraph ATT["Ch.18 Attention — parallel"]
+ A1["x1"] --> ALL((All positions<br/>attend to<br/>all positions<br/>simultaneously))
+ A2["x2"] --> ALL
+ A3["x3"] --> ALL
+ A4["x4"] --> ALL
+ ALL --> O1["y1"]
+ ALL --> O2["y2"]
+ ALL --> O3["y3"]
+ ALL --> O4["y4"]
+ end
 ```
 
 The RNN needs 4 sequential steps. Attention needs 1 parallel step. On a GPU, that difference is the entire reason transformers won.
@@ -176,14 +180,14 @@ The RNN needs 4 sequential steps. Attention needs 1 parallel step. On a GPU, tha
 For a length-$T$ sequence, the core object is a $T \times T$ matrix of weights:
 
 ```
-                k1    k2    k3    k4
-              ┌─────────────────────┐
-         q1 → │ 0.7   0.1   0.1   0.1 │  ← row 1 is a probability dist. over all keys
-         q2 → │ 0.2   0.5   0.2   0.1 │
-         q3 → │ 0.1   0.3   0.4   0.2 │
-         q4 → │ 0.1   0.2   0.2   0.5 │
-              └─────────────────────┘
-                  every row sums to 1
+ k1 k2 k3 k4
+ ┌─────────────────────┐
+ q1 → │ 0.7 0.1 0.1 0.1 │ ← row 1 is a probability dist. over all keys
+ q2 → │ 0.2 0.5 0.2 0.1 │
+ q3 → │ 0.1 0.3 0.4 0.2 │
+ q4 → │ 0.1 0.2 0.2 0.5 │
+ └─────────────────────┘
+ every row sums to 1
 ```
 
 **Row $i$** answers: *"when I am position $i$, how much attention do I pay to each other position?"*
@@ -196,9 +200,9 @@ One input vector, three roles:
 
 ```mermaid
 flowchart LR
-    X["x<br/>(token embedding)"] -->|"× W_Q"| Q["Q: what am I looking for?"]
-    X -->|"× W_K"| K["K: what do I advertise?"]
-    X -->|"× W_V"| V["V: what do I actually carry?"]
+ X["x<br/>(token embedding)"] -->|"× W_Q"| Q["Q: what am I looking for?"]
+ X -->|"× W_K"| K["K: what do I advertise?"]
+ X -->|"× W_V"| V["V: what do I actually carry?"]
 ```
 
 This triangle is the single most compressed way to remember QKV:
@@ -213,8 +217,8 @@ In Ch.18 $W_Q, W_K, W_V$ are learned. Here we skip learning and just reuse the s
 Attention treats the input as a *set*, not a sequence:
 
 ```
-Input order:     [cat, sat, on, mat]           →  Attention  →  [y1, y2, y3, y4]
-Shuffled input:  [mat, on, sat, cat]           →  Attention  →  [y4, y3, y2, y1]
+Input order: [cat, sat, on, mat] → Attention → [y1, y2, y3, y4]
+Shuffled input: [mat, on, sat, cat] → Attention → [y4, y3, y2, y1]
 
 Same vectors. Just reordered. No notion of order has been learned.
 ```
@@ -243,31 +247,31 @@ This same $\tau$ reappears in Ch.18 as the $\sqrt{d_k}$ scaling factor — it is
 import numpy as np
 
 def softmax(x, axis=-1):
-    x = x - x.max(axis=axis, keepdims=True)     # numerical stability
-    e = np.exp(x)
-    return e / e.sum(axis=axis, keepdims=True)
+ x = x - x.max(axis=axis, keepdims=True) # numerical stability
+ e = np.exp(x)
+ return e / e.sum(axis=axis, keepdims=True)
 
 def soft_lookup(q, keys, values, tau=1.0):
-    """Attention from first principles — no transformer."""
-    scores  = keys @ q / tau                    # (n_keys,)
-    weights = softmax(scores)                   # (n_keys,)
-    output  = weights @ values                  # (d_value,)
-    return output, weights
+ """Attention from first principles — no transformer."""
+ scores = keys @ q / tau # (n_keys,)
+ weights = softmax(scores) # (n_keys,)
+ output = weights @ values # (d_value,)
+ return output, weights
 
 # 8 housing features → 8 random "embeddings" in R^4 (in Ch.18 these are learned)
 rng = np.random.default_rng(42)
 feature_names = ["MedInc", "HouseAge", "AveRooms", "AveBedrms",
-                 "Population", "AveOccup", "Latitude", "Longitude"]
-embeddings    = rng.normal(size=(8, 4))
+ "Population", "AveOccup", "Latitude", "Longitude"]
+embeddings = rng.normal(size=(8, 4))
 
 # Query: MedInc. Keys and values: all 8 features.
-q      = embeddings[0]
-keys   = embeddings
+q = embeddings[0]
+keys = embeddings
 values = embeddings
 
 out, w = soft_lookup(q, keys, values)
 for name, weight in zip(feature_names, w):
-    print(f"{name:12s}  attention = {weight:.3f}")
+ print(f"{name:12s} attention = {weight:.3f}")
 ```
 
 Run this and you will see an 8-element probability distribution summing to 1 — MedInc's learned-free attention over every feature in the district. Ch.18 makes the keys and values **different projections** of the input and makes the projection weights **learnable**; the kernel of the mechanism is exactly what you just wrote.

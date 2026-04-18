@@ -2,7 +2,11 @@
 
 ![Gradient field, chain-rule graph, descent trajectories](./img/ch06-gradient-chain-rule.png)
 
-> **Running theme.** Our set-piece coach has gone from tuning one knob (launch angle) to tuning eight (strike speed, angle, strike zone on the boot, wall height, wall distance, wind speed, pitch wetness, kicker fatigue). In a scalar world the derivative told us which way was downhill. Now we need a *vector* that points downhill in 8-D — the **gradient** — and a rule for composing many such vectors through deep layers — the **matrix chain rule**. Backpropagation is those two ideas braided together.
+> **The story.** Two ideas, two centuries apart, get spliced together in this chapter. The **gradient** — the vector that points uphill in many dimensions — was developed by Euler and Lagrange in the 1750s as part of the calculus of variations, then formalised by Hamilton and Jacobi in the 1830s–40s. The **chain rule** for composed functions has been with us since Leibniz in the 1670s. The braid — *recursively applying the chain rule along a graph of matrix operations to compute every parameter's gradient at once* — is **backpropagation**, worked out in Paul Werbos's 1974 Harvard PhD thesis and made famous by Rumelhart, Hinton & Williams in *Nature*, 1986. Every neural network you have ever heard of is trained by exactly that braid.
+>
+> **Where you are in the curriculum.** Ch.4 walked downhill in one variable. Ch.5 gave you matrices. Now you need a *vector* that points downhill in 8-D — the **gradient** — and a rule for composing many such vectors through deep layers — the **matrix chain rule**. The set-piece coach has gone from tuning one knob (launch angle) to tuning eight (strike speed, angle, strike zone on the boot, wall height, wall distance, wind speed, pitch wetness, kicker fatigue). This is the last math chapter before the ML track — ML Ch.5 picks up exactly where this chapter stops.
+>
+> **Notation in this chapter.** $f(\mathbf{x})$ — a scalar function of a vector input; $\partial f/\partial x_i$ — **partial derivative**: rate of change with respect to one coordinate, holding the rest fixed; $\nabla f(\mathbf{x})=[\partial f/\partial x_1,\dots,\partial f/\partial x_d]^\top$ — the **gradient** (the direction of steepest ascent); $-\nabla f$ — steepest *descent*; $J$ — the **Jacobian** matrix of a vector-valued function; $\frac{dL}{dx}=\frac{dL}{du}\cdot\frac{du}{dx}$ — the **scalar chain rule**; $\nabla_\theta L$ — gradient of the loss with respect to the parameter vector $\theta$; $\eta$ — learning rate.
 
 ---
 
@@ -10,7 +14,7 @@
 
 For a scalar-input, scalar-output function we have $f'(\theta)$. For a **vector-input, scalar-output** function $f : \mathbb{R}^d \to \mathbb{R}$, the same role is played by the **gradient**:
 
-$$\nabla f(\boldsymbol{\theta}) \;=\; \begin{bmatrix}\dfrac{\partial f}{\partial \theta_1} \\ \vdots \\ \dfrac{\partial f}{\partial \theta_d}\end{bmatrix} \in \mathbb{R}^d.$$
+$$\nabla f(\boldsymbol{\theta}) = \begin{bmatrix}\dfrac{\partial f}{\partial \theta_1} \\ \vdots \\ \dfrac{\partial f}{\partial \theta_d}\end{bmatrix} \in \mathbb{R}^d.$$
 
 Three facts you must internalise:
 
@@ -20,7 +24,7 @@ Three facts you must internalise:
 
 Gradient descent is just Ch.4 with $f'(\theta)$ replaced by $\nabla f(\boldsymbol{\theta})$:
 
-$$\boldsymbol{\theta}_{k+1} \;=\; \boldsymbol{\theta}_k \;-\; \eta\,\nabla f(\boldsymbol{\theta}_k).$$
+$$\boldsymbol{\theta}_{k+1} = \boldsymbol{\theta}_k - \eta \nabla f(\boldsymbol{\theta}_k).$$
 
 ---
 
@@ -28,7 +32,7 @@ $$\boldsymbol{\theta}_{k+1} \;=\; \boldsymbol{\theta}_k \;-\; \eta\,\nabla f(\bo
 
 A first-order Taylor expansion around $\boldsymbol{\theta}$ in a direction $\mathbf{u}$ with $\|\mathbf{u}\|=1$ and step $t > 0$:
 
-$$f(\boldsymbol{\theta} + t\mathbf{u}) \;\approx\; f(\boldsymbol{\theta}) + t\,\mathbf{u}^\top \nabla f(\boldsymbol{\theta}).$$
+$$f(\boldsymbol{\theta} + t\mathbf{u}) \approx f(\boldsymbol{\theta}) + t \mathbf{u}^\top \nabla f(\boldsymbol{\theta}).$$
 
 The inner product $\mathbf{u}^\top \nabla f$ is minimised (most negative) when $\mathbf{u} = -\nabla f / \|\nabla f\|$ by the Cauchy–Schwarz inequality. So among all unit directions, *"against the gradient"* drops the function the fastest.
 
@@ -53,15 +57,15 @@ The gradient is the special case of a Jacobian when $m=1$, transposed into a col
 
 This is the single most important equation in deep learning. For a composition $\mathbf{y} = \mathbf{g}(\mathbf{h}(\mathbf{x}))$ with $\mathbf{x} \in \mathbb{R}^n, \mathbf{h} \in \mathbb{R}^p, \mathbf{y} \in \mathbb{R}^m$:
 
-$$J_{\mathbf{g}\circ \mathbf{h}}(\mathbf{x}) \;=\; J_\mathbf{g}(\mathbf{h}(\mathbf{x})) \; J_\mathbf{h}(\mathbf{x})$$
+$$J_{\mathbf{g}\circ \mathbf{h}}(\mathbf{x}) = J_\mathbf{g}(\mathbf{h}(\mathbf{x})) J_\mathbf{h}(\mathbf{x})$$
 
-$$(m \times n) \;=\; (m \times p) \;\cdot\; (p \times n)$$
+$$(m \times n) = (m \times p) \cdot (p \times n)$$
 
 Compare to the scalar chain rule $[f(g(x))]' = f'(g(x)) \cdot g'(x)$ — same thing, but the product is now matrix multiplication and the dimensions must fit end-to-end.
 
 **Special case — scalar loss.** If the outer function is a scalar loss $L : \mathbb{R}^m \to \mathbb{R}$, we usually care about $\nabla_\mathbf{x} L$. Setting $m = 1$ and transposing:
 
-$$\nabla_\mathbf{x} L \;=\; J_\mathbf{h}(\mathbf{x})^\top \,\nabla_\mathbf{h} L$$
+$$\nabla_\mathbf{x} L = J_\mathbf{h}(\mathbf{x})^\top \nabla_\mathbf{h} L$$
 
 The $(n \times p)$ matrix $J_\mathbf{h}^\top$ pulls the $p$-dim gradient of the loss back into the $n$-dim input space. That right-to-left multiplication is the **backward pass**.
 
@@ -71,17 +75,17 @@ The $(n \times p)$ matrix $J_\mathbf{h}^\top$ pulls the $p$-dim gradient of the 
 
 A single layer: $\mathbf{u} = W\mathbf{x} + \mathbf{b}$, then $\mathbf{h} = \sigma(\mathbf{u})$ applied elementwise, then a scalar loss $L(\mathbf{h})$.
 
-**Forward pass** (shapes): $\mathbf{x}\,(n) \xrightarrow{W\,(m\times n)} \mathbf{u}\,(m) \xrightarrow{\sigma} \mathbf{h}\,(m) \xrightarrow{L} \text{scalar}.$
+**Forward pass** (shapes): $\mathbf{x} (n) \xrightarrow{W (m\times n)} \mathbf{u} (m) \xrightarrow{\sigma} \mathbf{h} (m) \xrightarrow{L} \text{scalar}.$
 
 **Backward pass** — apply the chain rule right-to-left:
 
-$$\underbrace{\nabla_\mathbf{h} L}_{m} \; \xrightarrow[\text{mul by } J_\sigma]{} \; \underbrace{\nabla_\mathbf{u} L \;=\; \nabla_\mathbf{h} L \odot \sigma'(\mathbf{u})}_{m} \; \xrightarrow[\text{mul by } W^\top]{} \; \underbrace{\nabla_\mathbf{x} L \;=\; W^\top (\nabla_\mathbf{h} L \odot \sigma'(\mathbf{u}))}_{n}$$
+$$\underbrace{\nabla_\mathbf{h} L}_{m} \xrightarrow[\text{mul by } J_\sigma]{} \underbrace{\nabla_\mathbf{u} L = \nabla_\mathbf{h} L \odot \sigma'(\mathbf{u})}_{m} \xrightarrow[\text{mul by } W^\top]{} \underbrace{\nabla_\mathbf{x} L = W^\top (\nabla_\mathbf{h} L \odot \sigma'(\mathbf{u}))}_{n}$$
 
 (The Jacobian of an elementwise $\sigma$ is the diagonal matrix $\mathrm{diag}(\sigma'(\mathbf{u}))$, so multiplying by it collapses to elementwise product $\odot$ — a free speed-up.)
 
 For the weight gradient, another one-line chain rule:
 
-$$\nabla_W L \;=\; (\nabla_\mathbf{u} L)\,\mathbf{x}^\top \qquad (m \times n).$$
+$$\nabla_W L = (\nabla_\mathbf{u} L) \mathbf{x}^\top \qquad (m \times n).$$
 
 Stack $L$ layers and you have backprop.
 

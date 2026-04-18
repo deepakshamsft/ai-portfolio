@@ -1,6 +1,8 @@
 # Vision Transformers — How Images Become Sequences
 
-> **After reading this note** you will understand how a Vision Transformer (ViT) splits an image into patches, embeds each patch as a vector, applies positional encoding, and runs standard transformer self-attention — and why this architecture replaced CNNs at scale and forms the visual backbone of CLIP, Stable Diffusion, and every multimodal LLM.
+> **The story.** For most of deep-learning history, vision meant CNNs — LeCun's LeNet (1989) through AlexNet (2012) through ResNet (2015). The transformer ([ML Ch.18](../../ML/ch18-transformers/)) was for text. In **October 2020** **Alexey Dosovitskiy** and colleagues at Google Brain published *"An Image Is Worth 16x16 Words: Transformers for Image Recognition at Scale"* — the **Vision Transformer (ViT)** — with one audacious move: split the image into 16×16 patches, treat each as a token, throw it into a vanilla transformer encoder, and skip convolutions entirely. With enough data (JFT-300M), ViT matched and then beat the best CNNs on ImageNet. **Swin Transformer** (Microsoft, 2021) added hierarchical windows; **DINO** (Caron et al., Meta, 2021) showed self-supervised ViTs learn surprisingly clean object segmentations; and ViT became the visual backbone of **CLIP**, **Stable Diffusion**, **DINOv2**, **SAM**, and every modern multimodal LLM.
+>
+> **Where you are in the curriculum.** [MultimodalFoundations](../MultimodalFoundations/) showed why every modality needs to become tokens. This chapter shows how *images* become tokens. After this you understand the visual half of the [CLIP](../CLIP/) embedding space, the encoder inside [Latent Diffusion](../LatentDiffusion/), and the vision tower of every [Multimodal LLM](../MultimodalLLMs/) in the track.
 
 ---
 
@@ -8,8 +10,8 @@
 
 A standard transformer expects a sequence of token embeddings as input. An image is a 2-D spatial grid of pixels, not a sequence. The Vision Transformer (ViT) resolves this mismatch with one elegant trick: **split the image into fixed-size patches and treat each patch as a token**. A 224×224 image divided into 16×16 patches yields 196 tokens. Each patch is flattened and linearly projected into a $d$-dimensional embedding vector, then processed by an ordinary transformer encoder with no convolutions at all.
 
-This design has two major consequences:  
-1. ViT can process images with the same architecture that processes text — enabling true multimodal models.  
+This design has two major consequences: 
+1. ViT can process images with the same architecture that processes text — enabling true multimodal models. 
 2. At scale (large datasets + large models), ViT outperforms CNNs because attention can model long-range spatial dependencies that convolution's fixed receptive field cannot.
 
 ---
@@ -17,12 +19,12 @@ This design has two major consequences:
 ## 2 · Running Example — PixelSmith v1
 
 ```
-Input:   (3, 224, 224) normalised image tensor  (built in Ch.1)
+Input: (3, 224, 224) normalised image tensor (built in Ch.1)
 Process: Split into 196 patches of size 16×16
-         → each patch: 16 × 16 × 3 = 768 values
-         → linear projection: 768 → 768 (the hidden dimension dmodel = 768 for ViT-B)
-Output:  196 patch embeddings of shape (768,) + 1 [CLS] token
-         → full sequence shape (197, 768)  ready for transformer encoder
+ → each patch: 16 × 16 × 3 = 768 values
+ → linear projection: 768 → 768 (the hidden dimension dmodel = 768 for ViT-B)
+Output: 196 patch embeddings of shape (768,) + 1 [CLS] token
+ → full sequence shape (197, 768) ready for transformer encoder
 ```
 
 ---
@@ -53,7 +55,7 @@ patch_embed = nn.Conv2d(in_channels=3, out_channels=d, kernel_size=P, stride=P)
 
 A learnable `[CLS]` token is prepended to the sequence. The classification (or embedding) output is taken from this token's final representation.
 
-$$\mathbf{z}_0 = [\mathbf{x}_{cls} \; ; \; \mathbf{z}_1 + \mathbf{e}_1 \; ; \; \mathbf{z}_2 + \mathbf{e}_2 \; ; \; \ldots \; ; \; \mathbf{z}_N + \mathbf{e}_N]$$
+$$\mathbf{z}_0 = [\mathbf{x}_{cls} ; \mathbf{z}_1 + \mathbf{e}_1 ; \mathbf{z}_2 + \mathbf{e}_2 ; \ldots ; \mathbf{z}_N + \mathbf{e}_N]$$
 
 where $\mathbf{e}_i \in \mathbb{R}^d$ are **learned positional embeddings** (one per patch position + one for CLS). Unlike sinusoidal positional encoding in NLP transformers, ViT uses learnable 1-D position embeddings that index the patch grid linearly (left-to-right, top-to-bottom).
 
@@ -70,7 +72,7 @@ where MSA = Multi-head Self-Attention, LN = Layer Normalisation, MLP = 2-layer f
 
 Each patch attends to every other patch. The attention weight $A_{ij}$ between patch $i$ and patch $j$:
 
-$$A_{ij} = \frac{\exp\!\left(\mathbf{q}_i^\top \mathbf{k}_j / \sqrt{d_k}\right)}{\sum_m \exp\!\left(\mathbf{q}_i^\top \mathbf{k}_m / \sqrt{d_k}\right)}$$
+$$A_{ij} = \frac{\exp \left(\mathbf{q}_i^\top \mathbf{k}_j / \sqrt{d_k}\right)}{\sum_m \exp \left(\mathbf{q}_i^\top \mathbf{k}_m / \sqrt{d_k}\right)}$$
 
 **Key insight:** this is $O(N^2)$ in the number of patches. For 196 patches this is 38,416 pairs — very manageable. But for 512×512 images with P=16 (1024 patches), quadratic cost becomes significant — motivating efficient attention variants in high-resolution diffusion.
 
@@ -138,52 +140,52 @@ All 197 token representations → used for dense tasks (segmentation, detection)
 
 ```
 Input image (3, 224, 224)
-        │
-        ▼
+ │
+ ▼
 ┌─────────────────────────────────────┐
-│  Patch Embedding (Conv2d, P=16)      │
-│  (3, 224, 224) → (196, 768)          │
+│ Patch Embedding (Conv2d, P=16) │
+│ (3, 224, 224) → (196, 768) │
 └───────────────┬─────────────────────┘
-                │
-        Prepend [CLS]
-                │
-        ┌───────▼──────────┐
-        │ + Pos Embeddings  │  (learnable, 197 × 768)
-        └───────┬──────────┘
-                │
-        ┌───────▼──────────┐
-        │  Transformer L1   │  LN → MSA → Add
-        │                   │  LN → MLP → Add
-        └───────┬──────────┘
-                │
-               ...  × 12 layers (ViT-B)
-                │
-        ┌───────▼──────────┐
-        │  Transformer L12  │
-        └───────┬──────────┘
-                │
-        ┌───────▼──────────┐
-        │    Layer Norm     │
-        └───────┬──────────┘
-                │
-        CLS output: (768,)   ← image embedding (used by CLIP, etc.)
+ │
+ Prepend [CLS]
+ │
+ ┌───────▼──────────┐
+ │ + Pos Embeddings │ (learnable, 197 × 768)
+ └───────┬──────────┘
+ │
+ ┌───────▼──────────┐
+ │ Transformer L1 │ LN → MSA → Add
+ │ │ LN → MLP → Add
+ └───────┬──────────┘
+ │
+ ... × 12 layers (ViT-B)
+ │
+ ┌───────▼──────────┐
+ │ Transformer L12 │
+ └───────┬──────────┘
+ │
+ ┌───────▼──────────┐
+ │ Layer Norm │
+ └───────┬──────────┘
+ │
+ CLS output: (768,) ← image embedding (used by CLIP, etc.)
 ```
 
 ### Attention Pattern — Local vs Global
 
 ```
-CNN (ResNet):           ViT self-attention:
-                        
-  ┌───┬───┬───┐          Every patch can attend to every other patch.
-  │ * │   │   │          
-  ├───┼───┼───┤          Early layers: attend mostly to nearby patches
-  │   │ R │   │   vs.    (similar to CNN receptive field)
-  ├───┼───┼───┤          
-  │   │   │   │          Deep layers: attend globally — patch at top-left
-  └───┴───┴───┘          attends to patch at bottom-right
-  
-  Hard boundary:          No boundary — pure data-driven attention
-  max = kernel size       anywhere in the image
+CNN (ResNet): ViT self-attention:
+ 
+ ┌───┬───┬───┐ Every patch can attend to every other patch.
+ │ * │ │ │ 
+ ├───┼───┼───┤ Early layers: attend mostly to nearby patches
+ │ │ R │ │ vs. (similar to CNN receptive field)
+ ├───┼───┼───┤ 
+ │ │ │ │ Deep layers: attend globally — patch at top-left
+ └───┴───┴───┘ attends to patch at bottom-right
+ 
+ Hard boundary: No boundary — pure data-driven attention
+ max = kernel size anywhere in the image
 ```
 
 ---
@@ -228,11 +230,11 @@ It is a learnable parameter prepended to every input sequence. BERT popularised 
 
 ### Likely Asked
 - "A ViT-B/16 receives a 224×224 image. How many tokens does the transformer encoder process?"
-  → $196 \text{ patches} + 1 \text{ CLS} = 197$
+ → $196 \text{ patches} + 1 \text{ CLS} = 197$
 - "How would you adapt ViT to process a 512×512 image without retraining positional embeddings?"
-  → Bicubic interpolation of the learned position embeddings from 14×14 to 32×32 grid
+ → Bicubic interpolation of the learned position embeddings from 14×14 to 32×32 grid
 - "CLIP uses ViT-L/14 as its image encoder. Why L/14 and not B/16?"
-  → Smaller patch size (14 vs 16) → more patches → finer detail → better zero-shot performance
+ → Smaller patch size (14 vs 16) → more patches → finer detail → better zero-shot performance
 
 ### Trap to Avoid
 - Forgetting that attention in ViT is over patches, not pixels — patch count $N = (H/P)^2$, not $H \times W$

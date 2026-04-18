@@ -1,9 +1,11 @@
 # Local Diffusion Lab — Assembling the Full Pipeline
 
-> **Track:** Multimodal AI  
+> **Track:** Multimodal AI 
 > **Prerequisites:** All 11 preceding chapters
 
-You've built every piece. This chapter shows how they connect, what you can run entirely on a laptop, and where to go next.
+> **The story.** As recently as **2022**, running Stable Diffusion required a 16 GB-VRAM server GPU. **AUTOMATIC1111**'s WebUI (August 2022) was the first community tool to make local generation accessible. **diffusers** (Hugging Face, summer 2022) provided a clean Python API. **xFormers** memory-efficient attention (Meta, 2022) and **bitsandbytes** 8-bit (Tim Dettmers, 2022) collapsed VRAM requirements. **ComfyUI** (comfyanonymous, January 2023) let users wire pipelines as node graphs. **GGUF** quantisation (the llama.cpp lineage, 2023–24) and the **MLX** framework (Apple, December 2023) brought 4-bit diffusion to Mac M-series and 8 GB consumer GPUs. By 2025, the open generative-AI stack was something you could assemble on a laptop and run offline — a remarkable retreat of the cloud-only assumption that defined 2022.
+>
+> **Where you are in the curriculum.** You've built every conceptual piece across the previous 11 chapters. This is the assembly chapter — wiring CLIP + VAE + U-Net + scheduler + guidance + ControlNet into a working pipeline that runs entirely on a stock developer laptop. After this, the [PixelSmith](../README.md) studio is real, and you have the production pattern for any locally-hosted generative system.
 
 ---
 
@@ -13,22 +15,22 @@ A **local diffusion lab** is a complete, offline-first AI image studio that runs
 
 ```
 Input text / image
-       ↓
-[CLIP text encoder]          ← Ch. 3 · CLIP
-       ↓
-[Classifier-free guidance]   ← Ch. 5 · GuidanceConditioning
-       ↓
-[DDIM reverse diffusion]     ← Ch. 6 · Schedulers
-       ↓
-[Latent space denoising]     ← Ch. 7 · LatentDiffusion
-       ↓   (optionally conditioned on edges/depth)
-[ControlNet residuals]       ← Ch. 8 · TextToImage
-       ↓
-[VAE decoder]                ← Ch. 7 · LatentDiffusion
-       ↓
+ ↓
+[CLIP text encoder] ← Ch. 3 · CLIP
+ ↓
+[Classifier-free guidance] ← Ch. 5 · GuidanceConditioning
+ ↓
+[DDIM reverse diffusion] ← Ch. 6 · Schedulers
+ ↓
+[Latent space denoising] ← Ch. 7 · LatentDiffusion
+ ↓ (optionally conditioned on edges/depth)
+[ControlNet residuals] ← Ch. 8 · TextToImage
+ ↓
+[VAE decoder] ← Ch. 7 · LatentDiffusion
+ ↓
 Output image
-       ↓
-[Evaluation: FID / CLIP Score]  ← Ch. 11 · GenerativeEvaluation
+ ↓
+[Evaluation: FID / CLIP Score] ← Ch. 11 · GenerativeEvaluation
 ```
 
 The video pipeline (Ch. 9) adds a temporal attention layer at the denoising loop. The MLLM (Ch. 10) wraps the whole thing so you can *chat* with your generated images.
@@ -64,7 +66,7 @@ No new mathematics in this chapter. The capstone assembles results from previous
 |-----------|---------------------|---------|
 | Patch embedding | $z_i = W_p \cdot p_i + e_i^{\text{pos}}$ | 2 |
 | Contrastive loss | $\mathcal{L} = -\log \frac{e^{\text{sim}(v_i,t_i)/\tau}}{\sum_j e^{\text{sim}(v_i,t_j)/\tau}}$ | 3 |
-| Forward diffusion | $q(x_t\|x_0) = \mathcal{N}(x_t;\,\sqrt{\bar{\alpha}_t}x_0,\,(1-\bar{\alpha}_t)I)$ | 4 |
+| Forward diffusion | $q(x_t\|x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t}x_0, (1-\bar{\alpha}_t)I)$ | 4 |
 | CFG score | $\tilde{\epsilon} = \epsilon_\theta(x_t,\varnothing) + w[\epsilon_\theta(x_t,c)-\epsilon_\theta(x_t,\varnothing)]$ | 5 |
 | DDIM step | $x_{t-1} = \sqrt{\bar{\alpha}_{t-1}}\hat{x}_0 + \sigma_t\epsilon + \sqrt{1-\bar{\alpha}_{t-1}-\sigma_t^2}\epsilon_\theta$ | 6 |
 | VAE ELBO | $\mathcal{L}_{\text{VAE}} = \mathbb{E}[\log p(x\|z)] - \beta D_{\text{KL}}(q\|p)$ | 7 |
@@ -103,34 +105,34 @@ No new mathematics in this chapter. The capstone assembles results from previous
 PIXELSMITH v6 — FULL ARCHITECTURE
 ──────────────────────────────────
 
-  Prompt: "a handwritten four"
-        │
-        ▼
-  ┌─────────────┐      ┌──────────────────────────────────┐
-  │ CLIP Text   │      │ Latent Diffusion Loop (DDIM)     │
-  │ Encoder     │      │                                  │
-  │ c ∈ R^512   │─────▶│  z_T ~ N(0,I)                   │
-  └─────────────┘      │  for t = T..1:                   │
-                       │    ε̃ = CFG(ε_θ(z_t,c), ε_θ(z_t,∅))│
-  Optional:            │    z_{t-1} = DDIM_step(z_t, ε̃)  │
-  ┌─────────────┐      │  z_0 obtained                    │
-  │ Edge map    │──────▶│  (ControlNet injects residuals) │
-  └─────────────┘      └───────────────┬──────────────────┘
-                                       │
-                                       ▼
-                              ┌─────────────────┐
-                              │  VAE Decoder    │
-                              │  z_0 → x̂_0     │
-                              └────────┬────────┘
-                                       │
-                    ┌──────────────────┴───────────────────┐
-                    │                                       │
-                    ▼                                       ▼
-           ┌──────────────┐                     ┌──────────────────┐
-           │ LLaVA MLLM   │                     │ Eval: FID /      │
-           │ "What digit  │                     │ CLIP Score /     │
-           │  is this?"   │                     │ Precision-Recall │
-           └──────────────┘                     └──────────────────┘
+ Prompt: "a handwritten four"
+ │
+ ▼
+ ┌─────────────┐ ┌──────────────────────────────────┐
+ │ CLIP Text │ │ Latent Diffusion Loop (DDIM) │
+ │ Encoder │ │ │
+ │ c ∈ R^512 │─────▶│ z_T ~ N(0,I) │
+ └─────────────┘ │ for t = T..1: │
+ │ ε̃ = CFG(ε_θ(z_t,c), ε_θ(z_t,∅))│
+ Optional: │ z_{t-1} = DDIM_step(z_t, ε̃) │
+ ┌─────────────┐ │ z_0 obtained │
+ │ Edge map │──────▶│ (ControlNet injects residuals) │
+ └─────────────┘ └───────────────┬──────────────────┘
+ │
+ ▼
+ ┌─────────────────┐
+ │ VAE Decoder │
+ │ z_0 → x̂_0 │
+ └────────┬────────┘
+ │
+ ┌──────────────────┴───────────────────┐
+ │ │
+ ▼ ▼
+ ┌──────────────┐ ┌──────────────────┐
+ │ LLaVA MLLM │ │ Eval: FID / │
+ │ "What digit │ │ CLIP Score / │
+ │ is this?" │ │ Precision-Recall │
+ └──────────────┘ └──────────────────┘
 ```
 
 ---

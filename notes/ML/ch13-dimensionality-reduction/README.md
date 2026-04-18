@@ -1,6 +1,10 @@
 # Ch.13 — Dimensionality Reduction
 
-> **Running theme:** The clustering work (Ch.12) happened in an 8-dimensional space — but every scatter plot we drew required projecting down to 2D first. That projection is dimensionality reduction. PCA, t-SNE, and UMAP each make different promises about what they preserve, and breaking each promise costs you a different kind of insight.
+> **The story.** **PCA** is the oldest of the three. **Karl Pearson** introduced it in **1901** as "lines and planes of closest fit to systems of points in space"; **Harold Hotelling** rediscovered and renamed it in 1933. The mechanics are pure linear algebra — eigendecomposition of the covariance matrix — which is why every textbook covers it and every numerical-linear-algebra library ships it. **t-SNE** (**Laurens van der Maaten & Geoffrey Hinton**, **2008**) was a deliberate departure: stop trying to preserve global geometry, optimise instead for local neighbourhoods, and you get the now-iconic "clusters of clusters" visualisations. The trade-off was honesty about distance — t-SNE plots lie about how far apart distant clusters are. **UMAP** (**Leland McInnes, John Healy, James Melville**, **2018**) recovered some of that global structure using ideas from algebraic topology, ran 10–100× faster, and has become the default for embedding visualisation in single-cell biology, NLP, and modern deep learning.
+>
+> **Where you are in the curriculum.** The clustering work in [Ch.12](../ch12-clustering/) happened in 8-dimensional space — but every scatter plot we drew required projecting down to 2D first. That projection is dimensionality reduction, and your choice of method (PCA / t-SNE / UMAP) silently decides what you see and what you miss. Each method makes a different promise about what it preserves; breaking each promise costs you a different kind of insight. This is the chapter where you learn which is which.
+>
+> **Notation in this chapter.** $X\in\mathbb{R}^{N\times d}$ — the data matrix ($N$ samples, $d$ features); $\Sigma=\tfrac{1}{N}X^\top X$ — the (centred) **covariance matrix**; $\lambda_i,\mathbf{v}_i$ — eigenvalue / eigenvector pair of $\Sigma$ (PCA's principal components, sorted by decreasing $\lambda_i$); $k$ — number of retained components ($k\ll d$); $Z=XV_k\in\mathbb{R}^{N\times k}$ — the projected (low-dimensional) data; **explained variance ratio** $=\lambda_i/\sum_j\lambda_j$; for **t-SNE**: $p_{ij}$ — high-dim neighbour probabilities, $q_{ij}$ — low-dim Student-$t$ probabilities, **perplexity** — effective neighbourhood size; for **UMAP**: $n_{\text{neighbors}}$, $\text{min\_dist}$.
 
 ---
 
@@ -15,13 +19,13 @@ High-dimensional data is hard to visualise, computationally expensive, and often
 **UMAP (Uniform Manifold Approximation and Projection):** non-linear topology-preserving method. Faster than t-SNE at scale, better global structure, can be used for supervised dimensionality reduction and as a feature transformer for downstream tasks.
 
 ```
-Axis          PCA         t-SNE         UMAP
-Speed         fastest     slowest       fast
-Deterministic yes         no (stoch.)   no (stoch.)
-Global struct ✓✓✓         ✗             ✓✓
-Local struct  ✓✓          ✓✓✓           ✓✓✓
-Invertible    yes         no            no
-Downstream ML yes         rarely        yes
+Axis PCA t-SNE UMAP
+Speed fastest slowest fast
+Deterministic yes no (stoch.) no (stoch.)
+Global struct ✓✓✓ ✗ ✓✓
+Local struct ✓✓ ✓✓✓ ✓✓✓
+Invertible yes no no
+Downstream ML yes rarely yes
 ```
 
 ---
@@ -30,8 +34,8 @@ Downstream ML yes         rarely        yes
 
 We take all **8 features** of the California Housing dataset (20,640 census districts) and project them to 2 dimensions using each of the three methods. The resulting scatter plots are coloured by median house value (`MedHouseVal`) to see whether geographic and economic structure is preserved.
 
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)  
-Projection target: 2D for visualisation  
+Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`) 
+Projection target: 2D for visualisation 
 Colour: `MedHouseVal` (continuous)
 
 ---
@@ -84,7 +88,7 @@ Optimised via gradient descent. The heavy-tailed $q$ distribution repels distant
 
 UMAP models the data's **topological structure** using a weighted $k$-nearest-neighbour graph in high-d space, then seeks a low-d embedding that minimises the cross-entropy between the two graph edge probability distributions.
 
-**High-d graph:** edge weight $v_{ij} = \exp\!\left(\frac{-\max(0,\, d(x_i, x_j) - \rho_i)}{\sigma_i}\right)$ where $\rho_i$ is the distance to the nearest neighbour and $\sigma_i$ is calibrated to achieve the desired fuzzy coverage.
+**High-d graph:** edge weight $v_{ij} = \exp \left(\frac{-\max(0, d(x_i, x_j) - \rho_i)}{\sigma_i}\right)$ where $\rho_i$ is the distance to the nearest neighbour and $\sigma_i$ is calibrated to achieve the desired fuzzy coverage.
 
 **Low-d objective:** minimise:
 
@@ -102,26 +106,26 @@ where $w_e$ is the low-dimensional edge probability.
 
 ```
 PCA:
-1.  Standardise features
-2.  Fit PCA(n_components=8)  → get explained_variance_ratio_
-3.  Plot scree chart: cumulative EVR vs component number
-4.  Choose n_components where cumulative EVR ≥ 95% (for preprocessing)
-    OR n_components=2 (for visualisation)
-5.  Colour 2D scatter by MedHouseVal to assess quality
+1. Standardise features
+2. Fit PCA(n_components=8) → get explained_variance_ratio_
+3. Plot scree chart: cumulative EVR vs component number
+4. Choose n_components where cumulative EVR ≥ 95% (for preprocessing)
+ OR n_components=2 (for visualisation)
+5. Colour 2D scatter by MedHouseVal to assess quality
 
 t-SNE:
-1.  Reduce to ~30 PCA components first (removes noise, speeds up t-SNE)
-2.  Run TSNE(n_components=2, perplexity=30, random_state=42)
-3.  t-SNE is slow: use n_jobs=-1 or work on a sample if n > 50k
-4.  Do NOT interpret distance between clusters — only topology matters
-5.  Try perplexity ∈ {10, 30, 50} and compare
+1. Reduce to ~30 PCA components first (removes noise, speeds up t-SNE)
+2. Run TSNE(n_components=2, perplexity=30, random_state=42)
+3. t-SNE is slow: use n_jobs=-1 or work on a sample if n > 50k
+4. Do NOT interpret distance between clusters — only topology matters
+5. Try perplexity ∈ {10, 30, 50} and compare
 
 UMAP:
-1.  Standardise features
-2.  Run UMAP(n_components=2, n_neighbors=15, min_dist=0.1, random_state=42)
-3.  Try n_neighbors ∈ {5, 15, 50} — lower = tighter local clusters
-4.  Use min_dist to control cluster compactness
-5.  UMAP.transform() works on new data — unlike t-SNE
+1. Standardise features
+2. Run UMAP(n_components=2, n_neighbors=15, min_dist=0.1, random_state=42)
+3. Try n_neighbors ∈ {5, 15, 50} — lower = tighter local clusters
+4. Use min_dist to control cluster compactness
+5. UMAP.transform() works on new data — unlike t-SNE
 ```
 
 ---
@@ -134,47 +138,47 @@ UMAP:
 Cumulative
 explained
 variance
-1.00 │                    ────────────────────
-0.95 │              ─────╯
-0.85 │        ─────╯
-0.60 │  ─────╯
-     │──╯
-     └──────────────────────────────────── component number
-          1   2   3   4   5   6   7   8
-               ↑
-            95% threshold suggests using k=4 components
+1.00 │ ────────────────────
+0.95 │ ─────╯
+0.85 │ ─────╯
+0.60 │ ─────╯
+ │──╯
+ └──────────────────────────────────── component number
+ 1 2 3 4 5 6 7 8
+ ↑
+ 95% threshold suggests using k=4 components
 ```
 
 ### PCA vs t-SNE vs UMAP: what each preserves
 
 ```
-PCA                t-SNE              UMAP
-────────────────   ────────────────   ────────────────
-Global variance    Local clusters     Local + global
-Linear only        Non-linear         Non-linear
-Distances valid    ⚠ distances WRONG  Topology valid
-Fast (ms)          Slow (min)         Medium (sec)
-Invertible         No transform()     Has transform()
+PCA t-SNE UMAP
+──────────────── ──────────────── ────────────────
+Global variance Local clusters Local + global
+Linear only Non-linear Non-linear
+Distances valid ⚠ distances WRONG Topology valid
+Fast (ms) Slow (min) Medium (sec)
+Invertible No transform() Has transform()
 ```
 
 ### t-SNE perplexity effect
 
 ```mermaid
 flowchart LR
-    low["perplexity = 5\n(tight, fragmented\nlocal clusters)"]
-    med["perplexity = 30\n(balanced local\nand global)"]
-    high["perplexity = 100\n(diffuse, merges\nsmall clusters)"]
-    low -.-> med -.-> high
+ low["perplexity = 5\n(tight, fragmented\nlocal clusters)"]
+ med["perplexity = 30\n(balanced local\nand global)"]
+ high["perplexity = 100\n(diffuse, merges\nsmall clusters)"]
+ low -.-> med -.-> high
 ```
 
 ### UMAP n_neighbors effect
 
 ```mermaid
 flowchart LR
-    N5["n_neighbors = 5\n(many tight\nmicro-clusters)"]
-    N15["n_neighbors = 15\n(natural clusters\nwith structure)"]
-    N50["n_neighbors = 50\n(smooth continuous\nmanifold)"]
-    N5 -.-> N15 -.-> N50
+ N5["n_neighbors = 5\n(many tight\nmicro-clusters)"]
+ N15["n_neighbors = 15\n(natural clusters\nwith structure)"]
+ N50["n_neighbors = 50\n(smooth continuous\nmanifold)"]
+ N5 -.-> N15 -.-> N50
 ```
 
 ---
@@ -214,21 +218,21 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 # ── PCA scree ─────────────────────────────────────────────────────────────────
-data   = fetch_california_housing()
-X      = data.data
+data = fetch_california_housing()
+X = data.data
 scaler = StandardScaler()
-X_sc   = scaler.fit_transform(X)
+X_sc = scaler.fit_transform(X)
 
 pca_full = PCA(n_components=X_sc.shape[1]).fit(X_sc)
-evr      = pca_full.explained_variance_ratio_
-cumevr   = evr.cumsum()
-k95      = (cumevr < 0.95).sum() + 1
+evr = pca_full.explained_variance_ratio_
+cumevr = evr.cumsum()
+k95 = (cumevr < 0.95).sum() + 1
 print(f"Components to reach 95% variance: {k95}")
 ```
 
 ```python
 # ── PCA 2D projection ─────────────────────────────────────────────────────────
-pca2  = PCA(n_components=2, random_state=42)
+pca2 = PCA(n_components=2, random_state=42)
 X_pca = pca2.fit_transform(X_sc)
 print(f"PCA 2D retains {pca2.explained_variance_ratio_.sum()*100:.1f}% of variance")
 ```
@@ -237,19 +241,19 @@ print(f"PCA 2D retains {pca2.explained_variance_ratio_.sum()*100:.1f}% of varian
 # ── t-SNE (reduce via PCA first for speed) ────────────────────────────────────
 X_pca30 = PCA(n_components=min(30, X_sc.shape[1]), random_state=42).fit_transform(X_sc)
 tsne = TSNE(n_components=2, perplexity=30, learning_rate='auto',
-            init='pca', random_state=42, n_jobs=-1)
+ init='pca', random_state=42, n_jobs=-1)
 X_tsne = tsne.fit_transform(X_pca30)
 ```
 
 ```python
 # ── UMAP ──────────────────────────────────────────────────────────────────────
 try:
-    import umap
-    reducer = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1,
-                        random_state=42)
-    X_umap  = reducer.fit_transform(X_sc)
+ import umap
+ reducer = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1,
+ random_state=42)
+ X_umap = reducer.fit_transform(X_sc)
 except ImportError:
-    print("pip install umap-learn")
+ print("pip install umap-learn")
 ```
 
 ---

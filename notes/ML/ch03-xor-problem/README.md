@@ -1,6 +1,10 @@
 # Ch.3 — The XOR Problem
 
-> **Running theme:** Coastal-and-high-income districts are premium; inland-and-low-income districts are not. But coastal-with-low-income is ambiguous — and a linear model cannot handle it. This is XOR in the data. One hidden layer is enough to fix it, and the fix explains the entire motivation for deep learning.
+> **The story.** In **1969** **Marvin Minsky** and **Seymour Papert** published *Perceptrons*, a meticulous mathematical takedown of **Frank Rosenblatt's** 1958 perceptron model. The headline result: a single-layer perceptron cannot learn XOR — the simplest non-linearly-separable function imaginable. The book was correct, devastating, and read by everyone with a research budget. Funding evaporated, neural-network research collapsed into the **first AI winter**, and the field stayed frozen for nearly two decades. The thaw began only when Rumelhart, Hinton, and Williams (1986) showed that *one extra hidden layer* plus backpropagation could learn XOR — and could, in principle, learn anything. The **Universal Approximation Theorem** (Cybenko 1989, Hornik 1991) made it official. This chapter re-runs the 1969 experiment, watches the linear model fail, and watches one hidden layer fix it — the exact moment that justified deep learning.
+>
+> **Where you are in the curriculum.** Ch.1–Ch.2 fit linear models. This chapter shows you, on the platform's own data, where they break: coastal-and-high-income districts are premium; inland-and-low-income districts are not; coastal-with-low-income is ambiguous — XOR-shaped, and a linear model cannot handle it. One hidden layer is enough to fix it, and the fix is the entire motivation for [Ch.4](../ch04-neural-networks/) onwards.
+>
+> **Notation in this chapter.** $x_1,x_2\in\{0,1\}$ — binary input features ("coastal?", "high-income?"); $y=x_1\oplus x_2$ — the XOR target; $\mathbf{h}\in\mathbb{R}^k$ — hidden-layer activation; $W^{(1)},\mathbf{b}^{(1)}$ — input-to-hidden weights and bias; $W^{(2)},b^{(2)}$ — hidden-to-output weights and bias; $\sigma$ or $\text{ReLU}$ — the hidden-layer activation function; $\hat{y}$ — the network's predicted probability.
 
 ---
 
@@ -26,7 +30,7 @@ More concretely, we'll demonstrate the XOR failure on synthetic data first (it's
 
 A perceptron computes:
 
-$$\hat{y} = \text{step}\!\left(\mathbf{W}^\top \mathbf{x} + b\right)$$
+$$\hat{y} = \text{step} \left(\mathbf{W}^\top \mathbf{x} + b\right)$$
 
 It partitions input space with a single hyperplane:
 
@@ -47,7 +51,7 @@ Plot those four points. The two 0s sit at opposite corners; the two 1s sit at th
 
 Add a hidden layer of neurons with a non-linear activation:
 
-$$\mathbf{h} = \sigma\!\left(\mathbf{W}_1^\top \mathbf{x} + \mathbf{b}_1\right) \qquad \hat{y} = \sigma\!\left(\mathbf{W}_2^\top \mathbf{h} + b_2\right)$$
+$$\mathbf{h} = \sigma \left(\mathbf{W}_1^\top \mathbf{x} + \mathbf{b}_1\right) \qquad \hat{y} = \sigma \left(\mathbf{W}_2^\top \mathbf{h} + b_2\right)$$
 
 where $\sigma$ can be Sigmoid, ReLU, or Tanh. The hidden layer transforms the input space into a new representation where the classes *are* linearly separable. Then the output layer draws a straight line in that new space.
 
@@ -69,24 +73,24 @@ In plain English: **one hidden layer is enough in theory**. In practice, more la
 Problem: linearly inseparable data (XOR)
 
 Step 1: Observe failure of the linear model
-  └─ Train logistic regression on XOR → accuracy ≈ 50% (chance)
-  └─ Plot decision boundary → a line that can't separate the classes
+ └─ Train logistic regression on XOR → accuracy ≈ 50% (chance)
+ └─ Plot decision boundary → a line that can't separate the classes
 
 Step 2: Add a hidden layer
-  └─ Input (2D) → Hidden layer (2+ neurons) → Output (1 neuron)
-  └─ Hidden layer activation: ReLU or Tanh
-  └─ Output activation: Sigmoid (binary classification)
+ └─ Input (2D) → Hidden layer (2+ neurons) → Output (1 neuron)
+ └─ Hidden layer activation: ReLU or Tanh
+ └─ Output activation: Sigmoid (binary classification)
 
 Step 3: The hidden layer transforms the feature space
-  └─ Each hidden neuron creates a new axis in representation space
-  └─ In the new space, the two classes ARE linearly separable
+ └─ Each hidden neuron creates a new axis in representation space
+ └─ In the new space, the two classes ARE linearly separable
 
 Step 4: Output layer draws a straight line in the new space
-  └─ Which is a curved boundary back in the original input space
+ └─ Which is a curved boundary back in the original input space
 
 Step 5: Training (backprop, covered in Ch.5)
-  └─ Gradient flows from output → hidden → input
-  └─ Both W1 and W2 are updated simultaneously
+ └─ Gradient flows from output → hidden → input
+ └─ Both W1 and W2 are updated simultaneously
 ```
 
 ---
@@ -97,15 +101,15 @@ Step 5: Training (backprop, covered in Ch.5)
 
 ```
 x2
-1 │  ●        ○
-  │  (1)      (0)
-  │
-0 │  ○        ●
-  │  (0)      (1)
-  └────────────── x1
-     0         1
+1 │ ● ○
+ │ (1) (0)
+ │
+0 │ ○ ●
+ │ (0) (1)
+ └────────────── x1
+ 0 1
 
-● = class 1  ○ = class 0
+● = class 1 ○ = class 0
 Any line that separates the top-left ○ from bottom-left ○
 will also separate the ● points incorrectly.
 ```
@@ -114,44 +118,44 @@ will also separate the ● points incorrectly.
 
 ```mermaid
 flowchart LR
-    X1["x₁"] --> H1["h₁\n(neuron)"]
-    X1 --> H2["h₂\n(neuron)"]
-    X2["x₂"] --> H1
-    X2 --> H2
-    H1 --> O["ŷ\n(output)"]
-    H2 --> O
+ X1["x₁"] --> H1["h₁\n(neuron)"]
+ X1 --> H2["h₂\n(neuron)"]
+ X2["x₂"] --> H1
+ X2 --> H2
+ H1 --> O["ŷ\n(output)"]
+ H2 --> O
 
-    subgraph Input
-        X1
-        X2
-    end
-    subgraph Hidden["Hidden Layer (non-linear)"]
-        H1
-        H2
-    end
-    subgraph Output
-        O
-    end
+ subgraph Input
+ X1
+ X2
+ end
+ subgraph Hidden["Hidden Layer (non-linear)"]
+ H1
+ H2
+ end
+ subgraph Output
+ O
+ end
 ```
 
 ### Feature Space Transformation
 
 ```
-Original space (XOR)        Hidden layer space
-x2                          h2
-1│ ○   ●                    1│ ●    ●
- │                           │
-0│ ●   ○                    0│ ○    ○
- └────── x1                  └────── h1
- Not separable               Now separable with a line!
+Original space (XOR) Hidden layer space
+x2 h2
+1│ ○ ● 1│ ● ●
+ │ │
+0│ ● ○ 0│ ○ ○
+ └────── x1 └────── h1
+ Not separable Now separable with a line!
 ```
 
 ### Decision Boundary Complexity vs Hidden Units
 
 ```mermaid
 flowchart LR
-    A["0 hidden units\nLinear boundary\n(fails XOR)"] -->|"+ hidden layer"| B["2 hidden units\nCurved boundary\n(solves XOR)"]
-    B -->|"+ more units"| C["Many units\nArbitrary boundary\n(UAT applies)"]
+ A["0 hidden units\nLinear boundary\n(fails XOR)"] -->|"+ hidden layer"| B["2 hidden units\nCurved boundary\n(solves XOR)"]
+ B -->|"+ more units"| C["Many units\nArbitrary boundary\n(UAT applies)"]
 ```
 
 ---
@@ -190,7 +194,7 @@ print(f"Logistic regression XOR accuracy: {accuracy_score(y_xor, lr.predict(X_xo
 
 # 2. Two-layer network solves it
 mlp = MLPClassifier(hidden_layer_sizes=(4,), activation='relu',
-                    max_iter=5000, random_state=42)
+ max_iter=5000, random_state=42)
 mlp.fit(X_xor, y_xor)
 print(f"MLP XOR accuracy: {accuracy_score(y_xor, mlp.predict(X_xor)):.0%}")
 # Expected: 100%
@@ -199,24 +203,24 @@ print(f"MLP XOR accuracy: {accuracy_score(y_xor, mlp.predict(X_xor)):.0%}")
 ### Manual Two-Layer Network (to see the mechanics)
 
 ```python
-def relu(z):     return np.maximum(0, z)
-def sigmoid(z):  return 1 / (1 + np.exp(-np.clip(z, -500, 500)))
+def relu(z): return np.maximum(0, z)
+def sigmoid(z): return 1 / (1 + np.exp(-np.clip(z, -500, 500)))
 
 def forward(X, W1, b1, W2, b2):
-    h = relu(X @ W1 + b1)       # hidden layer: (n, 2)
-    y_hat = sigmoid(h @ W2 + b2)  # output: (n, 1)
-    return h, y_hat
+ h = relu(X @ W1 + b1) # hidden layer: (n, 2)
+ y_hat = sigmoid(h @ W2 + b2) # output: (n, 1)
+ return h, y_hat
 
 # Manually chosen weights that solve XOR (not trained — for intuition only)
-W1 = np.array([[1, 1],   # weights from x1 to h1, h2
-               [1, 1]])  # weights from x2 to h1, h2
-b1 = np.array([[-0.5, -1.5]])  # biases for h1, h2
-W2 = np.array([[4], [-10]])   # weights from h1, h2 to output
+W1 = np.array([[1, 1], # weights from x1 to h1, h2
+ [1, 1]]) # weights from x2 to h1, h2
+b1 = np.array([[-0.5, -1.5]]) # biases for h1, h2
+W2 = np.array([[4], [-10]]) # weights from h1, h2 to output
 b2 = np.array([[-1.5]])
 
 h, y_hat = forward(X_xor.astype(float), W1, b1, W2, b2)
 print("Predictions:", y_hat.ravel().round(2))
-print("Labels:     ", y_xor)
+print("Labels: ", y_xor)
 ```
 
 ---

@@ -1,6 +1,10 @@
 # Ch.14 — Unsupervised Metrics
 
-> **Running theme:** The real estate platform ran K-Means, DBSCAN, and HDBSCAN in Ch.12 — but which clustering was actually good? Without labelled districts, there is no accuracy score, no F1, no MAE. Ch.14 gives the internal and external tools for answering "how well did this unsupervised method work?"
+> **The story.** Once you cluster without labels, you face an awkward question: *was the clustering good?* The community has answered it twice. The internal answer is **Peter Rousseeuw's silhouette score** (1987) — a per-point measurement of "am I closer to my own cluster than to my nearest neighbour cluster?" — and the **Davies–Bouldin index** (1979), which compares within-cluster spread against between-cluster separation. Both metrics need only the data itself. The external answer arrives when you *do* have ground-truth labels (validation set, gold-standard segmentation, simulated data): the **Adjusted Rand Index** (Hubert & Arabie, 1985) and **Normalised Mutual Information** (Strehl & Ghosh, 2003) score how well your clustering recovers the true partition. Together these are the metrics that turn unsupervised learning from "pretty plot" into "engineering decision."
+>
+> **Where you are in the curriculum.** [Ch.12](../ch12-clustering/) ran K-Means, DBSCAN, and HDBSCAN on the platform's districts — but which clustering was actually good? Without labelled districts, there is no accuracy score, no F1, no MAE. This chapter gives the internal and external tools for answering "how well did this unsupervised method work?" — the unsupervised analogue of [Ch.9](../ch09-metrics/).
+>
+> **Notation in this chapter.** For internal metrics on point $i$: $a(i)$ — mean distance from $i$ to all other points in its own cluster; $b(i)$ — mean distance from $i$ to all points in the *nearest other* cluster; **silhouette** $s(i)=\tfrac{b(i)-a(i)}{\max(a(i),b(i))}\in[-1,1]$ (higher is better); **Davies–Bouldin index** — average similarity of each cluster to its most similar other cluster (lower is better); **Calinski–Harabasz index** — ratio of between-cluster to within-cluster dispersion (higher is better). External (label-aware) metrics: **ARI** — adjusted Rand index; **NMI** — normalised mutual information; both range in $[0,1]$ where 1 is perfect agreement with ground-truth labels.
 
 ---
 
@@ -26,8 +30,8 @@
 
 We reuse the **K-Means clustering from Ch.12** applied to California Housing. For each K from 2 to 15 we compute silhouette score, Davies-Bouldin index, and Calinski-Harabasz index to pick the best K objectively. Then we use ARI to validate against a proxy ground truth: California county boundaries (approximated via latitude/longitude quantiles as a synthetic label).
 
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)  
-Clustering: K-Means (standardised features, K-Means++ init) — same setup as Ch.12  
+Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`) 
+Clustering: K-Means (standardised features, K-Means++ init) — same setup as Ch.12 
 Evaluation: silhouette (internal), DBI (internal), CHI (internal), ARI (external proxy)
 
 ---
@@ -46,7 +50,7 @@ $$b(i) = \min_{k \neq C_i} \frac{1}{|C_k|} \sum_{j \in C_k} d(i, j)$$
 
 (mean distance to nearest cluster — **separation**; higher = better separated)
 
-$$s(i) = \frac{b(i) - a(i)}{\max(a(i),\, b(i))}$$
+$$s(i) = \frac{b(i) - a(i)}{\max(a(i), b(i))}$$
 
 **Mean silhouette score** $= \frac{1}{n} \sum_i s(i)$
 
@@ -89,16 +93,16 @@ Cumulative EVR tells you the fraction of total variance retained if you keep the
 Internal metrics (no labels needed):
 1. Standardise features
 2. For K in range(2, 16):
-   a. Fit KMeans(n_clusters=K)
-   b. Compute silhouette_score   (expensive: O(n²), use sample_size=5000)
-   c. Compute davies_bouldin_score
-   d. Compute calinski_harabasz_score
+ a. Fit KMeans(n_clusters=K)
+ b. Compute silhouette_score (expensive: O(n²), use sample_size=5000)
+ c. Compute davies_bouldin_score
+ d. Compute calinski_harabasz_score
 3. Plot all three metrics vs K on the same figure
 4. Pick K where:
-   - silhouette is maximised
-   - DBI is minimised
-   - CHI is maximised
-   Note: they won't all agree — look for K where majority agree
+ - silhouette is maximised
+ - DBI is minimised
+ - CHI is maximised
+ Note: they won't all agree — look for K where majority agree
 
 External validation (when proxy labels exist):
 5. Create proxy ground-truth using latitude/longitude quantiles
@@ -107,7 +111,7 @@ External validation (when proxy labels exist):
 
 PCA component selection:
 8. pca_full.explained_variance_ratio_.cumsum()
-9. np.argmax(cumevr >= 0.95) + 1  →  minimum components for 95% EVR
+9. np.argmax(cumevr >= 0.95) + 1 → minimum components for 95% EVR
 10. Plot individual EVR as a bar chart (scree plot) — look for the knee
 ```
 
@@ -118,25 +122,25 @@ PCA component selection:
 ### Silhouette geometry
 
 ```
-     Cluster A          Cluster B
-  ●───●───●             ●───●───●
-  |   i   |             |       |
-  a(i) = mean dist      b(i) = mean dist
-  within Cluster A      from i to Cluster B
+ Cluster A Cluster B
+ ●───●───● ●───●───●
+ | i | | |
+ a(i) = mean dist b(i) = mean dist
+ within Cluster A from i to Cluster B
 
-  s(i) = (b(i) - a(i)) / max(a(i), b(i))
-  If b(i) >> a(i) → s(i) ≈ 1  (well assigned)
-  If a(i) >> b(i) → s(i) ≈ -1 (misassigned)
+ s(i) = (b(i) - a(i)) / max(a(i), b(i))
+ If b(i) >> a(i) → s(i) ≈ 1 (well assigned)
+ If a(i) >> b(i) → s(i) ≈ -1 (misassigned)
 ```
 
 ### Three-metric comparison by K
 
 ```
-Metric  │  K=2   K=3   K=4   K=5   K=6  …
+Metric │ K=2 K=3 K=4 K=5 K=6 …
 ────────┼───────────────────────────────────
-Silh↑   │  0.14  0.17  0.19  0.21* 0.20
-DBI↓    │  1.52  1.41  1.33  1.27* 1.31
-CHI↑    │  4200  5100  5800  6200* 6100
+Silh↑ │ 0.14 0.17 0.19 0.21* 0.20
+DBI↓ │ 1.52 1.41 1.33 1.27* 1.31
+CHI↑ │ 4200 5100 5800 6200* 6100
 ────────┴──────────────────────── * unanimous winner
 ```
 
@@ -144,11 +148,11 @@ CHI↑    │  4200  5100  5800  6200* 6100
 
 ```mermaid
 flowchart TD
-    A["Metrics disagree\non best K"] --> B["Look at elbow curve\n(inertia vs K)"]
-    B --> C["Choose the K at the elbow\nif it aligns with any metric"]
-    A --> D["Run silhouette subplot\n(per-cluster bar chart)"]
-    D --> E["Reject K values with\nnegative silhouette bars"]
-    A --> F["Domain knowledge:\nhow many natural groups\ndo you expect?"]
+ A["Metrics disagree\non best K"] --> B["Look at elbow curve\n(inertia vs K)"]
+ B --> C["Choose the K at the elbow\nif it aligns with any metric"]
+ A --> D["Run silhouette subplot\n(per-cluster bar chart)"]
+ D --> E["Reject K values with\nnegative silhouette bars"]
+ A --> F["Domain knowledge:\nhow many natural groups\ndo you expect?"]
 ```
 
 ---
@@ -179,13 +183,13 @@ from sklearn.datasets import fetch_california_housing
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import (silhouette_score, davies_bouldin_score,
-                              calinski_harabasz_score, adjusted_rand_score,
-                              normalized_mutual_info_score)
+ calinski_harabasz_score, adjusted_rand_score,
+ normalized_mutual_info_score)
 
 data = fetch_california_housing()
-X    = data.data
+X = data.data
 scaler = StandardScaler()
-X_sc   = scaler.fit_transform(X)
+X_sc = scaler.fit_transform(X)
 ```
 
 ```python
@@ -193,13 +197,13 @@ K_range = range(2, 16)
 results = {'K': [], 'silhouette': [], 'dbi': [], 'chi': []}
 
 for k in K_range:
-    km = KMeans(n_clusters=k, init='k-means++', n_init=10, random_state=42)
-    km.fit(X_sc)
-    results['K'].append(k)
-    results['silhouette'].append(
-        silhouette_score(X_sc, km.labels_, sample_size=5000, random_state=42))
-    results['dbi'].append(davies_bouldin_score(X_sc, km.labels_))
-    results['chi'].append(calinski_harabasz_score(X_sc, km.labels_))
+ km = KMeans(n_clusters=k, init='k-means++', n_init=10, random_state=42)
+ km.fit(X_sc)
+ results['K'].append(k)
+ results['silhouette'].append(
+ silhouette_score(X_sc, km.labels_, sample_size=5000, random_state=42))
+ results['dbi'].append(davies_bouldin_score(X_sc, km.labels_))
+ results['chi'].append(calinski_harabasz_score(X_sc, km.labels_))
 ```
 
 ```python
@@ -208,13 +212,13 @@ for k in K_range:
 import numpy as np
 lat_bin = np.digitize(data.data[:, 6], np.percentile(data.data[:, 6], [25, 50, 75]))
 lon_bin = np.digitize(data.data[:, 7], np.percentile(data.data[:, 7], [25, 50, 75]))
-proxy   = lat_bin * 4 + lon_bin     # 16 rough geographic cells
+proxy = lat_bin * 4 + lon_bin # 16 rough geographic cells
 
-best_k  = 5
-km5     = KMeans(n_clusters=best_k, n_init=10, random_state=42).fit(X_sc)
-ari     = adjusted_rand_score(proxy, km5.labels_)
-nmi     = normalized_mutual_info_score(proxy, km5.labels_)
-print(f"ARI vs geo-proxy: {ari:.4f}   NMI: {nmi:.4f}")
+best_k = 5
+km5 = KMeans(n_clusters=best_k, n_init=10, random_state=42).fit(X_sc)
+ari = adjusted_rand_score(proxy, km5.labels_)
+nmi = normalized_mutual_info_score(proxy, km5.labels_)
+print(f"ARI vs geo-proxy: {ari:.4f} NMI: {nmi:.4f}")
 ```
 
 ---

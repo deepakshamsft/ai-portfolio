@@ -1,6 +1,8 @@
 # Latent Diffusion — Compress, Diffuse, Decode
 
-> After reading this you will understand why Stable Diffusion works in a compressed latent space, what the VAE does, and how the three components (VAE + U-Net + CLIP) assemble into a single pipeline.
+> **The story.** Pixel-space DDPM works but is brutally expensive: every denoising step touches all 262 144 dimensions of a 512×512 RGB image, and you need hundreds of steps. In **December 2021** **Robin Rombach** and **Andreas Blattmann** at LMU Munich published *"High-Resolution Image Synthesis with Latent Diffusion Models"* — their fix was to first compress the image into a smaller latent space with a **VAE** (Kingma & Welling, **2013**), diffuse there (16× cheaper per step), then decode back to pixels. Stability AI productised the resulting model as **Stable Diffusion 1.4** in **August 2022** under an open licence — and the open-source generative-AI ecosystem (ComfyUI, Automatic1111, LoRAs, ControlNet, every Civitai model) exploded into existence within months. Latent diffusion is the architecture every modern open image generator uses (SDXL, SD3, FLUX), and the architectural template behind video diffusion ([TextToVideo](../TextToVideo/)) and audio diffusion (AudioLDM, Stable Audio).
+>
+> **Where you are in the curriculum.** [DiffusionModels](../DiffusionModels/) gave you DDPM in pixel space. This chapter assembles the three components — [CLIP](../CLIP/) text encoder + VAE + diffusion U-Net — into Stable Diffusion. After this, the rest of the track is configuration and conditioning on top of this same skeleton.
 
 ## 1 · Core Idea
 
@@ -24,11 +26,11 @@ You can run this on a CPU in under 3 minutes with SDXL-Turbo's 4-step schedule.
 
 The VAE encoder maps an image $x$ to a Gaussian distribution in latent space:
 
-$$q_\phi(z | x) = \mathcal{N}(\mu_\phi(x),\; \sigma^2_\phi(x)\,\mathbf{I})$$
+$$q_\phi(z | x) = \mathcal{N}(\mu_\phi(x), \sigma^2_\phi(x) \mathbf{I})$$
 
 Training objective (ELBO):
 
-$$\mathcal{L} = \mathbb{E}_{q_\phi}[\log p_\theta(x|z)] - \mathrm{KL}(q_\phi(z|x)\,\|\,\mathcal{N}(0, \mathbf{I}))$$
+$$\mathcal{L} = \mathbb{E}_{q_\phi}[\log p_\theta(x|z)] - \mathrm{KL}(q_\phi(z|x) \| \mathcal{N}(0, \mathbf{I}))$$
 
 The first term is pixel reconstruction; the second regularises the latent space to be roughly unit-Gaussian. This is what makes sampling from latent space meaningful.
 
@@ -46,7 +48,7 @@ This rescales latents to unit variance so the DDPM noise schedule works correctl
 
 In SD, conditioning is not via label embedding addition (Ch.5) but via **cross-attention layers** inside the U-Net:
 
-$$\text{Attn}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$
+$$\text{Attn}(Q, K, V) = \text{softmax} \left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$
 
 where:
 - $Q$ = image feature map (flattened spatial positions, projected)
@@ -58,19 +60,19 @@ Each spatial position in the U-Net attends over all text tokens. This is how "a 
 ### Full SD Pipeline
 
 ```
-Input text  ───▶  CLIP Text Encoder  ───▶  text_embeds (77×768)
-                                               │
-                                         cross-attention
-                                               │
-Input noise ───▶  [DDIM 20 steps] ◀──── U-Net (in latent space)
-                        │
-                        ▼
-                   denoised z
-                        │
-                   VAE Decoder
-                        │
-                        ▼
-                   512×512 image
+Input text ───▶ CLIP Text Encoder ───▶ text_embeds (77×768)
+ │
+ cross-attention
+ │
+Input noise ───▶ [DDIM 20 steps] ◀──── U-Net (in latent space)
+ │
+ ▼
+ denoised z
+ │
+ VAE Decoder
+ │
+ ▼
+ 512×512 image
 ```
 
 ## 4 · How It Works — Step by Step
@@ -101,23 +103,23 @@ The VAE is **frozen during diffusion training** — only the U-Net is updated.
 SD Architecture — Dimensions at Each Stage:
 
 ┌──────────────────────────────────────────────────────────────────┐
-│ Image space (pixel U-Net, e.g. DDPM on MNIST)                   │
-│   28×28×1  ──────────────────────────────── 28×28×1             │
-│   (784 dim)                                                       │
+│ Image space (pixel U-Net, e.g. DDPM on MNIST) │
+│ 28×28×1 ──────────────────────────────── 28×28×1 │
+│ (784 dim) │
 └──────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────────┐
-│ Latent space (Stable Diffusion 1.x)                              │
-│  512×512×3  ──[VAE enc]──▶  64×64×4  ──[U-Net]──▶  64×64×4     │
-│  (786 432 dim)              (16 384 dim)                          │
-│                                 │                                  │
-│                           [VAE dec]                                │
-│                                 │                                  │
-│                           512×512×3                                │
+│ Latent space (Stable Diffusion 1.x) │
+│ 512×512×3 ──[VAE enc]──▶ 64×64×4 ──[U-Net]──▶ 64×64×4 │
+│ (786 432 dim) (16 384 dim) │
+│ │ │
+│ [VAE dec] │
+│ │ │
+│ 512×512×3 │
 └──────────────────────────────────────────────────────────────────┘
 
 VAE compression ratio: 786 432 / 16 384 = 48×
-                       (8× spatial × 3 channels → 4 channels = ×48 net)
+ (8× spatial × 3 channels → 4 channels = ×48 net)
 ```
 
 ## 6 · What Changes at Scale

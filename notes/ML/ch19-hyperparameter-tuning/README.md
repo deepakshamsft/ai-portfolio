@@ -1,6 +1,10 @@
 # Ch.19 — Hyperparameter Tuning
 
-> **Running theme:** You have all the pieces — a neural network (Ch.4), backprop and optimisers (Ch.5), regularisation (Ch.6), and loss functions (Ch.15). Now you have to *pick numbers*. This chapter is the decision guide: which dial, what it does, which direction to turn it, and in what order.
+> **The story.** For most of ML history, hyperparameters were tuned by **grad-student descent** — a researcher staring at training curves, twiddling knobs, and trying again. The discipline matured in stages. **James Bergstra and Yoshua Bengio** (**2012**) shocked the field by proving that **random search** consistently beats grid search — because most hyperparameters don't matter much, and grid search wastes its budget on the irrelevant axes. **Bayesian optimisation** (Snoek, Larochelle, Adams, 2012) added a probabilistic surrogate model to spend each trial more wisely. **Hyperband** (Li et al., 2017) added early stopping for unpromising configurations. **Population-Based Training** (Jaderberg et al., DeepMind, 2017) blended training and tuning into a single evolutionary loop. Modern tuning libraries — **Optuna**, **Ray Tune**, **Weights & Biases Sweeps** — are direct implementations of this lineage, and they are how every serious ML team picks numbers in 2026.
+>
+> **Where you are in the curriculum.** You have all the pieces — a neural network ([Ch.4](../ch04-neural-networks/)), backprop and optimisers ([Ch.5](../ch05-backprop-optimisers/)), regularisation ([Ch.6](../ch06-regularisation/)), and loss functions ([Ch.15](../ch15-mle-loss-functions/)). Now you have to *pick numbers*: learning rate, batch size, optimiser, init, layer count, regularisation strength. This chapter is the decision guide — which dial, what it does, which direction to turn it, and in what order. It is also the closing chapter of the ML track, and the bridge to the AI / Infrastructure / Multi-Agent tracks where these decisions become production decisions.
+>
+> **Notation in this chapter.** $\eta$ — learning rate (the single most consequential hyperparameter); $B$ — batch size; $\lambda$ — regularisation strength; $L$ — network depth (layer count); $H$ — hidden width; $p$ — dropout probability; $\boldsymbol{\theta}_{\text{init}}$ — weight initialisation scheme (Xavier / He); $N_{\text{trials}}$ — search budget; $\mathcal{S}$ — the search space (a Cartesian product of per-hyperparameter ranges); search strategies: **grid** (exhaustive), **random** (Bergstra & Bengio 2012), **Bayesian optimisation** (Gaussian-process surrogate over $\mathcal{S}$), **Hyperband** (early-stopping bandit), **PBT** (population-based training).
 
 ---
 
@@ -13,9 +17,9 @@ Tune them in this rough order — cheapest + highest-leverage first:
 
 ```
 learning rate → batch size → optimiser → initialiser
-    → architecture (layers, units, layer type)
-    → regularisation (dropout, weight decay, early stopping)
-    → loss choice → more data
+ → architecture (layers, units, layer type)
+ → regularisation (dropout, weight decay, early stopping)
+ → loss choice → more data
 ```
 
 Every dial trades off at least two of: **final accuracy**, **training time**, **memory**, **generalisation gap**.
@@ -57,7 +61,7 @@ Jump to a dial:
 
 The single most impactful knob. Sets the step size of every optimiser update:
 
-$$\mathbf{W}_{t+1} = \mathbf{W}_t - \eta \, g_t$$
+$$\mathbf{W}_{t+1} = \mathbf{W}_t - \eta g_t$$
 
 | Setting | What you see | Fix |
 |---|---|---|
@@ -312,32 +316,32 @@ More data is the strongest regulariser we have — but it's expensive. Before co
 
 ```mermaid
 flowchart TD
-    A[Train a baseline] --> B{Training loss low?}
-    B -- No --> C[High bias / underfit]
-    C --> C1["Bigger model\nMore epochs\nBetter features\nReduce regularisation"]
-    C1 --> A
-    B -- Yes --> D{Val loss close to train?}
-    D -- No --> E[High variance / overfit]
-    E --> E1["More data / aug\nDropout, weight decay\nEarly stopping\nSmaller model"]
-    E1 --> A
-    D -- Yes --> F[Done — ship it]
+ A[Train a baseline] --> B{Training loss low?}
+ B -- No --> C[High bias / underfit]
+ C --> C1["Bigger model\nMore epochs\nBetter features\nReduce regularisation"]
+ C1 --> A
+ B -- Yes --> D{Val loss close to train?}
+ D -- No --> E[High variance / overfit]
+ E --> E1["More data / aug\nDropout, weight decay\nEarly stopping\nSmaller model"]
+ E1 --> A
+ D -- Yes --> F[Done — ship it]
 ```
 
 ### 5.3 · Search strategy
 
 ```
-Grid search       →  tries every combination
-                     ❌ wastes budget on unimportant dials
+Grid search → tries every combination
+ ❌ wastes budget on unimportant dials
 
-Random search     →  samples (η, dropout, ...) independently
-                     ✅ 5–10× more efficient than grid in high dims
+Random search → samples (η, dropout, ...) independently
+ ✅ 5–10× more efficient than grid in high dims
 
-Bayesian / TPE    →  models P(loss | hyperparams) and proposes promising ones
-                     ✅ fewest trials, needed for expensive training runs
-                     (Optuna, Hyperopt, Vizier)
+Bayesian / TPE → models P(loss | hyperparams) and proposes promising ones
+ ✅ fewest trials, needed for expensive training runs
+ (Optuna, Hyperopt, Vizier)
 
-Population-based  →  evolve hyperparams during training
-                     ✅ best for huge-scale training
+Population-based → evolve hyperparams during training
+ ✅ best for huge-scale training
 ```
 
 ---
@@ -377,27 +381,27 @@ X_tr = StandardScaler().fit_transform(X_tr)
 X_te = StandardScaler().fit(X_tr).transform(X_te)
 
 def objective(trial):
-    lr      = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
-    solver  = trial.suggest_categorical("solver", ["adam", "sgd"])
-    width   = trial.suggest_categorical("width", [32, 64, 128, 256])
-    depth   = trial.suggest_int("depth", 1, 5)
-    dropout = trial.suggest_float("alpha", 1e-6, 1e-2, log=True)  # L2 in sklearn
-    bs      = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
+ lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+ solver = trial.suggest_categorical("solver", ["adam", "sgd"])
+ width = trial.suggest_categorical("width", [32, 64, 128, 256])
+ depth = trial.suggest_int("depth", 1, 5)
+ dropout = trial.suggest_float("alpha", 1e-6, 1e-2, log=True) # L2 in sklearn
+ bs = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
 
-    model = MLPRegressor(
-        hidden_layer_sizes=tuple([width] * depth),
-        activation="relu",
-        solver=solver,
-        learning_rate_init=lr,
-        alpha=dropout,            # sklearn's L2 penalty
-        batch_size=bs,
-        early_stopping=True,
-        n_iter_no_change=10,
-        max_iter=200,
-        random_state=42,
-    )
-    model.fit(X_tr, y_tr)
-    return r2_score(y_te, model.predict(X_te))
+ model = MLPRegressor(
+ hidden_layer_sizes=tuple([width] * depth),
+ activation="relu",
+ solver=solver,
+ learning_rate_init=lr,
+ alpha=dropout, # sklearn's L2 penalty
+ batch_size=bs,
+ early_stopping=True,
+ n_iter_no_change=10,
+ max_iter=200,
+ random_state=42,
+ )
+ model.fit(X_tr, y_tr)
+ return r2_score(y_te, model.predict(X_te))
 
 study = optuna.create_study(direction="maximize")
 study.optimize(objective, n_trials=40, show_progress_bar=True)

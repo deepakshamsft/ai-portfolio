@@ -1,6 +1,10 @@
 # Ch.12 — Clustering
 
-> **Running theme:** The real estate platform wants to discover natural neighbourhood types — not the ones a human defined, but the ones that emerge from the data itself. No labels, no target variable. Clustering is the entry point to unsupervised learning: find structure that nobody annotated.
+> **The story.** **k-Means** has the strangest provenance in this curriculum: **Stuart Lloyd** invented it inside Bell Labs in **1957** while quantising telephone signals, but the report stayed unpublished for 25 years. **Hugo Steinhaus** had described essentially the same algorithm in 1956; **Edward Forgy** rediscovered it in 1965; **James MacQueen** finally named it "k-means" in 1967. By the time Lloyd's paper was finally published in 1982 the algorithm was already everywhere. The non-spherical, density-based alternative — **DBSCAN** — came from **Martin Ester, Hans-Peter Kriegel, Jörg Sander, and Xiaowei Xu** at KDD **1996**, and won the conference's 2014 Test-of-Time award. **HDBSCAN** (Campello, Moulavi, Sander 2013) added hierarchy and gave us a robust, parameter-light density clusterer that is the modern default. All three algorithms answer the same question — *which points belong together?* — with three radically different definitions of "together."
+>
+> **Where you are in the curriculum.** Up to this point everything has been **supervised**: you had labels. The platform now wants to discover natural neighbourhood types — not the ones a human defined, but the ones that emerge from the data itself. No labels, no target variable. Clustering is the entry point to unsupervised learning, and it sets up the dimensionality-reduction work in [Ch.13](../ch13-dimensionality-reduction/) and the unsupervised-metrics question in [Ch.14](../ch14-unsupervised-metrics/) ("how do you score a clustering with no ground truth?").
+>
+> **Notation in this chapter.** $\mathbf{x}_i\in\mathbb{R}^d$ — a data point (one district); $K$ — number of clusters (a hyperparameter for K-Means); $\boldsymbol{\mu}_k$ — the **centroid** of cluster $k$; $C_k$ — the set of points assigned to cluster $k$; **inertia** $=\sum_{k}\sum_{\mathbf{x}_i\in C_k}\|\mathbf{x}_i-\boldsymbol{\mu}_k\|^2$ — the K-Means objective; $\epsilon$ — **DBSCAN** neighbourhood radius; $\text{minPts}$ — DBSCAN density threshold; **core / border / noise** — the three DBSCAN point types; $d(\mathbf{x}_i,\mathbf{x}_j)$ — distance metric (Euclidean unless stated).
 
 ---
 
@@ -13,9 +17,9 @@
 **HDBSCAN:** hierarchical extension of DBSCAN. Builds a cluster tree across all density levels and extracts the most stable clusters. Tolerates clusters of varying density.
 
 ```
-K-Means:   requires k, assumes spherical, no noise concept
-DBSCAN:    requires ε + min_samples, handles arbitrary shapes, marks noise
-HDBSCAN:   requires only min_cluster_size, the most robust of the three
+K-Means: requires k, assumes spherical, no noise concept
+DBSCAN: requires ε + min_samples, handles arbitrary shapes, marks noise
+HDBSCAN: requires only min_cluster_size, the most robust of the three
 ```
 
 ---
@@ -24,8 +28,8 @@ HDBSCAN:   requires only min_cluster_size, the most robust of the three
 
 The platform's business team asks: "What types of districts exist in California?" They give zero labels. We apply all three algorithms to the **full 8-feature California Housing dataset** and see what naturally emerges — income tiers, coastal vs inland, urban vs rural. Cluster labels can then drive targeted marketing or risk assessment without any human annotation.
 
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)  
-Features: all 8 features, standardised  
+Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`) 
+Features: all 8 features, standardised 
 No target variable used during clustering
 
 ---
@@ -45,7 +49,7 @@ where $\boldsymbol{\mu}_k = \frac{1}{|C_k|}\sum_{\mathbf{x}_i \in C_k} \mathbf{x
 ```
 1. Initialise K centroids (K-Means++ samples them proportional to distance²)
 2. Assignment step: each point → nearest centroid (by Euclidean distance)
-3. Update step:     each centroid → mean of its assigned points
+3. Update step: each centroid → mean of its assigned points
 4. Repeat 2–3 until assignments do not change (or max_iter reached)
 ```
 
@@ -78,7 +82,7 @@ DBSCAN classifies each point as **core**, **border**, or **noise** based on two 
 
 HDBSCAN extends DBSCAN by varying $\varepsilon$ continuously from $\infty$ downward, building a **cluster hierarchy**:
 
-1. Compute the **mutual reachability distance** between every pair: $d_\text{mreach}(\mathbf{p}, \mathbf{q}) = \max(\text{core-dist}(\mathbf{p}),\, \text{core-dist}(\mathbf{q}),\, d(\mathbf{p}, \mathbf{q}))$, where the core distance of $\mathbf{p}$ is the distance to its $\text{MinPts}$-th nearest neighbour.
+1. Compute the **mutual reachability distance** between every pair: $d_\text{mreach}(\mathbf{p}, \mathbf{q}) = \max(\text{core-dist}(\mathbf{p}), \text{core-dist}(\mathbf{q}), d(\mathbf{p}, \mathbf{q}))$, where the core distance of $\mathbf{p}$ is the distance to its $\text{MinPts}$-th nearest neighbour.
 
 2. Build the **minimum spanning tree** on the mutual reachability graph.
 
@@ -96,14 +100,14 @@ HDBSCAN extends DBSCAN by varying $\varepsilon$ continuously from $\infty$ downw
 K-Means:
 1. Standardise features (K-Means uses Euclidean distance — scale matters)
 2. Run with K=2,3,...,15; record inertia and silhouette score (Ch.14)
-3. Plot elbow curve  →  pick K at the bend
+3. Plot elbow curve → pick K at the bend
 4. Refit with chosen K; inspect cluster centroids (inverse-transform to original scale)
 5. Plot clusters in PCA 2D projection (Ch.13) for visual validation
 
 DBSCAN:
 1. Standardise features
 2. Use k-nearest-neighbour distance plot to estimate ε:
-   sort points by distance to their k-th neighbour; ε ≈ the "knee"
+ sort points by distance to their k-th neighbour; ε ≈ the "knee"
 3. Set min_samples ≈ 2 × n_features (rule of thumb)
 4. Inspect: how many clusters? How many noise points (-1)?
 5. Adjust ε if too many noise points (increase ε) or clusters merged (decrease ε)
@@ -123,10 +127,10 @@ HDBSCAN:
 ### K-Means: assignment and update steps
 
 ```
-Step 0 (init):    Step 1 (assign):   Step 2 (update):   Converged:
-  × × ○ ○           × × │ ○ ○          ×│× ○│○           ×│×│○│○
-  × ○ ○ ×    →      × ○ │ ○ ×    →     ×│○ ○│×    →      ×│○ ○│×
-  ★   ★             ★   │ ★            ★│   ★            ★│  ★
+Step 0 (init): Step 1 (assign): Step 2 (update): Converged:
+ × × ○ ○ × × │ ○ ○ ×│× ○│○ ×│×│○│○
+ × ○ ○ × → × ○ │ ○ × → ×│○ ○│× → ×│○ ○│×
+ ★ ★ ★ │ ★ ★│ ★ ★│ ★
 
 centroids ★ placed → each point → → centroids → → stable
 ```
@@ -135,40 +139,40 @@ centroids ★ placed → each point → → centroids → → stable
 
 ```
 Inertia
-   │
-   │ ╲
-   │   ╲
-   │    ╲___
-   │        ‾‾‾───────────── (flat)
-   └──────────────────────── K
-         ↑
-      elbow → best K
+ │
+ │ ╲
+ │ ╲
+ │ ╲___
+ │ ‾‾‾───────────── (flat)
+ └──────────────────────── K
+ ↑
+ elbow → best K
 ```
 
 ### DBSCAN: core, border, noise
 
 ```
-            ε-circle
-           ╭──────╮
-  ●  ●  ●  │  ●   │  ○   ×
-  ●  ●     │  ●   │
-            ╰──────╯
-  ● = core (≥ MinPts neighbours in ε)
-  ○ = border (within ε of core, < MinPts neighbours)
-  × = noise (labelled -1)
+ ε-circle
+ ╭──────╮
+ ● ● ● │ ● │ ○ ×
+ ● ● │ ● │
+ ╰──────╯
+ ● = core (≥ MinPts neighbours in ε)
+ ○ = border (within ε of core, < MinPts neighbours)
+ × = noise (labelled -1)
 ```
 
 ### K-Means vs DBSCAN on non-spherical shapes
 
 ```mermaid
 flowchart LR
-    A["Data shape?"] --> B{"Roughly spherical\n& equal-size clusters?"}
-    B -->|yes| C["K-Means\n(fast, interpretable\ncentroids)"]
-    B -->|no| D{"Outliers /\nnoise expected?"}
-    D -->|no| E["K-Means with\nmore K or GMM"]
-    D -->|yes| F{"Clusters have\nuniform density?"}
-    F -->|yes| G["DBSCAN\n(ε, min_samples)"]
-    F -->|no| H["HDBSCAN\n(min_cluster_size)"]
+ A["Data shape?"] --> B{"Roughly spherical\n& equal-size clusters?"}
+ B -->|yes| C["K-Means\n(fast, interpretable\ncentroids)"]
+ B -->|no| D{"Outliers /\nnoise expected?"}
+ D -->|no| E["K-Means with\nmore K or GMM"]
+ D -->|yes| F{"Clusters have\nuniform density?"}
+ F -->|yes| G["DBSCAN\n(ε, min_samples)"]
+ F -->|no| H["HDBSCAN\n(min_cluster_size)"]
 ```
 
 ---
@@ -210,24 +214,24 @@ from sklearn.neighbors import NearestNeighbors
 
 # ── Data ──────────────────────────────────────────────────────────────────────
 data = fetch_california_housing()
-X    = data.data                     # 20,640 districts × 8 features
+X = data.data # 20,640 districts × 8 features
 scaler = StandardScaler()
-X_sc   = scaler.fit_transform(X)    # clustering uses distances — scaling is essential
+X_sc = scaler.fit_transform(X) # clustering uses distances — scaling is essential
 
 # ── K-Means elbow ─────────────────────────────────────────────────────────────
 inertias, sil_scores = [], []
 K_range = range(2, 16)
 
 for k in K_range:
-    km = KMeans(n_clusters=k, init='k-means++', n_init=10, random_state=42)
-    km.fit(X_sc)
-    inertias.append(km.inertia_)
-    sil_scores.append(silhouette_score(X_sc, km.labels_, sample_size=5000))
+ km = KMeans(n_clusters=k, init='k-means++', n_init=10, random_state=42)
+ km.fit(X_sc)
+ inertias.append(km.inertia_)
+ sil_scores.append(silhouette_score(X_sc, km.labels_, sample_size=5000))
 ```
 
 ```python
 # ── Fit best K-Means ──────────────────────────────────────────────────────────
-best_k = 5    # from elbow / silhouette inspection
+best_k = 5 # from elbow / silhouette inspection
 km_best = KMeans(n_clusters=best_k, init='k-means++', n_init=10, random_state=42)
 km_best.fit(X_sc)
 labels_km = km_best.labels_
@@ -235,15 +239,15 @@ labels_km = km_best.labels_
 # Centroid in original (un-scaled) space — interpretable
 centroids_orig = scaler.inverse_transform(km_best.cluster_centers_)
 for i, c in enumerate(centroids_orig):
-    print(f"Cluster {i}: MedInc={c[0]:.2f}  MedHouseVal≈{data.target[labels_km==i].mean():.2f}")
+ print(f"Cluster {i}: MedInc={c[0]:.2f} MedHouseVal≈{data.target[labels_km==i].mean():.2f}")
 ```
 
 ```python
 # ── DBSCAN ε estimation via k-NN distance plot ────────────────────────────────
-k_nn = 2 * X_sc.shape[1]   # rule of thumb: 2 × n_features
+k_nn = 2 * X_sc.shape[1] # rule of thumb: 2 × n_features
 nbrs = NearestNeighbors(n_neighbors=k_nn).fit(X_sc)
 distances, _ = nbrs.kneighbors(X_sc)
-knn_dists = np.sort(distances[:, -1])   # distance to k-th nearest neighbour
+knn_dists = np.sort(distances[:, -1]) # distance to k-th nearest neighbour
 
 # Plot knn_dists — the "knee" is a good ε
 # ε ≈ where the curve bends sharply upward
@@ -251,25 +255,25 @@ knn_dists = np.sort(distances[:, -1])   # distance to k-th nearest neighbour
 
 ```python
 # ── DBSCAN ────────────────────────────────────────────────────────────────────
-db = DBSCAN(eps=0.5, min_samples=16)   # min_samples = 2 × 8 features
+db = DBSCAN(eps=0.5, min_samples=16) # min_samples = 2 × 8 features
 db.fit(X_sc)
 labels_db = db.labels_
 
 n_clusters = len(set(labels_db)) - (1 if -1 in labels_db else 0)
-n_noise    = (labels_db == -1).sum()
+n_noise = (labels_db == -1).sum()
 print(f"DBSCAN: {n_clusters} clusters, {n_noise} noise points ({n_noise/len(X_sc)*100:.1f}%)")
 ```
 
 ```python
 # ── HDBSCAN ───────────────────────────────────────────────────────────────────
 try:
-    import hdbscan
-    hdb = hdbscan.HDBSCAN(min_cluster_size=200)
-    labels_hdb = hdb.fit_predict(X_sc)
-    n_clusters_h = len(set(labels_hdb)) - (1 if -1 in labels_hdb else 0)
-    print(f"HDBSCAN: {n_clusters_h} clusters, {(labels_hdb==-1).sum()} noise points")
+ import hdbscan
+ hdb = hdbscan.HDBSCAN(min_cluster_size=200)
+ labels_hdb = hdb.fit_predict(X_sc)
+ n_clusters_h = len(set(labels_hdb)) - (1 if -1 in labels_hdb else 0)
+ print(f"HDBSCAN: {n_clusters_h} clusters, {(labels_hdb==-1).sum()} noise points")
 except ImportError:
-    print("pip install hdbscan")
+ print("pip install hdbscan")
 ```
 
 ---

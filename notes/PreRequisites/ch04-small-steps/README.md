@@ -1,11 +1,10 @@
 # Ch.4 — Small Steps on a Curve
 
-> *"That's one small step for [a] man, one giant leap for mankind."*
-> — **Neil Armstrong**, Apollo 11, Sea of Tranquility, 20 July 1969
+> **The story.** *"That's one small step for [a] man, one giant leap for mankind."* — **Neil Armstrong**, Apollo 11, Sea of Tranquility, 20 July 1969. Armstrong's boot-print was 30 cm of motion at the end of a 384 000 km journey, and that sentence is also the best one-line description of how every modern ML model is trained. The mathematics behind it is older than the moon landing: in **1847 Augustin-Louis Cauchy** published the *méthode des plus profonde descente* — "steepest descent" — a recipe for minimising functions that don't have a clean closed-form solution: stand on the surface, find the downhill direction, take a small step, repeat. A century later Robbins & Monro (1951) added the *stochastic* twist that lets it work on noisy data, and that is the algorithm that trains every neural network in this curriculum.
 >
-> Armstrong's boot-print was 30 cm of motion at the end of a 384 000 km journey, and that sentence is also the best one-line description of how every modern machine-learning model is trained. A neural network learns by taking billions of those 30-cm-class steps — each one a tiny, almost imperceptible parameter adjustment — and the *leap* (recognising faces, translating languages, playing Go) is just the cumulative trajectory. Ch.4 is the chapter where we work out what a single step should look like.
-
-> **Running theme.** You're taking a long goal kick: your boot can deliver a fixed strike speed, but you *can* choose the launch angle. Which angle drives the ball the farthest from that fixed launch speed? You *could* solve it with calculus. But the moment you add air drag, a stiff crosswind, or a sloping pitch, the equation becomes ugly and the analytical answer vanishes. The fall-back is ancient and universal: **pick a starting guess and walk downhill.**
+> **Where you are in the curriculum.** Ch.3 gave you the derivative — the slope of a curve. This chapter does what Cauchy did with it: turns the slope into a rule for *moving*. The running example is a long goal kick. Your boot delivers a fixed strike speed, but you choose the launch angle. Which angle drives the ball the farthest? You *could* solve it with calculus. But the moment you add air drag, a stiff crosswind, or a sloping pitch, the equation becomes ugly and the analytical answer vanishes. The fall-back is ancient and universal: **pick a starting guess and walk downhill.** Master this one chapter and you understand, mechanically, how every later model learns.
+>
+> **Notation in this chapter.** $\theta$ — the parameter we are tuning (e.g. launch angle); $L(\theta)$ — the **loss** or objective we are minimising (e.g. *negative* of how far the ball travelled); $L'(\theta)$ or $\nabla L$ — the slope / gradient of $L$; $\eta$ (eta) — the **learning rate** (step size); $\theta_t$ — the value of $\theta$ at iteration $t$; $\theta_{t+1}=\theta_t-\eta\,L'(\theta_t)$ — the **gradient-descent update rule**; $\epsilon$ — a small tolerance used as a stopping criterion.
 
 ---
 
@@ -15,7 +14,7 @@ Suppose you have a smooth curve $f(\theta)$ and you want to find the $\theta^\st
 
 1. Start somewhere: $\theta_0$.
 2. Compute the slope there: $f'(\theta_0)$.
-3. Step a *little* in the opposite direction: $\theta_1 = \theta_0 - \eta\,f'(\theta_0)$.
+3. Step a *little* in the opposite direction: $\theta_1 = \theta_0 - \eta f'(\theta_0)$.
 4. Repeat until you stop moving.
 
 That's it. That's gradient descent in 1-D. The whole of deep-learning optimisation is this idea wearing more elaborate clothes.
@@ -28,7 +27,7 @@ The only question is **how big a step?** The answer is the subject of this chapt
 
 Long goal kick, vacuum physics, fixed strike speed $v_0 = 25$ m/s, ball struck from the turf. The horizontal range when you launch at angle $\theta$ is
 
-$$R(\theta) \;=\; \frac{v_0^2}{g}\,\sin(2\theta)$$
+$$R(\theta) = \frac{v_0^2}{g} \sin(2\theta)$$
 
 Maximum at $\theta = 45^\circ$, giving $R \approx 63.7$ m. We *know* the answer; this makes it easy to test whether an optimisation algorithm actually finds it.
 
@@ -45,7 +44,7 @@ Two twists in this chapter:
 
 To *minimise* $f(\theta)$:
 
-$$\theta_{k+1} \;=\; \theta_k \,-\, \eta\,f'(\theta_k)$$
+$$\theta_{k+1} = \theta_k - \eta f'(\theta_k)$$
 
 - $\eta$ (eta) is the **step size** or **learning rate** — always positive.
 - If $f'(\theta_k) > 0$, the curve is going up to the right; subtracting moves us left — *down*. ✓
@@ -54,7 +53,7 @@ $$\theta_{k+1} \;=\; \theta_k \,-\, \eta\,f'(\theta_k)$$
 
 To *maximise* $f(\theta)$ (our range case), flip the sign:
 
-$$\theta_{k+1} \;=\; \theta_k \,+\, \eta\,f'(\theta_k)$$
+$$\theta_{k+1} = \theta_k + \eta f'(\theta_k)$$
 
 Same algorithm, walking uphill instead. Most ML code is written in the minimise form; if your real target is "maximise likelihood" you minimise *negative* likelihood and keep the sign convention.
 
@@ -62,9 +61,9 @@ Same algorithm, walking uphill instead. Most ML code is written in the minimise 
 
 Near a point $\theta_k$, any smooth function is approximately
 
-$$f(\theta_k + \Delta) \;\approx\; f(\theta_k) + f'(\theta_k)\,\Delta + \mathcal{O}(\Delta^2)$$
+$$f(\theta_k + \Delta) \approx f(\theta_k) + f'(\theta_k) \Delta + \mathcal{O}(\Delta^2)$$
 
-The first-order term $f'(\theta_k)\,\Delta$ is a *linear* function of $\Delta$ — and its sign tells us which direction $\Delta$ makes $f$ smaller. If $\Delta$ is tiny, the $\mathcal{O}(\Delta^2)$ curvature leftover is negligible, so the linear prediction is trustworthy.
+The first-order term $f'(\theta_k) \Delta$ is a *linear* function of $\Delta$ — and its sign tells us which direction $\Delta$ makes $f$ smaller. If $\Delta$ is tiny, the $\mathcal{O}(\Delta^2)$ curvature leftover is negligible, so the linear prediction is trustworthy.
 
 If $\Delta$ is *large*, the quadratic curvature term dominates and the linear approximation lies. That is the entire reason step sizes must be small.
 
@@ -74,9 +73,9 @@ This is the mathematical content of Armstrong's epigraph: a *small* step is one 
 
 On a quadratic bowl $f(\theta) = \tfrac{1}{2}c(\theta - \theta^\star)^2$ the update becomes
 
-$$\theta_{k+1} - \theta^\star \;=\; (1 - \eta\,c)\,(\theta_k - \theta^\star)$$
+$$\theta_{k+1} - \theta^\star = (1 - \eta c) (\theta_k - \theta^\star)$$
 
-Let $\rho = 1 - \eta\,c$. Behaviour depends on $|\rho|$:
+Let $\rho = 1 - \eta c$. Behaviour depends on $|\rho|$:
 
 | Value of $\rho$ | Behaviour |
 |---|---|
@@ -118,7 +117,7 @@ In practice you use (1) or (4); (2) and (3) can fire falsely on slow plateaus.
 1. Set $v_0 = 25$, $g = 9.81$. Define $R(\theta) = (v_0^2/g)\sin(2\theta)$ with $\theta$ in radians.
 2. Compute the analytic derivative: $R'(\theta) = (2 v_0^2 / g)\cos(2\theta)$.
 3. Pick a start $\theta_0$ (say, $20^\circ$ in radians) and a step size $\eta$.
-4. Loop: $\theta \leftarrow \theta + \eta\,R'(\theta)$.
+4. Loop: $\theta \leftarrow \theta + \eta R'(\theta)$.
 5. Stop when $|R'(\theta)| < 10^{-6}$ or after 500 iterations.
 6. Print $\theta_\text{final}$ in degrees. It should land near $45^\circ$.
 
@@ -141,25 +140,25 @@ import numpy as np
 
 v0, g = 25.0, 9.81
 
-def R(theta):                       # range, theta in RADIANS
-    return v0 ** 2 / g * np.sin(2 * theta)
+def R(theta): # range, theta in RADIANS
+ return v0 ** 2 / g * np.sin(2 * theta)
 
-def dR(theta):                      # derivative w.r.t. theta (rad)
-    return 2 * v0 ** 2 / g * np.cos(2 * theta)
+def dR(theta): # derivative w.r.t. theta (rad)
+ return 2 * v0 ** 2 / g * np.cos(2 * theta)
 
 def maximise(start_deg, eta, tol=1e-6, max_iter=500):
-    theta = np.radians(start_deg)
-    history = [theta]
-    for k in range(max_iter):
-        g_k = dR(theta)
-        if abs(g_k) < tol:
-            break
-        theta = theta + eta * g_k    # ASCENT (+); use - for descent
-        history.append(theta)
-    return np.degrees(theta), np.degrees(history), k + 1
+ theta = np.radians(start_deg)
+ history = [theta]
+ for k in range(max_iter):
+ g_k = dR(theta)
+ if abs(g_k) < tol:
+ break
+ theta = theta + eta * g_k # ASCENT (+); use - for descent
+ history.append(theta)
+ return np.degrees(theta), np.degrees(history), k + 1
 
 best, traj, steps = maximise(start_deg=20, eta=0.6)
-print(f"converged to θ = {best:.4f}°  in {steps} steps")
+print(f"converged to θ = {best:.4f}° in {steps} steps")
 ```
 
 Note the step size here ($\eta = 0.6$) is in *radian* space; the hero image uses degree-space so $\eta$ looks much larger (35) to produce the same effect.
@@ -189,7 +188,7 @@ Note the step size here ($\eta = 0.6$) is in *radian* space; the hero image uses
 
 ## 9 · Where This Reappears
 
-- **Pre-Req Ch.6.** The update $\theta \leftarrow \theta - \eta\,\nabla f(\theta)$ is the vector version of this chapter — same logic, with many dimensions.
+- **Pre-Req Ch.6.** The update $\theta \leftarrow \theta - \eta \nabla f(\theta)$ is the vector version of this chapter — same logic, with many dimensions.
 - **ML Ch.1 Linear Regression.** Stochastic gradient descent on the MSE loss. Convex, so Ch.4's easy case applies.
 - **ML Ch.5 Backprop & Optimisers.** Momentum, Adam, RMSProp, learning-rate schedules — every one is a patch on the Ch.4 base algorithm.
 - **ML Ch.6 Regularisation.** Adds a penalty term to the loss, still optimised with the same walk-downhill recipe.

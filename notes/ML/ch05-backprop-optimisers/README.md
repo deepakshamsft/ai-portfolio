@@ -1,6 +1,10 @@
 # Ch.5 — Backprop & Optimisers
 
-> **Running theme:** You have a two-hidden-layer network predicting California house values (Ch.4). It can do a forward pass. Now you need to train it — compute exact gradients through every layer and pick an optimiser that converges faster than vanilla SGD. This chapter gives you the engine under the hood.
+> **The story.** In 1974 Paul Werbos worked out, in his Harvard thesis, that you could train a multi-layer network by pushing the error backwards through it with the chain rule. Almost nobody noticed. The field was still in its first AI winter, and "neural networks" was a phrase you whispered. It took twelve more years and a 1986 *Nature* paper by Rumelhart, Hinton and Williams to make backpropagation famous — and with it, every deep network we have built since. The optimisers came later: SGD was Cauchy's idea from 1847, Polyak added momentum in 1964, Hinton's class notes gave us RMSProp in 2012, and Kingma & Ba combined the two into Adam in 2014. Each name in that chain solved the previous one's failure mode.
+>
+> **Where you are in the curriculum.** You have a two-hidden-layer network from [Ch.4](../ch04-neural-networks/) that can do a forward pass on California house values. This chapter teaches it to *learn* — compute exact gradients through every layer, then pick an optimiser that converges faster than vanilla SGD. This is the engine under the hood of every chapter that follows.
+>
+> **Notation in this chapter.** $L$ or $\mathcal{L}$ — the scalar loss; $\nabla_{W^{(\ell)}}\mathcal{L}$ — gradient of the loss w.r.t. layer-$\ell$ weights; $\delta^{(\ell)}=\partial\mathcal{L}/\partial\mathbf{z}^{(\ell)}$ — the **back-propagated error signal** at layer $\ell$; $g_t$ — gradient at training step $t$; $\eta$ — learning rate; $\mu$ — momentum coefficient; $m_t,v_t$ — Adam's first- and second-moment estimates; $\beta_1,\beta_2$ — Adam's decay rates (defaults $0.9, 0.999$); $\epsilon$ — small numerical-stability constant ($\sim 10^{-8}$); $\theta_{t+1}=\theta_t-\eta\,g_t$ — the canonical SGD update.
 
 ---
 
@@ -12,7 +16,7 @@
 
 ```
 SGD → Momentum → RMSProp → Adam
- (bare)  (velocity decay)  (per-param scale)  (both combined)
+ (bare) (velocity decay) (per-param scale) (both combined)
 ```
 
 The gradient tells you the direction of steepest ascent in loss-space. The optimiser decides *how far* and *in which direction variant* to step.
@@ -25,7 +29,7 @@ Same two-hidden-layer network from Ch.4:
 
 ```
 8 inputs → [128 ReLU] → [64 ReLU] → 1 output (linear)
-Loss: MSE   L = (1/n) Σ (y - ŷ)²
+Loss: MSE L = (1/n) Σ (y - ŷ)²
 ```
 
 We watch the **training loss curve** as we swap optimisers. A good optimiser should converge faster (fewer epochs to the same loss) and land in a better minimum.
@@ -48,7 +52,7 @@ Let $\mathbf{z}^{(l)} = \mathbf{W}_l^\top \mathbf{h}^{(l-1)} + \mathbf{b}_l$ and
 
 The upstream gradient $\delta^{(l)} = \frac{\partial \mathcal{L}}{\partial \mathbf{z}^{(l)}}$ (called the **error signal**):
 
-$$\delta^{(l)} = \left(\mathbf{W}_{l+1}\, \delta^{(l+1)}\right) \odot \mathbf{1}\!\left[\mathbf{z}^{(l)} > 0\right]$$
+$$\delta^{(l)} = \left(\mathbf{W}_{l+1} \delta^{(l+1)}\right) \odot \mathbf{1} \left[\mathbf{z}^{(l)} > 0\right]$$
 
 | Symbol | Meaning |
 |---|---|
@@ -69,19 +73,19 @@ $$\frac{\partial \mathcal{L}}{\partial \mathbf{b}_l} = \sum_\text{batch} \delta^
 Let $g_t = \nabla_\mathbf{W}\mathcal{L}$ at step $t$, $\eta$ = learning rate.
 
 **Vanilla SGD:**
-$$\mathbf{W}_{t+1} = \mathbf{W}_t - \eta\, g_t$$
+$$\mathbf{W}_{t+1} = \mathbf{W}_t - \eta g_t$$
 
 **SGD + Momentum** ($\mu$ typically 0.9):
-$$p_{t+1} = \mu\, p_t + g_t \qquad \mathbf{W}_{t+1} = \mathbf{W}_t - \eta\, p_{t+1}$$
+$$p_{t+1} = \mu p_t + g_t \qquad \mathbf{W}_{t+1} = \mathbf{W}_t - \eta p_{t+1}$$
 
 **RMSProp** ($\rho$ typically 0.9):
-$$s_{t+1} = \rho\, s_t + (1-\rho)\, g_t^2 \qquad \mathbf{W}_{t+1} = \mathbf{W}_t - \frac{\eta}{\sqrt{s_{t+1}} + \epsilon}\, g_t$$
+$$s_{t+1} = \rho s_t + (1-\rho) g_t^2 \qquad \mathbf{W}_{t+1} = \mathbf{W}_t - \frac{\eta}{\sqrt{s_{t+1}} + \epsilon} g_t$$
 
 **Adam** ($\beta_1=0.9$, $\beta_2=0.999$):
 $$m_{t+1} = \beta_1 m_t + (1-\beta_1) g_t \quad \text{(first moment / velocity)}$$
 $$v_{t+1} = \beta_2 v_t + (1-\beta_2) g_t^2 \quad \text{(second moment / variance)}$$
 $$\hat{m} = \frac{m_{t+1}}{1-\beta_1^t} \quad \hat{v} = \frac{v_{t+1}}{1-\beta_2^t} \quad \text{(bias correction)}$$
-$$\mathbf{W}_{t+1} = \mathbf{W}_t - \frac{\eta\, \hat{m}}{\sqrt{\hat{v}} + \epsilon}$$
+$$\mathbf{W}_{t+1} = \mathbf{W}_t - \frac{\eta \hat{m}}{\sqrt{\hat{v}} + \epsilon}$$
 
 | Symbol | Meaning |
 |---|---|
@@ -129,11 +133,11 @@ $$\mathbf{W}_{t+1} = \mathbf{W}_t - \frac{\eta\, \hat{m}}{\sqrt{\hat{v}} + \epsi
 
 ```mermaid
 graph RL
-    L["Loss ∂L/∂ŷ"] --> OW["∂L/∂W₃\n∂L/∂b₃"]
-    L --> H2["δ² = W₃ · δᴸ ⊙ ReLU'(z²)"]
-    H2 --> MW2["∂L/∂W₂\n∂L/∂b₂"]
-    H2 --> H1["δ¹ = W₂ · δ² ⊙ ReLU'(z¹)"]
-    H1 --> MW1["∂L/∂W₁\n∂L/∂b₁"]
+ L["Loss ∂L/∂ŷ"] --> OW["∂L/∂W₃\n∂L/∂b₃"]
+ L --> H2["δ² = W₃ · δᴸ ⊙ ReLU'(z²)"]
+ H2 --> MW2["∂L/∂W₂\n∂L/∂b₂"]
+ H2 --> H1["δ¹ = W₂ · δ² ⊙ ReLU'(z¹)"]
+ H1 --> MW1["∂L/∂W₁\n∂L/∂b₁"]
 ```
 
 ### Animation — one full training step, neuron by neuron
@@ -141,7 +145,7 @@ graph RL
 A 2 → 3 → 2 → 1 network trained on a single fixed sample `(x = [+0.90, −0.40], y = +1.00)`. Each epoch cycles through three phases:
 
 1. **Forward pass (blue).** Neurons light up left → right; their numbers are the activations $h^{(l)}$. Edges feeding the active layer glow to show which weights contributed to that layer's pre-activation.
-2. **Backward pass (red).** Starting at the output, neurons light up right → left showing the error signal $\delta^{(l)} = (W_{l+1}\,\delta^{(l+1)}) \odot \mathbf{1}[z^{(l)} > 0]$. The glowing edges are the weights whose gradient was just computed from that $\delta$.
+2. **Backward pass (red).** Starting at the output, neurons light up right → left showing the error signal $\delta^{(l)} = (W_{l+1} \delta^{(l+1)}) \odot \mathbf{1}[z^{(l)} > 0]$. The glowing edges are the weights whose gradient was just computed from that $\delta$.
 3. **Update (green).** One SGD step is applied — every edge flashes green and the weight values drift. Watch the header: $\hat{y}$ moves towards the target `+1.00` and the loss ticks down each epoch.
 
 ![Backpropagation: forward activations, backward delta flow, and per-epoch weight updates on a tiny network](img/backprop_neurons.gif)
@@ -150,29 +154,29 @@ A 2 → 3 → 2 → 1 network trained on a single fixed sample `(x = [+0.90, −
 
 ```
 Loss
-  │  SGD ─────────────────────────────────────────── (slow, noisy)
-  │    Momentum ──────────────────────────           (faster, overshoots)
-  │      RMSProp ──────────────────                  (adaptive scale)
-  │        Adam ──────────────                       (fastest convergence)
-  └─────────────────────────────────── Epochs
+ │ SGD ─────────────────────────────────────────── (slow, noisy)
+ │ Momentum ────────────────────────── (faster, overshoots)
+ │ RMSProp ────────────────── (adaptive scale)
+ │ Adam ────────────── (fastest convergence)
+ └─────────────────────────────────── Epochs
 ```
 
 ### Gradient flow through ReLU
 
 ```
-   forward:   z = -2  →  h = 0       z = 3  →  h = 3
-   backward:  δ̃ =  0  (dead)         δ̃ = δ  (pass-through)
-              └── ReLU derivative = 0    └── ReLU derivative = 1
+ forward: z = -2 → h = 0 z = 3 → h = 3
+ backward: δ̃ = 0 (dead) δ̃ = δ (pass-through)
+ └── ReLU derivative = 0 └── ReLU derivative = 1
 ```
 
 ### Adam: first and second moment
 
 ```mermaid
 graph LR
-    G[Gradient gₜ] --> M["m̂ (velocity)\nsmooth direction"]
-    G --> V["v̂ (variance)\nper-param scale"]
-    M --> U["Update step\nη · m̂ / (√v̂ + ε)"]
-    V --> U
+ G[Gradient gₜ] --> M["m̂ (velocity)\nsmooth direction"]
+ G --> V["v̂ (variance)\nper-param scale"]
+ M --> U["Update step\nη · m̂ / (√v̂ + ε)"]
+ V --> U
 ```
 
 ---
@@ -204,36 +208,36 @@ X, y = housing.data, housing.target
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 scaler = StandardScaler()
 X_train_s = scaler.fit_transform(X_train)
-X_test_s  = scaler.transform(X_test)
+X_test_s = scaler.transform(X_test)
 
 # --- 1. Vanilla SGD ---
 sgd = MLPRegressor(hidden_layer_sizes=(128, 64), activation='relu',
-                   solver='sgd', learning_rate_init=0.01, max_iter=300, random_state=42)
+ solver='sgd', learning_rate_init=0.01, max_iter=300, random_state=42)
 sgd.fit(X_train_s, y_train)
 
 # --- 2. SGD + Momentum ---
 mom = MLPRegressor(hidden_layer_sizes=(128, 64), activation='relu',
-                   solver='sgd', learning_rate_init=0.01, momentum=0.9,
-                   max_iter=300, random_state=42)
+ solver='sgd', learning_rate_init=0.01, momentum=0.9,
+ max_iter=300, random_state=42)
 mom.fit(X_train_s, y_train)
 
 # --- 3. Adam (default solver) ---
 adam = MLPRegressor(hidden_layer_sizes=(128, 64), activation='relu',
-                    solver='adam', learning_rate_init=1e-3, max_iter=300, random_state=42)
+ solver='adam', learning_rate_init=1e-3, max_iter=300, random_state=42)
 adam.fit(X_train_s, y_train)
 
 for name, m in [('SGD', sgd), ('Momentum', mom), ('Adam', adam)]:
-    print(f"{name:12s}  R²={r2_score(y_test, m.predict(X_test_s)):.4f}"
-          f"  epochs={m.n_iter_}")
+ print(f"{name:12s} R²={r2_score(y_test, m.predict(X_test_s)):.4f}"
+ f" epochs={m.n_iter_}")
 
 # --- Manual Adam step (NumPy) ---
 def adam_step(W, g, m, v, t, lr=1e-3, b1=0.9, b2=0.999, eps=1e-8):
-    m = b1 * m + (1 - b1) * g
-    v = b2 * v + (1 - b2) * g ** 2
-    m_hat = m / (1 - b1 ** t)
-    v_hat = v / (1 - b2 ** t)
-    W = W - lr * m_hat / (np.sqrt(v_hat) + eps)
-    return W, m, v
+ m = b1 * m + (1 - b1) * g
+ v = b2 * v + (1 - b2) * g ** 2
+ m_hat = m / (1 - b1 ** t)
+ v_hat = v / (1 - b2 ** t)
+ W = W - lr * m_hat / (np.sqrt(v_hat) + eps)
+ return W, m, v
 ```
 
 ---

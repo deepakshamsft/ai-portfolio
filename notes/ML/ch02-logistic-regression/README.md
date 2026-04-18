@@ -1,6 +1,10 @@
 # Ch.2 — Logistic Regression
 
-> **Running theme:** The platform needs a binary signal: is a California district high-value or not? This powers the "premium neighbourhood" badge. The math is nearly identical to Ch.1 — the only change is squashing the linear output through a sigmoid and swapping MSE for cross-entropy.
+> **The story.** The **logistic function** $1/(1+e^{-x})$ was named in 1844 by the Belgian mathematician **Pierre-François Verhulst**, who used it to model how a population (rabbits in a meadow) grows fast at first and then saturates against a carrying capacity. A century later, in **1944**, the biostatistician **Joseph Berkson** noticed the same S-curve was the right shape for a probability and coined the word **logit** — "log of the odds" — giving us the model we still use for binary classification. **David Cox** generalised it in 1958, and by the 1970s logistic regression was the backbone of medicine, credit scoring, and epidemiology. The reason the math feels almost identical to Ch.1 is because it *is* identical — you've just changed the noise model from Gaussian to Bernoulli, which (per [Ch.15](../ch15-mle-loss-functions/)) automatically swaps MSE for cross-entropy.
+>
+> **Where you are in the curriculum.** Ch.1 gave the platform a regression model; now the product team needs a binary signal: is a California district high-value or not? This powers the "premium neighbourhood" badge. Mechanically the only changes are squashing the linear output through a sigmoid and swapping MSE for cross-entropy — but the chapter also introduces precision, recall, and the confusion matrix, which the rest of the curriculum (especially [Ch.9](../ch09-metrics/)) will build on relentlessly.
+>
+> **Notation in this chapter.** $\mathbf{x}\in\mathbb{R}^d$ — input feature vector; $y\in\{0,1\}$ — true class label; $z=\mathbf{w}\cdot\mathbf{x}+b$ — the **logit** (raw linear score); $\sigma(z)=1/(1+e^{-z})$ — the **sigmoid** activation; $\hat{p}=\sigma(z)\in[0,1]$ — predicted probability of the positive class; $L=-\frac{1}{N}\sum_i\big[y_i\log\hat{p}_i+(1-y_i)\log(1-\hat{p}_i)\big]$ — **binary cross-entropy (BCE)** loss; $TP,FP,TN,FN$ — confusion-matrix counts; precision $P=\tfrac{TP}{TP+FP}$; recall $R=\tfrac{TP}{TP+FN}$.
 
 ---
 

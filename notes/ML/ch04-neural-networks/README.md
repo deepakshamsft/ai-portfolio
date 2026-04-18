@@ -1,6 +1,10 @@
 # Ch.4 — Neural Networks
 
-> **Running theme:** You are a data scientist at a real estate platform. Management wants a smarter valuation model — one that captures complex, non-linear interactions between all eight housing features. Linear regression (Ch.1) was too rigid; logistic regression (Ch.2) only handles binary targets; the XOR experiment (Ch.3) proved you need hidden layers. Now you build the full thing.
+> **The story.** The very first mathematical model of a neuron was published in **1943** by **Warren McCulloch** (a neurophysiologist) and **Walter Pitts** (a self-taught logician) — a binary unit that fired if the weighted sum of its inputs crossed a threshold. **Frank Rosenblatt's** Perceptron (1958) made it learnable; Minsky & Papert (1969) [killed it](../ch03-xor-problem/); Rumelhart, Hinton & Williams (1986) brought it back with backprop. The 2000s added two engineering breakthroughs that made *deep* networks finally trainable: **ReLU** activations (Glorot & Bengio 2010, Krizhevsky et al. 2012) replaced the saturating sigmoid that had been killing gradients for decades, and **Xavier / He initialisation** (Glorot 2010, He 2015) cured the variance-collapse problem at depth. Every dense layer you will write in PyTorch is a direct descendant of McCulloch and Pitts — wrapped in eight decades of engineering fixes.
+>
+> **Where you are in the curriculum.** Linear regression ([Ch.1](../ch01-linear-regression/)) was too rigid; logistic regression ([Ch.2](../ch02-logistic-regression/)) only handles binary targets; the XOR experiment ([Ch.3](../ch03-xor-problem/)) proved you need hidden layers. Now you build the full thing: a multi-layer network with ReLU, Xavier/He init, and softmax outputs, ready for [Ch.5](../ch05-backprop-optimisers/) to teach it to learn. Management at the platform wants a smarter valuation model — one that captures complex non-linear interactions across all eight housing features. This is that model.
+>
+> **Notation in this chapter.** $L$ — number of layers (network depth); $\ell\in\{1,\dots,L\}$ — layer index; $W^{(\ell)},\mathbf{b}^{(\ell)}$ — weight matrix and bias vector of layer $\ell$; $\mathbf{a}^{(\ell)}$ — **activations** of layer $\ell$ (with $\mathbf{a}^{(0)}=\mathbf{x}$); $\mathbf{z}^{(\ell)}=W^{(\ell)}\mathbf{a}^{(\ell-1)}+\mathbf{b}^{(\ell)}$ — the **pre-activation**; $\mathbf{a}^{(\ell)}=\phi(\mathbf{z}^{(\ell)})$ where $\phi\in\{\text{ReLU},\sigma,\tanh,\text{softmax}\}$ is the chosen activation function; $\hat{\mathbf{y}}=\mathbf{a}^{(L)}$ — the network output.
 
 ---
 
@@ -54,9 +58,9 @@ $$a = g(z)$$
 
 ### 3.2 Forward pass through a two-hidden-layer network
 
-$$\mathbf{h}^{(1)} = g_1\!\left(\mathbf{W}_1^\top \mathbf{x} + \mathbf{b}_1\right) \quad \mathbf{W}_1 \in \mathbb{R}^{p \times d_1}$$
+$$\mathbf{h}^{(1)} = g_1 \left(\mathbf{W}_1^\top \mathbf{x} + \mathbf{b}_1\right) \quad \mathbf{W}_1 \in \mathbb{R}^{p \times d_1}$$
 
-$$\mathbf{h}^{(2)} = g_2\!\left(\mathbf{W}_2^\top \mathbf{h}^{(1)} + \mathbf{b}_2\right) \quad \mathbf{W}_2 \in \mathbb{R}^{d_1 \times d_2}$$
+$$\mathbf{h}^{(2)} = g_2 \left(\mathbf{W}_2^\top \mathbf{h}^{(1)} + \mathbf{b}_2\right) \quad \mathbf{W}_2 \in \mathbb{R}^{d_1 \times d_2}$$
 
 $$\hat{y} = \mathbf{w}_3^\top \mathbf{h}^{(2)} + b_3 \quad \mathbf{w}_3 \in \mathbb{R}^{d_2}$$
 
@@ -81,10 +85,10 @@ $$\hat{y} = \mathbf{w}_3^\top \mathbf{h}^{(2)} + b_3 \quad \mathbf{w}_3 \in \mat
 ### 3.4 Weight initialisation
 
 **Xavier / Glorot** (designed for Sigmoid / Tanh):
-$$W \sim \mathcal{U}\!\left(-\sqrt{\frac{6}{n_\text{in}+n_\text{out}}},\ \sqrt{\frac{6}{n_\text{in}+n_\text{out}}}\right)$$
+$$W \sim \mathcal{U} \left(-\sqrt{\frac{6}{n_\text{in}+n_\text{out}}},\ \sqrt{\frac{6}{n_\text{in}+n_\text{out}}}\right)$$
 
 **He** (designed for ReLU):
-$$W \sim \mathcal{N}\!\left(0,\ \sqrt{\frac{2}{n_\text{in}}}\right)$$
+$$W \sim \mathcal{N} \left(0,\ \sqrt{\frac{2}{n_\text{in}}}\right)$$
 
 | Symbol | Meaning |
 |---|---|
@@ -121,59 +125,59 @@ $$W \sim \mathcal{N}\!\left(0,\ \sqrt{\frac{2}{n_\text{in}}}\right)$$
 
 ```mermaid
 graph LR
-    subgraph Input["Input (8 features)"]
-        X1[MedInc]
-        X2[HouseAge]
-        X3[AveRooms]
-        X4[...]
-    end
-    subgraph H1["Hidden Layer 1 (ReLU, 64 units)"]
-        H1A[●]
-        H1B[●]
-        H1C[●]
-        H1D[...]
-    end
-    subgraph H2["Hidden Layer 2 (ReLU, 32 units)"]
-        H2A[●]
-        H2B[●]
-        H2C[...]
-    end
-    subgraph Output["Output (linear, 1 unit)"]
-        Y[ŷ]
-    end
-    X1 & X2 & X3 & X4 --> H1A & H1B & H1C & H1D
-    H1A & H1B & H1C & H1D --> H2A & H2B & H2C
-    H2A & H2B & H2C --> Y
+ subgraph Input["Input (8 features)"]
+ X1[MedInc]
+ X2[HouseAge]
+ X3[AveRooms]
+ X4[...]
+ end
+ subgraph H1["Hidden Layer 1 (ReLU, 64 units)"]
+ H1A[●]
+ H1B[●]
+ H1C[●]
+ H1D[...]
+ end
+ subgraph H2["Hidden Layer 2 (ReLU, 32 units)"]
+ H2A[●]
+ H2B[●]
+ H2C[...]
+ end
+ subgraph Output["Output (linear, 1 unit)"]
+ Y[ŷ]
+ end
+ X1 & X2 & X3 & X4 --> H1A & H1B & H1C & H1D
+ H1A & H1B & H1C & H1D --> H2A & H2B & H2C
+ H2A & H2B & H2C --> Y
 ```
 
 ### Activation function shapes
 
 ```
-ReLU          Sigmoid         Tanh
-  |              |              |
-  |    /         |    ___       |   ___
-  |___/          |   /          |  /
-  +------        +------        +-------- 0
-                                | ___
-flat for z<0   squashes to(0,1) squashes to(-1,1)
+ReLU Sigmoid Tanh
+ | | |
+ | / | ___ | ___
+ |___/ | / | /
+ +------ +------ +-------- 0
+ | ___
+flat for z<0 squashes to(0,1) squashes to(-1,1)
 ```
 
 ### Representation learning
 
 ```mermaid
 graph LR
-    Raw["Raw features\n(MedInc, Lat, Lon...)"] --> L1["Layer 1\n(income bands,\nregion clusters)"]
-    L1 --> L2["Layer 2\n(neighbourhood\nprofile)"]
-    L2 --> Out["Predicted\nhouse value"]
+ Raw["Raw features\n(MedInc, Lat, Lon...)"] --> L1["Layer 1\n(income bands,\nregion clusters)"]
+ L1 --> L2["Layer 2\n(neighbourhood\nprofile)"]
+ L2 --> Out["Predicted\nhouse value"]
 ```
 
 ### Effect of depth on decision boundary complexity
 
 ```mermaid
 graph TD
-    A["0 hidden layers\n(linear boundary)"] --> B["1 hidden layer\n(piecewise linear)"]
-    B --> C["2 hidden layers\n(smooth composite)"]
-    C --> D["3+ hidden layers\n(hierarchical features)"]
+ A["0 hidden layers\n(linear boundary)"] --> B["1 hidden layer\n(piecewise linear)"]
+ B --> C["2 hidden layers\n(smooth composite)"]
+ C --> D["3+ hidden layers\n(hierarchical features)"]
 ```
 
 ---
@@ -203,41 +207,41 @@ from sklearn.metrics import r2_score
 
 # Load & split
 data = fetch_california_housing()
-X, y = data.data, data.target          # (20640, 8), (20640,)
+X, y = data.data, data.target # (20640, 8), (20640,)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Scale — critical for neural nets
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
-X_test  = scaler.transform(X_test)
+X_test = scaler.transform(X_test)
 
 # Build network: 2 hidden layers, 128 and 64 units
 model = MLPRegressor(
-    hidden_layer_sizes=(128, 64),
-    activation='relu',          # hidden layer activation
-    solver='adam',
-    max_iter=300,
-    random_state=42,
+ hidden_layer_sizes=(128, 64),
+ activation='relu', # hidden layer activation
+ solver='adam',
+ max_iter=300,
+ random_state=42,
 )
 model.fit(X_train, y_train)
 print(f"R² = {r2_score(y_test, model.predict(X_test)):.4f}")
 
 # Manual numpy forward pass (He-init, ReLU, linear output)
 def relu(z):
-    return np.maximum(0, z)
+ return np.maximum(0, z)
 
 def he_init(n_in, n_out, rng):
-    return rng.normal(0, np.sqrt(2 / n_in), (n_in, n_out))
+ return rng.normal(0, np.sqrt(2 / n_in), (n_in, n_out))
 
 rng = np.random.default_rng(42)
-W1 = he_init(8, 64, rng);  b1 = np.zeros(64)
+W1 = he_init(8, 64, rng); b1 = np.zeros(64)
 W2 = he_init(64, 32, rng); b2 = np.zeros(32)
-W3 = he_init(32, 1, rng);  b3 = np.zeros(1)
+W3 = he_init(32, 1, rng); b3 = np.zeros(1)
 
 def forward(X):
-    h1 = relu(X @ W1 + b1)
-    h2 = relu(h1 @ W2 + b2)
-    return (h2 @ W3 + b3).ravel()   # linear output — no activation
+ h1 = relu(X @ W1 + b1)
+ h2 = relu(h1 @ W2 + b2)
+ return (h2 @ W3 + b3).ravel() # linear output — no activation
 
 y_hat = forward(X_test[:5])
 ```

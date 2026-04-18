@@ -1,6 +1,10 @@
 # Ch.1 — Linear Regression
 
-> **Running theme:** You're a data scientist at a real estate platform. Your first task: build a model that estimates California house prices from census features. One input, one output, one line — but every concept here scales directly to 100-layer networks.
+> **The story.** In **1805** the French mathematician **Adrien-Marie Legendre** published a short appendix called *Nouvelles méthodes pour la détermination des orbites des comètes* and casually introduced the **method of least squares** — the recipe that says "the best line is the one minimising the sum of squared errors." Four years later **Carl Friedrich Gauss** claimed he had been using it since 1795 to predict the orbit of the asteroid Ceres; a polite priority dispute followed, but both men were right that the technique would outlive them. In 1809 Gauss further showed that least squares is *the* optimal estimator when noise is Gaussian — a result that wouldn't be properly appreciated until R. A. Fisher rederived it as maximum likelihood in 1922 (you'll see this again in [Ch.15](../ch15-mle-loss-functions/)). Every linear regression you will ever fit is doing exactly what Legendre wrote down two centuries ago.
+>
+> **Where you are in the curriculum.** This is chapter one. You're a data scientist at a real estate platform, and your first task is the simplest possible model: estimate California house prices from census features. One input, one output, one line. Every concept here — the loss surface, the gradient, the learning rate, the metric — scales directly to 100-layer networks in [Ch.4](../ch04-neural-networks/) and beyond. Get this chapter right and the next eighteen feel like additions, not replacements.
+>
+> **Notation in this chapter.** $x$ — input feature (`MedInc`); $y$ — true target (`MedHouseVal`); $\hat{y}=wx+b$ — model prediction; $w$ — weight (slope); $b$ — bias (intercept); $N$ — number of training samples; $L=\frac{1}{N}\sum_{i=1}^{N}(y_i-\hat{y}_i)^2$ — **mean squared error (MSE)** loss; $\eta$ — learning rate; $R^2$ — coefficient of determination (fraction of variance explained).
 
 ---
 
@@ -14,8 +18,8 @@ Linear regression fits a straight line (or hyperplane) through data by finding t
 
 You're a data scientist at a real estate platform. Your first task: build a model that estimates the median house value for a California district given its median income. One input, one output, one line. It sounds simple — and it is — but it contains every idea that scales to 100-layer networks: a parameterised function, a loss that measures error, and an optimiser that corrects the weights.
 
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)  
-Input feature: `MedInc` (median income in $10k units)  
+Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`) 
+Input feature: `MedInc` (median income in $10k units) 
 Target: `MedHouseVal` (median house value in $100k units)
 
 ---
@@ -89,18 +93,18 @@ where $n$ is the number of samples and $p$ is the number of features. Use this w
 1. Initialise W and b to small random values (or zeros)
 
 2. Forward pass
-   └─ compute ŷ = Wᵀx + b for all training examples
+ └─ compute ŷ = Wᵀx + b for all training examples
 
 3. Compute loss
-   └─ MSE = mean((ŷ - y)²)
+ └─ MSE = mean((ŷ - y)²)
 
 4. Backward pass (gradient computation)
-   └─ ∂MSE/∂W = (2/n) · Xᵀ(ŷ - y)
-   └─ ∂MSE/∂b = (2/n) · sum(ŷ - y)
+ └─ ∂MSE/∂W = (2/n) · Xᵀ(ŷ - y)
+ └─ ∂MSE/∂b = (2/n) · sum(ŷ - y)
 
 5. Update weights
-   └─ W ← W - α · ∂MSE/∂W
-   └─ b ← b - α · ∂MSE/∂b
+ └─ W ← W - α · ∂MSE/∂W
+ └─ b ← b - α · ∂MSE/∂b
 
 6. Repeat steps 2–5 for many epochs until loss converges
 ```
@@ -118,41 +122,41 @@ The MSE loss surface for a single-weight model is a **convex bowl** — there is
 ```
 Loss
  │
- │    *
- │   * *
- │  *   *
- │ *     *
- │*       *
+ │ *
+ │ * *
+ │ * *
+ │ * *
+ │* *
  └──────────── W
-         ↑
-      minimum
+ ↑
+ minimum
 ```
 
 ### Gradient Descent Variants
 
 ```mermaid
 flowchart LR
-    A["Batch GD\nall n examples/step\nslow, stable"] -->|"trade stability for speed"| B["Mini-batch GD\n32–256 examples/step\nbest of both worlds"]
-    B -->|"trade stability for speed"| C["SGD\n1 example/step\nnoisy but fast"]
+ A["Batch GD\nall n examples/step\nslow, stable"] -->|"trade stability for speed"| B["Mini-batch GD\n32–256 examples/step\nbest of both worlds"]
+ B -->|"trade stability for speed"| C["SGD\n1 example/step\nnoisy but fast"]
 ```
 
 ### Learning Rate Effect
 
 ```
-Good α:    loss ──┐
-                   └──┐
-                        └─── (converged)
+Good α: loss ──┐
+ └──┐
+ └─── (converged)
 
-Too high:  loss ────/\/\/\/\──  (oscillates / diverges)
+Too high: loss ────/\/\/\/\── (oscillates / diverges)
 
-Too low:   loss ──────────────────────────── (barely moving)
+Too low: loss ──────────────────────────── (barely moving)
 ```
 
 ![Regression line and gradient descent learning rate comparison](img/Gradient%20Descent%20Paths.png)
 
 ### Animation — derivative slices compound into the curve
 
-Calculus-intuition check before we touch the loss surface: **every smooth curve is a quilt of tiny straight lines.** Zoom into any point on a circle and the arc looks straight — that locally-straight segment *is* the derivative at that point. Pull the camera back and those millions of tiny straight segments, laid edge-to-edge, are what we see as "the circle". The same is true of any smooth $f(x)$ — it looks blank from far away, but zoom in and it's made of microscopic tangents, each with its own slope $f'(x)$. This is why the first-order approximation $f(x + dx) \approx f(x) + f'(x)\,dx$ exists at all, and it's the reason gradient descent works one small step at a time: step sizes have to be small enough that this *locally straight* picture is still trustworthy.
+Calculus-intuition check before we touch the loss surface: **every smooth curve is a quilt of tiny straight lines.** Zoom into any point on a circle and the arc looks straight — that locally-straight segment *is* the derivative at that point. Pull the camera back and those millions of tiny straight segments, laid edge-to-edge, are what we see as "the circle". The same is true of any smooth $f(x)$ — it looks blank from far away, but zoom in and it's made of microscopic tangents, each with its own slope $f'(x)$. This is why the first-order approximation $f(x + dx) \approx f(x) + f'(x) dx$ exists at all, and it's the reason gradient descent works one small step at a time: step sizes have to be small enough that this *locally straight* picture is still trustworthy.
 
 ![A circle and a curve, each shown as a quilt of tiny straight tangent segments revealed by zooming in and out](img/derivative_to_curve.gif)
 
@@ -166,7 +170,7 @@ Same loss bowl, same start point, same gradient formula — the **only** differe
 
 ```mermaid
 flowchart LR
-    X["x\n(MedInc)"] -->|"× w"| M["wx"] --> A(("+b")) --> Y["ŷ\n(MedHouseVal)"]
+ X["x\n(MedInc)"] -->|"× w"| M["wx"] --> A(("+b")) --> Y["ŷ\n(MedHouseVal)"]
 ```
 
 ---
@@ -195,8 +199,8 @@ from sklearn.metrics import mean_squared_error, r2_score
 
 # 1. Load data — use MedInc only for the single-feature baseline
 data = fetch_california_housing()
-X = data.data[:, [0]]   # MedInc column
-y = data.target          # MedHouseVal
+X = data.data[:, [0]] # MedInc column
+y = data.target # MedHouseVal
 
 # 2. Split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -204,7 +208,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 # 3. Scale (important for gradient descent — not needed for closed-form sklearn)
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
-X_test  = scaler.transform(X_test)
+X_test = scaler.transform(X_test)
 
 # 4. Fit
 model = LinearRegression()
@@ -212,10 +216,10 @@ model.fit(X_train, y_train)
 
 # 5. Evaluate
 y_pred = model.predict(X_test)
-rmse   = np.sqrt(mean_squared_error(y_test, y_pred))
-r2     = r2_score(y_test, y_pred)
-print(f"RMSE: {rmse:.3f}  R²: {r2:.3f}")
-print(f"Weight: {model.coef_[0]:.3f}  Bias: {model.intercept_:.3f}")
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+r2 = r2_score(y_test, y_pred)
+print(f"RMSE: {rmse:.3f} R²: {r2:.3f}")
+print(f"Weight: {model.coef_[0]:.3f} Bias: {model.intercept_:.3f}")
 ```
 
 ### Manual Gradient Descent (to see the mechanics)
@@ -227,18 +231,18 @@ alpha = 0.01
 n = len(X_train)
 
 for epoch in range(200):
-    y_hat = X_train[:, 0] * W + b
-    error = y_hat - y_train
+ y_hat = X_train[:, 0] * W + b
+ error = y_hat - y_train
 
-    dW = (2 / n) * np.dot(X_train[:, 0], error)
-    db = (2 / n) * np.sum(error)
+ dW = (2 / n) * np.dot(X_train[:, 0], error)
+ db = (2 / n) * np.sum(error)
 
-    W -= alpha * dW
-    b -= alpha * db
+ W -= alpha * dW
+ b -= alpha * db
 
-    if epoch % 20 == 0:
-        mse = np.mean(error ** 2)
-        print(f"Epoch {epoch:3d} | MSE: {mse:.4f} | W: {W:.4f} | b: {b:.4f}")
+ if epoch % 20 == 0:
+ mse = np.mean(error ** 2)
+ print(f"Epoch {epoch:3d} | MSE: {mse:.4f} | W: {W:.4f} | b: {b:.4f}")
 ```
 
 ---

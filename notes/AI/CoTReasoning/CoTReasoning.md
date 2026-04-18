@@ -1,6 +1,8 @@
-﻿# Agent Planning Notes: Chain-of-Thought, ReAct, Tool Use, and the Missing Bridge (Token → Plan → Action)
+﻿# Chain-of-Thought Reasoning — How LLMs Think Out Loud
 
-These notes explain **how LLM agents "plan"** in practice — from basic chain-of-thought prompting through modern agent architectures — and, most importantly, close the conceptual gap that most agent documentation leaves open:
+> **The story.** In **January 2022**, **Jason Wei** and colleagues at Google published *"Chain-of-Thought Prompting Elicits Reasoning in Large Language Models."* The trick was almost embarrassingly simple: ask the model to *show its work* before giving the final answer, and accuracy on multi-step arithmetic and commonsense reasoning jumped by 10–40 points — but only on models above ~62 B parameters, where the ability seemed to *emerge*. **Self-Consistency** (Wang et al., Google, **March 2022**) sampled multiple chains and took the majority vote, squeezing out more accuracy. **Tree of Thoughts** (Yao et al., Princeton + DeepMind, **May 2023**) generalised the chain to a search tree. The big jump came in **September 2024** with OpenAI's **o1** model: instead of prompting CoT, OpenAI *trained* the model with reinforcement learning to produce long internal reasoning traces before answering — "reasoning tokens" that the user never sees. **DeepSeek-R1** (Jan 2025) replicated the recipe openly. Every "reasoning" model from 2024 onwards is a CoT descendant.
+>
+> **Where you are in the curriculum.** This document is the foundation for [ReAct](../ReActAndSemanticKernel/) and every agent in the [Multi-Agent track](../../MultiAgentAI/). The action language an agent uses is just CoT plus tool calls; the failure modes (unfaithful reasoning, hallucinated observations, sycophancy) are CoT failure modes. Read this before any agent doc.
 
 ## Running Example: Mamma Rosa's PizzaBot
 

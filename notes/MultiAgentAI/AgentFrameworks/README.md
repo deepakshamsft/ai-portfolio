@@ -1,6 +1,8 @@
 # Ch.7 — Agent Frameworks
 
-> **Central question:** AutoGen, LangGraph, and Semantic Kernel AgentGroupChat all express multi-agent coordination — so how are they architecturally different, when does each pattern apply, and how do the primitives from previous chapters (message formats, MCP, trust) compose with each?
+> **The story.** Three frameworks define the multi-agent landscape in 2026, and each one started with a different design instinct. **AutoGen** (Microsoft Research, **September 2023**) made conversational multi-agent debate the primitive — agents talk to each other in a group chat and the orchestrator referees turn-taking. **LangGraph** (LangChain Inc., **January 2024**) treated multi-agent coordination as a *state machine*, with explicit nodes, edges, and graph state — the right model when control flow needs to be auditable and resumable. **Microsoft Semantic Kernel** (open-sourced May 2023, AgentGroupChat 2024) added .NET-native plugins, telemetry, and enterprise-grade observability around the same agent loop. **CrewAI** (2024) and **OpenAI Swarm** (October 2024) added lighter-weight role-based variants. The frameworks look superficially interchangeable until you try to express a workflow that doesn't fit — then the underlying execution model dictates everything.
+>
+> **Where you are in the curriculum.** [Ch.1](../MessageFormats/)–[Ch.6](../TrustAndSandboxing/) gave you the primitives: messages, tools, agent-to-agent calls, event bus, blackboard, trust. This chapter shows how three production frameworks compose those primitives differently — and how to pick the one whose execution model matches your actual control-flow requirements. Picking wrong costs more to undo than it would have cost to understand the tradeoffs upfront.
 
 ---
 

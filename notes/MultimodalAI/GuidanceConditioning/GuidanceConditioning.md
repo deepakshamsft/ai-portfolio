@@ -1,6 +1,8 @@
 # Guidance & Conditioning — Making Diffusion Models Follow Instructions
 
-> **After reading this note** you will understand how classifier guidance and classifier-free guidance (CFG) inject conditional information into the denoising process, what the guidance scale parameter actually does geometrically, why a guidance scale of 7.5 produces sharper but sometimes oversaturated images, and how negative prompts work mechanically.
+> **The story.** A bare diffusion model produces *plausible* images — but you can't tell it what to draw. **Classifier guidance** (**Dhariwal & Nichol**, OpenAI, **May 2021**) was the first answer: train a separate classifier on noisy images and use its gradients to nudge sampling toward a chosen class. The breakthrough was **Classifier-Free Guidance (CFG)** by **Jonathan Ho and Tim Salimans** at Google in **July 2022** — train a single conditional model that occasionally ignores its condition, then at inference linearly extrapolate between conditional and unconditional predictions. Cleaner, faster, and the foundation of every modern text-to-image model. **ControlNet** (Zhang & Agrawala, Stanford, **February 2023**) added structural conditioning — edges, depth, poses, scribbles — by training a parallel "control branch" that copies and fine-tunes the U-Net's encoder. **IP-Adapter** (Tencent, 2023) added image-prompt conditioning. The diffusion-control toolbox you ship with in 2026 — negative prompts, CFG scale, ControlNet, IP-Adapter — is built on these three papers.
+>
+> **Where you are in the curriculum.** [LatentDiffusion](../LatentDiffusion/) wired CLIP into the U-Net so the model could *see* a text prompt. This chapter explains how it actually *follows* it: classifier-free guidance, what the guidance scale parameter does geometrically, why a CFG of 7.5 produces sharper but sometimes oversaturated images, how negative prompts work mechanically, and how ControlNet imposes structural constraints on top.
 
 ---
 
@@ -18,7 +20,7 @@ An unconditional diffusion model generates plausible images but has no mechanism
 Same DDPM architecture as Ch.4, now conditioned on a digit class label (0-9)
 Training: class label randomly dropped 10% of the time → model learns both
 Inference: run model with label AND without → amplify the direction toward the label
-Result:    a 9 consistently generates nines; a 3 consistently generates threes
+Result: a 9 consistently generates nines; a 3 consistently generates threes
 ```
 
 ---
@@ -29,7 +31,7 @@ Result:    a 9 consistently generates nines; a 3 consistently generates threes
 
 In text-conditioned diffusion (Stable Diffusion), the U-Net receives a sequence of text token embeddings $\mathbf{c} \in \mathbb{R}^{77 \times d}$ from the frozen CLIP text encoder. Each ResBlock in the U-Net includes a **cross-attention** layer:
 
-$$\text{CrossAttn}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V$$
+$$\text{CrossAttn}(Q, K, V) = \text{softmax} \left(\frac{QK^\top}{\sqrt{d_k}}\right) V$$
 
 where:
 - $Q = W_Q \cdot \mathbf{z}$ — queries from the spatial feature map
@@ -65,8 +67,8 @@ $$\hat{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(x_t, t, \emptyset) 
 | difference | The direction in noise space that moves toward the condition |
 | $w \cdot \text{difference}$ | Amplify that direction by guidance scale $w$ |
 
-**When $w = 1$:** standard conditional sampling (no extra amplification).  
-**When $w = 7.5$:** the model overshoots toward the condition — images are crisper and more on-topic but may become oversaturated or lose texture diversity.  
+**When $w = 1$:** standard conditional sampling (no extra amplification). 
+**When $w = 7.5$:** the model overshoots toward the condition — images are crisper and more on-topic but may become oversaturated or lose texture diversity. 
 **When $w = 0$:** unconditioned generation. Your prompt is ignored.
 
 ### 3.4 Negative Prompts
@@ -91,10 +93,10 @@ The model moves away from $\mathbf{c}_{neg}$ and toward $\mathbf{c}$. Common neg
 **Class-conditional inference:**
 1. Start from $x_T \sim \mathcal{N}(0, \mathbf{I})$
 2. At each step $t$:
-   - Compute $\boldsymbol{\epsilon}_{cond} = \boldsymbol{\epsilon}_\theta(x_t, t, \mathbf{c})$ (one forward pass)
-   - Compute $\boldsymbol{\epsilon}_{uncond} = \boldsymbol{\epsilon}_\theta(x_t, t, \emptyset)$ (second forward pass)
-   - CFG: $\hat{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_{uncond} + w \cdot (\boldsymbol{\epsilon}_{cond} - \boldsymbol{\epsilon}_{uncond})$
-   - Sample $x_{t-1}$ using $\hat{\boldsymbol{\epsilon}}$
+ - Compute $\boldsymbol{\epsilon}_{cond} = \boldsymbol{\epsilon}_\theta(x_t, t, \mathbf{c})$ (one forward pass)
+ - Compute $\boldsymbol{\epsilon}_{uncond} = \boldsymbol{\epsilon}_\theta(x_t, t, \emptyset)$ (second forward pass)
+ - CFG: $\hat{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_{uncond} + w \cdot (\boldsymbol{\epsilon}_{cond} - \boldsymbol{\epsilon}_{uncond})$
+ - Sample $x_{t-1}$ using $\hat{\boldsymbol{\epsilon}}$
 
 **Note:** CFG doubles the compute cost at inference (two U-Net calls per step). Distilled models like LCM/Turbo can do CFG in a single pass.
 
@@ -105,16 +107,16 @@ The model moves away from $\mathbf{c}_{neg}$ and toward $\mathbf{c}$. Common neg
 ### CFG Geometry in Noise Space
 
 ```
-Unconditioned score direction:        "move toward any plausible image"
-     ε_uncond  ────────────▶
+Unconditioned score direction: "move toward any plausible image"
+ ε_uncond ────────────▶
 
-Conditioned score direction:          "move toward an image of a cat"
-     ε_cond    ────────────────────▶
+Conditioned score direction: "move toward an image of a cat"
+ ε_cond ────────────────────▶
 
-CFG direction (w=7.5):                "move MUCH more strongly toward cat"
-     ε_cfg     ────────────────────────────────────────────▶
+CFG direction (w=7.5): "move MUCH more strongly toward cat"
+ ε_cfg ────────────────────────────────────────────▶
 
-     = ε_uncond + 7.5 × (ε_cond - ε_uncond)
+ = ε_uncond + 7.5 × (ε_cond - ε_uncond)
 
 Effect: at the cost of diversity, the image will be much more obviously a cat.
 ```
@@ -122,19 +124,19 @@ Effect: at the cost of diversity, the image will be much more obviously a cat.
 ### Cross-Attention in the U-Net
 
 ```
-Feature map (spatial)          Text tokens
-(B, d, H, W)                   (B, 77, d_text)
-      │                               │
-      ▼ Linear W_Q                    ▼ Linear W_K, W_V
-   Q (B, H*W, d_k)               K (B, 77, d_k)
-                    │             V (B, 77, d_v)
-                    └─────────────────────────┐
-                                              ▼
-                         softmax(Q·Kᵀ / √d_k) · V
-                              │
-                              ▼
-                         (B, H*W, d_v)
-                         
+Feature map (spatial) Text tokens
+(B, d, H, W) (B, 77, d_text)
+ │ │
+ ▼ Linear W_Q ▼ Linear W_K, W_V
+ Q (B, H*W, d_k) K (B, 77, d_k)
+ │ V (B, 77, d_v)
+ └─────────────────────────┐
+ ▼
+ softmax(Q·Kᵀ / √d_k) · V
+ │
+ ▼
+ (B, H*W, d_v)
+ 
 Each image region (row in Q) learns which text tokens to attend to.
 "fluffy" → attends to fur-like spatial regions.
 "blue sky" → attends to the top of the image.
@@ -180,11 +182,11 @@ In most implementations, the null embedding is the encoded representation of an 
 
 ### Likely Asked
 - "How does a negative prompt work mechanically?"
-  → Replace the unconditioned embedding with the negative prompt embedding; the CFG equation then steers the image away from the negative and toward the positive
+ → Replace the unconditioned embedding with the negative prompt embedding; the CFG equation then steers the image away from the negative and toward the positive
 - "Why is CFG inference twice as slow as unconditioned inference?"
-  → Two separate U-Net forward passes per denoising step — one conditioned, one not
+ → Two separate U-Net forward passes per denoising step — one conditioned, one not
 - "What is attention control / prompt-to-prompt?"
-  → Manipulate the cross-attention maps directly (instead of changing the embedding) to achieve localised edits: change "a photo of a cat" to "a photo of a dog" while keeping the composition
+ → Manipulate the cross-attention maps directly (instead of changing the embedding) to achieve localised edits: change "a photo of a cat" to "a photo of a dog" while keeping the composition
 
 ### Trap to Avoid
 - Confusing guidance scale with classifier temperature — they are different mechanisms
