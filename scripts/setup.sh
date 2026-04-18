@@ -480,33 +480,6 @@ echo "    4. Model: deepseek-r1:8b  (or deepseek-r1:1.5b on low-RAM machines)"
 echo "    5. Save — Kilo Code will now drive agentic edits with DeepSeek-R1 reasoning"
 echo ""
 
-step "Checking optional Continue extension ($CONTINUE_EXT_ID)"
-
-CONTINUE_INSTALLED=false
-if command -v "${CODE_CMD}" &>/dev/null; then
-    if "${CODE_CMD}" --list-extensions 2>/dev/null | grep -qi "$CONTINUE_EXT_ID"; then
-        ok "Continue already installed"
-        CONTINUE_INSTALLED=true
-    fi
-else
-    warn "'${CODE_CMD}' not on PATH — skipping Continue extension check"
-fi
-
-if [ "$CONTINUE_INSTALLED" = false ]; then
-    warn "Continue not found — installing ..."
-    if command -v "${CODE_CMD}" &>/dev/null; then
-        "${CODE_CMD}" --install-extension "$CONTINUE_EXT_ID" --force &>/dev/null || true
-        if "${CODE_CMD}" --list-extensions 2>/dev/null | grep -qi "$CONTINUE_EXT_ID"; then
-            ok "Continue installed successfully"
-        else
-            warn "Install ran but extension not detected yet — it may appear after VS Code restarts"
-        fi
-    else
-        warn "Cannot install Continue: 'code' not on PATH."
-        warn "Install manually: open VS Code → Extensions → search 'Continue' → Install"
-    fi
-fi
-
 # ─── STEP 4: Ollama Server Install & First Launch ────────────────────────────
 
 echo ""

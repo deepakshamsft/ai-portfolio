@@ -486,35 +486,6 @@ Write-Host "    4. Model: deepseek-r1:8b  (or deepseek-r1:1.5b on low-RAM machin
 Write-Host "    5. Save — Kilo Code will now drive agentic edits with DeepSeek-R1 reasoning" -ForegroundColor DarkGray
 Write-Host ""
 
-Write-Step "Checking optional Continue extension ($ContinueExtId)"
-
-$continueInstalled = $false
-try {
-    $extList = & $CodeCmd --list-extensions 2>&1
-    if ($extList -match [regex]::Escape($ContinueExtId)) {
-        Write-Ok "Continue already installed"
-        $continueInstalled = $true
-    }
-} catch {
-    Write-Warn "Could not query VS Code extensions for Continue — will attempt install anyway"
-}
-
-if (-not $continueInstalled) {
-    Write-Warn "Continue not found — installing ..."
-    try {
-        & $CodeCmd --install-extension $ContinueExtId --force 2>&1 | Out-Null
-        $extList = & $CodeCmd --list-extensions 2>&1
-        if ($extList -match [regex]::Escape($ContinueExtId)) {
-            Write-Ok "Continue installed successfully"
-        } else {
-            Write-Warn "Install command ran but Continue not detected yet — it may appear after VS Code restarts"
-        }
-    } catch {
-        Write-Warn "Could not install Continue automatically."
-        Write-Warn "Install manually: open VS Code → Extensions → search 'Continue' → Install"
-    }
-}
-
 # ─── STEP 4: Ollama Server Install & First Launch ────────────────────────────
 
 Write-Host ""
