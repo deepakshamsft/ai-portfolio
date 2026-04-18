@@ -8,16 +8,16 @@ A personal portfolio combining structured AI/ML study notes and hands-on enginee
 
 ```
 ai-portfolio/
-├── notes/          ← Study material: all ML and AI learning content
-├── projects/       ← Hands-on projects and experiments
-└── pdf-gen/        ← PDF generation tooling for the reference books
+├── notes/      ← Study material: every track, every chapter, every notebook
+├── projects/   ← Hands-on engineering projects built on the notes
+└── scripts/    ← One-shot setup scripts (Python, kernels, MkDocs, Ollama, Kilo Code)
 ```
 
 ---
 
 ## `notes/` — Study Material
 
-All learning content lives here: 17-chapter ML curriculum, agentic AI notes, reference books, scripts, and runnable Jupyter notebooks.
+All learning content lives here: a **19-chapter ML curriculum**, a math foundations track, four AI tracks (Agentic, Multi-Agent, Multimodal, AI Infrastructure), a consolidated interview guide, and runnable Jupyter notebooks throughout.
 
 → See [notes/README.md](notes/README.md) for the full index.
 
@@ -55,6 +55,23 @@ This repo is **not accredited** — it's self-authored study material. It is, ho
 
 ---
 
+## How the tracks fit together — the historical arc
+
+Every track in this repo is the response to a specific historical bottleneck. Reading them in roughly the order the field discovered them makes the curriculum feel inevitable instead of arbitrary. This is a one-paragraph teaser; each track has its own deep timeline (linked at the end of each row).
+
+| Era | The bottleneck that defined it | Where it shows up in this repo |
+|---|---|---|
+| **Pre-1900s** — *math foundations* | Curves, gradients, and probability had to be invented before "fitting a model" was a coherent idea (Newton/Leibniz → Gauss → Pearson). | [notes/PreRequisites/](notes/PreRequisites/#historical-and-chronological-evolution) — Euclid through Rumelhart, mapped to chapters |
+| **1805 → 2017** — *classical & deep ML* | Least squares → MLE → perceptrons → AI winter → backprop → CNNs → LSTMs → attention → Transformer. Every chapter exists because an earlier model failed at a specific problem. | [notes/README.md (ML history)](notes/README.md#how-we-got-here--a-short-history-of-machine-learning) — full 30-row timeline aligned to ML Ch.1–19 |
+| **2017 → today** — *agentic AI* | Once Transformers existed, the next bottleneck moved up the stack: prompting → CoT reasoning → retrieval → tool use → ReAct → multi-agent orchestration. | [notes/AI/AgenticAI_ReadingMap.md](notes/AI/AgenticAI_ReadingMap.md#how-we-got-here--a-short-history-of-agentic-ai) |
+| **2020 → today** — *multi-agent protocols* | Single agents hit context-window and trust ceilings. The fix was protocol-level: MCP, A2A, event buses, sandboxing. | [notes/MultiAgentAI/README.md](notes/MultiAgentAI/README.md#how-we-got-here--a-short-history-of-multi-agent-ai) |
+| **2014 → today** — *multimodal & generative* | GANs → VAEs → CLIP → DDPM → Latent Diffusion → ControlNet → multimodal LLMs. Each step solved a stability or controllability gap in the previous one. | [notes/MultimodalAI/README.md](notes/MultimodalAI/README.md#how-we-got-here--a-short-history-of-multimodal--generative-ai) |
+| **1999 → today** — *AI infrastructure* | GPU as graphics card → CUDA → tensor cores → HBM → ZeRO → Flash Attention → PagedAttention → 4-bit quantisation. Every chapter exists because the previous bottleneck moved (compute → memory → throughput → cost). | [notes/AIInfrastructure/README.md](notes/AIInfrastructure/README.md#how-we-got-here--a-short-history-of-ai-infrastructure) |
+
+**The through-line:** math made fitting models possible → classical ML made fitting useful → deep learning made fitting scalable → infrastructure made deep learning affordable → agents made deep learning *act* → multi-agent protocols made agents compose → multimodal made everything see and generate. Read the per-track histories above whenever a chapter feels like it appeared from nowhere.
+
+---
+
 ## Quick start
 
 **Set up the full dev environment (Windows):**
@@ -68,6 +85,7 @@ bash scripts/setup.sh
 ```
 
 One script installs Python, the full AI/ML package stack (covering every track under `notes/`), VS Code + the **Kilo Code** extension wired to a local Ollama-served DeepSeek-R1 model, registers all Jupyter kernels, and launches both study servers (Jupyter Lab + MkDocs) at fixed local ports so you can start studying immediately.
+
 **Install git hooks (secret scanning pre-commit):**
 ```bash
 bash scripts/install-hooks.sh     # macOS / Linux
