@@ -11,6 +11,46 @@
 #   5. Lifecycle wiring (Ollama runs with VS Code)  ✔
 #   6. Pull DeepSeek-R1 reasoning SLM for Kilo Code  ✔
 
+# Bootstrap: this script is designed for PowerShell 7+.
+# If launched from Windows PowerShell 5.1, install pwsh (if needed) and re-run there.
+$RunningInPwsh7 = ($PSVersionTable.PSEdition -eq "Core" -and $PSVersionTable.PSVersion.Major -ge 7)
+if (-not $RunningInPwsh7) {
+    Write-Host ""
+    Write-Host "[setup] PowerShell 7 is required. Checking for pwsh..." -ForegroundColor Cyan
+
+    $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+    if (-not $pwshCommand) {
+        Write-Host "[setup] pwsh not found. Attempting install via winget..." -ForegroundColor Yellow
+        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            Write-Host "[setup] winget is not available, cannot auto-install PowerShell 7." -ForegroundColor Red
+            Write-Host "[setup] Install manually: https://aka.ms/powershell-release?tag=stable" -ForegroundColor Red
+            exit 1
+        }
+
+        try {
+            winget install --id Microsoft.PowerShell --source winget --silent --accept-package-agreements --accept-source-agreements
+            # Refresh PATH in current process to pick up freshly installed pwsh.
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                        [System.Environment]::GetEnvironmentVariable("Path", "User")
+            $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        } catch {
+            Write-Host "[setup] Failed to install PowerShell 7 automatically." -ForegroundColor Red
+            Write-Host "[setup] Install manually: https://aka.ms/powershell-release?tag=stable" -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    if (-not $pwshCommand) {
+        Write-Host "[setup] pwsh is still unavailable after installation attempt." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "[setup] Relaunching setup in PowerShell 7..." -ForegroundColor Green
+    $forwardArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath) + $args
+    & $pwshCommand.Source @forwardArgs
+    exit $LASTEXITCODE
+}
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -115,6 +155,21 @@ Write-Ok "pip / setuptools / wheel up to date"
 
 Write-Step "Installing AI/ML package stack"
 
+function Normalize-PackageKey {
+    param([string]$Package)
+    return ($Package -replace '\[.*\]', '' -replace '[>=<!\s].*', '').ToLower().Trim()
+}
+
+$script:InstalledPkgSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+try {
+    $installedNow = (& python -m pip list --format=columns 2>&1 | Select-Object -Skip 2) -replace '\s+.*', ''
+    foreach ($name in $installedNow) {
+        if ($name) { [void]$script:InstalledPkgSet.Add($name.ToLower()) }
+    }
+} catch {
+    Write-Warn "Could not snapshot installed pip packages; installation checks will run per package"
+}
+
 function Install-Group {
     param(
         [string]   $GroupName,
@@ -122,14 +177,11 @@ function Install-Group {
         [string]   $ExtraArgs = ""
     )
     Write-Group $GroupName
-    $installed = (& python -m pip list --format=columns 2>&1 |
-                  Select-Object -Skip 2) -replace '\s+.*', '' |
-                  ForEach-Object { $_.ToLower() }
 
     foreach ($pkg in $Packages) {
         # Normalise: strip extras/version for display key
-        $key = ($pkg -replace '\[.*\]', '' -replace '[>=<!\s].*', '').ToLower().Trim()
-        if ($installed -contains $key) {
+        $key = Normalize-PackageKey $pkg
+        if ($script:InstalledPkgSet.Contains($key)) {
             Write-Ok "$pkg already installed"
         } else {
             Write-Warn "$pkg missing — installing ..."
@@ -139,13 +191,14 @@ function Install-Group {
                 & python -m pip install $pkg --quiet
             }
             if ($LASTEXITCODE -ne 0) { Write-Fail "Failed to install $pkg" }
+            [void]$script:InstalledPkgSet.Add($key)
             Write-Ok "$pkg installed"
         }
     }
 }
 
-# Core scientific stack
-Install-Group "Core scientific stack" @(
+# Package groups
+$coreScientific = @(
     "numpy",
     "pandas",
     "scipy",
@@ -153,37 +206,32 @@ Install-Group "Core scientific stack" @(
     "seaborn"
 )
 
-# Machine learning
-Install-Group "Machine learning" @(
+$machineLearning = @(
     "scikit-learn",
     "xgboost",
     "lightgbm"
 )
 
-# Deep learning — TensorFlow
-Install-Group "Deep learning / TensorFlow" @(
+$deepLearningTensorflow = @(
     "tensorflow",
     "tensorboard",
     "keras"
 )
 
-# PyTorch — CPU-safe build (no CUDA required)
-Install-Group "PyTorch (CPU build)" @(
+$pytorchCpu = @(
     "torch",
     "torchvision",
     "torchaudio"
-) "--index-url https://download.pytorch.org/whl/cpu"
+)
 
-# Notebook tooling
-Install-Group "Notebook tooling" @(
+$notebookTooling = @(
     "notebook",
     "ipykernel",
     "ipywidgets",
     "jupyterlab"
 )
 
-# Generative AI / LLM utilities
-Install-Group "Generative AI / LLM utilities" @(
+$generativeAi = @(
     "transformers",
     "diffusers",
     "accelerate",
@@ -198,8 +246,7 @@ Install-Group "Generative AI / LLM utilities" @(
     "chromadb"
 )
 
-# General utilities
-Install-Group "Utilities" @(
+$utilities = @(
     "python-dotenv",
     "tqdm",
     "pillow",
@@ -208,9 +255,7 @@ Install-Group "Utilities" @(
     "pydantic"
 )
 
-# Docs / study site (MkDocs Material — browse notes/ in a web browser)
-# mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
-Install-Group "Docs site (MkDocs Material)" @(
+$docsSite = @(
     "mkdocs-material",
     "pymdown-extensions",
     "mkdocs-jupyter"
@@ -221,7 +266,7 @@ Install-Group "Docs site (MkDocs Material)" @(
 #   notes/MultiAgentAI     : tiktoken, mcp, fastapi, uvicorn, anyio, redis,
 #                            langgraph, langchain-core, langchain-openai,
 #                            autogen-agentchat, semantic-kernel, ollama
-Install-Group "Notebook extras (AIInfrastructure + MultiAgentAI)" @(
+$notebookExtras = @(
     "mlflow",
     "tiktoken",
     "mcp",
@@ -237,17 +282,99 @@ Install-Group "Notebook extras (AIInfrastructure + MultiAgentAI)" @(
     "ollama"
 )
 
+$requiredPackageKeys = @(
+    $coreScientific +
+    $machineLearning +
+    $deepLearningTensorflow +
+    $pytorchCpu +
+    $notebookTooling +
+    $generativeAi +
+    $utilities +
+    $docsSite +
+    $notebookExtras
+) | ForEach-Object { Normalize-PackageKey $_ } | Sort-Object -Unique
+
+$missingPackageCount = ($requiredPackageKeys | Where-Object { -not $script:InstalledPkgSet.Contains($_) }).Count
+
+if ($missingPackageCount -eq 0) {
+    Write-Ok "All Python package dependencies already satisfied — skipping package installation step"
+} else {
+    # Core scientific stack
+    Install-Group "Core scientific stack" $coreScientific
+
+    # Machine learning
+    Install-Group "Machine learning" $machineLearning
+
+    # Deep learning — TensorFlow
+    Install-Group "Deep learning / TensorFlow" $deepLearningTensorflow
+
+    # PyTorch — CPU-safe build (no CUDA required)
+    Install-Group "PyTorch (CPU build)" $pytorchCpu "--index-url https://download.pytorch.org/whl/cpu"
+
+    # Notebook tooling
+    Install-Group "Notebook tooling" $notebookTooling
+
+    # Generative AI / LLM utilities
+    Install-Group "Generative AI / LLM utilities" $generativeAi
+
+    # General utilities
+    Install-Group "Utilities" $utilities
+
+    # Docs / study site (MkDocs Material — browse notes/ in a web browser)
+    # mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
+    Install-Group "Docs site (MkDocs Material)" $docsSite
+
+    # Notebook extras
+    Install-Group "Notebook extras (AIInfrastructure + MultiAgentAI)" $notebookExtras
+}
+
 # ─── 1e. Register Jupyter kernels ─────────────────────────────────────────────
 
 Write-Step "Registering Jupyter kernels"
-& python -m ipykernel install --user --name "ai-ml-dev"          --display-name "AI/ML Dev (venv)"           2>&1 | Out-Null
-Write-Ok "Kernel 'ai-ml-dev' registered"
-& python -m ipykernel install --user --name "ml-notes"           --display-name "ML Notes (venv)"            2>&1 | Out-Null
-Write-Ok "Kernel 'ml-notes' registered"
-& python -m ipykernel install --user --name "ai-infrastructure"  --display-name "Python (AI Infrastructure)" 2>&1 | Out-Null
-Write-Ok "Kernel 'ai-infrastructure' registered"
-& python -m ipykernel install --user --name "multi-agent-ai"     --display-name "Multi-Agent AI"             2>&1 | Out-Null
-Write-Ok "Kernel 'multi-agent-ai' registered"
+
+$kernelTargets = @(
+    @{ Name = "ai-ml-dev";         Display = "AI/ML Dev (venv)" },
+    @{ Name = "ml-notes";          Display = "ML Notes (venv)" },
+    @{ Name = "ai-infrastructure"; Display = "Python (AI Infrastructure)" },
+    @{ Name = "multi-agent-ai";    Display = "Multi-Agent AI" }
+)
+
+$existingKernelNames = @{}
+try {
+    $kernelJson = & python -m jupyter kernelspec list --json 2>$null
+    if ($kernelJson) {
+        $parsed = $kernelJson | ConvertFrom-Json
+        if ($parsed.kernelspecs) {
+            foreach ($prop in $parsed.kernelspecs.PSObject.Properties.Name) {
+                $existingKernelNames[$prop] = $true
+            }
+        }
+    }
+} catch {
+    Write-Warn "Could not enumerate existing kernels; kernel checks will run individually"
+}
+
+$allKernelsPresent = $true
+foreach ($k in $kernelTargets) {
+    if (-not $existingKernelNames.ContainsKey($k.Name)) { $allKernelsPresent = $false; break }
+}
+
+if ($allKernelsPresent) {
+    Write-Ok "All required Jupyter kernels already registered — skipping kernel registration"
+} else {
+    foreach ($k in $kernelTargets) {
+        if ($existingKernelNames.ContainsKey($k.Name)) {
+            Write-Ok "Kernel '$($k.Name)' already registered"
+            continue
+        }
+        & python -m ipykernel install --user --name $k.Name --display-name $k.Display 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn "Failed to register kernel '$($k.Name)' — continuing"
+        } else {
+            Write-Ok "Kernel '$($k.Name)' registered"
+        }
+    }
+}
 
 Write-Step "Setting default kernel on every notebook under notes/"
 & python (Join-Path $PSScriptRoot "set_default_kernel.py")
@@ -358,6 +485,35 @@ Write-Host "    3. Base URL: http://localhost:11434   (the auto-discover button 
 Write-Host "    4. Model: deepseek-r1:8b  (or deepseek-r1:1.5b on low-RAM machines)" -ForegroundColor DarkGray
 Write-Host "    5. Save — Kilo Code will now drive agentic edits with DeepSeek-R1 reasoning" -ForegroundColor DarkGray
 Write-Host ""
+
+Write-Step "Checking optional Continue extension ($ContinueExtId)"
+
+$continueInstalled = $false
+try {
+    $extList = & $CodeCmd --list-extensions 2>&1
+    if ($extList -match [regex]::Escape($ContinueExtId)) {
+        Write-Ok "Continue already installed"
+        $continueInstalled = $true
+    }
+} catch {
+    Write-Warn "Could not query VS Code extensions for Continue — will attempt install anyway"
+}
+
+if (-not $continueInstalled) {
+    Write-Warn "Continue not found — installing ..."
+    try {
+        & $CodeCmd --install-extension $ContinueExtId --force 2>&1 | Out-Null
+        $extList = & $CodeCmd --list-extensions 2>&1
+        if ($extList -match [regex]::Escape($ContinueExtId)) {
+            Write-Ok "Continue installed successfully"
+        } else {
+            Write-Warn "Install command ran but Continue not detected yet — it may appear after VS Code restarts"
+        }
+    } catch {
+        Write-Warn "Could not install Continue automatically."
+        Write-Warn "Install manually: open VS Code → Extensions → search 'Continue' → Install"
+    }
+}
 
 # ─── STEP 4: Ollama Server Install & First Launch ────────────────────────────
 
@@ -518,7 +674,7 @@ if ($writeTasksJson) {
         {
             "label": "ollama-start",
             "type": "shell",
-            "command": "powershell",
+            "command": "pwsh",
             "args": [
                 "-NonInteractive",
                 "-File",
@@ -537,7 +693,7 @@ if ($writeTasksJson) {
         {
             "label": "ollama-stop",
             "type": "shell",
-            "command": "powershell",
+            "command": "pwsh",
             "args": [
                 "-NonInteractive",
                 "-Command",

@@ -148,6 +148,24 @@ ok "pip / setuptools / wheel up to date"
 
 step "Installing AI/ML package stack"
 
+normalize_pkg_key() {
+    echo "$1" | sed 's/\[.*\]//' | sed 's/[>=<!].*//' | tr '[:upper:]' '[:lower:]' | xargs
+}
+
+INSTALLED_PIP_KEYS=$(python -m pip list --format=columns 2>/dev/null | tail -n +3 | awk '{print tolower($1)}')
+
+pip_has_key() {
+    local key="$1"
+    echo "$INSTALLED_PIP_KEYS" | grep -qx "$key"
+}
+
+mark_installed_key() {
+    local key="$1"
+    if ! pip_has_key "$key"; then
+        INSTALLED_PIP_KEYS="${INSTALLED_PIP_KEYS}"$'\n'"$key"
+    fi
+}
+
 # Helper: install a group of packages
 install_group() {
     local group_name="$1"
@@ -167,14 +185,11 @@ install_group() {
     done
 
     group "$group_name"
-    local installed
-    installed=$(python -m pip list --format=columns 2>/dev/null | tail -n +3 | awk '{print tolower($1)}')
-
     for pkg in "${packages[@]}"; do
         # Normalise: strip extras/version specifiers for lookup
         local key
-        key=$(echo "$pkg" | sed 's/\[.*\]//' | sed 's/[>=<!].*//' | tr '[:upper:]' '[:lower:]' | xargs)
-        if echo "$installed" | grep -qx "$key"; then
+        key=$(normalize_pkg_key "$pkg")
+        if pip_has_key "$key"; then
             ok "$pkg already installed"
         else
             warn "$pkg missing — installing ..."
@@ -183,68 +198,143 @@ install_group() {
             else
                 python -m pip install "$pkg" --quiet
             fi
+            mark_installed_key "$key"
             ok "$pkg installed"
         fi
     done
 }
 
-# Core scientific stack
-install_group "Core scientific stack" \
-    numpy pandas scipy matplotlib seaborn
-
-# Machine learning
-install_group "Machine learning" \
-    scikit-learn xgboost lightgbm
-
-# Deep learning — TensorFlow
-install_group "Deep learning / TensorFlow" \
-    tensorflow tensorboard keras
-
-# PyTorch — CPU-safe build (no CUDA required on stock machines)
-install_group "PyTorch (CPU build)" \
-    torch torchvision torchaudio \
-    --extra-args --index-url https://download.pytorch.org/whl/cpu
-
-# Notebook tooling
-install_group "Notebook tooling" \
-    notebook ipykernel ipywidgets jupyterlab
-
-# Generative AI / LLM utilities
-install_group "Generative AI / LLM utilities" \
-    transformers diffusers accelerate datasets tokenizers \
-    huggingface-hub openai langchain langchain-community \
+CORE_SCIENTIFIC=(numpy pandas scipy matplotlib seaborn)
+MACHINE_LEARNING=(scikit-learn xgboost lightgbm)
+DEEP_LEARNING_TF=(tensorflow tensorboard keras)
+PYTORCH_CPU=(torch torchvision torchaudio)
+NOTEBOOK_TOOLING=(notebook ipykernel ipywidgets jupyterlab)
+GENERATIVE_AI=(
+    transformers diffusers accelerate datasets tokenizers
+    huggingface-hub openai langchain langchain-community
     sentence-transformers faiss-cpu chromadb
-
-# General utilities
-install_group "Utilities" \
-    python-dotenv tqdm pillow requests httpx pydantic
-
-# Docs / study site (MkDocs Material — browse notes/ in a web browser)
-# mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
-install_group "Docs site (MkDocs Material)" \
-    mkdocs-material pymdown-extensions mkdocs-jupyter
-
-# Notebook extras — dependencies pulled in by per-notes setup scripts
-#   notes/AIInfrastructure : mlflow
-#   notes/MultiAgentAI     : tiktoken, mcp, fastapi, uvicorn, anyio, redis,
-#                            langgraph, langchain-core, langchain-openai,
-#                            autogen-agentchat, semantic-kernel, ollama
-install_group "Notebook extras (AIInfrastructure + MultiAgentAI)" \
-    mlflow tiktoken mcp fastapi "uvicorn[standard]" anyio redis \
-    langgraph langchain-core langchain-openai \
+)
+UTILITIES=(python-dotenv tqdm pillow requests httpx pydantic)
+DOCS_SITE=(mkdocs-material pymdown-extensions mkdocs-jupyter)
+NOTEBOOK_EXTRAS=(
+    mlflow tiktoken mcp fastapi "uvicorn[standard]" anyio redis
+    langgraph langchain-core langchain-openai
     autogen-agentchat semantic-kernel ollama
+)
+
+ALL_REQUIRED_PACKAGES=(
+    "${CORE_SCIENTIFIC[@]}"
+    "${MACHINE_LEARNING[@]}"
+    "${DEEP_LEARNING_TF[@]}"
+    "${PYTORCH_CPU[@]}"
+    "${NOTEBOOK_TOOLING[@]}"
+    "${GENERATIVE_AI[@]}"
+    "${UTILITIES[@]}"
+    "${DOCS_SITE[@]}"
+    "${NOTEBOOK_EXTRAS[@]}"
+)
+
+ALL_DEPENDENCIES_MET=true
+for pkg in "${ALL_REQUIRED_PACKAGES[@]}"; do
+    key=$(normalize_pkg_key "$pkg")
+    if ! pip_has_key "$key"; then
+        ALL_DEPENDENCIES_MET=false
+        break
+    fi
+done
+
+if [ "$ALL_DEPENDENCIES_MET" = true ]; then
+    ok "All Python package dependencies already satisfied — skipping package installation step"
+else
+    # Core scientific stack
+    install_group "Core scientific stack" "${CORE_SCIENTIFIC[@]}"
+
+    # Machine learning
+    install_group "Machine learning" "${MACHINE_LEARNING[@]}"
+
+    # Deep learning — TensorFlow
+    install_group "Deep learning / TensorFlow" "${DEEP_LEARNING_TF[@]}"
+
+    # PyTorch — CPU-safe build (no CUDA required on stock machines)
+    install_group "PyTorch (CPU build)" "${PYTORCH_CPU[@]}" \
+        --extra-args --index-url https://download.pytorch.org/whl/cpu
+
+    # Notebook tooling
+    install_group "Notebook tooling" "${NOTEBOOK_TOOLING[@]}"
+
+    # Generative AI / LLM utilities
+    install_group "Generative AI / LLM utilities" "${GENERATIVE_AI[@]}"
+
+    # General utilities
+    install_group "Utilities" "${UTILITIES[@]}"
+
+    # Docs / study site (MkDocs Material — browse notes/ in a web browser)
+    # mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
+    install_group "Docs site (MkDocs Material)" "${DOCS_SITE[@]}"
+
+    # Notebook extras — dependencies pulled in by per-notes setup scripts
+    install_group "Notebook extras (AIInfrastructure + MultiAgentAI)" "${NOTEBOOK_EXTRAS[@]}"
+fi
 
 # ─── 1e. Register Jupyter kernels ─────────────────────────────────────────────
 
 step "Registering Jupyter kernels"
-python -m ipykernel install --user --name "ai-ml-dev"         --display-name "AI/ML Dev (venv)"           &>/dev/null
-ok "Kernel 'ai-ml-dev' registered"
-python -m ipykernel install --user --name "ml-notes"          --display-name "ML Notes (venv)"            &>/dev/null
-ok "Kernel 'ml-notes' registered"
-python -m ipykernel install --user --name "ai-infrastructure" --display-name "Python (AI Infrastructure)" &>/dev/null
-ok "Kernel 'ai-infrastructure' registered"
-python -m ipykernel install --user --name "multi-agent-ai"    --display-name "Multi-Agent AI"             &>/dev/null
-ok "Kernel 'multi-agent-ai' registered"
+
+kernel_exists() {
+    local kernel_name="$1"
+    python3 - "$kernel_name" <<'PYEOF'
+import json, subprocess, sys
+name = sys.argv[1]
+try:
+    out = subprocess.check_output([sys.executable, "-m", "jupyter", "kernelspec", "list", "--json"], text=True)
+    data = json.loads(out)
+    sys.exit(0 if name in (data.get("kernelspecs") or {}) else 1)
+except Exception:
+    sys.exit(2)
+PYEOF
+    return $?
+}
+
+ALL_KERNELS=(ai-ml-dev ml-notes ai-infrastructure multi-agent-ai)
+ALL_KERNELS_PRESENT=true
+for k in "${ALL_KERNELS[@]}"; do
+    if ! kernel_exists "$k"; then
+        ALL_KERNELS_PRESENT=false
+        break
+    fi
+done
+
+if [ "$ALL_KERNELS_PRESENT" = true ]; then
+    ok "All required Jupyter kernels already registered — skipping kernel registration"
+else
+    if kernel_exists "ai-ml-dev"; then
+        ok "Kernel 'ai-ml-dev' already registered"
+    else
+        python -m ipykernel install --user --name "ai-ml-dev" --display-name "AI/ML Dev (venv)" &>/dev/null
+        ok "Kernel 'ai-ml-dev' registered"
+    fi
+
+    if kernel_exists "ml-notes"; then
+        ok "Kernel 'ml-notes' already registered"
+    else
+        python -m ipykernel install --user --name "ml-notes" --display-name "ML Notes (venv)" &>/dev/null
+        ok "Kernel 'ml-notes' registered"
+    fi
+
+    if kernel_exists "ai-infrastructure"; then
+        ok "Kernel 'ai-infrastructure' already registered"
+    else
+        python -m ipykernel install --user --name "ai-infrastructure" --display-name "Python (AI Infrastructure)" &>/dev/null
+        ok "Kernel 'ai-infrastructure' registered"
+    fi
+
+    if kernel_exists "multi-agent-ai"; then
+        ok "Kernel 'multi-agent-ai' already registered"
+    else
+        python -m ipykernel install --user --name "multi-agent-ai" --display-name "Multi-Agent AI" &>/dev/null
+        ok "Kernel 'multi-agent-ai' registered"
+    fi
+fi
 
 step "Setting default kernel on every notebook under notes/"
 python "$SCRIPT_DIR/set_default_kernel.py" || warn "set_default_kernel.py exited non-zero"
@@ -389,6 +479,33 @@ echo "    3. Base URL: http://localhost:11434   (the auto-discover button works 
 echo "    4. Model: deepseek-r1:8b  (or deepseek-r1:1.5b on low-RAM machines)"
 echo "    5. Save — Kilo Code will now drive agentic edits with DeepSeek-R1 reasoning"
 echo ""
+
+step "Checking optional Continue extension ($CONTINUE_EXT_ID)"
+
+CONTINUE_INSTALLED=false
+if command -v "${CODE_CMD}" &>/dev/null; then
+    if "${CODE_CMD}" --list-extensions 2>/dev/null | grep -qi "$CONTINUE_EXT_ID"; then
+        ok "Continue already installed"
+        CONTINUE_INSTALLED=true
+    fi
+else
+    warn "'${CODE_CMD}' not on PATH — skipping Continue extension check"
+fi
+
+if [ "$CONTINUE_INSTALLED" = false ]; then
+    warn "Continue not found — installing ..."
+    if command -v "${CODE_CMD}" &>/dev/null; then
+        "${CODE_CMD}" --install-extension "$CONTINUE_EXT_ID" --force &>/dev/null || true
+        if "${CODE_CMD}" --list-extensions 2>/dev/null | grep -qi "$CONTINUE_EXT_ID"; then
+            ok "Continue installed successfully"
+        else
+            warn "Install ran but extension not detected yet — it may appear after VS Code restarts"
+        fi
+    else
+        warn "Cannot install Continue: 'code' not on PATH."
+        warn "Install manually: open VS Code → Extensions → search 'Continue' → Install"
+    fi
+fi
 
 # ─── STEP 4: Ollama Server Install & First Launch ────────────────────────────
 
