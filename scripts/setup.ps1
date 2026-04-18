@@ -11,6 +11,46 @@
 #   5. Lifecycle wiring (Ollama runs with VS Code)  ✔
 #   6. Pull best SLM for coding/reasoning  ✔
 
+# Bootstrap: this script is designed for PowerShell 7+.
+# If launched from Windows PowerShell 5.1, install pwsh (if needed) and re-run there.
+$RunningInPwsh7 = ($PSVersionTable.PSEdition -eq "Core" -and $PSVersionTable.PSVersion.Major -ge 7)
+if (-not $RunningInPwsh7) {
+    Write-Host ""
+    Write-Host "[setup] PowerShell 7 is required. Checking for pwsh..." -ForegroundColor Cyan
+
+    $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+    if (-not $pwshCommand) {
+        Write-Host "[setup] pwsh not found. Attempting install via winget..." -ForegroundColor Yellow
+        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            Write-Host "[setup] winget is not available, cannot auto-install PowerShell 7." -ForegroundColor Red
+            Write-Host "[setup] Install manually: https://aka.ms/powershell-release?tag=stable" -ForegroundColor Red
+            exit 1
+        }
+
+        try {
+            winget install --id Microsoft.PowerShell --source winget --silent --accept-package-agreements --accept-source-agreements
+            # Refresh PATH in current process to pick up freshly installed pwsh.
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                        [System.Environment]::GetEnvironmentVariable("Path", "User")
+            $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+        } catch {
+            Write-Host "[setup] Failed to install PowerShell 7 automatically." -ForegroundColor Red
+            Write-Host "[setup] Install manually: https://aka.ms/powershell-release?tag=stable" -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    if (-not $pwshCommand) {
+        Write-Host "[setup] pwsh is still unavailable after installation attempt." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "[setup] Relaunching setup in PowerShell 7..." -ForegroundColor Green
+    $forwardArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath) + $args
+    & $pwshCommand.Source @forwardArgs
+    exit $LASTEXITCODE
+}
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -115,6 +155,21 @@ Write-Ok "pip / setuptools / wheel up to date"
 
 Write-Step "Installing AI/ML package stack"
 
+function Normalize-PackageKey {
+    param([string]$Package)
+    return ($Package -replace '\[.*\]', '' -replace '[>=<!\s].*', '').ToLower().Trim()
+}
+
+$script:InstalledPkgSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+try {
+    $installedNow = (& python -m pip list --format=columns 2>&1 | Select-Object -Skip 2) -replace '\s+.*', ''
+    foreach ($name in $installedNow) {
+        if ($name) { [void]$script:InstalledPkgSet.Add($name.ToLower()) }
+    }
+} catch {
+    Write-Warn "Could not snapshot installed pip packages; installation checks will run per package"
+}
+
 function Install-Group {
     param(
         [string]   $GroupName,
@@ -122,14 +177,11 @@ function Install-Group {
         [string]   $ExtraArgs = ""
     )
     Write-Group $GroupName
-    $installed = (& python -m pip list --format=columns 2>&1 |
-                  Select-Object -Skip 2) -replace '\s+.*', '' |
-                  ForEach-Object { $_.ToLower() }
 
     foreach ($pkg in $Packages) {
         # Normalise: strip extras/version for display key
-        $key = ($pkg -replace '\[.*\]', '' -replace '[>=<!\s].*', '').ToLower().Trim()
-        if ($installed -contains $key) {
+        $key = Normalize-PackageKey $pkg
+        if ($script:InstalledPkgSet.Contains($key)) {
             Write-Ok "$pkg already installed"
         } else {
             Write-Warn "$pkg missing — installing ..."
@@ -139,13 +191,14 @@ function Install-Group {
                 & python -m pip install $pkg --quiet
             }
             if ($LASTEXITCODE -ne 0) { Write-Fail "Failed to install $pkg" }
+            [void]$script:InstalledPkgSet.Add($key)
             Write-Ok "$pkg installed"
         }
     }
 }
 
-# Core scientific stack
-Install-Group "Core scientific stack" @(
+# Package groups
+$coreScientific = @(
     "numpy",
     "pandas",
     "scipy",
@@ -153,37 +206,32 @@ Install-Group "Core scientific stack" @(
     "seaborn"
 )
 
-# Machine learning
-Install-Group "Machine learning" @(
+$machineLearning = @(
     "scikit-learn",
     "xgboost",
     "lightgbm"
 )
 
-# Deep learning — TensorFlow
-Install-Group "Deep learning / TensorFlow" @(
+$deepLearningTensorflow = @(
     "tensorflow",
     "tensorboard",
     "keras"
 )
 
-# PyTorch — CPU-safe build (no CUDA required)
-Install-Group "PyTorch (CPU build)" @(
+$pytorchCpu = @(
     "torch",
     "torchvision",
     "torchaudio"
-) "--index-url https://download.pytorch.org/whl/cpu"
+)
 
-# Notebook tooling
-Install-Group "Notebook tooling" @(
+$notebookTooling = @(
     "notebook",
     "ipykernel",
     "ipywidgets",
     "jupyterlab"
 )
 
-# Generative AI / LLM utilities
-Install-Group "Generative AI / LLM utilities" @(
+$generativeAi = @(
     "transformers",
     "diffusers",
     "accelerate",
@@ -198,8 +246,7 @@ Install-Group "Generative AI / LLM utilities" @(
     "chromadb"
 )
 
-# General utilities
-Install-Group "Utilities" @(
+$utilities = @(
     "python-dotenv",
     "tqdm",
     "pillow",
@@ -208,9 +255,7 @@ Install-Group "Utilities" @(
     "pydantic"
 )
 
-# Docs / study site (MkDocs Material — browse notes/ in a web browser)
-# mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
-Install-Group "Docs site (MkDocs Material)" @(
+$docsSite = @(
     "mkdocs-material",
     "pymdown-extensions",
     "mkdocs-jupyter"
@@ -221,7 +266,7 @@ Install-Group "Docs site (MkDocs Material)" @(
 #   notes/MultiAgentAI     : tiktoken, mcp, fastapi, uvicorn, anyio, redis,
 #                            langgraph, langchain-core, langchain-openai,
 #                            autogen-agentchat, semantic-kernel, ollama
-Install-Group "Notebook extras (AIInfrastructure + MultiAgentAI)" @(
+$notebookExtras = @(
     "mlflow",
     "tiktoken",
     "mcp",
@@ -237,17 +282,99 @@ Install-Group "Notebook extras (AIInfrastructure + MultiAgentAI)" @(
     "ollama"
 )
 
+$requiredPackageKeys = @(
+    $coreScientific +
+    $machineLearning +
+    $deepLearningTensorflow +
+    $pytorchCpu +
+    $notebookTooling +
+    $generativeAi +
+    $utilities +
+    $docsSite +
+    $notebookExtras
+) | ForEach-Object { Normalize-PackageKey $_ } | Sort-Object -Unique
+
+$missingPackageCount = ($requiredPackageKeys | Where-Object { -not $script:InstalledPkgSet.Contains($_) }).Count
+
+if ($missingPackageCount -eq 0) {
+    Write-Ok "All Python package dependencies already satisfied — skipping package installation step"
+} else {
+    # Core scientific stack
+    Install-Group "Core scientific stack" $coreScientific
+
+    # Machine learning
+    Install-Group "Machine learning" $machineLearning
+
+    # Deep learning — TensorFlow
+    Install-Group "Deep learning / TensorFlow" $deepLearningTensorflow
+
+    # PyTorch — CPU-safe build (no CUDA required)
+    Install-Group "PyTorch (CPU build)" $pytorchCpu "--index-url https://download.pytorch.org/whl/cpu"
+
+    # Notebook tooling
+    Install-Group "Notebook tooling" $notebookTooling
+
+    # Generative AI / LLM utilities
+    Install-Group "Generative AI / LLM utilities" $generativeAi
+
+    # General utilities
+    Install-Group "Utilities" $utilities
+
+    # Docs / study site (MkDocs Material — browse notes/ in a web browser)
+    # mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
+    Install-Group "Docs site (MkDocs Material)" $docsSite
+
+    # Notebook extras
+    Install-Group "Notebook extras (AIInfrastructure + MultiAgentAI)" $notebookExtras
+}
+
 # ─── 1e. Register Jupyter kernels ─────────────────────────────────────────────
 
 Write-Step "Registering Jupyter kernels"
-& python -m ipykernel install --user --name "ai-ml-dev"          --display-name "AI/ML Dev (venv)"           2>&1 | Out-Null
-Write-Ok "Kernel 'ai-ml-dev' registered"
-& python -m ipykernel install --user --name "ml-notes"           --display-name "ML Notes (venv)"            2>&1 | Out-Null
-Write-Ok "Kernel 'ml-notes' registered"
-& python -m ipykernel install --user --name "ai-infrastructure"  --display-name "Python (AI Infrastructure)" 2>&1 | Out-Null
-Write-Ok "Kernel 'ai-infrastructure' registered"
-& python -m ipykernel install --user --name "multi-agent-ai"     --display-name "Multi-Agent AI"             2>&1 | Out-Null
-Write-Ok "Kernel 'multi-agent-ai' registered"
+
+$kernelTargets = @(
+    @{ Name = "ai-ml-dev";         Display = "AI/ML Dev (venv)" },
+    @{ Name = "ml-notes";          Display = "ML Notes (venv)" },
+    @{ Name = "ai-infrastructure"; Display = "Python (AI Infrastructure)" },
+    @{ Name = "multi-agent-ai";    Display = "Multi-Agent AI" }
+)
+
+$existingKernelNames = @{}
+try {
+    $kernelJson = & python -m jupyter kernelspec list --json 2>$null
+    if ($kernelJson) {
+        $parsed = $kernelJson | ConvertFrom-Json
+        if ($parsed.kernelspecs) {
+            foreach ($prop in $parsed.kernelspecs.PSObject.Properties.Name) {
+                $existingKernelNames[$prop] = $true
+            }
+        }
+    }
+} catch {
+    Write-Warn "Could not enumerate existing kernels; kernel checks will run individually"
+}
+
+$allKernelsPresent = $true
+foreach ($k in $kernelTargets) {
+    if (-not $existingKernelNames.ContainsKey($k.Name)) { $allKernelsPresent = $false; break }
+}
+
+if ($allKernelsPresent) {
+    Write-Ok "All required Jupyter kernels already registered — skipping kernel registration"
+} else {
+    foreach ($k in $kernelTargets) {
+        if ($existingKernelNames.ContainsKey($k.Name)) {
+            Write-Ok "Kernel '$($k.Name)' already registered"
+            continue
+        }
+        & python -m ipykernel install --user --name $k.Name --display-name $k.Display 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn "Failed to register kernel '$($k.Name)' — continuing"
+        } else {
+            Write-Ok "Kernel '$($k.Name)' registered"
+        }
+    }
+}
 
 Write-Step "Setting default kernel on every notebook under notes/"
 & python (Join-Path $PSScriptRoot "set_default_kernel.py")
@@ -314,6 +441,7 @@ Write-Host "  Twinny — Ollama AI Copilot Extension" -ForegroundColor White
 Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
 
 $TwinnyExtId = "rjmacarthy.twinny"
+$ContinueExtId = "Continue.continue"
 
 Write-Step "Checking Twinny extension ($TwinnyExtId)"
 
@@ -349,10 +477,39 @@ Write-Step "Twinny post-install configuration note"
 Write-Host "" 
 Write-Host "  After launching VS Code:" -ForegroundColor White
 Write-Host "    1. Open the Twinny sidebar (robot icon on the Activity Bar)" -ForegroundColor DarkGray
-Write-Host "    2. Click the settings cog → choose provider: Ollama" -ForegroundColor DarkGray
-Write-Host "    3. Set hostname: localhost   port: 11434" -ForegroundColor DarkGray
-Write-Host "    4. Set the chat model and FIM model (Step 6 will pull the model)" -ForegroundColor DarkGray
+Write-Host "    2. Setup will auto-write provider/model settings in Step 6" -ForegroundColor DarkGray
+Write-Host "    3. If needed, verify provider: Ollama, host: localhost, port: 11434" -ForegroundColor DarkGray
+Write-Host "    4. Confirm chat/FIM model matches the model printed at the end" -ForegroundColor DarkGray
 Write-Host ""
+
+Write-Step "Checking optional Continue extension ($ContinueExtId)"
+
+$continueInstalled = $false
+try {
+    $extList = & $CodeCmd --list-extensions 2>&1
+    if ($extList -match [regex]::Escape($ContinueExtId)) {
+        Write-Ok "Continue already installed"
+        $continueInstalled = $true
+    }
+} catch {
+    Write-Warn "Could not query VS Code extensions for Continue — will attempt install anyway"
+}
+
+if (-not $continueInstalled) {
+    Write-Warn "Continue not found — installing ..."
+    try {
+        & $CodeCmd --install-extension $ContinueExtId --force 2>&1 | Out-Null
+        $extList = & $CodeCmd --list-extensions 2>&1
+        if ($extList -match [regex]::Escape($ContinueExtId)) {
+            Write-Ok "Continue installed successfully"
+        } else {
+            Write-Warn "Install command ran but Continue not detected yet — it may appear after VS Code restarts"
+        }
+    } catch {
+        Write-Warn "Could not install Continue automatically."
+        Write-Warn "Install manually: open VS Code → Extensions → search 'Continue' → Install"
+    }
+}
 
 # ─── STEP 4: Ollama Server Install & First Launch ────────────────────────────
 
@@ -498,7 +655,7 @@ if ($writeTasksJson) {
         {
             "label": "ollama-start",
             "type": "shell",
-            "command": "powershell",
+            "command": "pwsh",
             "args": [
                 "-NonInteractive",
                 "-File",
@@ -517,7 +674,7 @@ if ($writeTasksJson) {
         {
             "label": "ollama-stop",
             "type": "shell",
-            "command": "powershell",
+            "command": "pwsh",
             "args": [
                 "-NonInteractive",
                 "-Command",
@@ -631,8 +788,8 @@ if (Test-Path $SettingsJsonPath) {
 
 # ─── STEP 6: Pull Best SLM for AI/ML Coding ──────────────────────────────────
 #
-# Primary:  qwen2.5-coder:7b  (~4.7 GB, needs ~8 GB free RAM)
-# Fallback: phi3.5            (~2.2 GB, needs ~4 GB free RAM)
+# Primary:  qwen2.5-coder:3b   (~2 GB class, CPU-friendly)
+# Fallback: qwen2.5-coder:1.5b (~1 GB class, very lightweight)
 # Selection is automatic based on detected system RAM.
 
 Write-Host ""
@@ -655,15 +812,15 @@ try {
     $TotalRamGB = 0
 }
 
-# Choose model based on available RAM
-$PrimaryModel  = "qwen2.5-coder:7b"
-$FallbackModel = "phi3.5"
-$ChosenModel   = if ($TotalRamGB -ge 10) { $PrimaryModel } else { $FallbackModel }
+# Choose model based on available RAM for stock CPU machines.
+$PrimaryModel  = "qwen2.5-coder:3b"
+$FallbackModel = "qwen2.5-coder:1.5b"
+$ChosenModel   = if ($TotalRamGB -ge 8) { $PrimaryModel } else { $FallbackModel }
 
-if ($TotalRamGB -ge 10) {
-    Write-Ok "RAM ≥ 10 GB — selecting primary model: $ChosenModel"
+if ($TotalRamGB -ge 8) {
+    Write-Ok "RAM ≥ 8 GB — selecting primary model: $ChosenModel"
 } else {
-    Write-Warn "RAM < 10 GB — selecting fallback model: $ChosenModel"
+    Write-Warn "RAM < 8 GB — selecting fallback model: $ChosenModel"
 }
 
 # ── 6b. Check if model already pulled ───────────────────────────────────────────
@@ -673,7 +830,7 @@ Write-Step "Checking if $ChosenModel is already available"
 $modelPresent = $false
 try {
     $modelList = & ollama list 2>&1
-    # Normalise: qwen2.5-coder:7b appears as "qwen2.5-coder:7b" in the list
+    # Normalise: model names in `ollama list` include tag suffixes.
     $modelKey = $ChosenModel.Split(":")[0].ToLower()
     if ($modelList -match [regex]::Escape($modelKey)) {
         Write-Ok "$ChosenModel already present in Ollama"
@@ -699,7 +856,31 @@ if (-not $modelPresent) {
     Write-Step "Skipping pull — $ChosenModel already present"
 }
 
-# ── 6d. Configure Twinny to use the model ────────────────────────────────────────
+# ── 6d. Smoke test local inference via Ollama API ─────────────────────────────
+
+Write-Step "Running local inference smoke test against $ChosenModel"
+
+$smokePrompt = "Reply with exactly: OLLAMA_SMOKE_OK"
+$smokeBody = @{
+    model  = $ChosenModel
+    prompt = $smokePrompt
+    stream = $false
+} | ConvertTo-Json
+
+try {
+    $smokeResponse = Invoke-RestMethod -Uri "$OllamaBaseUrl/api/generate" -Method Post -ContentType "application/json" -Body $smokeBody -TimeoutSec 90
+    if ($smokeResponse.response -and $smokeResponse.response.Trim().Length -gt 0) {
+        Write-Ok "Inference smoke test passed"
+        Write-Host "    Model response: $($smokeResponse.response.Trim())" -ForegroundColor DarkGray
+    } else {
+        Write-Warn "Smoke test returned an empty response"
+    }
+} catch {
+    Write-Warn "Smoke test failed: $($_.Exception.Message)"
+    Write-Warn "Run manually: ollama run $ChosenModel"
+}
+
+# ── 6e. Configure Twinny to use the model ────────────────────────────────────────
 
 Write-Step "Writing Twinny model settings to VS Code user settings"
 
@@ -740,6 +921,47 @@ if (Test-Path $VsSettingsPath) {
 } else {
     $twinnySettings | ConvertTo-Json -Depth 10 | Set-Content $VsSettingsPath -Encoding UTF8
     Write-Ok "settings.json created with Twinny model settings"
+}
+
+# ── 6f. Configure Continue profile for Ollama ─────────────────────────────────
+
+Write-Step "Writing Continue Ollama profile"
+
+$ContinueDir = Join-Path $env:USERPROFILE ".continue"
+$ContinueConfigPath = Join-Path $ContinueDir "config.yaml"
+
+if (-not (Test-Path $ContinueDir)) {
+        New-Item -ItemType Directory -Path $ContinueDir -Force | Out-Null
+}
+
+$continueConfig = @"
+name: Local Ollama
+version: 1.0.0
+
+models:
+    - title: Local Chat ($ChosenModel)
+        provider: ollama
+        model: $ChosenModel
+        apiBase: http://localhost:11434
+
+tabAutocompleteModel:
+    title: Local FIM ($ChosenModel)
+    provider: ollama
+    model: $ChosenModel
+    apiBase: http://localhost:11434
+
+context:
+    - provider: code
+    - provider: docs
+    - provider: diff
+"@
+
+if (Test-Path $ContinueConfigPath) {
+        Write-Warn "Continue config already exists at $ContinueConfigPath — leaving existing file unchanged"
+        Write-Warn "If you want this profile, merge model settings manually into your existing Continue config"
+} else {
+        Set-Content -Path $ContinueConfigPath -Value $continueConfig -Encoding UTF8
+        Write-Ok "Continue profile written: $ContinueConfigPath"
 }
 
 # ─── STEP 7: Launch Study Servers (Jupyter Lab + MkDocs) ─────────────────────
@@ -833,6 +1055,7 @@ Write-Host "  Python env  : $VenvPath" -ForegroundColor White
 Write-Host "  Activate    : .\.venv\Scripts\Activate.ps1" -ForegroundColor White
 Write-Host "  VS Code     : $CodeCmd" -ForegroundColor White
 Write-Host "  Twinny ext  : $TwinnyExtId" -ForegroundColor White
+Write-Host "  Continue ext: $ContinueExtId" -ForegroundColor White
 Write-Host "  Ollama      : $OllamaBaseUrl" -ForegroundColor White
 Write-Host "  SLM model   : $ChosenModel" -ForegroundColor White
 Write-Host ""
@@ -852,6 +1075,7 @@ Write-Host "  Python env  : $VenvPath" -ForegroundColor White
 Write-Host "  Activate    : .\.venv\Scripts\Activate.ps1" -ForegroundColor White
 Write-Host "  VS Code     : $CodeCmd" -ForegroundColor White
 Write-Host "  Twinny ext  : $TwinnyExtId" -ForegroundColor White
+Write-Host "  Continue ext: $ContinueExtId" -ForegroundColor White
 Write-Host "  Ollama      : $OllamaBaseUrl" -ForegroundColor White
 Write-Host "  SLM model   : $ChosenModel" -ForegroundColor White
 Write-Host ""

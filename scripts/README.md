@@ -8,12 +8,13 @@ This directory contains the **single uber setup script** (Windows + macOS/Linux)
 
 | Step | What happens |
 |------|-------------|
+| **0 — PowerShell bootstrap (Windows)** | If launched in Windows PowerShell 5.1, auto-installs PowerShell 7 (`pwsh`) when missing and relaunches setup inside pwsh |
 | **1 — Python + libraries** | Detects Python 3.11+ (installs if missing), creates a `.venv` at the repo root, and installs the full AI/ML package stack |
 | **2 — VS Code** | Installs Visual Studio Code if `code` is not already on PATH |
-| **3 — Twinny extension** | Installs `rjmacarthy.twinny` — the Ollama AI Copilot for VS Code |
+| **3 — VS Code local AI extensions** | Installs `rjmacarthy.twinny` and optionally `Continue.continue` for local Ollama-backed coding/chat |
 | **4 — Ollama server** | Installs the Ollama local inference server and starts it for the first time |
 | **5 — Lifecycle wiring** | Writes `.vscode/tasks.json` and `ollama-watcher` so Ollama starts when VS Code opens and stops when it closes |
-| **6 — Pull SLM** | Auto-detects RAM and pulls the best coding model (`qwen2.5-coder:7b` ≥ 10 GB RAM, `phi3.5` otherwise), then writes Twinny's settings |
+| **6 — Pull SLM + smoke test** | Auto-detects RAM and pulls a CPU-friendly coding model (`qwen2.5-coder:3b` for >= 8 GB RAM, `qwen2.5-coder:1.5b` otherwise), runs an Ollama prompt smoke test, then writes Twinny settings and a Continue profile |
 
 ---
 
@@ -23,6 +24,8 @@ This directory contains the **single uber setup script** (Windows + macOS/Linux)
 ```powershell
 .\scripts\setup.ps1
 ```
+
+If you run this from Windows PowerShell 5.1, the script will switch itself to PowerShell 7 before continuing.
 
 **macOS / Linux (bash):**
 ```bash
@@ -102,14 +105,17 @@ bash scripts/install-hooks.sh     # macOS / Linux
 
 ---
 
-## Ollama + Twinny — one-time manual step
+## Ollama + VS Code local agents — one-time manual step
 
 After running the setup script, open VS Code and:
 
 1. Click **Terminal → Run Task** and choose **"Allow Automatic Tasks"** — this enables the `folderOpen` watcher that keeps Ollama running whenever the workspace is open.
-2. Open the **Twinny sidebar** (robot icon on the Activity Bar).
-3. Click the settings cog → set provider to **Ollama**, hostname `localhost`, port `11434`.
-4. The chat and FIM model fields should already be populated (written by Step 6). If not, set them to the model printed at the end of the setup run.
+2. Open either **Twinny** (robot icon) or **Continue** (chat icon) in VS Code.
+3. Twinny should already be configured by Step 6 in VS Code user settings.
+4. Continue receives a starter profile at `~/.continue/config.yaml` (`%USERPROFILE%\.continue\config.yaml` on Windows) when no existing Continue config is present.
+5. If needed, verify provider is **Ollama**, hostname `localhost`, port `11434`, and model matches the model printed at the end of setup.
+
+> If `~/.continue/config.yaml` already exists, setup does not overwrite it.
 
 ---
 
@@ -153,15 +159,21 @@ pip install <package-name>
 ```
 
 **Model pull is slow or fails**
-The `qwen2.5-coder:7b` model is ~4.7 GB. A slow connection may time out. Resume with:
+The default CPU-friendly model is `qwen2.5-coder:3b` (with `qwen2.5-coder:1.5b` fallback on lower-memory machines). A slow connection may time out. Resume with:
 ```bash
-ollama pull qwen2.5-coder:7b
+ollama pull qwen2.5-coder:3b
 ```
 Ollama resumes partial downloads automatically.
+
+**Verify the local SLM responds**
+```bash
+curl -s http://localhost:11434/api/generate -H "Content-Type: application/json" -d '{"model":"qwen2.5-coder:3b","prompt":"Say hello in one short sentence.","stream":false}'
+```
 
 **Want to switch models later**
 ```bash
 ollama pull <model-name>
 # Then update VS Code settings:
 # twinny.chatModelName and twinny.fimModelName
+# and/or update ~/.continue/config.yaml
 ```

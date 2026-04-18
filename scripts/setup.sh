@@ -148,6 +148,24 @@ ok "pip / setuptools / wheel up to date"
 
 step "Installing AI/ML package stack"
 
+normalize_pkg_key() {
+    echo "$1" | sed 's/\[.*\]//' | sed 's/[>=<!].*//' | tr '[:upper:]' '[:lower:]' | xargs
+}
+
+INSTALLED_PIP_KEYS=$(python -m pip list --format=columns 2>/dev/null | tail -n +3 | awk '{print tolower($1)}')
+
+pip_has_key() {
+    local key="$1"
+    echo "$INSTALLED_PIP_KEYS" | grep -qx "$key"
+}
+
+mark_installed_key() {
+    local key="$1"
+    if ! pip_has_key "$key"; then
+        INSTALLED_PIP_KEYS="${INSTALLED_PIP_KEYS}"$'\n'"$key"
+    fi
+}
+
 # Helper: install a group of packages
 install_group() {
     local group_name="$1"
@@ -167,14 +185,11 @@ install_group() {
     done
 
     group "$group_name"
-    local installed
-    installed=$(python -m pip list --format=columns 2>/dev/null | tail -n +3 | awk '{print tolower($1)}')
-
     for pkg in "${packages[@]}"; do
         # Normalise: strip extras/version specifiers for lookup
         local key
-        key=$(echo "$pkg" | sed 's/\[.*\]//' | sed 's/[>=<!].*//' | tr '[:upper:]' '[:lower:]' | xargs)
-        if echo "$installed" | grep -qx "$key"; then
+        key=$(normalize_pkg_key "$pkg")
+        if pip_has_key "$key"; then
             ok "$pkg already installed"
         else
             warn "$pkg missing — installing ..."
@@ -183,68 +198,143 @@ install_group() {
             else
                 python -m pip install "$pkg" --quiet
             fi
+            mark_installed_key "$key"
             ok "$pkg installed"
         fi
     done
 }
 
-# Core scientific stack
-install_group "Core scientific stack" \
-    numpy pandas scipy matplotlib seaborn
-
-# Machine learning
-install_group "Machine learning" \
-    scikit-learn xgboost lightgbm
-
-# Deep learning — TensorFlow
-install_group "Deep learning / TensorFlow" \
-    tensorflow tensorboard keras
-
-# PyTorch — CPU-safe build (no CUDA required on stock machines)
-install_group "PyTorch (CPU build)" \
-    torch torchvision torchaudio \
-    --extra-args --index-url https://download.pytorch.org/whl/cpu
-
-# Notebook tooling
-install_group "Notebook tooling" \
-    notebook ipykernel ipywidgets jupyterlab
-
-# Generative AI / LLM utilities
-install_group "Generative AI / LLM utilities" \
-    transformers diffusers accelerate datasets tokenizers \
-    huggingface-hub openai langchain langchain-community \
+CORE_SCIENTIFIC=(numpy pandas scipy matplotlib seaborn)
+MACHINE_LEARNING=(scikit-learn xgboost lightgbm)
+DEEP_LEARNING_TF=(tensorflow tensorboard keras)
+PYTORCH_CPU=(torch torchvision torchaudio)
+NOTEBOOK_TOOLING=(notebook ipykernel ipywidgets jupyterlab)
+GENERATIVE_AI=(
+    transformers diffusers accelerate datasets tokenizers
+    huggingface-hub openai langchain langchain-community
     sentence-transformers faiss-cpu chromadb
-
-# General utilities
-install_group "Utilities" \
-    python-dotenv tqdm pillow requests httpx pydantic
-
-# Docs / study site (MkDocs Material — browse notes/ in a web browser)
-# mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
-install_group "Docs site (MkDocs Material)" \
-    mkdocs-material pymdown-extensions mkdocs-jupyter
-
-# Notebook extras — dependencies pulled in by per-notes setup scripts
-#   notes/AIInfrastructure : mlflow
-#   notes/MultiAgentAI     : tiktoken, mcp, fastapi, uvicorn, anyio, redis,
-#                            langgraph, langchain-core, langchain-openai,
-#                            autogen-agentchat, semantic-kernel, ollama
-install_group "Notebook extras (AIInfrastructure + MultiAgentAI)" \
-    mlflow tiktoken mcp fastapi "uvicorn[standard]" anyio redis \
-    langgraph langchain-core langchain-openai \
+)
+UTILITIES=(python-dotenv tqdm pillow requests httpx pydantic)
+DOCS_SITE=(mkdocs-material pymdown-extensions mkdocs-jupyter)
+NOTEBOOK_EXTRAS=(
+    mlflow tiktoken mcp fastapi "uvicorn[standard]" anyio redis
+    langgraph langchain-core langchain-openai
     autogen-agentchat semantic-kernel ollama
+)
+
+ALL_REQUIRED_PACKAGES=(
+    "${CORE_SCIENTIFIC[@]}"
+    "${MACHINE_LEARNING[@]}"
+    "${DEEP_LEARNING_TF[@]}"
+    "${PYTORCH_CPU[@]}"
+    "${NOTEBOOK_TOOLING[@]}"
+    "${GENERATIVE_AI[@]}"
+    "${UTILITIES[@]}"
+    "${DOCS_SITE[@]}"
+    "${NOTEBOOK_EXTRAS[@]}"
+)
+
+ALL_DEPENDENCIES_MET=true
+for pkg in "${ALL_REQUIRED_PACKAGES[@]}"; do
+    key=$(normalize_pkg_key "$pkg")
+    if ! pip_has_key "$key"; then
+        ALL_DEPENDENCIES_MET=false
+        break
+    fi
+done
+
+if [ "$ALL_DEPENDENCIES_MET" = true ]; then
+    ok "All Python package dependencies already satisfied — skipping package installation step"
+else
+    # Core scientific stack
+    install_group "Core scientific stack" "${CORE_SCIENTIFIC[@]}"
+
+    # Machine learning
+    install_group "Machine learning" "${MACHINE_LEARNING[@]}"
+
+    # Deep learning — TensorFlow
+    install_group "Deep learning / TensorFlow" "${DEEP_LEARNING_TF[@]}"
+
+    # PyTorch — CPU-safe build (no CUDA required on stock machines)
+    install_group "PyTorch (CPU build)" "${PYTORCH_CPU[@]}" \
+        --extra-args --index-url https://download.pytorch.org/whl/cpu
+
+    # Notebook tooling
+    install_group "Notebook tooling" "${NOTEBOOK_TOOLING[@]}"
+
+    # Generative AI / LLM utilities
+    install_group "Generative AI / LLM utilities" "${GENERATIVE_AI[@]}"
+
+    # General utilities
+    install_group "Utilities" "${UTILITIES[@]}"
+
+    # Docs / study site (MkDocs Material — browse notes/ in a web browser)
+    # mkdocs-jupyter renders every notebook.ipynb as a page alongside the .md files.
+    install_group "Docs site (MkDocs Material)" "${DOCS_SITE[@]}"
+
+    # Notebook extras — dependencies pulled in by per-notes setup scripts
+    install_group "Notebook extras (AIInfrastructure + MultiAgentAI)" "${NOTEBOOK_EXTRAS[@]}"
+fi
 
 # ─── 1e. Register Jupyter kernels ─────────────────────────────────────────────
 
 step "Registering Jupyter kernels"
-python -m ipykernel install --user --name "ai-ml-dev"         --display-name "AI/ML Dev (venv)"           &>/dev/null
-ok "Kernel 'ai-ml-dev' registered"
-python -m ipykernel install --user --name "ml-notes"          --display-name "ML Notes (venv)"            &>/dev/null
-ok "Kernel 'ml-notes' registered"
-python -m ipykernel install --user --name "ai-infrastructure" --display-name "Python (AI Infrastructure)" &>/dev/null
-ok "Kernel 'ai-infrastructure' registered"
-python -m ipykernel install --user --name "multi-agent-ai"    --display-name "Multi-Agent AI"             &>/dev/null
-ok "Kernel 'multi-agent-ai' registered"
+
+kernel_exists() {
+    local kernel_name="$1"
+    python3 - "$kernel_name" <<'PYEOF'
+import json, subprocess, sys
+name = sys.argv[1]
+try:
+    out = subprocess.check_output([sys.executable, "-m", "jupyter", "kernelspec", "list", "--json"], text=True)
+    data = json.loads(out)
+    sys.exit(0 if name in (data.get("kernelspecs") or {}) else 1)
+except Exception:
+    sys.exit(2)
+PYEOF
+    return $?
+}
+
+ALL_KERNELS=(ai-ml-dev ml-notes ai-infrastructure multi-agent-ai)
+ALL_KERNELS_PRESENT=true
+for k in "${ALL_KERNELS[@]}"; do
+    if ! kernel_exists "$k"; then
+        ALL_KERNELS_PRESENT=false
+        break
+    fi
+done
+
+if [ "$ALL_KERNELS_PRESENT" = true ]; then
+    ok "All required Jupyter kernels already registered — skipping kernel registration"
+else
+    if kernel_exists "ai-ml-dev"; then
+        ok "Kernel 'ai-ml-dev' already registered"
+    else
+        python -m ipykernel install --user --name "ai-ml-dev" --display-name "AI/ML Dev (venv)" &>/dev/null
+        ok "Kernel 'ai-ml-dev' registered"
+    fi
+
+    if kernel_exists "ml-notes"; then
+        ok "Kernel 'ml-notes' already registered"
+    else
+        python -m ipykernel install --user --name "ml-notes" --display-name "ML Notes (venv)" &>/dev/null
+        ok "Kernel 'ml-notes' registered"
+    fi
+
+    if kernel_exists "ai-infrastructure"; then
+        ok "Kernel 'ai-infrastructure' already registered"
+    else
+        python -m ipykernel install --user --name "ai-infrastructure" --display-name "Python (AI Infrastructure)" &>/dev/null
+        ok "Kernel 'ai-infrastructure' registered"
+    fi
+
+    if kernel_exists "multi-agent-ai"; then
+        ok "Kernel 'multi-agent-ai' already registered"
+    else
+        python -m ipykernel install --user --name "multi-agent-ai" --display-name "Multi-Agent AI" &>/dev/null
+        ok "Kernel 'multi-agent-ai' registered"
+    fi
+fi
 
 step "Setting default kernel on every notebook under notes/"
 python "$SCRIPT_DIR/set_default_kernel.py" || warn "set_default_kernel.py exited non-zero"
@@ -347,6 +437,7 @@ echo "  Twinny — Ollama AI Copilot Extension"
 echo "══════════════════════════════════════════════"
 
 TWINNY_EXT_ID="rjmacarthy.twinny"
+CONTINUE_EXT_ID="Continue.continue"
 
 step "Checking Twinny extension ($TWINNY_EXT_ID)"
 
@@ -380,10 +471,37 @@ step "Twinny post-install configuration note"
 echo ""
 echo "  After launching VS Code:"
 echo "    1. Open the Twinny sidebar (robot icon on the Activity Bar)"
-echo "    2. Click the settings cog → choose provider: Ollama"
-echo "    3. Set hostname: localhost   port: 11434"
-echo "    4. Set the chat model and FIM model (Step 6 will pull the model)"
+echo "    2. Setup auto-writes provider/model settings in Step 6"
+echo "    3. If needed, verify provider: Ollama, host: localhost, port: 11434"
+echo "    4. Confirm chat/FIM model matches the model printed at the end"
 echo ""
+
+step "Checking optional Continue extension ($CONTINUE_EXT_ID)"
+
+CONTINUE_INSTALLED=false
+if command -v "${CODE_CMD}" &>/dev/null; then
+    if "${CODE_CMD}" --list-extensions 2>/dev/null | grep -qi "$CONTINUE_EXT_ID"; then
+        ok "Continue already installed"
+        CONTINUE_INSTALLED=true
+    fi
+else
+    warn "'${CODE_CMD}' not on PATH — skipping Continue extension check"
+fi
+
+if [ "$CONTINUE_INSTALLED" = false ]; then
+    warn "Continue not found — installing ..."
+    if command -v "${CODE_CMD}" &>/dev/null; then
+        "${CODE_CMD}" --install-extension "$CONTINUE_EXT_ID" --force &>/dev/null || true
+        if "${CODE_CMD}" --list-extensions 2>/dev/null | grep -qi "$CONTINUE_EXT_ID"; then
+            ok "Continue installed successfully"
+        else
+            warn "Install ran but extension not detected yet — it may appear after VS Code restarts"
+        fi
+    else
+        warn "Cannot install Continue: 'code' not on PATH."
+        warn "Install manually: open VS Code → Extensions → search 'Continue' → Install"
+    fi
+fi
 
 # ─── STEP 4: Ollama Server Install & First Launch ────────────────────────────
 
@@ -644,8 +762,8 @@ fi
 
 # ─── STEP 6: Pull Best SLM for AI/ML Coding ──────────────────────────────────
 #
-# Primary:  qwen2.5-coder:7b  (~4.7 GB, needs ~8 GB free RAM)
-# Fallback: phi3.5            (~2.2 GB, needs ~4 GB free RAM)
+# Primary:  qwen2.5-coder:3b   (~2 GB class, CPU-friendly)
+# Fallback: qwen2.5-coder:1.5b (~1 GB class, very lightweight)
 # Selection is automatic based on detected system RAM.
 
 echo ""
@@ -654,8 +772,8 @@ echo "  AI/ML Dev Environment Setup — Step 6/6"
 echo "  Pull Best Local SLM"
 echo "══════════════════════════════════════════════"
 
-PRIMARY_MODEL="qwen2.5-coder:7b"
-FALLBACK_MODEL="phi3.5"
+PRIMARY_MODEL="qwen2.5-coder:3b"
+FALLBACK_MODEL="qwen2.5-coder:1.5b"
 
 # ── 6a. Detect system RAM ────────────────────────────────────────────────────
 
@@ -676,12 +794,12 @@ esac
 
 ok "Total RAM: ${TOTAL_RAM_GB} GB"
 
-if [ "$TOTAL_RAM_GB" -ge 10 ]; then
+if [ "$TOTAL_RAM_GB" -ge 8 ]; then
     CHOSEN_MODEL="$PRIMARY_MODEL"
-    ok "RAM ≥ 10 GB — selecting primary model: $CHOSEN_MODEL"
+    ok "RAM ≥ 8 GB — selecting primary model: $CHOSEN_MODEL"
 else
     CHOSEN_MODEL="$FALLBACK_MODEL"
-    warn "RAM < 10 GB — selecting fallback model: $CHOSEN_MODEL"
+    warn "RAM < 8 GB — selecting fallback model: $CHOSEN_MODEL"
 fi
 
 # ── 6b. Check if model already pulled ───────────────────────────────────────────
@@ -709,7 +827,43 @@ else
     step "Skipping pull — $CHOSEN_MODEL already present"
 fi
 
-# ── 6d. Configure Twinny to use the model ────────────────────────────────────────
+# ── 6d. Smoke test local inference via Ollama API ─────────────────────────────
+
+step "Running local inference smoke test against $CHOSEN_MODEL"
+
+SMOKE_PAYLOAD=$(cat <<SMOKEEOF
+{
+  "model": "$CHOSEN_MODEL",
+  "prompt": "Reply with exactly: OLLAMA_SMOKE_OK",
+  "stream": false
+}
+SMOKEEOF
+)
+
+SMOKE_RESPONSE=$(curl -sS --max-time 90 \
+    -H "Content-Type: application/json" \
+    -d "$SMOKE_PAYLOAD" \
+    "$OLLAMA_BASE_URL/api/generate" || true)
+
+if [ -n "$SMOKE_RESPONSE" ] && echo "$SMOKE_RESPONSE" | grep -q '"response"'; then
+    SMOKE_TEXT=$(python3 -c 'import json,sys
+raw = sys.stdin.read()
+try:
+    obj = json.loads(raw)
+    print((obj.get("response") or "").strip())
+except Exception:
+    print("")' <<< "$SMOKE_RESPONSE")
+    if [ -n "$SMOKE_TEXT" ]; then
+        ok "Inference smoke test passed"
+        echo "    Model response: $SMOKE_TEXT"
+    else
+        warn "Smoke test returned an empty response"
+    fi
+else
+    warn "Smoke test failed — run manually: ollama run $CHOSEN_MODEL"
+fi
+
+# ── 6e. Configure Twinny to use the model ────────────────────────────────────────
 
 step "Writing Twinny model settings to VS Code user settings"
 
@@ -762,6 +916,42 @@ PYEOF
 else
     echo "$TWINNY_BLOCK" > "$VSCODE_SETTINGS_FILE"
     ok "settings.json created with Twinny model settings"
+fi
+
+# ── 6f. Configure Continue profile for Ollama ─────────────────────────────────
+
+step "Writing Continue Ollama profile"
+
+CONTINUE_DIR="$HOME/.continue"
+CONTINUE_CONFIG="$CONTINUE_DIR/config.yaml"
+mkdir -p "$CONTINUE_DIR"
+
+if [ -f "$CONTINUE_CONFIG" ]; then
+        warn "Continue config already exists at $CONTINUE_CONFIG — leaving existing file unchanged"
+        warn "If you want this profile, merge model settings manually into your existing Continue config"
+else
+        cat > "$CONTINUE_CONFIG" << CONTINUEYAML
+name: Local Ollama
+version: 1.0.0
+
+models:
+    - title: Local Chat (${CHOSEN_MODEL})
+        provider: ollama
+        model: ${CHOSEN_MODEL}
+        apiBase: http://localhost:11434
+
+tabAutocompleteModel:
+    title: Local FIM (${CHOSEN_MODEL})
+    provider: ollama
+    model: ${CHOSEN_MODEL}
+    apiBase: http://localhost:11434
+
+context:
+    - provider: code
+    - provider: docs
+    - provider: diff
+CONTINUEYAML
+        ok "Continue profile written: $CONTINUE_CONFIG"
 fi
 
 # ─── STEP 7: Launch Study Servers (Jupyter Lab + MkDocs) ─────────────────────
@@ -843,6 +1033,7 @@ echo "  Python env  : $VENV_PATH"
 echo "  Activate    : source .venv/bin/activate"
 echo "  VS Code     : ${CODE_CMD}"
 echo "  Twinny ext  : $TWINNY_EXT_ID"
+echo "  Continue ext: $CONTINUE_EXT_ID"
 echo "  Ollama      : $OLLAMA_BASE_URL"
 echo "  SLM model   : $CHOSEN_MODEL"
 echo ""
