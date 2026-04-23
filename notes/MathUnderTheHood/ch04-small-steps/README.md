@@ -1,0 +1,314 @@
+# Ch.4 — Small Steps on a Curve
+
+> **The story.** *"That's one small step for [a] man, one giant leap for mankind."* — **Neil Armstrong**, Apollo 11, Sea of Tranquility, 20 July 1969. Armstrong's boot-print was 30 cm of motion at the end of a 384 000 km journey, and that sentence is also the best one-line description of how every modern ML model is trained. The mathematics behind it is older than the moon landing: in **1847 Augustin-Louis Cauchy** published the *méthode des plus profonde descente* — "steepest descent" — a recipe for minimising functions that don't have a clean closed-form solution: stand on the surface, find the downhill direction, take a small step, repeat. A century later Robbins & Monro (1951) added the *stochastic* twist that lets it work on noisy data, and that is the algorithm that trains every neural network in this curriculum.
+>
+> **Where you are in the curriculum.** Ch.3 gave you the derivative — the slope of a curve. This chapter does what Cauchy did with it: turns the slope into a rule for *moving*. The running example is a long goal kick. Your boot delivers a fixed strike speed, but you choose the launch angle. Which angle drives the ball the farthest? You *could* solve it with calculus. But the moment you add air drag, a stiff crosswind, or a sloping pitch, the equation becomes ugly and the analytical answer vanishes. The fall-back is ancient and universal: **pick a starting guess and walk downhill.** Master this one chapter and you understand, mechanically, how every later model learns.
+>
+> **Notation in this chapter.** $\theta$ — the parameter we are tuning (e.g. launch angle); $L(\theta)$ — the **loss** or objective we are minimising (e.g. *negative* of how far the ball travelled); $L'(\theta)$ or $\nabla L$ — the slope / gradient of $L$; $\eta$ (eta) — the **learning rate** (step size); $\theta_t$ — the value of $\theta$ at iteration $t$; $\theta_{t+1}=\theta_t-\eta\,L'(\theta_t)$ — the **gradient-descent update rule**; $\epsilon$ — a small tolerance used as a stopping criterion.
+
+---
+
+## 0 · The Challenge — Where We Are
+
+> 🎯 **The goal**: Score a free kick that clears a 1.8m wall at 9.15m distance and dips under a 2.44m crossbar at 20m, while beating the keeper's reaction time.
+
+**What we know so far:**
+- ✅ Ch.1: Linear models $h = wt + b$
+- ✅ Ch.2: Parabolic trajectory $h(t) = 6.5t - 4.905t^2$
+- ✅ Ch.3: Can CHECK constraints: find apex $t_{\text{peak}} = 0.663s$, verify $h(0.663) = 2.15m > 1.8m$ ✓ wall cleared, $h(1.2) = 1.60m < 2.44m$ ✓ under crossbar
+- ❌ **But we can only check ONE fixed angle — we can't FIND the BEST angle!**
+
+**What's blocking us:**
+The trajectory equation is $h(t) = v_0 \sin(\theta) \cdot t - \frac{1}{2}gt^2$ where $\theta$ is the launch angle we control. For each $\theta$ we can compute:
+- Does it clear the wall? (Check if $h(t_{\text{wall}}) > 1.8m$)
+- Does it go under crossbar? (Check if $h(t_{\text{goal}}) < 2.44m$)
+- How far does it travel? (Find where $h(t) = 0$)
+
+But we have **no method to find the optimal $\theta$**. We could try $\theta = 10°, 11°, 12°, \ldots, 80°$ (70 guesses!) but that's brute-force and doesn't generalize to problems with 2+ parameters.
+
+**What this chapter unlocks:**
+**Gradient descent** — the iterative optimization method. Instead of guessing randomly:
+1. Start with a guess $\theta_0$ (say, 45°)
+2. Compute derivative $L'(\theta_0)$ (tells us: "increasing $\theta$ makes distance longer or shorter?")
+3. Step in the *improving* direction: $\theta_1 = \theta_0 - \eta L'(\theta_0)$
+4. Repeat until converged
+
+This solves **single-parameter optimization** — finding best angle, best speed, best kick height, etc. (one at a time)
+
+---
+
+## 1 · Core Idea
+
+Suppose you have a smooth curve $f(\theta)$ and you want to find the $\theta^\star$ that minimises it (or maximises — same problem, sign flipped). The recipe is:
+
+1. Start somewhere: $\theta_0$.
+2. Compute the slope there: $f'(\theta_0)$.
+3. Step a *little* in the opposite direction: $\theta_1 = \theta_0 - \eta f'(\theta_0)$.
+4. Repeat until you stop moving.
+
+That's it. That's gradient descent in 1-D. The whole of deep-learning optimisation is this idea wearing more elaborate clothes.
+
+The only question is **how big a step?** The answer is the subject of this chapter.
+
+> 🎯 **See it with numbers:** §3.2 walks through this 4-step recipe with actual angles, ranges, and gradients from the goal-kick example — iteration 0 through iteration 4, every value computed explicitly.
+
+---
+
+## 2 · Running Example
+
+Long goal kick, vacuum physics, fixed strike speed $v_0 = 25$ m/s, ball struck from the turf. The horizontal range when you launch at angle $\theta$ is
+
+$$R(\theta) = \frac{v_0^2}{g} \sin(2\theta)$$
+
+Maximum at $\theta = 45^\circ$, giving $R \approx 63.7$ m. We *know* the answer; this makes it easy to test whether an optimisation algorithm actually finds it.
+
+Two twists in this chapter:
+
+1. **Step-size twist.** Even on this simple curve, a bad $\eta$ either crawls forever or overshoots wildly.
+2. **Non-convexity twist.** Add a wind penalty and the curve grows a second hump. Now the starting angle decides whether you find the *global* optimum or get stuck at a *local* one.
+
+---
+
+## 3 · Math
+
+### 3.1 · The update rule
+
+To *minimise* $f(\theta)$:
+
+$$\theta_{k+1} = \theta_k - \eta f'(\theta_k)$$
+
+- $\eta$ (eta) is the **step size** or **learning rate** — always positive.
+- If $f'(\theta_k) > 0$, the curve is going up to the right; subtracting moves us left — *down*. ✓
+- If $f'(\theta_k) < 0$, the curve is going down to the right; subtracting moves us right — *down*. ✓
+- If $f'(\theta_k) = 0$, we've reached a critical point. Stop.
+
+To *maximise* $f(\theta)$ (our range case), flip the sign:
+
+$$\theta_{k+1} = \theta_k + \eta f'(\theta_k)$$
+
+Same algorithm, walking uphill instead. Most ML code is written in the minimise form; if your real target is "maximise likelihood" you minimise *negative* likelihood and keep the sign convention.
+
+**Watch the algorithm in action.** The animation below shows gradient descent minimising $L(\theta) = -R(\theta)$ (the negative of the range formula, so we're walking *down* the loss curve to find the *maximum* range):
+
+![Gradient descent animation: orange ball rolls down a blue loss curve. Red tangent line shows the gradient at each step. Top-left info box displays iteration number, current θ, loss value, learning rate η, and gradient ∇L. Orange trail fades behind the ball. Green star marks the true minimum at θ* = 45°.](img/ch04-gradient-descent-animation.gif)
+
+Starting from $\theta_0 = 20^\circ$, the ball (current parameter value) takes 20 steps toward the green star at $45^\circ$. Each frame:
+- The **red tangent** is the gradient $\nabla L = L'(\theta)$ — it points *up* the loss curve
+- The **ball moves opposite** to the gradient: $\theta \leftarrow \theta - \eta \nabla L$
+- The **fading orange trail** shows the last 5 positions
+- The **info box** shows $\eta = 0.15$ (fixed), $\nabla L$ (shrinking as we approach the minimum), and $L(\theta)$ (decreasing)
+
+Notice: the gradient is steep early (fast progress), then flattens near the minimum (slow final convergence). That's *why* adaptive learning-rate methods (Adam, RMSProp — ML Ch.5) exist: they auto-tune $\eta$ to move fast when far and careful when close.
+
+### 3.2 · Worked Example — Five Iterations by Hand
+
+Let's trace **the 4-step recipe from §1** with actual numbers — maximizing range $R(\theta)$ starting from $\theta_0 = 20^\circ$ with learning rate $\eta = 0.20$ (larger than animation's 0.15 for clarity). Given $v_0 = 25$ m/s and $g = 9.81$ m/s²:
+
+$$R(\theta) = \frac{v_0^2}{g} \sin(2\theta) \approx 63.7 \times \sin(2\theta) \quad \text{(meters)}$$
+
+The gradient (derivative) is:
+
+$$R'(\theta) = \frac{2v_0^2}{g} \cos(2\theta) \approx 127.4 \times \cos(2\theta) \quad \text{(meters per radian)}$$
+
+**Update rule** (gradient ascent): $\theta_{k+1} = \theta_k + \eta \times R'(\theta_k)$ — this is step 3 of the Core Idea recipe, applied to maximization.
+
+| Iter | $\theta$ (deg) | $\theta$ (rad) | $R(\theta)$ (m) | $\cos(2\theta)$ | $R'(\theta)$ | Step: $\eta \times R'$ | Next $\theta$ |
+|------|----------------|----------------|-----------------|-----------------|--------------|------------------------|---------------|
+| **0** | 20.0° | 0.349 | 40.9 m | 0.766 | +97.6 | +0.20 × 97.6 = **+19.5** | 0.349 + 0.196 rad |
+| **1** | 31.2° | 0.545 | 56.0 m | 0.342 | +43.6 | +0.20 × 43.6 = **+8.7** | 0.545 + 0.087 rad |
+| **2** | 36.2° | 0.632 | 61.1 m | 0.087 | +11.1 | +0.20 × 11.1 = **+2.2** | 0.632 + 0.022 rad |
+| **3** | 37.5° | 0.654 | 62.2 m | 0.017 | +2.2 | +0.20 × 2.2 = **+0.4** | 0.654 + 0.004 rad |
+| **4** | 37.7° | 0.658 | 62.4 m | 0.003 | +0.4 | +0.20 × 0.4 = **+0.08** | 0.658 + 0.001 rad |
+
+> 📊 **Read the pattern:** Start at 20° (range = 40.9 m). The gradient is **+97.6** — strongly positive, telling us "go higher!" First step jumps 11.2°. By iteration 2, we're at 36.2° (range = 61.1 m) and the gradient has dropped to +11.1 — we're getting close. By iteration 4, gradient is nearly zero (+0.4) and we're crawling toward 45°. Each step shrinks because $\cos(2\theta)$ flattens as we approach the peak.
+
+**What you just saw — the Core Idea recipe in action:**
+1. **Step 1 (Start somewhere):** θ₀ = 20°, giving R = 40.9 m
+2. **Step 2 (Compute the slope):** R'(20°) = +97.6 — the gradient tells us "increasing θ will increase range"
+3. **Step 3 (Move in that direction):** θ₁ = 20° + (0.20 × 97.6) = 31.2° — we jump 11.2° uphill
+4. **Step 4 (Repeat):** At 31.2°, compute new gradient (+43.6), move again… by iteration 4, the gradient is nearly zero and we stop
+
+**The pattern across iterations:**
+- **Early iterations**: Large gradient → large steps → fast progress (20° → 31° in one jump)
+- **Late iterations**: Small gradient → tiny steps → slow convergence (37.5° → 37.7°)
+- **The values connect**: At θ = 20°, we compute R = 40.9 m (the actual range), then R' = +97.6 (the rate of improvement), then move proportionally
+
+This is **exactly what the animation shows** — the ball races downhill early, then inches toward the minimum. The difference? Now you see the forces (gradients) and positions (angles, ranges) as concrete numbers, not just visual motion. More importantly, you can trace **every number back to the 4-step recipe** from §1. That recipe — *start, measure slope, step, repeat* — is gradient descent. Everything else in this chapter is about why it works (§3.3), when it fails (§3.4–3.5), and when to stop (§3.6).
+
+### 3.3 · Why small steps work — Taylor's theorem in one line
+
+Near a point $\theta_k$, any smooth function is approximately
+
+$$f(\theta_k + \Delta) \approx f(\theta_k) + f'(\theta_k) \Delta + \mathcal{O}(\Delta^2)$$
+
+The first-order term $f'(\theta_k) \Delta$ is a *linear* function of $\Delta$ — and its sign tells us which direction $\Delta$ makes $f$ smaller. If $\Delta$ is tiny, the $\mathcal{O}(\Delta^2)$ curvature leftover is negligible, so the linear prediction is trustworthy.
+
+If $\Delta$ is *large*, the quadratic curvature term dominates and the linear approximation lies. That is the entire reason step sizes must be small.
+
+This is the mathematical content of Armstrong's epigraph: a *small* step is one short enough for the linear approximation to hold, so we can trust its sign. Ask for a giant leap in one update and the curvature lies to you — the iterate lands somewhere unrelated to the direction you thought you were walking in.
+
+### 3.4 · When the step is too large
+
+On a quadratic bowl $f(\theta) = \tfrac{1}{2}c(\theta - \theta^\star)^2$ the update becomes
+
+$$\theta_{k+1} - \theta^\star = (1 - \eta c) (\theta_k - \theta^\star)$$
+
+Let $\rho = 1 - \eta c$. Behaviour depends on $|\rho|$:
+
+| Value of $\rho$ | Behaviour |
+|---|---|
+| $0 < \rho < 1$ | monotone convergence (step-by-step closer) |
+| $-1 < \rho < 0$ | oscillating convergence (overshoots, but shrinking) |
+| $\rho = \pm 1$ | perpetual orbit — never converges |
+| $|\rho| > 1$ | **divergence** — iterates blow up |
+
+So the safe range is $0 < \eta < 2/c$. For a goal-kick-style range curve, $c$ is set by the second derivative at the peak. Practitioners usually start small ($\eta \sim 10^{-3}$ to $10^{-1}$ relative to the scale of the problem) and tune by watching the loss.
+
+### 3.5 · Convergence is not guaranteed to be *global*
+
+The update rule only sees the *local* slope. If your landscape has multiple minima (or maxima), you converge to the nearest one reachable from your start. This is the headline problem of deep learning: neural-network loss surfaces are staggeringly non-convex, and we have no general method to guarantee a global optimum.
+
+Practical defences:
+
+- **Random restarts.** Try many starts and keep the best.
+- **Momentum.** Add inertia so small bumps don't trap you. (ML Ch.5.)
+- **Noise injection.** Stochastic gradient descent is noisy enough to jiggle out of shallow traps.
+- **Smart initialisation.** Xavier, He, LeCun schemes — not random, but calibrated to the network depth. (ML Ch.4.)
+
+None of these *solves* non-convexity; they make it survivable.
+
+### 3.6 · Stopping criteria
+
+The loop has to end somehow. Common tests:
+
+1. $|f'(\theta_k)| < \varepsilon$ — gradient has essentially vanished.
+2. $|\theta_{k+1} - \theta_k| < \varepsilon$ — iterates stop moving.
+3. $|f(\theta_{k+1}) - f(\theta_k)| < \varepsilon$ — loss stops decreasing.
+4. $k \geq K_\text{max}$ — give up after $K_\text{max}$ iterations.
+
+In practice you use (1) or (4); (2) and (3) can fire falsely on slow plateaus.
+
+---
+
+## 4 · Step by Step — maximise goal-kick range by gradient ascent
+
+1. Set $v_0 = 25$, $g = 9.81$. Define $R(\theta) = (v_0^2/g)\sin(2\theta)$ with $\theta$ in radians.
+2. Compute the analytic derivative: $R'(\theta) = (2 v_0^2 / g)\cos(2\theta)$.
+3. Pick a start $\theta_0$ (say, $20^\circ$ in radians) and a step size $\eta$.
+4. Loop: $\theta \leftarrow \theta + \eta R'(\theta)$.
+5. Stop when $|R'(\theta)| < 10^{-6}$ or after 500 iterations.
+6. Print $\theta_\text{final}$ in degrees. It should land near $45^\circ$.
+
+The whole algorithm is six lines of Python. It scales to billions of parameters (deep nets) with no change of principle.
+
+---
+
+## 5 · Key Diagram
+
+![Ch.4 hero: three panels showing iterative optimisation on the goal-kick range curve. Left panel: three starting angles (20°, 65°, 80°) all converge via gradient ascent to the 45° optimum on the smooth R(θ) curve. Middle panel: three step sizes — η=2 crawls, η=35 converges cleanly, η=180 overshoots and oscillates. Right panel: a non-convex wind-affected curve where a start at 18° reaches the global optimum at 32° but a start at 72° gets stuck at a local plateau around 68°.](img/ch04-small-steps.png)
+
+Left: on a convex curve, the starting point doesn't matter — everyone arrives. Middle: on the *same* curve, a poorly chosen $\eta$ ruins everything; orange overshoots from 20° all the way past the peak on the first step. Right: a windy landscape has a dominant global maximum at $32^\circ$ and a seductive local one near $68^\circ$; the starting angle decides your fate.
+
+---
+
+## 6 · Code Skeleton
+
+```python
+import numpy as np
+
+v0, g = 25.0, 9.81
+
+def R(theta): # range, theta in RADIANS
+ return v0 ** 2 / g * np.sin(2 * theta)
+
+def dR(theta): # derivative w.r.t. theta (rad)
+ return 2 * v0 ** 2 / g * np.cos(2 * theta)
+
+def maximise(start_deg, eta, tol=1e-6, max_iter=500):
+ theta = np.radians(start_deg)
+ history = [theta]
+ for k in range(max_iter):
+ g_k = dR(theta)
+ if abs(g_k) < tol:
+ break
+ theta = theta + eta * g_k # ASCENT (+); use - for descent
+ history.append(theta)
+ return np.degrees(theta), np.degrees(history), k + 1
+
+best, traj, steps = maximise(start_deg=20, eta=0.6)
+print(f"converged to θ = {best:.4f}° in {steps} steps")
+```
+
+Note the step size here ($\eta = 0.6$) is in *radian* space; the hero image uses degree-space so $\eta$ looks much larger (35) to produce the same effect.
+
+---
+
+## 7 · What Can Go Wrong
+
+- **Wrong sign.** Forgetting that maximisation is ascent ($+$) and minimisation is descent ($-$) sends you straight away from the answer at top speed. Symptom: loss *increases* every step.
+- **Units matter for $\eta$.** If you switch from radians to degrees, your effective step size rescales by $\approx 57$. Always re-tune $\eta$ after changing coordinates.
+- **Plateaus.** Where the gradient is near zero but we are not at an optimum (shallow terrain), the algorithm moves glacially. Momentum helps.
+- **Saddle points** (Ch.6 will formalise). Zero-gradient points that are minima in one direction and maxima in another. 1-D has no saddles, but 2-D and beyond have them *everywhere*; deep-learning losses are said to have far more saddles than local minima.
+- **Numerical gradient too noisy.** If $f'$ is estimated by finite differences, the step direction jitters. Always use the analytic derivative when you can, or autodiff (Pre-Req Ch.6).
+- **Forgetting to stop.** Running 10 000 iterations when 50 suffice wastes compute; running 5 iterations when you needed 500 gives garbage. Always log the loss curve and inspect it.
+
+---
+
+## 8 · Exercises
+
+*Three short ones — each is a one-line code change that teaches one failure mode of gradient descent.*
+
+1. **Wrong sign.** Change `+ eta * g_k` to `- eta * g_k` in the code skeleton, start from $\theta_0 = 20^\circ$, and predict what happens *before* you run it. Then run it.
+2. **Step too big.** For the quadratic bowl $f(\theta) = \tfrac{1}{2}(\theta - 3)^2$, find the largest $\eta$ that still converges. Pick $\eta$ just above that bound and watch $|\theta_k - 3|$ blow up exponentially.
+3. **Where you start matters.** In the non-convex panel of the hero image, sweep $\theta_0$ from $5^\circ$ to $85^\circ$ in $2^\circ$ steps and plot the final $R$ vs $\theta_0$. The staircase is a **basin-of-attraction plot** — your first taste of why deep learning is hard.
+
+---
+
+## 9 · Where This Reappears
+
+- **Pre-Req Ch.6.** The update $\theta \leftarrow \theta - \eta \nabla f(\theta)$ is the vector version of this chapter — same logic, with many dimensions.
+- **ML Ch.1 Linear Regression.** Stochastic gradient descent on the MSE loss. Convex, so Ch.4's easy case applies.
+- **ML Ch.5 Backprop & Optimisers.** Momentum, Adam, RMSProp, learning-rate schedules — every one is a patch on the Ch.4 base algorithm.
+- **ML Ch.6 Regularisation.** Adds a penalty term to the loss, still optimised with the same walk-downhill recipe.
+- **Reinforcement learning** and **variational inference.** Both ultimately maximise an expectation using stochastic ascent.
+
+Read back to Armstrong's line with fresh eyes: *"one small step… one giant leap…"* is literally the update rule of gradient descent *and* its long-run behaviour. Pre-Req Ch.6 makes the step a vector, and the entire ML book compounds those vector steps into the leaps we call *learning*.
+
+---
+
+## 10 · Progress Check — What We Can Solve Now
+
+![Progress visualization: gradient descent iterations converging to optimal angle, green trajectory shows final solution](./img/ch04-small-steps-progress-check.png)
+
+✅ **MAJOR UNLOCK: We can now OPTIMIZE single parameters!**
+
+**Example breakthrough**: Find the best launch angle $\theta$ that maximizes range while clearing wall and going under crossbar:
+- Start: $\theta_0 = 45°$
+- Iteration 1: Compute gradient, step → $\theta_1 = 38.2°$
+- Iteration 2: Step again → $\theta_2 = 36.8°$
+- Converge after ~10 iterations → $\theta^\star \approx 37°$ (optimal angle!)
+
+✅ **Unlocked capabilities:**
+- **Find best single parameter**: Optimize angle OR speed OR kick height (one at a time)
+- **Handle non-convex problems**: Even when $L(\theta)$ has no closed-form solution (e.g., with air resistance)
+- **Understand ML training**: The update rule $\theta \leftarrow \theta - \eta \nabla L$ is how EVERY model learns
+- **Verify constraint #1 & #2**: Can now search for $\theta$ that satisfies wall/crossbar conditions
+
+❌ **Still can't solve:**
+- ❌ **Optimize MULTIPLE parameters simultaneously**: What if we need best $(\theta, v_0)$ pair? Or best $(\theta, v_0, h_0, \text{spin})$ combination? Single-variable gradient descent only handles one knob. **Ch.5-6** extend to vectors
+- ❌ **Constraint #3 (Keeper speed)**: Haven't modeled horizontal motion yet, so can't compute "does ball arrive before keeper reacts?"
+- ❌ **Handle noisy measurements**: What if the striker's $v_0$ varies due to fatigue ($v_0 \sim \mathcal{N}(10, 0.5^2)$)? — That's **Ch.7** (probability)
+- ❌ **Guarantee global optimum**: We find *a* local minimum, but is it the *best*? (Convex optimization theory answers this, but it's beyond scope)
+
+**Real-world status**: We can now answer "What's the best $\theta$?" for a FIXED $v_0$. But we can't yet answer "What's the best $(\theta, v_0)$ combination?"
+
+**Next up:** Ch.5 gives us **matrices** — the tool to represent multi-dimensional data ($N$ free kicks × $d$ features) and prepare for multi-variable optimization in Ch.6.
+
+---
+
+## 11 · References
+
+- **Jon Krohn — *Calculus 2 for Machine Learning*.** The gradient-descent episode uses the same geometric framing as this chapter.
+- **3Blue1Brown — *Gradient descent, how neural networks learn*.** The 2-D visual intuition in ep. 2 maps directly onto the left panel of our hero image.
+- **Boyd & Vandenberghe — *Convex Optimization*, Ch.9.** The rigorous treatment of step-size selection, including backtracking line search — the standard industrial fix for Section 3.3's tuning question.
+- **Bottou, Curtis, Nocedal (2018), *Optimization Methods for Large-Scale Machine Learning*.** Modern survey; explains why SGD's noise is a *feature* in the non-convex ML setting.
