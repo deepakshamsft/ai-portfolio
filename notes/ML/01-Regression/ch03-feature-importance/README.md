@@ -193,6 +193,16 @@ Range: [−1, 1]. Rule of thumb: |ρ| < 0.05 → likely noise; |ρ| > 0.3 → wo
 
 x̄ = 3.0, ȳ = 3.58. SS_xy = 6.90, SS_xx = 10.0, SS_yy = 7.49. ρ = 6.90 / √(10 × 7.49) = 6.90 / 8.65 = **0.80** — strong positive linear association.
 
+**Spearman Correlation (monotonic, non-parametric):**
+
+Ranks both x and y, then computes Pearson on the ranks. Captures non-linear but *monotonic* relationships:
+
+$$\rho_s = 1 - \frac{6\,\sum d_i^2}{n(n^2-1)}$$
+
+where $d_i$ is the rank difference between $x_i$ and $y_i$.
+
+> ⚠️ **Use Spearman when the scatter plot shows a curve rather than a line** — e.g., `MedInc` vs `MedHouseVal` is roughly linear (Pearson fine), but `Population` vs price is non-linear (Spearman safer). Both are available via `scipy.stats.spearmanr`.
+
 **Mutual Information (non-linear relationships):**
 
 Mutual information measures *any* statistical dependence, not just linear:
