@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -44,7 +44,7 @@ Product team wants to add **price trend predictions**:
 3. **LSTM gates**: Solve vanishing gradient problem → remember patterns across 100+ steps
 4. **Bidirectional RNNs**: Look forward and backward in time for classification tasks
 
-🎯 **Application to UnifiedAI**: Train LSTM on synthetic monthly price index → forecast next month's value. Achieves 3-5% MAPE on held-out sequences.
+💡 **Application to UnifiedAI**: Train LSTM on synthetic monthly price index → forecast next month's value. Achieves 3-5% MAPE on held-out sequences.
 
 ---
 
@@ -116,6 +116,22 @@ Backprop through time (BPTT) computes $\partial \mathcal{L} / \partial \mathbf{h
 $$\frac{\partial \mathbf{h}_T}{\partial \mathbf{h}_0} = \prod_{t=1}^{T} \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_{t-1}} = \prod_{t=1}^{T} \mathbf{W}_{hh}^\top \cdot \mathrm{diag} \left(1 - \mathbf{h}_t^2\right)$$
 
 If the spectral radius of $\mathbf{W}_{hh}$ is $< 1$, this product shrinks exponentially with $T$. Gradients from early steps become numerically zero — the network cannot learn dependencies longer than ~10 steps. **Exploding gradients** occur when the radius is $> 1$: gradients blow up. Fix: gradient clipping.
+
+#### Numeric Example — Vanishing Gradient over 3 Steps
+
+Scalar RNN, $h_t = \tanh(w \cdot h_{t-1})$ with $w = 0.8$, $h_0 = 0.5$. The BPTT gradient factor at each step is $\frac{\partial h_t}{\partial h_{t-1}} = w(1-h_t^2)$.
+
+| Step $t$ | $h_t = \tanh(0.8 \cdot h_{t-1})$ | $\frac{\partial h_t}{\partial h_{t-1}} = 0.8(1-h_t^2)$ |
+|----------|----------------------------------|----------------------------------------------------------|
+| 1 | $\tanh(0.40) = 0.380$ | $0.8(1-0.145) = 0.684$ |
+| 2 | $\tanh(0.304) = 0.296$ | $0.8(1-0.088) = 0.730$ |
+| 3 | $\tanh(0.237) = 0.233$ | $0.8(1-0.054) = 0.757$ |
+
+**Gradient from loss at $t=3$ back to $h_0$:**
+
+$$\frac{\partial h_3}{\partial h_0} = 0.684 \times 0.730 \times 0.757 \approx 0.378$$
+
+For $T = 10$ steps, the product is $\approx 0.02$ — only 2% of the gradient signal survives. For $T = 20$: $\approx 0.0004$. The LSTM cell state bypasses this by using **element-wise gates** instead of repeated matrix multiplication.
 
 ### 3.3 LSTM Cell
 

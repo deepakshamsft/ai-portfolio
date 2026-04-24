@@ -10,16 +10,16 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
 - ✅ Ch.1-9: Achieved Constraints #1-4, understand attention mechanism
 - ✅ Ch.9: Attention = soft dictionary lookup (Q, K, V)
-- 🚨 **But single attention layer isn't enough for complex text!**
+- ⚠️ **But single attention layer isn't enough for complex text!**
 
 **What's blocking us:**
-🚨 **Need production-grade text understanding for property descriptions**
+⚠️ **Need production-grade text understanding for property descriptions**
 
 Product team's text feature requirements:
 - **Input**: "Spacious 3-bedroom home near excellent schools, recently renovated kitchen, ocean view"
@@ -39,7 +39,7 @@ Product team's text feature requirements:
 4. **Positional encoding**: Inject word order (attention is position-agnostic)
 5. **Layer normalization + residuals**: Stable training for deep networks
 
-🎯 **Outcome**: Transformer processes property descriptions → extracts rich text features → improves UnifiedAI accuracy to **$41k MAE** (from $45k XGBoost-only!)
+💡 **Outcome**: Transformer processes property descriptions → extracts rich text features → improves UnifiedAI accuracy to **$41k MAE** (from $45k XGBoost-only!)
 
 ⚡ **Bridge to AI track**: Every modern LLM (GPT-4, Claude, Gemini) is a transformer. This chapter is the foundation for the entire AI curriculum.
 
@@ -112,6 +112,22 @@ $$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax} \left(\f
 **Why divide by $\sqrt{d_k}$?** The raw dot products $\mathbf{Q}\mathbf{K}^\top$ grow in magnitude as $d_k$ increases — large magnitudes push softmax into regions with near-zero gradients. Dividing by $\sqrt{d_k}$ keeps the variance of the dot products at ~1 regardless of $d_k$, keeping gradients healthy.
 
 **What the softmax does:** $\mathbf{Q}\mathbf{K}^\top \in \mathbb{R}^{T \times T}$ — a matrix of raw similarity scores between every pair of positions. Applying softmax row-wise turns each row into a probability distribution over positions. Multiplying by $\mathbf{V}$ then produces, for each query position, a weighted average of all value vectors — weighted by how much that position attends to every other.
+
+#### Numeric Walkthrough — Scaled Dot-Product, $T=3$, $d_k=2$
+
+$$\mathbf{Q} = \mathbf{K} = \begin{pmatrix}1&0\\0&1\\1&0\end{pmatrix}, \quad \mathbf{V} = \begin{pmatrix}1&0\\0&1\\1&0\end{pmatrix}$$
+
+**Score matrix** $\mathbf{S} = \mathbf{Q}\mathbf{K}^\top / \sqrt{2}$:
+
+$$\mathbf{Q}\mathbf{K}^\top = \begin{pmatrix}1&0&1\\0&1&0\\1&0&1\end{pmatrix}, \quad \mathbf{S} = \frac{1}{\sqrt{2}}\begin{pmatrix}1&0&1\\0&1&0\\1&0&1\end{pmatrix} = \begin{pmatrix}0.707&0&0.707\\0&0.707&0\\0.707&0&0.707\end{pmatrix}$$
+
+Softmax of row 0: $[e^{0.707}, e^0, e^{0.707}] = [2.028, 1.0, 2.028]$, sum = 5.056.
+
+$$\alpha_0 = [0.401, 0.198, 0.401]$$
+
+Attention output row 0 = $\alpha_0 \mathbf{V} = 0.401[1,0] + 0.198[0,1] + 0.401[1,0] = [0.802, 0.198]$
+
+Token 0 blends mostly from positions 0 and 2 (they share the same key), with a smaller contribution from position 1.
 
 ### 3.2 Multi-Head Attention
 

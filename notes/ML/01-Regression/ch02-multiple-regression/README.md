@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -195,6 +195,20 @@ $$L = \frac{1}{n}\|\hat{\mathbf{y}} - \mathbf{y}\|^2 = \frac{1}{n}(\mathbf{X}\ma
 $$\frac{\partial L}{\partial \mathbf{w}} = \frac{2}{n}\mathbf{X}^\top(\hat{\mathbf{y}} - \mathbf{y})$$
 
 $$\frac{\partial L}{\partial b} = \frac{2}{n}\sum_{i=1}^{n}(\hat{y}_i - y_i)$$
+
+#### Numeric Verification — One Gradient Step, 3 Samples, 2 Features
+
+Toy data: $\mathbf{X} = [[1,2],[3,1],[2,3]]$, $\mathbf{y} = [5,6,8]$. Start with $\mathbf{w} = [0,0]$, $b = 0$.
+
+| $i$ | $x_1$ | $x_2$ | $y_i$ | $\hat{y}_i$ | $e_i = \hat{y}_i - y_i$ |
+|-----|--------|--------|--------|-------------|-------------------------|
+| 1 | 1 | 2 | 5 | 0 | −5 |
+| 2 | 3 | 1 | 6 | 0 | −6 |
+| 3 | 2 | 3 | 8 | 0 | −8 |
+
+$$\frac{\partial L}{\partial \mathbf{w}} = \frac{2}{3}\mathbf{X}^\top \mathbf{e} = \frac{2}{3}\begin{bmatrix}1\cdot(-5)+3\cdot(-6)+2\cdot(-8)\\2\cdot(-5)+1\cdot(-6)+3\cdot(-8)\end{bmatrix} = \frac{2}{3}\begin{bmatrix}-39\\-40\end{bmatrix} = \begin{bmatrix}-26.0\\-26.7\end{bmatrix}$$
+
+With $\eta = 0.01$: $\mathbf{w} \leftarrow [0,0] - 0.01 \times [-26.0,-26.7] = [0.260, 0.267]$
 
 #### Where Does Xᵀ Come From?
 

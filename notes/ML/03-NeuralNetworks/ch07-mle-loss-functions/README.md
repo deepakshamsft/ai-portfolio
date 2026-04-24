@@ -14,7 +14,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -23,7 +23,7 @@
 - 🤔 **But why did we use MSE for regression and cross-entropy for classification?**
 
 **What's blocking us:**
-🚨 **Loss functions chosen by convention, not understanding**
+⚠️ **Loss functions chosen by convention, not understanding**
 
 Engineer asks: "Why MSE for regression? Why not MAE? Why not something else?"
 - **Current**: Use MSE because "that's what everyone uses"
@@ -42,7 +42,7 @@ Engineer asks: "Why MSE for regression? Why not MAE? Why not something else?"
 3. **Custom losses**: Change noise assumption → derive new loss for your problem
 4. **Theory + practice**: Understand why every loss we've used was correct
 
-🎯 **Outcome**: Can derive correct loss for any problem (quantile regression, robust regression, etc.) from first principles!
+💡 **Outcome**: Can derive correct loss for any problem (quantile regression, robust regression, etc.) from first principles!
 
 ---
 
@@ -106,6 +106,20 @@ Maximising over $\theta$ (treating $\sigma^2$ as constant):
 $$\hat{\theta}_\text{MLE} = \arg\min_\theta \sum_i (y_i - \hat{y}_i)^2 = \arg\min_\theta \text{MSE}(\theta)$$
 
 **Conclusion:** MSE is the natural loss when the target is a real-valued quantity with symmetric noise described by a Gaussian.
+
+#### Numeric Example — 3-Sample Gaussian MLE
+
+Model predictions $\hat{y} = [2.5,\ 3.5,\ 5.5]$, targets $y = [2,\ 4,\ 6]$, assuming $\sigma^2 = 1$.
+
+| $i$ | $y_i$ | $\hat{y}_i$ | $\log p(y_i) = -\tfrac{1}{2}\log(2\pi) - \tfrac{(y_i-\hat{y}_i)^2}{2}$ |
+|-----|--------|-------------|-----------------------------------------------------------------------|
+| 1 | 2 | 2.5 | $-0.919 - 0.125 = -1.044$ |
+| 2 | 4 | 3.5 | $-0.919 - 0.125 = -1.044$ |
+| 3 | 6 | 5.5 | $-0.919 - 0.125 = -1.044$ |
+
+$$\ell(\theta) = \sum_i \log p(y_i) = -3.132, \quad \text{MSE} = \frac{0.25+0.25+0.25}{3} = 0.25$$
+
+Maximising $\ell$ (pushing $\ell$ toward 0) is identical to minimising MSE. The Gaussian constant $-\tfrac{1}{2}\log(2\pi)$ doesn't depend on $\theta$ — it vanishes when we differentiate.
 
 > 💡 **Connection to [Ch.1](../../01-Regression/ch01-linear-regression/)**: The Gaussian assumption means MSE heavily penalizes outliers (quadratic penalty). For concrete examples showing when MSE chases outliers vs when MAE or Huber loss work better, see the "Loss Function Evolution" section in Ch.1 — it walks through District A/B/C scenarios with real dollar values showing what each loss captures and misses.
 

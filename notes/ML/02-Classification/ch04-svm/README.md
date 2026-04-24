@@ -10,7 +10,7 @@
 
 ## §0 · The Challenge — Where We Are
 
-> 🎯 **FaceAI Mission**: >90% accuracy across 40 attributes
+> 💡 **FaceAI Mission**: >90% accuracy across 40 attributes
 >
 > | # | Constraint | Ch.1–3 Status | This Chapter |
 > |---|-----------|---------------|-------------|

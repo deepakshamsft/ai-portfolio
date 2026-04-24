@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -22,7 +22,7 @@
 
 **What's blocking us:**
 
-🚨 **We have one number ($38k MAE) and zero confidence in it:**
+⚠️ **We have one number ($38k MAE) and zero confidence in it:**
 
 1. **Lucky split?** — One train-test split might have easy test districts. Re-split and MAE could be $45k.
 2. **Systematic bias?** — $38k average hides the fact that the model might be $5k off on cheap homes and $80k off on expensive ones.
@@ -192,6 +192,20 @@ $$\bar{R}^2 = 1 - \frac{(1-R^2)(n-1)}{n-p-1}$$
 | Ch.5 (Ridge, 44 feats) | 44 | 0.680 | 0.677 |
 
 R² increased by 0.066 from Ch.2→Ch.4, but Adjusted R² increased less (0.062) because we added 36 features.
+
+#### Numeric Verification — MAE / RMSE / R² on 3 Predictions
+
+| $y_i$ | $\hat{y}_i$ | $|e_i|$ | $e_i^2$ |
+|--------|-------------|---------|--------|
+| 3.0 | 2.5 | 0.5 | 0.25 |
+| 5.0 | 5.8 | 0.8 | 0.64 |
+| 4.0 | 3.7 | 0.3 | 0.09 |
+
+$$\text{MAE} = \frac{0.5+0.8+0.3}{3} = 0.533, \quad \text{RMSE} = \sqrt{\frac{0.98}{3}} = 0.572$$
+
+$$\bar{y} = 4.0, \quad SS_\text{res} = 0.98, \quad SS_\text{tot} = (3-4)^2+(5-4)^2+(4-4)^2 = 2.0$$
+
+$$R^2 = 1 - \frac{0.98}{2.0} = 0.51$$
 
 ### Metric Comparison Table
 

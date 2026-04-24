@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -20,7 +20,7 @@
 
 **What's blocking us:**
 
-🚨 **We guessed our hyperparameters:**
+⚠️ **We guessed our hyperparameters:**
 
 | Hyperparameter | Current value | How we chose it | Optimal? |
 |---------------|---------------|-----------------|----------|
@@ -902,7 +902,7 @@ flowchart LR
 
 ### The 5 SmartVal Constraints — Final Status
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 
 | Constraint | Target | Ch.1 | Ch.5 | **Ch.7 FINAL** | Status |
 |------------|--------|------|------|----------------|--------|

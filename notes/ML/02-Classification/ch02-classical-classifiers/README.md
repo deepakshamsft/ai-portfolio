@@ -10,7 +10,7 @@
 
 ## §0 · The Challenge — Where We Are
 
-> 🎯 **FaceAI Mission**: >90% accuracy across 40 facial attributes
+> 💡 **FaceAI Mission**: >90% accuracy across 40 facial attributes
 >
 > | # | Constraint | Ch.1 Status | This Chapter |
 > |---|-----------|-------------|-------------|
@@ -76,6 +76,17 @@ Pure node (100% one class): $G = 0$. Maximum impurity (50/50): $G = 0.5$.
 **Split criterion**: Choose the feature and threshold that maximise the weighted Gini reduction:
 
 $$\Delta G = G(\text{parent}) - \frac{N_L}{N}G(\text{left}) - \frac{N_R}{N}G(\text{right})$$
+
+**Numeric example — splitting 10 faces on HOG feature threshold:**
+
+- **Parent** (10 faces: 5 Smiling, 5 Not): $G = 1-(0.5^2+0.5^2) = 0.50$
+- After split:
+  - **Left child** (6 faces: 6 Smiling, 0 Not): $G_L = 1-(1^2+0^2) = 0.00$ (pure!)
+  - **Right child** (4 faces: 0 Smiling, 4 Not): $G_R = 1-(0^2+1^2) = 0.00$ (pure!)
+
+$$\Delta G = 0.50 - \frac{6}{10}(0.00) - \frac{4}{10}(0.00) = 0.50$$
+
+A split that perfectly separates classes yields $\Delta G = 0.50$ (maximum gain). In practice splits are imperfect — the tree greedily picks the feature/threshold with the largest $\Delta G$ at each node.
 
 ### KNN — Distance and Vote
 

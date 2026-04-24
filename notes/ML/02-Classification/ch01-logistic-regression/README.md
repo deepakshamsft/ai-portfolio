@@ -10,7 +10,7 @@
 
 ## §0 · The Challenge — Where We Are
 
-> 🎯 **Grand Challenge**: Launch **FaceAI** — classify 40 facial attributes with >90% average accuracy
+> 💡 **Grand Challenge**: Launch **FaceAI** — classify 40 facial attributes with >90% average accuracy
 >
 > | # | Constraint | Target | Status |
 > |---|-----------|--------|--------|
@@ -87,6 +87,18 @@ $$L = -\frac{1}{N}\sum_{i=1}^{N}\big[y_i \log(\hat{p}_i) + (1-y_i)\log(1-\hat{p}
 - True label: $y = 1$ (Smiling)
 - Loss: $-[1 \cdot \log(0.891) + 0 \cdot \log(0.109)] = -\log(0.891) = 0.115$
 - If we'd predicted $\hat{p} = 0.5$: loss $= -\log(0.5) = 0.693$ (much worse!)
+
+**3-sample BCE walkthrough:**
+
+| $i$ | $z_i$ | $\hat{p}_i = \sigma(z_i)$ | $y_i$ | BCE contribution |
+|-----|--------|--------------------------|--------|------------------|
+| 1 | 2.0 | 0.880 | 1 | $-\log(0.880) = 0.128$ |
+| 2 | −0.5 | 0.378 | 0 | $-\log(1-0.378) = -\log(0.622) = 0.475$ |
+| 3 | 0.8 | 0.690 | 1 | $-\log(0.690) = 0.371$ |
+
+$$L = \frac{0.128 + 0.475 + 0.371}{3} = \frac{0.974}{3} = 0.325$$
+
+Sample 2 dominates the loss: the model predicted 37.8% chance of Smiling but the face was Not Smiling — a relatively large error.
 
 **Gradient for weight update:**
 

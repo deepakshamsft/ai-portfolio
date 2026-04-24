@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -19,7 +19,7 @@
 - 🤔 **But RNNs are slow and bottlenecked**
 
 **What's blocking us:**
-🚨 **RNN/LSTM bottleneck for sequence modeling**
+⚠️ **RNN/LSTM bottleneck for sequence modeling**
 
 Product team wants to add **text descriptions** to property listings:
 - **Input**: "Spacious 3-bedroom home near excellent schools, recently renovated kitchen"
@@ -40,7 +40,7 @@ Product team wants to add **text descriptions** to property listings:
 3. **Soft lookup**: Query-Key-Value mechanism → weighted sum over all positions
 4. **Interpretability**: Attention weights show which words model focuses on
 
-🎯 **Bridge to Ch.10**: Attention is the core mechanism behind every modern LLM (GPT, BERT, Claude, Gemini)
+💡 **Bridge to Ch.10**: Attention is the core mechanism behind every modern LLM (GPT, BERT, Claude, Gemini)
 
 ---
 
@@ -134,6 +134,22 @@ In English:
 If one key matches far better than the others, the softmax concentrates almost all the weight there — and the soft lookup degenerates to a hard one. If several keys match, the output is a *blend*.
 
 **That is attention.** Ch.10's scaled dot-product formula $\text{softmax}(QK^\top / \sqrt{d_k})V$ is this same equation written in matrix form with a variance-control denominator. Nothing more.
+
+#### Numeric Walkthrough — Q/K/V Attention, $T=3$, $d_k=2$
+
+$$\mathbf{Q} = \begin{pmatrix}1&0\\0&1\\1&1\end{pmatrix}, \quad \mathbf{K} = \begin{pmatrix}1&0\\0&1\\1&0\end{pmatrix}, \quad \mathbf{V} = \begin{pmatrix}2\\1\\3\end{pmatrix}$$
+
+For query 1 ($\mathbf{q}_1 = [1,0]$): raw scores $\mathbf{s} = \mathbf{q}_1 \cdot \mathbf{K}^\top = [1\cdot1+0\cdot0,\ 1\cdot0+0\cdot1,\ 1\cdot1+0\cdot0] = [1, 0, 1]$.
+
+| Score | $e^{s_i}$ | $\alpha_i = \text{softmax}$ | $\alpha_i v_i$ |
+|-------|-----------|---------------------------|----------------|
+| $s_1=1$ | $e^1=2.718$ | $2.718/7.155=0.380$ | $0.380 \times 2 = 0.760$ |
+| $s_2=0$ | $e^0=1.000$ | $1.000/7.155=0.140$ | $0.140 \times 1 = 0.140$ |
+| $s_3=1$ | $e^1=2.718$ | $2.718/7.155=0.380$ | $0.380 \times 3 = 1.140$ |
+
+$$\mathbf{c}_1 = \sum_i \alpha_i v_i = 0.760 + 0.140 + 1.140 = 2.040$$
+
+Query 1 attends equally to positions 1 and 3 (scores both = 1), blending their values (2 and 3) to get 2.04. Position 2 contributes less (score = 0).
 
 ---
 

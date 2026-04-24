@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -22,7 +22,7 @@
 - ❌ **But we can't train it yet!**
 
 **What's blocking us:**
-🚨 **We're SO CLOSE to Constraint #1 (<$40k MAE), but we're stuck!**
+⚠️ **We're SO CLOSE to Constraint #1 (<$40k MAE), but we're stuck!**
 
 Ch.4 gave us a neural network that can predict house values with $55k MAE (down from $70k). That's **$15k away from our target**. But:
 - **No training algorithm**: We have the architecture, but no efficient way to compute gradients through 3 layers
@@ -47,7 +47,7 @@ We know the architecture can represent the solution (Ch.3 proved neural networks
 3. **Learning rate schedules**: Warm restarts, cosine annealing for fine-tuning
 4. **Gradient clipping**: Prevent exploding gradients in deep networks
 
-🎯 **Expected outcome**: **<$40k MAE** → ✅ **Constraint #1 ACHIEVED!**
+💡 **Expected outcome**: **<$40k MAE** → ✅ **Constraint #1 ACHIEVED!**
 
 Adam's adaptive learning rates will push us from $55k → **$38k MAE** by:
 - Larger steps for slow-moving parameters (e.g., early-layer weights)
@@ -119,6 +119,31 @@ $$\frac{\partial \mathcal{L}}{\partial \mathbf{W}_l} = \mathbf{h}^{(l-1)\top} \d
 $$\frac{\partial \mathcal{L}}{\partial \mathbf{b}_l} = \sum_\text{batch} \delta^{(l)}$$
 
 **Plain-English:** Backprop is just the chain rule applied in reverse order. You store the forward-pass values ($\mathbf{z}^{(l)}$, $\mathbf{h}^{(l)}$), then multiply upstream error by local derivative at each layer.
+
+#### Numeric Walkthrough — Tiny Backward Pass
+
+Two-layer network: $x = 0.5$, $W_1 = 0.4$ (hidden weight), $W_2 = 0.6$ (output weight), target $y = 1.0$, $\eta = 0.1$.
+
+**Forward pass:**
+
+| Step | Formula | Value |
+|------|---------|-------|
+| Pre-activation | $z_1 = W_1 \cdot x = 0.4 \times 0.5$ | $0.20$ |
+| ReLU | $a_1 = \text{ReLU}(0.20)$ | $0.20$ |
+| Output | $\hat{y} = W_2 \cdot a_1 = 0.6 \times 0.20$ | $0.12$ |
+| MSE loss | $L = (\hat{y} - y)^2 = (0.12 - 1.0)^2$ | $0.7744$ |
+
+**Backward pass (chain rule):**
+
+$$\frac{\partial L}{\partial \hat{y}} = 2(\hat{y} - y) = 2(0.12 - 1.0) = -1.76$$
+
+$$\frac{\partial L}{\partial W_2} = \frac{\partial L}{\partial \hat{y}} \cdot a_1 = -1.76 \times 0.20 = -0.352$$
+
+$$\frac{\partial L}{\partial W_1} = \frac{\partial L}{\partial \hat{y}} \cdot W_2 \cdot \mathbf{1}[z_1 > 0] \cdot x = -1.76 \times 0.6 \times 1 \times 0.5 = -0.528$$
+
+**Weight update ($\eta = 0.1$):**
+- $W_2 \leftarrow 0.6 - 0.1 \times (-0.352) = 0.635$
+- $W_1 \leftarrow 0.4 - 0.1 \times (-0.528) = 0.453$
 
 ### 3.3 Optimiser update rules
 

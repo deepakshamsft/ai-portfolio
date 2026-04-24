@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -72,6 +72,20 @@ $$\hat{y} = \mathbf{w}^\top \mathbf{x} \quad \xrightarrow{\text{feature engineer
 The model is still **linear in the weights** $\mathbf{w}$ — only the inputs are transformed. This means all the math from Ch.1–2 (MSE, gradient descent, normal equation) works unchanged. The power comes from the feature transformation $\phi$.
 
 **The analogy:** Ch.1–2 gave us a ruler (straight line). This chapter gives us a flexible curve ruler — same material, just bent into shape.
+
+---
+
+#### Numeric Verification — Polynomial Expansion, 3 Rows
+
+Two features $x_1$ (MedInc) and $x_2$ (HouseAge). `PolynomialFeatures(degree=2, include_bias=False)` produces:
+
+| $x_1$ | $x_2$ | $x_1^2$ | $x_1 x_2$ | $x_2^2$ |
+|--------|--------|---------|-----------|--------|
+| 2 | 3 | 4 | 6 | 9 |
+| 4 | 1 | 16 | 4 | 1 |
+| 1 | 2 | 1 | 2 | 4 |
+
+Feature count: $d=2$ → $D=5$ (degree-2 expansion without bias). For 8 original features: $D = \binom{8+2}{2} - 1 = 44$ features.
 
 ---
 

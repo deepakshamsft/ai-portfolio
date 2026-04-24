@@ -14,7 +14,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -23,7 +23,7 @@
 - ❌ **But training is still a black box!**
 
 **What's blocking us:**
-🚨 **Can't debug training failures**
+⚠️ **Can't debug training failures**
 
 Engineer reports: "Model trained for 50 epochs, validation loss stopped decreasing at epoch 30, but I kept training — wasted 20 epochs and $50 in compute!"
 

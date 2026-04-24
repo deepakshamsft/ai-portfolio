@@ -14,7 +14,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -24,7 +24,7 @@
 - ❌ **But the model is overfitting!**
 
 **What's blocking us:**
-🚨 **CRITICAL PROBLEM: The model can't generalize!**
+⚠️ **CRITICAL PROBLEM: The model can't generalize!**
 
 We achieved Constraint #1 (ACCURACY) with $48k MAE, but there's a catastrophic issue:
 - **Training R²**: 0.88 (model fits training data very well)
@@ -55,7 +55,7 @@ The model learned "district #4217 = $412k" (memorization) instead of "coastal + 
 3. **Early stopping**: Halt training when validation loss stops improving → prevents late-epoch memorization
 4. **Batch normalization**: Normalizes layer inputs → implicit regularization
 
-🎯 **Expected outcome**: Close the generalization gap from 0.24 → <0.10 → ✅ **Constraint #2 ACHIEVED!**
+💡 **Expected outcome**: Close the generalization gap from 0.24 → <0.10 → ✅ **Constraint #2 ACHIEVED!**
 
 With L2 ($\lambda=0.01$) + Dropout (p=0.5) + Early Stopping (patience=10):
 - **Training R²**: 0.82 (slightly worse — that's expected!)
@@ -131,6 +131,18 @@ Gradient:
 $$\frac{\partial \mathcal{L}_\text{L1}}{\partial \mathbf{W}} = \frac{\partial \mathcal{L}_\text{MSE}}{\partial \mathbf{W}} + \lambda \cdot \text{sign}(\mathbf{W})$$
 
 The $\text{sign}(\mathbf{W})$ term applies a **constant pull** toward zero — small weights cross zero and stay there (sparsity). L2 applies a proportional pull — large weights shrink faster, small weights barely move (never exactly zero).
+
+#### Numeric Comparison — L2 vs L1 on 3 Weights
+
+Weights $\mathbf{w} = [2.0,\ 0.1,\ -1.5]$, $\lambda = 0.1$, $\eta = 1.0$ (regularization step only, data-loss gradient = 0 for clarity).
+
+| Weight | Before | Ridge: $w(1-2\eta\lambda)$ | Lasso: $\text{sign}(w)\max(|w|-\eta\lambda,0)$ |
+|--------|--------|-----------------------------|-----------------------------------------------|
+| $w_1 = 2.0$ | 2.0 | $2.0 \times 0.8 = 1.600$ | $\max(2.0-0.1,0) = 1.900$ |
+| $w_2 = 0.1$ | 0.1 | $0.1 \times 0.8 = 0.080$ | $\max(0.1-0.1,0) = \mathbf{0.000}$ |
+| $w_3 = -1.5$ | $-1.5$ | $-1.5 \times 0.8 = -1.200$ | $-\max(1.5-0.1,0) = -1.400$ |
+
+Key insight: Lasso drives $w_2 = 0.1$ to **exactly zero** (sparsity). Ridge shrinks it to 0.080 — smaller, but never zero. For the housing model, this means L1 automatically removes `AveBedrms` (near-zero weight) from the prediction.
 
 ### 3.3 Dropout
 

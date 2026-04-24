@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -132,6 +132,54 @@ The model has **no non-linearity** — it can only produce straight-line predict
 ### 4.2 · The Normal Equation
 
 > 📖 **Closed-form solution:** When data is small and noise is Gaussian, you can solve for weights algebraically rather than iterating. The full derivation — setting $\nabla L = 0$ and solving the resulting linear system — lives in [MathUnderTheHood ch05 — Matrices](../../../../MathUnderTheHood/ch05-matrices/). For this chapter, gradient descent is the focus because it scales to every model we build later.
+
+The MSE loss has a closed-form minimum. Set $\nabla_{\mathbf{W}} L = 0$ and solve:
+
+$$\mathbf{W}^* = (X^\top X)^{-1} X^\top \mathbf{y}$$
+
+This is the **Normal Equation** — a single matrix operation that lands at the exact global optimum in one shot. No learning rate, no epochs, no convergence check.
+
+#### Numeric Verification — OLS on 3 rows
+
+Toy data: $\mathbf{X} = [[1],[2],[3]]$, $\mathbf{y} = [2,4,5]$. Augment with a bias column: $\tilde{X} = [[1,1],[1,2],[1,3]]$.
+
+$$X^\top X = \begin{bmatrix}3 & 6\\6 & 14\end{bmatrix}, \quad X^\top y = \begin{bmatrix}11\\24\end{bmatrix}$$
+
+$$\det(X^\top X) = 3 \times 14 - 6 \times 6 = 6 \qquad (X^\top X)^{-1} = \tfrac{1}{6}\begin{bmatrix}14 & -6\\-6 & 3\end{bmatrix}$$
+
+$$\hat{\beta} = \tfrac{1}{6}\begin{bmatrix}14 & -6\\-6 & 3\end{bmatrix}\begin{bmatrix}11\\24\end{bmatrix} = \tfrac{1}{6}\begin{bmatrix}10\\6\end{bmatrix} = \begin{bmatrix}1.67\\1.00\end{bmatrix}$$
+
+| $x$ | $y$ | $\hat{y} = 1.00x + 1.67$ | residual |
+|-----|-----|--------------------------|----------|
+| 1 | 2 | 2.67 | −0.67 |
+| 2 | 4 | 3.67 | +0.33 |
+| 3 | 5 | 4.67 | +0.33 |
+
+MSE $= (0.45 + 0.11 + 0.11)/3 = 0.22$. Verify: gradient $\nabla_\beta \text{MSE} = 0$ at these weights (by construction).
+
+> 📝 **When to prefer the Normal Equation over gradient descent**
+
+| Criterion | Normal Equation | Gradient Descent |
+|---|---|---|
+| **Dataset size** | ✅ Small–medium ($n \lesssim 10{,}000$, $d \lesssim 1{,}000$) | ✅ Large datasets — $O(nd)$ per epoch vs $O(nd^2 + d^3)$ one-shot |
+| **Exact answer** | ✅ One shot, mathematically exact | ❌ Approximate — stops when loss stops changing |
+| **Hyperparameter tuning** | ✅ Zero — no learning rate or epoch count to tune | ❌ Requires tuning $\alpha$, batch size, stopping criterion |
+| **Feature scaling** | ✅ Not required — matrix algebra is scale-invariant | ❌ Essential — unscaled features produce mismatched gradients |
+| **Singular / ill-conditioned $X^\top X$** | ❌ Breaks — $X^\top X$ is not invertible when columns are linearly dependent (multicollinearity) or $d > n$ | ✅ Gradient descent still runs — just may be slow or noisy |
+| **Non-linear models** | ❌ No closed form exists for neural networks, decision trees, etc. | ✅ Works for any differentiable loss |
+| **Online / streaming data** | ❌ Must recompute the full inverse when data arrives | ✅ One mini-batch update per new batch |
+| **Memory footprint** | ❌ Must hold $X^\top X \in \mathbb{R}^{d \times d}$ in RAM; at $d = 10{,}000$ that is 800 MB | ✅ Only the current batch lives in memory |
+
+**Practical rule of thumb:**
+- $n < 10{,}000$ rows and $d < 500$ features → try the Normal Equation first; it gives the exact answer instantly.
+- Otherwise → gradient descent (or a numerical solver like `scipy.linalg.lstsq` that avoids explicit inversion).
+
+**Where the Normal Equation silently breaks:**
+1. **Multicollinearity** — if two features are highly correlated, $X^\top X$ is nearly singular. The "solution" still runs (numpy will invert an ill-conditioned matrix) but the weights are numerically garbage. Regularization (Ridge/Lasso in Ch.5) is the fix — Ridge replaces $(X^\top X)^{-1}$ with $(X^\top X + \lambda I)^{-1}$, which is always invertible.
+2. **$d > n$** — more features than rows means $X^\top X$ is rank-deficient and has infinitely many solutions. Gradient descent with early stopping or explicit regularization implicitly picks one; the raw Normal Equation does not.
+3. **Non-Gaussian noise** — the Normal Equation is the MLE solution *only* when residuals are i.i.d. Gaussian. If your residuals are heavy-tailed or skewed, the closed-form minimiser of MSE is no longer the statistically optimal estimator (MAE's closed form, the sample median, is better under Laplacian noise).
+
+> ⚡ **Why this chapter uses gradient descent anyway.** The Normal Equation is a dead end the moment you move to neural networks, logistic regression, or any non-linear model. The training loop from §3 — forward pass → loss → gradient → update — is the one universal recipe that works for every model in this track. Gradient descent here is intentional practice for what comes next.
 
 ---
 
@@ -331,6 +379,37 @@ Three questions every gradient answers:
 2. **How steep?** — The magnitude tells you how much the loss changes per unit change in W at the current position.
 3. **How far to step?** — Learning rate $\alpha$ decides what fraction of the gradient to act on. The gradient points the direction; $\alpha$ controls the size of each step.
 
+#### Why can't we just follow the gradient directly?
+
+The gradient is a **local linear approximation** — it tells you the slope *at your current position*, not the slope everywhere. The loss surface is a curved bowl, not a flat ramp. If you took the full step implied by the raw gradient value, you would almost certainly overshoot the minimum because the gradient was computed at a point that no longer describes where you land.
+
+Think of it this way: standing on a steep hillside, the gradient says "it's sloping at 45° downward." If you step *exactly* 45 metres in that direction, you'll walk off the hill. You need to scale that step down — take a small, cautious step, then re-measure the slope and adjust. That scaling factor is the learning rate $\alpha$.
+
+The weight update is:
+
+$$w \leftarrow w - \alpha \cdot \frac{\partial L}{\partial w}$$
+
+Without $\alpha$, this would be $w \leftarrow w - \frac{\partial L}{\partial w}$, which would take a step the size of the raw gradient. On the California Housing loss surface, the gradient at epoch 1 is −8.0 (from §6.3). A step of 8 units would launch $w$ far past the optimum and the loss would explode.
+
+#### The two failure modes
+
+| $\alpha$ too **large** | $\alpha$ too **small** |
+|---|---|
+| Step overshoots the minimum | Step is valid but tiny |
+| Next gradient points the opposite direction | Correct direction every epoch |
+| Loss oscillates or diverges | Loss converges — but may take thousands of epochs |
+| Training breaks | Training works, just slowly |
+
+#### How to pick a starting value
+
+There is no single correct $\alpha$ — it depends on the loss scale, the feature scales, and the optimizer. Practical starting points:
+
+- **Vanilla gradient descent on scaled data**: try `0.1`, then halve it if loss oscillates
+- **`SGDRegressor` (sklearn)**: default `eta0=0.01`, `learning_rate='invscaling'` (decays over time)
+- **Adam optimizer** (Ch.3 Neural Networks): `1e-3` is the near-universal default; it is largely insensitive to the exact value because Adam adapts the effective step per parameter
+
+> 👁 **Visual:** The "Learning Rate Effect" sub-section below shows two animations — a well-chosen $\alpha$ walking smoothly into the minimum vs. a too-large $\alpha$ spiralling outward. If you want the intuition before the math, skip ahead and come back.
+
 **Hiking analogy.** You are standing on a hillside. The gradient is the slope underfoot. Take a step *opposite* the direction you'd slide (i.e., downhill). Repeat. If the slope is gentle you're near the bottom; if steep, you have far to go. MSE's quadratic shape guarantees this slope gets gentler as you approach the minimum — the steps self-shorten automatically.
 
 ---
@@ -470,7 +549,53 @@ The loop-back edge label **"same N rows, updated W and b"** is the epoch story i
 
 ---
 
-### The Loss Surface — Why MSE Converges Reliably
+### 6.4a · Stopping Criteria — When Have We Reached the Minimum?
+
+The flowchart above has two exit conditions: `Δloss < ε` and `max epochs reached`. Both deserve a concrete explanation.
+
+#### The three standard stopping rules
+
+**1. Loss-change threshold ($\Delta L < \varepsilon$)**
+Stop when the loss improvement between consecutive epochs falls below a chosen threshold:
+
+$$|\,L_{\text{epoch } t} - L_{\text{epoch } t-1}\,| < \varepsilon$$
+
+This is the most principled criterion: you're asking "did anything meaningful happen last epoch?" When the answer is no, you're at or near the bottom of the parabola.
+
+**2. Gradient-norm threshold ($\|\nabla L\| < \varepsilon_g$)**
+Stop when the gradient vector is nearly zero:
+
+$$\left\|\frac{\partial L}{\partial \mathbf{W}}\right\| < \varepsilon_g$$
+
+This is the direct mathematical criterion — the minimum is defined as the point where the gradient is zero. In practice it's less common than loss-change because computing the full gradient norm requires an extra pass, and on real data the gradient rarely reaches true zero due to noise.
+
+**3. Max-epoch budget**
+Always set a hard ceiling (e.g., 1000 epochs). This is not a convergence criterion — it's a safety net. If the loss is still changing significantly at epoch 1000, something else is wrong (learning rate too small, features not scaled), and infinite training would not fix it.
+
+#### How is $\varepsilon$ chosen?
+
+There is no universal rule, but three anchors help:
+
+| Anchor | Practical guidance |
+|---|---|
+| **Fraction of initial loss** | Set $\varepsilon = 10^{-4} \times L_0$ where $L_0$ is the loss at epoch 0. Stopping when the improvement is less than 0.01% of where you started is a reasonable signal of diminishing returns. |
+| **Business tolerance** | For the SmartVal problem, MSE is in (×\$100k)². An improvement of $10^{-4}$ in MSE corresponds to ~\$1 improvement in RMSE. Set $\varepsilon$ to the MSE equivalent of your smallest meaningful RMSE gain — e.g., if \$500 RMSE gain is noise, set $\varepsilon \approx (0.005)^2 = 0.000025$. |
+| **sklearn default** | `LinearRegression` (which uses the Normal Equation) has no $\varepsilon$ — it solves exactly. `SGDRegressor` defaults to `tol=1e-3` on loss change and `max_iter=1000`. These are reasonable starting points when you have no other information. |
+
+#### What "near the minimum" actually looks like in practice
+
+Looking back at the epoch table from §6.4:
+
+| Epoch | MSE | $\Delta$MSE per epoch |
+|------:|----:|----------------------:|
+| 100 | 0.785864 | — |
+| 200 | 0.700670 | **−0.085194** over 100 epochs → **~0.00085/epoch** |
+
+At epoch 200 the loss is improving by roughly 0.00085 per epoch. With initial MSE of 5.63, that is $0.00085 / 5.63 \approx 0.015\%$ — well within a `tol=1e-3` stopping rule. Training past epoch 200 on this single-feature problem returns almost nothing.
+
+> ⚠️ **A common trap: stopping too early vs. too late.** Set $\varepsilon$ too large and you stop before the loss has genuinely flattened — the model is still improvable but you declared victory. Set it too small (or rely only on max-epochs) and you run thousands of unnecessary epochs, burning compute on gains smaller than measurement noise. The epoch table is your diagnostic: if adjacent epochs differ in the 5th decimal place, you're done.
+
+> ⚡ **Patience and early stopping.** In neural networks (Ch.3), you'll add a third dimension: *validation loss*. You can stop not just when the training loss stops improving, but when the *held-out* loss starts rising — which is the first sign of overfitting. That concept (early stopping as regularization) is introduced there; the same $\varepsilon$ logic applies.
 
 With the gradient descent loop in hand, it is now clear why MSE's geometry makes convergence so well-behaved. When the model is linear in its parameters and the loss is MSE, the empirical risk is *exactly* a quadratic function of the parameters. For the single-feature model (holding $b$ fixed for clarity) we can expand the empirical MSE as a quadratic in $w$:
 

@@ -14,7 +14,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -45,7 +45,7 @@ Product team wants to extend UnifiedAI:
 3. **Pooling layers**: Downsample spatially (max/average pooling) → translation invariance
 4. **Hierarchical features**: Layer 1 = edges, Layer 2 = textures, Layer 3 = objects
 
-🎯 **Application to SmartVal AI**: Train CNN on synthetic 8×8 neighborhood grids (bright = maintained, dark = distressed) → classify as "tidy" or "distressed". This will later extend to real satellite imagery for **Constraint #3 (MULTI-TASK)** partial progress.
+💡 **Application to SmartVal AI**: Train CNN on synthetic 8×8 neighborhood grids (bright = maintained, dark = distressed) → classify as "tidy" or "distressed". This will later extend to real satellite imagery for **Constraint #3 (MULTI-TASK)** partial progress.
 
 ---
 
@@ -99,6 +99,25 @@ $$H_\text{out} = \left\lfloor \frac{H + 2p - k}{s} \right\rfloor + 1$$
 $$\text{params} = (k \times k \times C_\text{in} + 1) \times C_\text{out}$$
 
 where $C_\text{in}$ is input channels and $C_\text{out}$ is the number of filters. The `+1` is the bias per filter.
+
+#### Numeric Walkthrough — Convolution on a 3×3 Input
+
+Input $\mathbf{X}$ (3×3) and kernel $\mathbf{K}$ (2×2, no padding, stride=1):
+
+$$\mathbf{X} = \begin{pmatrix}1 & 0 & 1 \\ 0 & 1 & 0 \\ 1 & 0 & 1\end{pmatrix}, \quad \mathbf{K} = \begin{pmatrix}1 & 0 \\ 0 & 1\end{pmatrix}$$
+
+Output size: $H_\text{out} = (3 - 2)/1 + 1 = 2$. Output is 2×2:
+
+| $(i,j)$ | Patch $\mathbf{X}[i{:}i+2,\, j{:}j+2]$ | Dot with $\mathbf{K}$ | Value |
+|---------|------------------------------------------|-----------------------|-------|
+| (0,0) | $[[1,0],[0,1]]$ | $1{\cdot}1+0{\cdot}0+0{\cdot}0+1{\cdot}1$ | **2** |
+| (0,1) | $[[0,1],[1,0]]$ | $0+0+0+0$ | **0** |
+| (1,0) | $[[0,1],[1,0]]$ | $0+0+0+0$ | **0** |
+| (1,1) | $[[1,0],[0,1]]$ | $1+0+0+1$ | **2** |
+
+$$\text{Output} = \begin{pmatrix}2 & 0 \\ 0 & 2\end{pmatrix}$$
+
+The kernel acts as a **diagonal detector** — it fires when top-left and bottom-right pixels are both bright (as in the symmetric cross pattern of this input).
 
 ### 3.2 Pooling
 
