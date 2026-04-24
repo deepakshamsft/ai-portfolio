@@ -8,7 +8,7 @@
 
 ---
 
-## §0 · The Challenge — Where We Are
+## 0 · The Challenge — Where We Are
 
 > 💡 **FaceAI Mission**: >90% accuracy across 40 attributes
 >
@@ -44,13 +44,13 @@ graph LR
 
 ![Chapter animation](./img/ch04-svm-needle.gif)
 
-## §1 · Core Idea
+## 1 · Core Idea
 
 SVM finds the hyperplane $\mathbf{w} \cdot \mathbf{x} + b = 0$ that maximises the **margin** — the distance to the nearest training points on either side (the **support vectors**). For non-linearly separable data, the **kernel trick** maps features to a higher-dimensional space where a linear separator exists, without explicitly computing the transformation. The **soft margin** ($C$ parameter) allows some points inside the margin, trading off margin width against classification errors.
 
 ---
 
-## §2 · Running Example
+## 2 · Running Example
 
 Same FaceAI setup: 5,000 CelebA images, HOG features, predicting **Smiling**. We compare:
 1. **Linear SVM**: Direct hyperplane in HOG feature space
@@ -59,7 +59,7 @@ Same FaceAI setup: 5,000 CelebA images, HOG features, predicting **Smiling**. We
 
 ---
 
-## §3 · Math
+## 3 · Math
 
 ### Hard-Margin SVM (Separable Case)
 
@@ -93,7 +93,7 @@ Only **support vectors** (points on or inside the margin) contribute. Typically 
 
 ---
 
-## §4 · Step by Step
+## 4 · Step by Step
 
 ```
 ALGORITHM: SVM for Smiling Detection
@@ -114,7 +114,7 @@ Input:  X_train (HOG features), y_train (Smiling)
 
 ---
 
-## §5 · Key Diagrams
+## 5 · Key Diagrams
 
 ```mermaid
 graph TD
@@ -140,7 +140,7 @@ graph LR
 
 ---
 
-## §6 · Hyperparameter Dial
+## 6 · Hyperparameter Dial
 
 | Parameter | Too Low | Sweet Spot | Too High |
 |-----------|---------|------------|----------|
@@ -151,7 +151,7 @@ graph LR
 
 ---
 
-## §7 · Code Skeleton
+## 7 · Code Skeleton
 
 ```python
 from sklearn.svm import SVC
@@ -180,7 +180,7 @@ print(f"Support vectors: {n_sv} ({sum(n_sv)/len(y_train)*100:.1f}% of training d
 
 ---
 
-## §8 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 | Mistake | Symptom | Fix |
 |---------|---------|-----|
@@ -201,7 +201,7 @@ graph TD
 
 ---
 
-## §9 · Where This Reappears
+## 9 · Where This Reappears
 
 | Concept | Reappears in | How |
 |---------|-------------|-----|
@@ -212,7 +212,7 @@ graph TD
 
 ---
 
-## §10 · Progress Check
+## 10 · Progress Check
 
 | # | Constraint | Target | Status | Evidence |
 |---|-----------|--------|--------|----------|
@@ -233,7 +233,7 @@ graph LR
 
 ---
 
-## §11 · Bridge to Next Chapter
+## 11 · Bridge to Next Chapter
 
 SVM with RBF kernel pushes Smiling accuracy to ~89% — but we chose $C=10$ and $\gamma=0.01$ by intuition. Are these optimal? What about the decision threshold (0.5 by default)?
 

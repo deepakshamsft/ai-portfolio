@@ -32,7 +32,7 @@ Product team's text feature requirements:
 3. **No learned projections**: Uses raw features, can't learn better representations
 
 **What this chapter unlocks:**
-🚀 **Transformer architecture — the modern standard:**
+⚡ **Transformer architecture — the modern standard:**
 1. **Multi-head attention**: 8 heads → focus on multiple patterns simultaneously
 2. **Stacked layers**: 6-12 transformer blocks → hierarchical feature learning
 3. **Learned projections**: $W_Q, W_K, W_V$ → optimal feature transformations

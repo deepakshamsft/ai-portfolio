@@ -39,7 +39,7 @@ Product team wants to extend UnifiedAI:
 - **Problem 3**: No translation invariance — if a roof appears 5 pixels left, the network must relearn "roof" from scratch
 
 **What this chapter unlocks:**
-🚀 **Convolutional Neural Networks (CNNs):**
+⚡ **Convolutional Neural Networks (CNNs):**
 1. **Convolutional layers**: Sliding 3×3 filters with **weight sharing** → 9 parameters instead of 8,192
 2. **Translation equivariance**: Same filter detects edges/textures anywhere in the image
 3. **Pooling layers**: Downsample spatially (max/average pooling) → translation invariance

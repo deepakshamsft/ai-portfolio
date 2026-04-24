@@ -39,7 +39,7 @@ Engineer reports: "Model trained for 50 epochs, validation loss stopped decreasi
 - **Constraint #5 partial**: Production requires **monitoring** — need to see what's happening during training
 
 **What this chapter unlocks:**
-🚀 **TensorBoard — training instrumentation:**
+⚡ **TensorBoard — training instrumentation:**
 1. **Loss curves**: Plot train/val loss per epoch → see overfitting start
 2. **Weight histograms**: Track weight distributions → detect dead neurons, weight collapse
 3. **Gradient histograms**: Monitor gradient magnitudes → catch vanishing/exploding gradients
@@ -94,6 +94,16 @@ Each layer's weight matrix $\mathbf{W}$ at epoch $t$ has a distribution. Healthy
 **Exploding gradients:** weight histograms spread wider and wider; $\|\nabla\|$ grows uncontrollably.
 
 **Dead neurons:** if the gradient histogram for a layer is a spike at zero, those neurons have died (ReLU outputs $\max(0, x)$; once input is always negative, gradient is always 0).
+
+### Numeric Example — Gradient Health Check
+
+| Training step | Mean gradient | Std gradient | Max \|grad\| | Health indicator |
+|---------------|---------------|--------------|--------------|------------------|
+| 100 | −0.003 | 0.052 | 0.21 | ✅ Healthy |
+| 500 | −0.001 | 0.008 | 0.04 | ⚠️ Possibly vanishing |
+| 1000 | 0.000 | 0.001 | 0.003 | ❌ Vanishing — check lr/init |
+
+Rule of thumb: if `std(grad) < 1e-3` at mid-training, gradients are vanishing. If `max(|grad|) > 10`, gradients are exploding. TensorBoard's histogram tab shows this at a glance.
 
 ### 3.2 Embedding Projector
 

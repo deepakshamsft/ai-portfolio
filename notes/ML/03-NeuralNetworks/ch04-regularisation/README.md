@@ -49,7 +49,7 @@ The model learned "district #4217 = $412k" (memorization) instead of "coastal + 
 3. **Training too long**: Model keeps optimizing training loss even after test loss starts increasing
 
 **What this chapter unlocks:**
-🚀 **The generalization breakthrough:**
+⚡ **The generalization breakthrough:**
 1. **L2 regularization (weight decay)**: Penalizes large weights ($\lambda \|\mathbf{W}\|^2$) → simpler, smoother models
 2. **Dropout**: Randomly zeros 50% of neurons during training → forces redundant representations
 3. **Early stopping**: Halt training when validation loss stops improving → prevents late-epoch memorization

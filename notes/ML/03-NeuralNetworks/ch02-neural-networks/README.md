@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -20,7 +20,7 @@
 - ✅ Ch.3: Proved the solution — one hidden layer with non-linear activation can learn any function (Universal Approximation Theorem)
 
 **What's blocking us:**
-🚨 **We need to actually BUILD the neural network!**
+⚠️ **We need to actually BUILD the neural network!**
 
 Ch.3 showed that hidden layers + ReLU can solve XOR, but we sketched the architecture on a toy problem (4 data points, 2 features). Now we need:
 - **Multi-layer architecture**: How many layers? How many units per layer?
@@ -41,7 +41,7 @@ Product management wants **Constraint #1 (ACCURACY)** progress:
 - Reality: Relationships are **non-linear** (doubling income doesn't double value in expensive areas)
 
 **What this chapter unlocks:**
-🚀 **Full neural network architecture for non-linear regression:**
+⚡ **Full neural network architecture for non-linear regression:**
 1. **Architecture design**: 3-layer network (input → hidden1 → hidden2 → output)
 2. **Activation functions**: ReLU for hidden layers (fast, no saturation), linear for output (regression)
 3. **Weight initialization**: He initialization for ReLU (prevents vanishing/exploding activations)
@@ -117,6 +117,19 @@ $$\hat{y} = \mathbf{w}_3^\top \mathbf{h}^{(2)} + b_3 \quad \mathbf{w}_3 \in \mat
 | $d_1, d_2$ | width of hidden layers 1 and 2 |
 | $g_1, g_2$ | activation functions (typically ReLU) |
 | $\hat{y}$ | scalar prediction (no activation = linear output) |
+
+### Numeric Forward-Pass Example
+
+Network: 2 inputs → 1 hidden neuron (ReLU) → 1 output (linear).  
+Weights: $w_1=0.5$, $w_2=-0.3$, $b_h=0.1$; $w_{out}=0.8$, $b_{out}=0.2$.
+
+| Sample | $x_1$ | $x_2$ | $z_h = 0.5x_1-0.3x_2+0.1$ | $h = \text{ReLU}(z_h)$ | $\hat{y} = 0.8h+0.2$ |
+|--------|-------|-------|-----------------------------|------------------------|----------------------|
+| A | 1.0 | 2.0 | 0.5−0.6+0.1 = 0.0 | ReLU(0.0) = 0.0 | 0.2 |
+| B | 2.0 | 1.0 | 1.0−0.3+0.1 = 0.8 | ReLU(0.8) = 0.8 | 0.84 |
+| C | 0.0 | 3.0 | 0.0−0.9+0.1 = −0.8 | ReLU(−0.8) = 0.0 | 0.2 |
+
+Sample C: the negative pre-activation is clipped to 0 by ReLU — this is dead neuron territory for this input.
 
 ### 3.3 Activation functions
 

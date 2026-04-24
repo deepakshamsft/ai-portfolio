@@ -8,7 +8,7 @@
 
 ---
 
-## §0 · The Challenge — Where We Are
+## 0 · The Challenge — Where We Are
 
 > 💡 **FaceAI Mission**: >90% accuracy across 40 facial attributes
 >
@@ -48,13 +48,13 @@ graph LR
 
 ![Chapter animation](./img/ch03-metrics-needle.gif)
 
-## §1 · Core Idea
+## 1 · Core Idea
 
 Classification evaluation is about **correctness of discrete decisions**, not magnitude of errors. The four outcomes (TP, FP, TN, FN) form the confusion matrix — every metric is a ratio of these counts. The critical insight: **threshold tuning** is a first-class concern. Changing the decision threshold from 0.5 to 0.3 trades precision for recall. ROC and PR curves show this trade-off across all thresholds.
 
 ---
 
-## §2 · Running Example
+## 2 · Running Example
 
 **FaceAI evaluation suite** across three attributes with different class balances:
 
@@ -68,7 +68,7 @@ We'll evaluate the Ch.1 logistic regression model on all three to show why metri
 
 ---
 
-## §3 · Math
+## 3 · Math
 
 ### Confusion Matrix Counts
 
@@ -86,7 +86,7 @@ Test set: 750 faces, 19 Bald, 731 Not-Bald.
 
 **Model A** (always predicts Not-Bald):
 - $TP=0, FP=0, TN=731, FN=19$
-- Accuracy $= 731/750 = 97.5\%$ 🎉 (but useless!)
+- Accuracy $= 731/750 = 97.5\%$ ⚡ (but useless!)
 - Recall $= 0/19 = 0\%$ 💀
 - F1 $= 0$
 
@@ -115,7 +115,7 @@ Hamming loss measures per-label error rate (forgiving). Subset accuracy requires
 
 ---
 
-## §4 · Step by Step
+## 4 · Step by Step
 
 ```
 ALGORITHM: Comprehensive Evaluation Pipeline
@@ -142,7 +142,7 @@ Input:  y_true, y_prob (predicted probabilities), threshold=0.5
 
 ---
 
-## §5 · Key Diagrams
+## 5 · Key Diagrams
 
 ```mermaid
 graph TD
@@ -164,7 +164,7 @@ graph LR
 
 ---
 
-## §6 · Hyperparameter Dial
+## 6 · Hyperparameter Dial
 
 | Parameter | Too Low | Sweet Spot | Too High |
 |-----------|---------|------------|----------|
@@ -174,7 +174,7 @@ graph LR
 
 ---
 
-## §7 · Code Skeleton
+## 7 · Code Skeleton
 
 ```python
 from sklearn.metrics import (classification_report, confusion_matrix,
@@ -206,7 +206,7 @@ for attr in ['Smiling', 'Bald', 'Eyeglasses']:
 
 ---
 
-## §8 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 | Mistake | Symptom | Fix |
 |---------|---------|-----|
@@ -227,7 +227,7 @@ graph TD
 
 ---
 
-## §9 · Where This Reappears
+## 9 · Where This Reappears
 
 | Concept | Reappears in | How |
 |---------|-------------|-----|
@@ -238,7 +238,7 @@ graph TD
 
 ---
 
-## §10 · Progress Check
+## 10 · Progress Check
 
 | # | Constraint | Target | Status | Evidence |
 |---|-----------|--------|--------|----------|
@@ -259,7 +259,7 @@ graph LR
 
 ---
 
-## §11 · Bridge to Next Chapter
+## 11 · Bridge to Next Chapter
 
 Now we can properly evaluate any classifier. The LogReg baseline holds at 88% on Smiling — but can we push higher? Linear models draw straight decision boundaries. What if the optimal boundary is curved?
 

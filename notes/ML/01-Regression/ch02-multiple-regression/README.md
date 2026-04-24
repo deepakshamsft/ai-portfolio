@@ -271,7 +271,7 @@ Xᵀ · e                                            (2×3) · (3×1) → (2×1)
 >
 > The transpose appears precisely at the chain-rule step: the Jacobian $\mathbf{X}$ maps weight-space to error-space ($d \to n$), and multiplying by $\mathbf{X}^\top$ maps back from error-space to weight-space ($n \to d$).
 >
-> 📖 **Jacobians and the full matrix chain rule** are derived in [MathUnderTheHood ch06 — Gradient & Chain Rule](../../../../MathUnderTheHood/ch06-gradient-chain-rule/).
+> 📖 **Jacobians and the full matrix chain rule** are derived in [MathUnderTheHood ch06 — Gradient & Chain Rule](../../../MathUnderTheHood/ch06-gradient-chain-rule/).
 
 > 💡 **The transpose is the backprop rule.** In a neural network, `Xᵀ @ error` is exactly what the backward pass through a linear layer computes. Every time you call `loss.backward()` in PyTorch, this matrix multiply is running — one per layer. Understanding it here, for a 3-row California Housing dataset, is the entire conceptual foundation of neural network backpropagation.
 
@@ -444,7 +444,7 @@ A = (1/3) XᵀX,  where XᵀX entries are:
 
 Eigenvalues: $\lambda_1 \approx 2.39$, $\lambda_2 \approx 0.28$ → ratio ≈ 8.5. A mildly elongated bowl — gradient descent converges reasonably fast. This is the geometry you get **because** we standardized the features.
 
-> 📖 **Eigenvalues and quadratic forms** are covered in [MathUnderTheHood ch05 — Matrices](../../../../MathUnderTheHood/ch05-matrices/).
+> 📖 **Eigenvalues and quadratic forms** are covered in [MathUnderTheHood ch05 — Matrices](../../../MathUnderTheHood/ch05-matrices/).
 
 ![Loss surface: unscaled features (elongated ellipse, zigzag path) vs. scaled features (circular bowl, smooth path)](./img/loss_surface_ellipse.png)
 

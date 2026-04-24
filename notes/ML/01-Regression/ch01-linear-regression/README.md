@@ -131,7 +131,7 @@ The model has **no non-linearity** — it can only produce straight-line predict
 
 ### 4.2 · The Normal Equation
 
-> 📖 **Closed-form solution:** When data is small and noise is Gaussian, you can solve for weights algebraically rather than iterating. The full derivation — setting $\nabla L = 0$ and solving the resulting linear system — lives in [MathUnderTheHood ch05 — Matrices](../../../../MathUnderTheHood/ch05-matrices/). For this chapter, gradient descent is the focus because it scales to every model we build later.
+> 📖 **Closed-form solution:** When data is small and noise is Gaussian, you can solve for weights algebraically rather than iterating. The full derivation — setting $\nabla L = 0$ and solving the resulting linear system — lives in [MathUnderTheHood ch05 — Matrices](../../../MathUnderTheHood/ch05-matrices/). For this chapter, gradient descent is the focus because it scales to every model we build later.
 
 The MSE loss has a closed-form minimum. Set $\nabla_{\mathbf{W}} L = 0$ and solve:
 

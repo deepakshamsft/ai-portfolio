@@ -38,7 +38,7 @@ Product team wants to add **price trend predictions**:
 - **Required**: $228k (extrapolates trend)
 
 **What this chapter unlocks:**
-🚀 **Recurrent Neural Networks (RNNs) and LSTMs:**
+⚡ **Recurrent Neural Networks (RNNs) and LSTMs:**
 1. **Recurrent hidden state**: $h_t$ summarizes all past inputs $x_1, ..., x_t$
 2. **Sequential processing**: Process one time step at a time, updating memory
 3. **LSTM gates**: Solve vanishing gradient problem → remember patterns across 100+ steps

@@ -37,7 +37,7 @@
 - **Conclusion**: The $38k number was partly lucky. The model has structural blind spots.
 
 **What this chapter unlocks:**
-🚀 **Complete regression evaluation toolkit:**
+⚡ **Complete regression evaluation toolkit:**
 1. **Multiple error metrics**: MAE vs RMSE vs MAPE vs R² — each reveals different failure modes
 2. **Residual diagnostics**: Where and how the model fails (systematic bias, heteroscedasticity)
 3. **Cross-validation**: Stable performance estimate across multiple splits

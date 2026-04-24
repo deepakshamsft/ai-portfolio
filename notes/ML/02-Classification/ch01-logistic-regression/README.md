@@ -8,7 +8,7 @@
 
 ---
 
-## §0 · The Challenge — Where We Are
+## 0 · The Challenge — Where We Are
 
 > 💡 **Grand Challenge**: Launch **FaceAI** — classify 40 facial attributes with >90% average accuracy
 >
@@ -50,13 +50,13 @@ graph LR
 
 ![Chapter animation](./img/ch01-logistic-regression-needle.gif)
 
-## §1 · Core Idea
+## 1 · Core Idea
 
 Logistic regression takes a linear combination of features ($z = \mathbf{w} \cdot \mathbf{x} + b$) and squashes it through the **sigmoid function** $\sigma(z) = 1/(1+e^{-z})$, producing a probability between 0 and 1. Train by minimising binary cross-entropy (not MSE), and threshold the output at 0.5 to classify. The math is linear regression with two changes: (1) sigmoid output, (2) cross-entropy loss.
 
 ---
 
-## §2 · Running Example
+## 2 · Running Example
 
 **FaceAI's first task**: Detect whether a celebrity is **Smiling** (48% positive rate — nearly balanced).
 
@@ -69,7 +69,7 @@ Why HOG? Raw pixels (4,096 features) contain too much noise for linear models. H
 
 ---
 
-## §3 · Math
+## 3 · Math
 
 **Sigmoid activation:**
 
@@ -108,7 +108,7 @@ Same form as linear regression — the sigmoid and cross-entropy cancel to give 
 
 ---
 
-## §4 · Step by Step
+## 4 · Step by Step
 
 ```
 ALGORITHM: Logistic Regression for Smiling Detection
@@ -132,7 +132,7 @@ Output: Trained weights w, bias b
 
 ---
 
-## §5 · Key Diagrams
+## 5 · Key Diagrams
 
 ```mermaid
 graph TD
@@ -157,7 +157,7 @@ graph LR
 
 ---
 
-## §6 · Hyperparameter Dial
+## 6 · Hyperparameter Dial
 
 | Parameter | Too Low | Sweet Spot | Too High |
 |-----------|---------|------------|----------|
@@ -168,7 +168,7 @@ graph LR
 
 ---
 
-## §7 · Code Skeleton
+## 7 · Code Skeleton
 
 ```python
 import numpy as np
@@ -196,7 +196,7 @@ print(confusion_matrix(y_test, y_pred))
 
 ---
 
-## §8 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 | Mistake | Symptom | Fix |
 |---------|---------|-----|
@@ -219,7 +219,7 @@ graph TD
 
 ---
 
-## §9 · Where This Reappears
+## 9 · Where This Reappears
 
 | Concept | Reappears in | How |
 |---------|-------------|-----|
@@ -230,7 +230,7 @@ graph TD
 
 ---
 
-## §10 · Progress Check
+## 10 · Progress Check
 
 | # | Constraint | Target | Status | Evidence |
 |---|-----------|--------|--------|----------|
@@ -251,7 +251,7 @@ graph LR
 
 ---
 
-## §11 · Bridge to Next Chapter
+## 11 · Bridge to Next Chapter
 
 We have a working binary classifier for Smiling (~88%). But logistic regression is a **linear** model — it draws a straight line (hyperplane) through HOG feature space. What if the decision boundary is curved? What if we want **interpretable rules** ("if cheeks raised AND mouth open → Smiling")?
 

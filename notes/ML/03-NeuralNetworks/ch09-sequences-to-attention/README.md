@@ -16,7 +16,7 @@
 **What we know so far:**
 - ✅ Ch.1-16: Achieved Constraints #1-4, have training instrumentation (TensorBoard)
 - ✅ Ch.7-8: Can handle images (CNN) and sequences (RNN/LSTM)
-- 🤔 **But RNNs are slow and bottlenecked**
+- 💡 **But RNNs are slow and bottlenecked**
 
 **What's blocking us:**
 ⚠️ **RNN/LSTM bottleneck for sequence modeling**
@@ -34,7 +34,7 @@ Product team wants to add **text descriptions** to property listings:
 - **Scalability**: Can't use full GPU parallelism → expensive compute wasted
 
 **What this chapter unlocks:**
-🚀 **Attention mechanism — the foundation for Transformers (Ch.10):**
+⚡ **Attention mechanism — the foundation for Transformers (Ch.10):**
 1. **Parallel processing**: All words processed simultaneously (no sequential bottleneck)
 2. **Direct connections**: Word 20 can directly "look at" word 1 (no information loss)
 3. **Soft lookup**: Query-Key-Value mechanism → weighted sum over all positions

@@ -8,7 +8,7 @@
 
 ---
 
-## §0 · The Challenge — Where We Are
+## 0 · The Challenge — Where We Are
 
 > 💡 **FaceAI Mission**: >90% accuracy across 40 attributes
 >
@@ -45,13 +45,13 @@ graph LR
 
 ![Chapter animation](./img/ch05-hyperparameter-tuning-needle.gif)
 
-## §1 · Core Idea
+## 1 · Core Idea
 
 Hyperparameter tuning searches a space of model configurations (C, gamma, threshold, class_weight) to find the combination that maximises a validation metric (F1-macro for classification). Grid search is exhaustive, random search is surprisingly effective, and Bayesian optimization is smart. For classification, **threshold tuning** is a first-class hyperparameter — the default 0.5 is arbitrary and often suboptimal for imbalanced classes.
 
 ---
 
-## §2 · Running Example
+## 2 · Running Example
 
 **Tuning FaceAI's classifiers** on CelebA:
 - **LogReg**: Tune $C \in \{0.01, 0.1, 1, 10, 100\}$, `penalty`, `class_weight`
@@ -61,7 +61,7 @@ Hyperparameter tuning searches a space of model configurations (C, gamma, thresh
 
 ---
 
-## §3 · Math
+## 3 · Math
 
 ### Grid Search
 
@@ -101,7 +101,7 @@ $$t_l^* = \arg\max_{t \in [0, 1]} F_1(\hat{p}_l > t, y_l)$$
 
 ---
 
-## §4 · Step by Step
+## 4 · Step by Step
 
 ```
 ALGORITHM: Hyperparameter Tuning Pipeline
@@ -131,7 +131,7 @@ THRESHOLD TUNING (per-attribute):
 
 ---
 
-## §5 · Key Diagrams
+## 5 · Key Diagrams
 
 ```mermaid
 graph TD
@@ -158,7 +158,7 @@ graph LR
 
 ---
 
-## §6 · Hyperparameter Dial
+## 6 · Hyperparameter Dial
 
 | Parameter | Too Low | Sweet Spot | Too High |
 |-----------|---------|------------|----------|
@@ -171,7 +171,7 @@ graph LR
 
 ---
 
-## §7 · Code Skeleton
+## 7 · Code Skeleton
 
 ```python
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, cross_val_score
@@ -210,7 +210,7 @@ print(f"Optimal threshold: {best_threshold:.3f}")
 
 ---
 
-## §8 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 | Mistake | Symptom | Fix |
 |---------|---------|-----|
@@ -233,7 +233,7 @@ graph TD
 
 ---
 
-## §9 · Where This Reappears
+## 9 · Where This Reappears
 
 | Concept | Reappears in | How |
 |---------|-------------|-----|
@@ -244,7 +244,7 @@ graph TD
 
 ---
 
-## §10 · Progress Check
+## 10 · Progress Check
 
 | # | Constraint | Target | Status | Evidence |
 |---|-----------|--------|--------|----------|
@@ -265,7 +265,7 @@ graph LR
 
 ---
 
-## §11 · Bridge to Next Chapter
+## 11 · Bridge to Next Chapter
 
 With tuned hyperparameters and per-attribute thresholds, FaceAI achieves ~92% on Smiling — exceeding the 90% target. But we've only addressed binary classification on a single attribute. The full FaceAI challenge requires:
 

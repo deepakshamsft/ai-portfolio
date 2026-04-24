@@ -36,7 +36,7 @@
 - XGBoost might blow linear models away entirely
 
 **What this chapter unlocks:**
-🚀 **Systematic optimization:**
+⚡ **Systematic optimization:**
 1. **Grid Search**: Exhaustive sweep of small parameter spaces
 2. **Random Search**: Efficient for large spaces (Bergstra & Bengio proof)
 3. **Bayesian Optimization**: Smart trial selection using Optuna

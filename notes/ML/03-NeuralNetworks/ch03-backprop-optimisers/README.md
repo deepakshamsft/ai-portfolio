@@ -41,7 +41,7 @@ We know the architecture can represent the solution (Ch.3 proved neural networks
 3. **Adaptive learning rates**: Per-parameter step sizes that automatically adjust
 
 **What this chapter unlocks:**
-🚀 **The training breakthrough:**
+⚡ **The training breakthrough:**
 1. **Backpropagation**: Efficient chain-rule computation of gradients (one backward pass = all gradients)
 2. **Adam optimizer**: Adaptive per-parameter learning rates + momentum → 5-10× faster convergence
 3. **Learning rate schedules**: Warm restarts, cosine annealing for fine-tuning

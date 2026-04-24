@@ -37,12 +37,12 @@ Ch.4 expanded 8 features to 44 polynomial features. Many of these are noise:
 - Their polynomial products (`AveRooms²`, `AveRooms × AveBedrms`, `AveBedrms²`) make it worse
 
 **What this chapter unlocks:**
-🎉 **Regularization controls both problems simultaneously:**
+⚡ **Regularization controls both problems simultaneously:**
 - **Ridge (L2)**: Shrinks ALL weights → handles multicollinearity, stabilizes predictions
 - **Lasso (L1)**: Shrinks SOME weights to exactly zero → automatic feature selection
 - **Elastic Net**: Best of both → shrink + select
 
-Result: **~$38k MAE** 🎯 **Target achieved!**
+Result: **~$38k MAE** 💡 **Target achieved!**
 
 ```mermaid
 flowchart LR
@@ -796,7 +796,7 @@ flowchart TD
 
 ## 10 · Progress Check — What We Can Solve Now
 
-🎉 **MILESTONE: $40k MAE TARGET ACHIEVED!**
+⚡ **MILESTONE: $40k MAE TARGET ACHIEVED!**
 
 ✅ **Unlocked capabilities:**
 - **MAE < $40k**: Ridge achieves ~$38k MAE → **Constraint #1 (ACCURACY) ✅**

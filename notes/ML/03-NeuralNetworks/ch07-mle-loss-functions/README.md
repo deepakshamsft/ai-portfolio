@@ -20,7 +20,7 @@
 **What we know so far:**
 - ✅ Ch.1-14: Achieved Constraints #1, #2, #3, #4
 - ✅ Can train models for regression, binary classification, multi-class segmentation
-- 🤔 **But why did we use MSE for regression and cross-entropy for classification?**
+- 💡 **But why did we use MSE for regression and cross-entropy for classification?**
 
 **What's blocking us:**
 ⚠️ **Loss functions chosen by convention, not understanding**
@@ -36,7 +36,7 @@ Engineer asks: "Why MSE for regression? Why not MAE? Why not something else?"
 - **Custom objectives**: Production systems need custom losses (e.g., asymmetric costs: underestimate expensive homes = worse than overestimate cheap homes)
 
 **What this chapter unlocks:**
-🚀 **Principled loss function selection via Maximum Likelihood Estimation (MLE):**
+⚡ **Principled loss function selection via Maximum Likelihood Estimation (MLE):**
 1. **MLE framework**: Choose parameters that maximize P(observed data | model)
 2. **Loss derivation**: Negative log-likelihood → derives MSE, MAE, BCE, cross-entropy
 3. **Custom losses**: Change noise assumption → derive new loss for your problem

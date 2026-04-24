@@ -19,7 +19,7 @@ Expand these cross-links during editorial review if you want chapter-specific re
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
@@ -29,7 +29,7 @@ Expand these cross-links during editorial review if you want chapter-specific re
 - ✅ Understand gradient descent, MSE, BCE, confusion matrix
 
 **What's blocking us:**
-🚨 **We just discovered a CRITICAL problem!**
+⚠️ **We just discovered a CRITICAL problem!**
 
 The product team ran Ch.2's logistic regression on the "Premium Neighborhood" classifier and found:
 - **Coastal + High-Income** districts: Correctly labeled as premium ✓
