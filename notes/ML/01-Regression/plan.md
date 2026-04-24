@@ -1,16 +1,17 @@
 # Plan — 01-Regression (remaining work)
 
 **Audit date:** 2026-04-24  
-**Completed:** Notation blocks, `0 · The Challenge` sections, 3–5 row numeric verification in all Math sections, Animation GIFs verified, RNG seeds set in all notebooks.
+**Completed:** Notation blocks, `0 · The Challenge` sections, 3–5 row numeric verification in all Math sections, Animation GIFs verified, RNG seeds set in all notebooks.  
+**Re-verified:** 2026-04-24 — all items below confirmed still pending (Mermaid emojis present; notebook todos require manual verification).
 
 ---
 
 ## README TODOs
 
 - [ ] **Mermaid emoji cleanup** — Remove non-approved emojis from Mermaid flowchart node labels. Remaining instances:
-  - `ch02-multiple-regression/README.md` line 54: `TARGET["🎯 $40k target"]` → replace 🎯 with text only
-  - `ch04-polynomial-features/README.md` line 53: `TARGET["🎯 $40k target…"]` → replace 🎯 with text only
-  - `ch03-feature-importance/README.md` line 863: `FIX3["📈 Increase n_repeats…"]` → replace 📈 with text only
+  - `ch02-multiple-regression/README.md` line 55: `TARGET["🎯 $40k target"]` → replace 🎯 with text only
+  - `ch04-polynomial-features/README.md` line 58: `TARGET["🎯 $40k target…"]` → replace 🎯 with text only
+  - `ch03-feature-importance/README.md` line 1015: `FIX3["📈 Increase n_repeats…"]` → replace 📈 with text only
 
 ---
 

@@ -5,8 +5,13 @@
 ## Per-chapter TODOs
 
 - [ ] **Emoji cleanup** — Replace remaining non-approved emojis in all sub-chapters. Approved set: `{💡, ⚠️, ⚡, 📖, ➡️}`.
-  - ch03: Remove `💀` on the Recall=0% line in the Math section.
-  - All chapters: Replace standalone `✅` / `❌` used as callout prefixes outside of status tables with approved alternatives.
+  - `ch03-metrics/README.md`: Remove `💀` on the `Recall $= 0/19 = 0\%$ 💀` line in the Math section. (Verified still present.)
+  - All chapters: Replace standalone `✅` / `❌` used as callout prefixes **outside** of status/progress tables with approved alternatives. (Verified still present in all 5 chapters — see details below.)
+    - `ch01-logistic-regression/README.md`: 4 bullet violations (`- ✅ Topic 01:…`, `- ✅ Understand MSE…`, `- ❌ **But we can only predict…`, `- ✅ **Constraint #1 PARTIAL**…`)
+    - `ch02-classical-classifiers/README.md`: 1 bullet violation (`- ✅ **Constraint #4 PARTIAL**…`)
+    - `ch03-metrics/README.md`: 1 bullet violation (`- ✅ **Constraint #1 VALIDATED**…`)
+    - `ch04-svm/README.md`: 1 bullet violation (`- ✅ **Constraint #1 IMPROVED**…`)
+    - `ch05-hyperparameter-tuning/README.md`: 2 bullet violations (`- ✅ **Constraint #1 ✅**…`, `- ✅ **Constraint #2 ✅**…`)
 
 ---
 

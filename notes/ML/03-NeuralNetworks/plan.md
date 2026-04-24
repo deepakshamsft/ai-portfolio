@@ -1,6 +1,6 @@
 # Plan — 03-NeuralNetworks
 
-Audit performed 2026-04-24. 12 README todos completed; 5 README todos remain. Notebook todos and automated-check scripts are all still pending.
+Audit performed 2026-04-24. Re-audited 2026-04-24. 12 README todos completed; **5 README todos remain (all 5 verified still pending — see evidence below)**. Notebook todos and automated-check scripts are all still pending.
 
 ---
 

@@ -1,6 +1,6 @@
 # Plan — 07-UnsupervisedLearning
 
-Remaining work after audit (2026-04-24). Completed: `Notation` and `0 · The Challenge` sections are present in all sub-chapters with downstream links.
+Remaining work after audit (2026-04-24, re-verified 2026-04-24). Completed: `Notation` and `0 · The Challenge` sections are present in all sub-chapters with downstream links.
 
 ---
 

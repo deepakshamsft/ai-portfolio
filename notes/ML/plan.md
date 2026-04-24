@@ -34,7 +34,7 @@ All NN chapters ch02–ch09 reference old single-track numbers. Remap to current
 ### 2.1 Misplaced section headings
 - [ ] `03-NeuralNetworks/ch06-rnns-lstms/README.md` — `## 9 · Where This Reappears` stub appears before `## 1 · Core Idea`; move it to after `## 8 · What Can Go Wrong`
 - [ ] `03-NeuralNetworks/ch10-transformers/README.md` — same issue: move `## 9 · Where This Reappears` to after section 8
-- [ ] `03-NeuralNetworks/ch03-backprop-optimisers/README.md` — duplicate `## 9 · Where This Reappears` stub at end of file; delete the duplicate (keep only the one in its canonical position)
+- [x] ~~`03-NeuralNetworks/ch03-backprop-optimisers/README.md` — duplicate `## 9 · Where This Reappears` stub~~ removed; only one instance remains at line 786 (canonical position)
 
 ### 2.2 Duplicate Notation block in ch03-feature-importance
 - [ ] `01-Regression/ch03-feature-importance/README.md` — standalone `## Notation` section between the opening blockquote and `## 0 · The Challenge` duplicates the blockquote's notation; remove the standalone section, keeping notation only in the opening blockquote
@@ -65,7 +65,6 @@ See individual `plan.md` files under each track folder for granular todos. Summa
 | Track | Plan.md | Remaining todos |
 |-------|---------|-----------------|
 | 01-Regression | `01-Regression/plan.md` | 4 (mermaid emoji, notebook mirrors, small numeric cells, TensorBoard) |
-| 01-Regression/ch03-feature-importance | `ch03-feature-importance/plan.md` | 1 (add Spearman correlation entry to Filter Methods) |
 | 02-Classification | `02-Classification/plan.md` | 4 (emoji cleanup, notebook mirrors, ch01 BCE demo, audit scripts) |
 | 03-NeuralNetworks | `03-NeuralNetworks/plan.md` | 14 (see plan.md for details) |
 | 04-RecommenderSystems | `04-RecommenderSystems/plan.md` | 6 (emoji ✅/❌, notebook mirroring, cross-links, CI checks) |
