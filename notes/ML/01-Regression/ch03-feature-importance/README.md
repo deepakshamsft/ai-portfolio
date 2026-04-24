@@ -135,7 +135,76 @@ Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
 
 > ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
 
+#### Log Transform & Box-Cox
+
+When a feature has a heavy right tail (long positive skew), standardisation alone may not help — the largest values still dominate. Log-transforming first compresses the tail:
+
+$$x' = \log(x + 1)$$
+
+(The `+1` guards against `log(0)` when values can be zero.)
+
+**Box-Cox generalises this:**
+
+$$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \\ \log x & \lambda = 0 \end{cases}$$
+
+`sklearn.preprocessing.PowerTransformer(method='box-cox')` finds the optimal λ by maximum likelihood.
+
+**When to log-transform vs standardise:** If a feature's histogram has a long right tail (e.g., `AveRooms` has a few districts with 20+ rooms), apply log1p *before* StandardScaler. If the feature is roughly symmetric, skip log and standardise directly.
+
+**5-value numeric walkthrough** (`Population` feature, μ=1427, σ=1132):
+
+| Raw | log1p(Raw) | z after log-scaling |
+|-----|-----------|---------------------|
+| 322 | 5.78 | −0.88 |
+| 2401 | 7.78 | +0.80 |
+| 496 | 6.21 | −0.46 |
+| 558 | 6.33 | −0.33 |
+| 565 | 6.34 | −0.32 |
+
+The raw scale ranges over 4× (322–2401); the log scale compresses this to a 2-unit range — gradient descent converges faster and weight magnitudes are more comparable.
+
+> 💡 **Scaling doubles as importance quantification.** Once features are on the same scale, a coefficient of 0.83 on `MedInc` and −0.12 on `Population` directly compare: income has 7× the marginal effect. We formalise this as Method 2 (Standardised Weights) in §8.
+
 ![Feature scaling: gradient paths before and after StandardScaler](./img/feature-scaling-gradient.gif)
+
+---
+
+### Filter Methods — Scoring Features Before Training
+
+Filter methods rank features by their statistical relationship to the target — no model is trained. Use them to prune large feature sets before applying a model.
+
+**Pearson Correlation (linear relationships):**
+
+$$\rho(x_j, y) = \frac{\sum(x_{ij}-\bar{x}_j)(y_i - \bar{y})}{\sqrt{\sum(x_{ij}-\bar{x}_j)^2 \cdot \sum(y_i-\bar{y})^2}}$$
+
+Range: [−1, 1]. Rule of thumb: |ρ| < 0.05 → likely noise; |ρ| > 0.3 → worth including; |ρ| > 0.7 → strong predictor.
+
+> ⚠️ **Pearson only captures linear associations.** A U-shaped relationship (e.g., performance vs experience — improves then plateaus) can have ρ ≈ 0 even when x is highly informative.
+
+**Pearson by hand** (5 points, x = MedInc sample, y = MedHouseVal sample):
+
+| i | x | y | x−x̄ | y−ȳ | (x−x̄)(y−ȳ) | (x−x̄)² |
+|---|---|---|------|-----|------------|--------|
+| 1 | 1.0 | 2.2 | −2.0 | −1.38 | +2.76 | 4.00 |
+| 2 | 2.0 | 2.8 | −1.0 | −0.78 | +0.78 | 1.00 |
+| 3 | 3.0 | 4.5 | 0.0 | +0.92 | 0.00 | 0.00 |
+| 4 | 4.0 | 3.9 | +1.0 | +0.32 | +0.32 | 1.00 |
+| 5 | 5.0 | 5.1 | +2.0 | +1.52 | +3.04 | 4.00 |
+
+x̄ = 3.0, ȳ = 3.58. SS_xy = 6.90, SS_xx = 10.0, SS_yy = 7.49. ρ = 6.90 / √(10 × 7.49) = 6.90 / 8.65 = **0.80** — strong positive linear association.
+
+**Mutual Information (non-linear relationships):**
+
+Mutual information measures *any* statistical dependence, not just linear:
+
+$$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)\,p(y)}$$
+
+> 📖 For the full information-theoretic derivation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
+
+`sklearn.feature_selection.mutual_info_regression` uses a k-nearest-neighbour estimator for continuous variables.
+
+**Lasso as embedded selection (bridge to Ch.5):**
+When you are unsure which features to drop, Lasso with cross-validated λ is the principled answer. The L1 penalty drives weak-signal coefficients exactly to zero — selection happens during training rather than before. Full treatment in [Ch.5 — Regularization](../ch05-regularization/).
 
 ---
 
@@ -375,6 +444,32 @@ Population       ·  0.00                 ·   0.01                 ·         $
 | **Population** | Near-zero on all three | Genuinely uninformative at district level — safe to drop without affecting MAE. |
 
 > 💡 **The three-lens rule.** A feature earns full trust only when all three lenses independently confirm its importance. MedInc passes all three. Latitude and Longitude together pass Methods 2 and 3 — the geographic signal is real, but only emerges jointly. AveBedrms fails Method 3 — its signal is almost entirely duplicated by AveRooms. Population fails all three.
+
+---
+
+### Variance Threshold — Dropping Near-Constant Features
+
+Before testing for multicollinearity, drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
+
+$$\text{Var}(x_j) = \frac{1}{n}\sum_{i=1}^{n}(x_{ij} - \bar{x}_j)^2$$
+
+Set a threshold τ (e.g., 0.01 after standardisation); drop any feature with Var < τ.
+
+`sklearn.feature_selection.VarianceThreshold(threshold=0.01)`
+
+**Numeric example** — 5-value near-constant column:
+
+| i | x | x − x̄ | (x − x̄)² |
+|---|---|--------|----------|
+| 1 | 2.01 | +0.004 | 0.000016 |
+| 2 | 2.00 | −0.006 | 0.000036 |
+| 3 | 2.02 | +0.014 | 0.000196 |
+| 4 | 2.01 | +0.004 | 0.000016 |
+| 5 | 1.99 | −0.016 | 0.000256 |
+
+Mean = 2.006, Var = 0.000520/5 = **0.000104 < 0.01** → drop this feature.
+
+For California Housing: none of the 8 base features hits this threshold, but engineered ratio features (e.g., `AveBedrms / AveRooms`) can produce near-constants in some districts.
 
 ---
 
@@ -676,6 +771,20 @@ Key annotation: *"The model is never retrained. Only the test-set column is shuf
 
 ---
 
+### Log Transform — Population Distribution Before and After
+
+![Log transform effect on Population distribution](./img/ch03-log-transform.png)
+
+### Pearson vs Mutual Information — Linear and Non-Linear Relationships
+
+![Pearson vs Mutual Information on linear vs U-shaped data](./img/ch03-pearson-vs-mi.png)
+
+### Lasso Coefficient Path
+
+![Lasso coefficient path — features going to zero](./img/ch03-lasso-path.png)
+
+---
+
 ## 6 · Hyperparameter Dial
 
 | Dial | Too Low | Sweet Spot | Too High |
@@ -829,6 +938,39 @@ HouseAge           0.001        0.060       0.029    1.2  ✅ Small, independent
 AveRooms           0.023        0.120       0.016    7.2  ⚡ Collinear w/ AveBedrms
 AveBedrms          0.002        0.100       0.005    6.8  ⚡ Collinear w/ AveRooms
 Population         0.001        0.010       0.002    2.1  ❌ Near-zero contribution
+```
+
+```python
+# ── 7. Log transform, variance threshold, and filter selection ─────────────
+from sklearn.preprocessing import PowerTransformer
+from sklearn.feature_selection import VarianceThreshold, mutual_info_regression
+from scipy.stats import pearsonr
+
+# Log transform before scaling
+# Option 1: manual log1p
+skewed_cols = [4]  # Population column index
+X_log = np.log1p(X_train.values[:, skewed_cols])
+
+# Option 2: Box-Cox (requires strictly positive values)
+pt = PowerTransformer(method='box-cox')
+X_boxcox = pt.fit_transform(X_train.values[:, skewed_cols])
+
+# Variance threshold — drop near-zero-variance features
+vt = VarianceThreshold(threshold=0.01)
+X_filtered = vt.fit_transform(X_train_s)
+print("Kept features:", X_filtered.shape[1])  # vs original X.shape[1]
+
+# Filter selection: Pearson and Mutual Information
+pearson_scores = [pearsonr(X_train_s[:, j], y_train)[0] for j in range(X_train_s.shape[1])]
+mi_scores = mutual_info_regression(X_train_s, y_train, random_state=42)
+
+filter_df = pd.DataFrame({
+    "Feature": data.feature_names,
+    "Pearson ρ": pearson_scores,
+    "Mutual Info": mi_scores,
+}).set_index("Feature").sort_values("Mutual Info", ascending=False)
+print("\nFilter selection scores:")
+print(filter_df.round(3).to_string())
 ```
 
 ---

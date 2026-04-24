@@ -48,7 +48,7 @@ Product management wants **Constraint #1 (ACCURACY)** progress:
 4. **Forward pass**: Compute predictions through the network layer-by-layer
 5. **Apply to California Housing**: Use all 8 features to predict `MedHouseVal`
 
-🎯 **Expected improvement**: ~$55k MAE (down from $70k) — **25% error reduction** by capturing non-linear feature interactions!
+⚡ **Expected improvement**: ~$55k MAE (down from $70k) — **25% error reduction** by capturing non-linear feature interactions!
 
 ---
 

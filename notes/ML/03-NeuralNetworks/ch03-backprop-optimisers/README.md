@@ -655,7 +655,7 @@ def adam_step(W, g, m, v, t, lr=1e-3, b1=0.9, b2=0.999, eps=1e-8):
 
 ## 9 · Progress Check — What We Can Solve Now
 
-🎉 **MAJOR MILESTONE**: ✅ **Constraint #1 (ACCURACY) ACHIEVED!**
+⚡ **MAJOR MILESTONE**: ✅ **Constraint #1 (ACCURACY) ACHIEVED!**
 
 **Unlocked capabilities:**
 - ✅ **Backpropagation**: Can compute gradients through any network depth in one backward pass

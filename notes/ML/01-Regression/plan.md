@@ -1,47 +1,23 @@
-# Plan — 01-Regression
+# Plan — 01-Regression (remaining work)
 
-**Audit summary:** Regression chapters mostly follow the canonical template but require small editorial fixes: replace non-approved emojis, add compact 3–5 row numeric worked examples in `Math` sections, and ensure notebooks mirror README examples exactly.
+**Audit date:** 2026-04-24  
+**Completed:** Notation blocks, `0 · The Challenge` sections, 3–5 row numeric verification in all Math sections, Animation GIFs verified, RNG seeds set in all notebooks.
 
 ---
 
-## Per-chapter TODOs
+## README TODOs
 
-- Convert callouts to approved set {💡, ⚠️, ⚡, 📖, ➡️} and remove decorative emoji where they interfere with parsing.
-- Add a 3–5 row numeric verification example in every `Math` subsection (OLS, closed-form updates, gradient steps, etc.).
-- Ensure each README contains a `Notation` block at the top and a `0 · The Challenge` section aligned to the grand challenge.
-- Verify `Animation` GIF exists and filename matches the chapter slug.
+- [ ] **Mermaid emoji cleanup** — Remove non-approved emojis from Mermaid flowchart node labels. Remaining instances:
+  - `ch02-multiple-regression/README.md` line 54: `TARGET["🎯 $40k target"]` → replace 🎯 with text only
+  - `ch04-polynomial-features/README.md` line 53: `TARGET["🎯 $40k target…"]` → replace 🎯 with text only
+  - `ch03-feature-importance/README.md` line 863: `FIX3["📈 Increase n_repeats…"]` → replace 📈 with text only
 
 ---
 
 ## Notebook TODOs
 
-- Mirror the README `Running Example`, `Math`, and `Step by Step` cells exactly.
-- Add deterministic small dataset cells (3–5 rows) reproducing numeric examples; set RNG seeds so CI is deterministic.
-- Add optional TensorBoard logging where training loops appear.
+- [ ] **Mirror README section structure** — Add `## Running Example`, `## Math`, and `## Step by Step` (or equivalent walkthrough heading) as markdown cells in the notebooks for **ch02, ch03, ch05, ch07**. ch01 and ch06 already have the structure.
 
----
+- [ ] **Add deterministic small dataset cells** — For each chapter notebook, add a code cell that reproduces the README's numeric worked example using a 3–5 row toy dataset. RNG seeds (`SEED = 42`) are already set; what is missing is the explicit cell that mirrors the README table (e.g., the OLS 3-row table in ch01 Math §4.2, the gradient-step table in ch02 Math §3.3, etc.). Needed in: **ch02, ch03, ch04, ch05, ch06, ch07**.
 
-## Sequence assessment
-
-- Regression chapter order is pedagogically correct (linear → multiple → feature importance → polynomial → regularisation → metrics → tuning). No reordering recommended; prefer editorial harmonization.
-
----
-
-## Automated checks to add
-
-- Emoji audit; Section checklist; Numeric walkthrough detector; Notebook mirror check.
-
----
-
-## Next steps
-
-- Apply the README edits and notebook mirroring patches, then run automated checks and surface remaining ambiguous items for human review.
-
----
-Automated README audit (2026-04-24):
-- Scanned README files under `notes/ML/01-Regression/` (chapter-level READMEs and chapter subfolders).
-- Common findings:
-	- Non-approved emojis found (examples: 🎯, ✅, 🚨). Replace with approved set: {💡, ⚠️, ⚡, 📖, ➡️}.
-	- Several `Math` sections lack a compact 3–5 row numeric worked example; add a short numeric verification block to each Math subsection.
-	- Animation image references exist for most chapters; verify filenames match chapter slugs and `img/` paths.
-- Recommended quick fixes: replace disallowed emojis, add tiny numeric examples in `Math`, and confirm notebook cells reproduce the README numeric examples.
+- [ ] **TensorBoard logging (optional)** — Add an optional, commented-out TensorBoard `SummaryWriter` cell in chapters with explicit training loops: **ch01, ch02, ch04, ch05, ch07**. Mark clearly as `# Optional: TensorBoard` so CI skips it by default.

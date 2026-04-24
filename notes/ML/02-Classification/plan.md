@@ -1,46 +1,23 @@
-# Plan — 02-Classification
-
-**Audit summary:** Classification chapters use the canonical structure but need compact numeric derivations (e.g., small logistic-regression example), stricter notation blocks, and notebook mirroring to ensure runnable examples reproduce README numbers.
+# Plan — 02-Classification (remaining TODOs only)
 
 ---
 
 ## Per-chapter TODOs
 
-- Replace non-approved callout emojis with the approved set {💡, ⚠️, ⚡, 📖, ➡️}.
-- Add a 3–5 row numeric verification example for logistic loss, decision boundary, and calibration checks.
-- Ensure `Notation`, `0 · The Challenge`, and `Running Example` sections are present and consistent across chapters.
-- Confirm `Animation` assets exist and are correctly named.
+- [ ] **Emoji cleanup** — Replace remaining non-approved emojis in all sub-chapters. Approved set: `{💡, ⚠️, ⚡, 📖, ➡️}`.
+  - ch03: Remove `💀` on the Recall=0% line in the Math section.
+  - All chapters: Replace standalone `✅` / `❌` used as callout prefixes outside of status tables with approved alternatives.
 
 ---
 
 ## Notebook TODOs
 
-- Mirror the README `Running Example`, `Math`, and `Step by Step` cells exactly and add deterministic seeds.
-- Provide a tiny synthetic dataset demonstration (3–5 rows) that reproduces the decision boundary and logits in the README.
-
----
-
-## Sequence assessment
-
-- Classification should remain after Regression in the track; no structural reorder required.
+- [ ] **Mirror README section labels** — All 5 notebooks currently use `§0`, `§1`, … headers. Add markdown cells with the exact README section names (`Running Example`, `Math`, `Step by Step`) so the notebook structure matches the README 1-to-1.
+- [ ] **Add 3-row inline synthetic demo (ch01)** — Insert a code cell in `ch01-logistic-regression/notebook.ipynb` that reproduces the README's exact 3-row BCE walkthrough (`z = [2.0, −0.5, 0.8]`, labels `[1, 0, 1]`) with a deterministic seed, printing each contribution and the mean loss = 0.325.
 
 ---
 
 ## Automated checks to add
 
-- Emoji audit; Section checklist; Numeric walkthrough detector; Notebook mirror check.
-
----
-
-## Next steps
-
-- Apply README and notebook edits for each chapter, run automated checks, and escalate ambiguous items for human review.
-
----
-Automated README audit (2026-04-24):
-- Scanned README files under `notes/ML/02-Classification/`.
-- Common findings:
-	- Non-approved emojis present (examples: 🎯, ✅). Replace with approved set: {💡, ⚠️, ⚡, 📖, ➡️}.
-	- Some `Math` sections (logistic loss, ROC/PR derivations) lack a compact 3–5 row numeric worked example; add a short numeric verification block.
-	- Ensure `Notation` block appears at chapter top for consistent symbol definitions.
-- Recommended quick fixes: replace emojis, add numeric verification blocks, and ensure notebooks reproduce README numbers.
+- [ ] **Emoji audit script** — Scan all sub-chapter READMEs for characters outside the approved emoji set and report offenders.
+- [ ] **Notebook mirror check** — Assert that each notebook contains markdown cells with the text `Running Example`, `Math`, and `Step by Step`.

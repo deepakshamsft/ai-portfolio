@@ -338,7 +338,7 @@ Adjust links and examples in an editorial pass if desired.
 
 ## 9 · Progress Check — What We Can Solve Now
 
-🎉 **MAJOR MILESTONE**: ✅ **Constraint #2 (GENERALIZATION) ACHIEVED!**
+⚡ **MAJOR MILESTONE**: ✅ **Constraint #2 (GENERALIZATION) ACHIEVED!**
 
 **Unlocked capabilities:**
 - ✅ **L2 regularization**: Shrinks weights toward zero → simpler, smoother models

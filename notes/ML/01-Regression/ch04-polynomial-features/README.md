@@ -303,7 +303,7 @@ This is **Runge's phenomenon** — high-degree interpolating polynomials oversho
 | 3 | 4 | 0.18 | 0.52 | 0.34 | ⚠️ Gap growing |
 | 4 | 5 | **0.00** | **1.85** | 1.85 | ❌ Severe overfit (zero bias, exploding variance) |
 
-> 🎯 **The takeaway:** Degree 2 minimises test MAE on this dataset. Degree 4 memorises the training noise and generalises worse than degree 1. The train MAE monotonically decreases — you **cannot** use training error alone to select degree.
+> 💡 **The takeaway:** Degree 2 minimises test MAE on this dataset. Degree 4 memorises the training noise and generalises worse than degree 1. The train MAE monotonically decreases — you **cannot** use training error alone to select degree.
 
 **California Housing translation:** The same pattern holds at scale. Degree 2 → test MAE ≈ $48k. Degree 4 → train MAE low but test MAE regresses toward $60k+ as 494 polynomial features fit noise.
 

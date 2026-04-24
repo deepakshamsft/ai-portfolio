@@ -1,45 +1,26 @@
 # Plan — 07-UnsupervisedLearning
 
-**Audit summary:** Unsupervised chapters (PCA, clustering, dimensionality reduction) are present; add numeric PCA/projector examples and ensure notebooks reproduce embeddings used in READMEs.
+Remaining work after audit (2026-04-24). Completed: `Notation` and `0 · The Challenge` sections are present in all sub-chapters with downstream links.
 
 ---
 
 ## Per-chapter TODOs
 
-- Standardise callout emoji usage to {💡, ⚠️, ⚡, 📖, ➡️}.
-- Add a 3–5 row numeric PCA example that shows the covariance, eigenvectors, and projected coordinates by hand or in a tiny cell.
-- Ensure `Notation` and `0 · The Challenge` appear and link to downstream topics (e.g., `ML/AI/Multimodal` where embeddings are reused).
+- [ ] **Emoji standardisation** — Replace `❌` used as callout bullets with approved emojis {💡, ⚠️, ⚡, 📖, ➡️}. Affected files:
+  - `ch01-clustering/README.md` line ~19 (`- ❌ **No labels!**`)
+  - `ch02-dimensionality-reduction/README.md` lines ~19–20 (`- ❌ **Can't visualise…**`, `- ❌ **Silhouette only…**`)
+
+- [ ] **Numeric PCA walkthrough** — Add a 3–5 row hand-computed example to `ch02-dimensionality-reduction/README.md` §3.1 that shows: raw data → centred matrix → covariance matrix → eigenvectors → projected coordinates. The current section has symbolic steps and an EVR table but no concrete number walkthrough.
 
 ---
 
 ## Notebook TODOs
 
-- Mirror README math and add deterministic small-data embedding demos and exporter-friendly artifacts for the embedding projector.
-- Keep examples tiny and reproducible on CPU.
-
----
-
-## Sequence assessment
-
-- Unsupervised modules serve as background for many later chapters; sequence is appropriate.
+- [ ] **Mirror README math** — Ensure each chapter notebook reproduces the key math examples from the README and adds deterministic small-data embedding demos with exporter-friendly artifacts for the embedding projector.
+- [ ] **CPU-reproducible examples** — Keep all notebook examples tiny and reproducible on CPU (small fixed datasets, `random_state=42` everywhere).
 
 ---
 
 ## Automated checks to add
 
-- Emoji audit; Section checklist; Numeric walkthrough detector; Notebook mirror check.
-
----
-
-## Next steps
-
-- Add numeric PCA/clustering examples, harmonise notebooks, and run the automated checks.
-
----
-Automated README audit (2026-04-24):
-- Scanned README files under `notes/ML/07-UnsupervisedLearning/`.
-- Common findings:
-	- Non-approved emojis present in some chapters (examples: 🎯). Replace with approved set: {💡, ⚠️, ⚡, 📖, ➡️}.
-	- PCA and clustering math sections would benefit from a 3–5 row numeric PCA covariance/eigenvector example and a tiny clustering distance computation example.
-	- Ensure notebooks reproduce embedding/projector outputs deterministically with small datasets and fixed RNG seeds.
-- Recommended quick fixes: replace emojis, add numeric PCA/clustering examples, and update notebooks for deterministic runs.
+- [ ] Emoji audit script; Section checklist; Numeric walkthrough detector; Notebook mirror check.
