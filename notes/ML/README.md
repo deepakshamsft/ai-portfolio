@@ -1,19 +1,25 @@
 # Machine Learning — Topic-Based Curriculum
 
+This curriculum covers the core paradigms of machine learning across 8 independent tracks. Each track has its own dataset, grand challenge, and chapter sequence — you can complete them in any order, though the Learning Paths below recommend progressions by experience level.
+
+## The Journey
+
+You start by predicting house prices with linear regression (Track 1), add facial attribute classification (Track 2), discover unsupervised customer segments (Track 7), then see how neural networks unify everything (Track 3). From there, choose specialized domains — recommendations, fraud detection, or reinforcement learning — before finishing with ensemble methods (Track 8), which improve every prior grand challenge. Each track is independent, but together they trace the path from "first ML model" to "production ML engineer."
+
 ## 8 Learning Tracks
 
 ### 🎯 Core Fundamentals (Start Here)
 
-#### 1. [Regression](01-Regression/README.md) — SmartVal AI
+#### 1. [Regression](01_regression/README.md) — SmartVal AI
 > **Dataset**: California Housing (20,640 districts, 8 features)  
 > **Grand Challenge**: <$40k MAE (regulatory appraisal accuracy)  
-> **Chapters**: 6 chapters (`ch01`–`ch06`) plus `GRAND_CHALLENGE.md`
+> **Chapters**: 7 chapters (`ch01`–`ch07`) plus `GRAND_CHALLENGE.md`
 
 Learn regression fundamentals with a real estate valuation system. Master loss functions (MSE, MAE, Huber), regularization (Ridge, Lasso), and tree ensembles.
 
 ---
 
-#### 2. [Classification](02-Classification/README.md) — FaceAI  
+#### 2. [Classification](02_classification/README.md) — FaceAI  
 > **Dataset**: CelebA (202,599 celebrity faces, 40 binary attributes)  
 > **Grand Challenge**: >90% average accuracy across 40 facial attributes  
 > **Chapters**: 5 chapters (`ch01`–`ch05`) from logistic regression through SVMs and tuning
@@ -22,7 +28,18 @@ Master classification with natural multi-label data. Learn logistic regression, 
 
 ---
 
-#### 3. [Neural Networks](03-NeuralNetworks/README.md) — UnifiedAI
+#### 7. [Unsupervised Learning](07_unsupervised_learning/README.md) — SegmentAI
+> **Dataset**: UCI Wholesale Customers (440 customers, 6 spending features)  
+> **Grand Challenge**: 5 actionable segments, silhouette score >0.5  
+> **Chapters**: 3 chapters (`ch01`–`ch03`) covering clustering, dimensionality reduction, and unsupervised metrics
+
+Learn clustering and dimensionality reduction. Master K-means, DBSCAN, HDBSCAN, PCA, t-SNE, UMAP, and cluster validation.
+
+---
+
+### 🧠 Intermediate / Deep Learning
+
+#### 3. [Neural Networks](03_neural_networks/README.md) — UnifiedAI
 > **Datasets**: California Housing (regression) + CelebA (classification)  
 > **Grand Challenge**: $28k MAE + 95% accuracy with same architecture  
 > **Chapters**: 10 chapters from XOR to Transformers
@@ -33,7 +50,7 @@ Discover how neural networks unify regression and classification. Same feedforwa
 
 ### 🔬 Specialized Paradigms
 
-#### 4. [Recommender Systems](04-RecommenderSystems/README.md) — FlixAI
+#### 4. [Recommender Systems](04_recommender_systems/README.md) — FlixAI
 > **Dataset**: MovieLens 100k (943 users, 1,682 movies, 100k ratings)  
 > **Grand Challenge**: >85% hit rate @ top-10 recommendations  
 > **Chapters**: 6 chapters from collaborative filtering to hybrid systems
@@ -42,7 +59,7 @@ Build personalization systems. Master collaborative filtering, matrix factorizat
 
 ---
 
-#### 5. [Anomaly Detection](05-AnomalyDetection/README.md) — FraudShield
+#### 5. [Anomaly Detection](05_anomaly_detection/README.md) — FraudShield
 > **Dataset**: Credit Card Fraud (284,807 transactions, 0.17% fraud)  
 > **Grand Challenge**: 80% recall @ 0.5% false positive rate  
 > **Chapters**: 6 chapters from statistical methods to ensemble detectors
@@ -51,32 +68,23 @@ Handle extreme class imbalance (0.17% fraud!). Learn isolation forests, autoenco
 
 ---
 
-#### 6. [Reinforcement Learning](06-ReinforcementLearning/README.md) — AgentAI
+#### 6. [Reinforcement Learning](06_reinforcement_learning/README.md) — AgentAI
 > **Environments**: GridWorld (4×4) + CartPole (OpenAI Gym)  
-> **Grand Challenge**: Understand trial-and-error learning paradigm  
-> **Chapters**: 6 theory chapters (MDPs → DQN → Policy Gradients)
+> **Grand Challenge**: Find optimal policy π* (GridWorld solved; CartPole ≥195/200 steps)  
+> **Chapters**: 6 chapters (MDPs → DQN → Policy Gradients)
 
-**Theory-only track (no notebooks)**. Master MDPs, Q-learning, Deep Q-Networks, policy gradients, and modern RL (PPO, A3C, SAC). Learn the fundamentals, then apply via libraries.
-
----
-
-### 🎓 Advanced Topics
-
-#### 7. [Unsupervised Learning](07-UnsupervisedLearning/README.md) — SegmentAI
-> **Dataset**: Customer Segmentation (8,950 customers, 18 features)  
-> **Grand Challenge**: 5 actionable segments, silhouette score >0.5  
-> **Chapters**: 3 chapters (`ch01`–`ch03`) covering clustering, dimensionality reduction, and unsupervised metrics
-
-Learn clustering and dimensionality reduction. Master K-means, hierarchical clustering, DBSCAN, PCA, t-SNE, UMAP, and cluster validation.
+Master MDPs, Q-learning, Deep Q-Networks, policy gradients, and modern RL (PPO, A3C, SAC). Theory-first track — companion notebooks are planned.
 
 ---
 
-#### 8. [Ensemble Methods](08-EnsembleMethods/README.md) — EnsembleAI
-> **Datasets**: Reuse all above (California Housing, CelebA, Credit Card Fraud)  
+### 🎓 Capstone
+
+#### 8. [Ensemble Methods](08_ensemble_methods/README.md) — EnsembleAI
+> **Datasets**: California Housing (regression) + CelebA (classification)  
 > **Grand Challenge**: Beat single models by 5%+  
 > **Chapters**: 6 chapters from bagging to stacking
 
-Cross-cutting topic. Master Random Forest, XGBoost, LightGBM, CatBoost, stacking, and production ensemble serving. See how ensembles improve every paradigm.
+Cross-cutting capstone. Ensemble methods are the most consistent winners in production ML — improving every prior grand challenge. Master Random Forest, XGBoost, LightGBM, SHAP, stacking, and production ensemble serving.
 
 ---
 
@@ -171,7 +179,6 @@ graph TB
     Ens -.-> Rec
     Ens -.-> Anom
     Ens -.-> RL
-    Ens -.-> Unsup
 ```
 
 1. ✅ **Regression API** — Real estate valuation (<$40k MAE, interpretable with SHAP)
@@ -190,7 +197,7 @@ graph TB
 **Before starting:**
 - Python programming (NumPy, Pandas, Matplotlib)
 - Basic statistics (mean, variance, probability distributions)
-- Linear algebra (vectors, matrices, dot products) — see [Math Under The Hood](../MathUnderTheHood/)
+- Linear algebra (vectors, matrices, dot products) — see [Math Under The Hood](../math_under_the_hood)
 
 **Recommended** (but not required):
 - Calculus (derivatives, gradients) — covered in Math track Ch.3-6
@@ -207,14 +214,14 @@ graph TB
 **After ML fundamentals:**
 
 ### For LLMs and Agentic AI:
-- **[AI Track](../AI/README.md)** — LLMs, RAG, agents, prompt engineering
-- **[Multi-Agent AI](../MultiAgentAI/README.md)** — Agent-to-agent coordination, MCP, shared memory
+- **[AI Track](../ai/README.md)** — LLMs, RAG, agents, prompt engineering
+- **[Multi-Agent AI](../multi_agent_ai/README.md)** — Agent-to-agent coordination, MCP, shared memory
 
 ### For Production ML Infrastructure:
-- **[AI Infrastructure](../AIInfrastructure/README.md)** — GPUs, distributed training, model serving, MLOps
+- **[AI Infrastructure](../ai_infrastructure/README.md)** — GPUs, distributed training, model serving, MLOps
 
 ### For Deep Math Understanding:
-- **[Math Under The Hood](../MathUnderTheHood/)** — Linear algebra, calculus, probability (ML prerequisites)
+- **[Math Under The Hood](../math_under_the_hood)** — Linear algebra, calculus, probability (ML prerequisites)
 
 ---
 
@@ -226,28 +233,28 @@ Work through topics 01 → 08 in order. Each topic is self-contained but builds 
 ### By Learning Goal
 
 **"I need to build a regression model"**  
-→ [01-Regression](01-Regression/README.md) — 6 chapters (`ch01`–`ch06`) plus `GRAND_CHALLENGE.md` on California Housing
+→ [01-Regression](01_regression/README.md) — 6 chapters (`ch01`–`ch06`) plus `GRAND_CHALLENGE.md` on California Housing
 
 **"I need to classify examples and compare classifiers"**  
-→ [02-Classification](02-Classification/README.md) — 5 chapters covering logistic regression, classical classifiers, metrics, SVMs, and tuning
+→ [02-Classification](02_classification/README.md) — 5 chapters covering logistic regression, classical classifiers, metrics, SVMs, and tuning
 
 **"I need neural networks from first principles to transformers"**  
-→ [03-NeuralNetworks](03-NeuralNetworks/README.md) — 10 chapters from XOR and backprop to CNNs, RNNs/LSTMs, attention, and transformers
+→ [03-NeuralNetworks](03_neural_networks/README.md) — 10 chapters from XOR and backprop to CNNs, RNNs/LSTMs, attention, and transformers
 
 **"I need a recommendation engine"**  
-→ [04-RecommenderSystems](04-RecommenderSystems/README.md) — 6 chapters from fundamentals to cold-start and production patterns
+→ [04-RecommenderSystems](04_recommender_systems/README.md) — 6 chapters from fundamentals to cold-start and production patterns
 
 **"I need fraud detection or anomaly detection"**  
-→ [05-AnomalyDetection](05-AnomalyDetection/README.md) — 6 chapters from statistical methods to one-class methods, ensembles, and production
+→ [05-AnomalyDetection](05_anomaly_detection/README.md) — 6 chapters from statistical methods to one-class methods, ensembles, and production
 
 **"I need agents that learn from trial and error"**  
-→ [06-ReinforcementLearning](06-ReinforcementLearning/README.md) — 6 theory chapters (`ch01-mdps` → `ch06-modern-rl`) covering MDPs, dynamic programming, Q-learning, DQN, and modern RL
+→ [06-ReinforcementLearning](06_reinforcement_learning/README.md) — 6 theory chapters (`ch01-mdps` → `ch06-modern-rl`) covering MDPs, dynamic programming, Q-learning, DQN, and modern RL
 
 **"I need to segment customers or cluster unlabeled data"**  
-→ [07-UnsupervisedLearning](07-UnsupervisedLearning/README.md) — 3 chapters: clustering, dimensionality reduction, and unsupervised metrics
+→ [07-UnsupervisedLearning](07_unsupervised_learning/README.md) — 3 chapters: clustering, dimensionality reduction, and unsupervised metrics
 
 **"I need production ensemble models and explainability"**  
-→ [08-EnsembleMethods](08-EnsembleMethods/README.md) — 6 chapters covering ensembles, boosting, XGBoost/LightGBM, SHAP, stacking, and production
+→ [08-EnsembleMethods](08_ensemble_methods/README.md) — 6 chapters covering ensembles, boosting, XGBoost/LightGBM, SHAP, stacking, and production
 
 ### By Career Path
 
@@ -280,8 +287,8 @@ If you want the most practical learning order, start with `01-Regression`, then 
 
 🎯 **Your mission**: go from fitting your first model to understanding the main ML paradigms used in production.
 
-**Best starting point**: [01-Regression — SmartVal AI](01-Regression/README.md)
+**Best starting point**: [01-Regression — SmartVal AI](01_regression/README.md)
 
 **Recommended core path**: `01-Regression → 02-Classification → 03-NeuralNetworks → 07-UnsupervisedLearning → 08-EnsembleMethods`
 
-📚 **Interview prep?** Use [Interview_guide.md](Interview_guide.md) for the condensed review version of the track.
+📚 **Interview prep?** Use [Interview_guide.md](interview-guide.md) for the condensed review version of the track.

@@ -1,0 +1,393 @@
+# Ch.6 — Gradient + Matrix Chain Rule
+
+![Gradient field, chain-rule graph, descent trajectories](img/ch06-gradient-chain-rule.png)
+
+> **The story.** Two ideas, two centuries apart, get spliced together in this chapter. The **gradient** — the vector that points uphill in many dimensions — was developed by Euler and Lagrange in the 1750s as part of the calculus of variations, then formalised by Hamilton and Jacobi in the 1830s–40s. The **chain rule** for composed functions has been with us since Leibniz in the 1670s. The braid — *recursively applying the chain rule along a graph of matrix operations to compute every parameter's gradient at once* — is **backpropagation**, worked out in Paul Werbos's 1974 Harvard PhD thesis and made famous by Rumelhart, Hinton & Williams in *Nature*, 1986. Every neural network you have ever heard of is trained by exactly that braid.
+>
+> **Where you are in the curriculum.** Ch.4 walked downhill in one variable. Ch.5 gave you matrices. Now you need a *vector* that points downhill in 8-D — the **gradient** — and a rule for composing many such vectors through deep layers — the **matrix chain rule**. The set-piece coach has gone from tuning one knob (launch angle) to tuning eight (strike speed, angle, strike zone on the boot, wall height, wall distance, wind speed, pitch wetness, kicker fatigue). This is the last math chapter before the ML track — ML Ch.5 picks up exactly where this chapter stops.
+>
+> **Notation in this chapter.** $f(\mathbf{x})$ — a scalar function of a vector input; $\partial f/\partial x_i$ — **partial derivative**: rate of change with respect to one coordinate, holding the rest fixed; $\nabla f(\mathbf{x})=[\partial f/\partial x_1,\dots,\partial f/\partial x_d]^\top$ — the **gradient** (the direction of steepest ascent); $-\nabla f$ — steepest *descent*; $\mathbf{a} \odot \mathbf{b}$ — **elementwise (Hadamard) product**: $[a_1 b_1, a_2 b_2, \ldots, a_n b_n]^\top$, distinct from dot product; $J$ — the **Jacobian** matrix of a vector-valued function; $\frac{dL}{dx}=\frac{dL}{du}\cdot\frac{du}{dx}$ — the **scalar chain rule**; $\nabla_\theta L$ — gradient of the loss with respect to the parameter vector $\theta$; $\eta$ — learning rate.
+
+---
+
+## 0 · Bridge from Ch.3 — One Variable to Many
+
+> 🌉 **If you're rusty on multi-variable calculus:** This section rebuilds the intuition from scratch. Ch.3 gave you $f'(x)$ for a curve. Now we extend to functions of *several* variables — like tuning strike angle *and* speed *and* wall distance all at once.
+
+**In Ch.3** (one variable): You had a curve $h(t)$ (height vs time). The derivative $h'(t)$ told you "if I nudge $t$ a little, how much does $h$ change?" It's a single number: the slope of the tangent.
+
+**Now** (many variables): You have a loss surface $L(\theta_1, \theta_2, \ldots, \theta_d)$ — imagine a hilly landscape where each $\theta_i$ is a tuning knob (strike angle, speed, etc.). Question: "If I nudge *each* knob a little, how much does $L$ change?"
+
+The answer is no longer a single number — it's a **vector of slopes**, one per knob:
+
+$$\nabla L = \begin{bmatrix} \frac{\partial L}{\partial \theta_1} \\ \frac{\partial L}{\partial \theta_2} \\ \vdots \\ \frac{\partial L}{\partial \theta_d} \end{bmatrix} \in \mathbb{R}^d$$
+
+Each entry $\frac{\partial L}{\partial \theta_i}$ is a **partial derivative** — it asks "hold all *other* knobs fixed, wiggle *just* $\theta_i$, what happens to $L$?" It's computed exactly like Ch.3's $f'(x)$, just treating the other variables as constants.
+
+**Example.** Loss depends on two knobs: $L(\theta_1, \theta_2) = 3\theta_1^2 + 2\theta_1\theta_2 + \theta_2^2$.
+- To find $\frac{\partial L}{\partial \theta_1}$: treat $\theta_2$ as a frozen constant, differentiate $3\theta_1^2 + 2\theta_2 \cdot \theta_1 + (\text{constant})$ → answer: $6\theta_1 + 2\theta_2$.
+- To find $\frac{\partial L}{\partial \theta_2}$: treat $\theta_1$ as frozen, differentiate $(\text{constant}) + 2\theta_1 \cdot \theta_2 + \theta_2^2$ → answer: $2\theta_1 + 2\theta_2$.
+
+Stack them: $\nabla L = \begin{bmatrix} 6\theta_1 + 2\theta_2 \\ 2\theta_1 + 2\theta_2 \end{bmatrix}$. That vector **points uphill** on the loss landscape. To walk downhill (minimize loss), step in the *opposite* direction: $-\nabla L$.
+
+**That's the entire bridge.** The gradient $\nabla f$ is just "a derivative per input, packaged as a vector." Now let's formalize it.
+
+---
+
+## 0 · The Challenge — Where We Are
+
+> 🎯 **The goal**: Score a free kick that clears a 1.8m wall at 9.15m distance and dips under a 2.44m crossbar at 20m, while beating the keeper's reaction time.
+
+**What we know so far:**
+- ✅ Ch.1-3: Model and check trajectories
+- ✅ Ch.4: Optimize ONE parameter (gradient descent on $\theta$)
+- ✅ Ch.5: Represent multi-feature data as matrices, batch predictions $\hat{\mathbf{y}} = X\mathbf{w}$
+- ❌ **But we can't optimize MULTIPLE parameters simultaneously!**
+
+**What's blocking us:**
+The free kick has **8+ tunable parameters**: $(\theta, v_0, h_0, \text{strike zone}, \ldots)$. Ch.4's gradient descent only works for one variable:
+$$\theta \leftarrow \theta - \eta L'(\theta) \quad \text{(scalar update)}$$
+
+For 8 parameters, we need a **vector** update rule:
+$$\boldsymbol{\theta} \leftarrow \boldsymbol{\theta} - \eta \nabla L(\boldsymbol{\theta}) \quad \text{(vector update)}$$
+
+Two new problems arise:
+1. **What direction is downhill in 8-D space?** (Answer: the **gradient** $\nabla L$, a vector of partial derivatives)
+2. **How do we compute $\nabla L$ when the model is a composition of layers** (e.g., neural net $L(\mathbf{w}_3, \mathbf{w}_2, \mathbf{w}_1) = \text{loss}(f_3(f_2(f_1(X; \mathbf{w}_1); \mathbf{w}_2); \mathbf{w}_3))$)? (Answer: **matrix chain rule** = backpropagation)
+
+**What this chapter unlocks:**
+1. **Gradients**: The $d$-dimensional "downhill direction" vector $\nabla L \in \mathbb{R}^d$
+2. **Jacobians**: Derivatives of vector-valued functions (needed for layer-to-layer propagation)
+3. **Matrix chain rule**: Recursively compute $\nabla_{\mathbf{w}_i} L$ for *every* layer by chaining Jacobians backward
+
+✅ **This completes the optimization toolkit** — we can now train ANY differentiable model (linear, logistic, neural nets, transformers)!
+
+---
+
+## 1 · Core Idea
+
+For a scalar-input, scalar-output function we have $f'(\theta)$. For a **vector-input, scalar-output** function $f : \mathbb{R}^d \to \mathbb{R}$, the same role is played by the **gradient**:
+
+$$\nabla f(\boldsymbol{\theta}) = \begin{bmatrix}\dfrac{\partial f}{\partial \theta_1} \\ \vdots \\ \dfrac{\partial f}{\partial \theta_d}\end{bmatrix} \in \mathbb{R}^d.$$
+
+Three facts you must internalise:
+
+1. $\nabla f$ points in the direction of **steepest ascent**; $-\nabla f$ is the direction of steepest descent.
+2. The magnitude $\|\nabla f\|$ is the *slope* in that direction.
+3. At a minimum, $\nabla f = \mathbf{0}$ (first-order optimality condition).
+
+Gradient descent is just Ch.4 with $f'(\theta)$ replaced by $\nabla f(\boldsymbol{\theta})$:
+
+$$\boldsymbol{\theta}_{k+1} = \boldsymbol{\theta}_k - \eta \nabla f(\boldsymbol{\theta}_k).$$
+
+---
+
+## 2 · Why Steepest Descent Is $-\nabla f$
+
+A first-order Taylor expansion around $\boldsymbol{\theta}$ in a direction $\mathbf{u}$ with $\|\mathbf{u}\|=1$ and step $t > 0$:
+
+$$f(\boldsymbol{\theta} + t\mathbf{u}) \approx f(\boldsymbol{\theta}) + t \mathbf{u}^\top \nabla f(\boldsymbol{\theta}).$$
+
+The inner product $\mathbf{u}^\top \nabla f$ is minimised (most negative) when $\mathbf{u} = -\nabla f / \|\nabla f\|$ by the Cauchy–Schwarz inequality. So among all unit directions, *"against the gradient"* drops the function the fastest.
+
+---
+
+## 2.5 · Why the Gradient Isn't Enough — The Neural Network Problem
+
+> 🧩 **The gap we're about to fill:** The gradient $\nabla f$ works great when you have **one function**: loss = $f(\text{parameters})$. But neural networks aren't one function — they're a **stack of many functions**. Input → Layer1 → Layer2 → Layer3 → ... → Loss. We need a tool that handles "function inside function inside function."
+
+**The setup:** Imagine a tiny 2-layer network:
+
+1. **Layer 1:** Takes input $\mathbf{x} \in \mathbb{R}^2$, applies weights $W_1$, gets activations $\mathbf{h}_1 \in \mathbb{R}^3$.
+2. **Layer 2:** Takes $\mathbf{h}_1$, applies weights $W_2$, gets output $\mathbf{h}_2 \in \mathbb{R}^1$.
+3. **Loss:** Compares $\mathbf{h}_2$ to target, gives scalar $L$.
+
+**The question:** How does changing $W_1$ affect the final loss $L$? 
+
+**The problem:** There's no direct formula $L(W_1)$ — the loss doesn't "see" $W_1$ directly. It sees $\mathbf{h}_2$, which depends on $\mathbf{h}_1$, which depends on $W_1$. It's a chain: $W_1 \to \mathbf{h}_1 \to \mathbf{h}_2 \to L$.
+
+**What we need:**
+- A way to track how $\mathbf{h}_1$ (a **vector**) changes when we nudge $\mathbf{x}$ (another **vector**) — that's not a single number, it's a **matrix** of rates. → **Jacobian**
+- A way to chain those matrices together: "change in $W_1$ → change in $\mathbf{h}_1$ → change in $\mathbf{h}_2$ → change in $L$" → **Chain Rule**
+
+**The payoff:** Once we have these tools, we can compute $\nabla_{W_1} L$, $\nabla_{W_2} L$, and every other gradient in **one backward pass** through the network. That's backpropagation. Let's build it.
+
+---
+
+## 3 · Jacobian — the Gradient's Big Sibling
+
+> 🎯 **Why we need this:** The gradient handles "many inputs → one output" (e.g., loss function). The Jacobian handles "many inputs → many outputs" (e.g., a neural network layer). It's the multi-dimensional derivative that lets us chain layers together.
+
+For a **vector-input, vector-output** function $\mathbf{g} : \mathbb{R}^n \to \mathbb{R}^m$, the derivative is a matrix — the **Jacobian** $J_\mathbf{g} \in \mathbb{R}^{m \times n}$ — with entries $[J_\mathbf{g}]_{ij} = \partial g_i / \partial x_j$:
+
+**In plain English:** Entry $(i,j)$ answers "if I nudge input $x_j$ a little, how much does output $g_i$ change?"
+
+**Example — a 2→3 layer:** $\mathbf{h} = W\mathbf{x}$ where $W \in \mathbb{R}^{3 \times 2}$, $\mathbf{x} \in \mathbb{R}^2$, $\mathbf{h} \in \mathbb{R}^3$. The Jacobian $J$ is exactly $W$ itself:
+
+$$J = W = \begin{bmatrix} 
+\frac{\partial h_1}{\partial x_1} & \frac{\partial h_1}{\partial x_2} \\
+\frac{\partial h_2}{\partial x_1} & \frac{\partial h_2}{\partial x_2} \\
+\frac{\partial h_3}{\partial x_1} & \frac{\partial h_3}{\partial x_2}
+\end{bmatrix} \in \mathbb{R}^{3 \times 2}$$
+
+**The shape pattern:**
+
+| Function shape | Derivative object | Shape |
+|---|---|---|
+| $f : \mathbb{R} \to \mathbb{R}$ | scalar $f'(x)$ | $1 \times 1$ |
+| $f : \mathbb{R}^n \to \mathbb{R}$ | gradient $\nabla f$ | $n \times 1$ |
+| $\mathbf{g} : \mathbb{R}^n \to \mathbb{R}^m$ | Jacobian $J_\mathbf{g}$ | $m \times n$ |
+| $f : \mathbb{R}^n \to \mathbb{R}$, 2nd-order | Hessian $\nabla^2 f$ | $n \times n$ |
+
+The gradient is the special case of a Jacobian when $m=1$, transposed into a column vector. That's all.
+
+### 3.1 · Why We Need the Chain Rule — Neural Networks Are Compositions
+
+> 🔗 **Connecting the dots:** Now you know what a Jacobian is — a matrix of partial derivatives for vector functions. But we have **three layers** in our network: $\mathbf{x} \xrightarrow{W_1} \mathbf{h}_1 \xrightarrow{W_2} \mathbf{h}_2 \xrightarrow{} L$. How do we combine the Jacobians to get the final gradient?
+
+**The problem:** We want $\nabla_{\mathbf{x}} L$ — "how does the loss change if we nudge the input?" But the loss depends on $\mathbf{x}$ *indirectly*:
+
+$$L \text{ depends on } \mathbf{h}_2 \quad \text{which depends on } \mathbf{h}_1 \quad \text{which depends on } \mathbf{x}$$
+
+In Ch.3, you learned the scalar chain rule: if $y = f(u)$ and $u = g(x)$, then $\frac{dy}{dx} = \frac{dy}{du} \cdot \frac{du}{dx}$. You multiply the derivatives along the chain.
+
+**Same idea, matrix version:** If $\mathbf{y} = \mathbf{g}(\mathbf{h}(\mathbf{x}))$, then the Jacobian of the composition is:
+
+$$J_{\mathbf{g} \circ \mathbf{h}} = J_\mathbf{g} \cdot J_\mathbf{h} \quad \text{(matrix multiplication)}$$
+
+**Concrete example:**  
+- Layer 1: $\mathbf{h}_1 = W_1 \mathbf{x}$, Jacobian = $W_1 \in \mathbb{R}^{3 \times 2}$  
+- Layer 2: $\mathbf{h}_2 = W_2 \mathbf{h}_1$, Jacobian = $W_2 \in \mathbb{R}^{1 \times 3}$  
+- Combined: $\mathbf{h}_2 = W_2 (W_1 \mathbf{x}) = (W_2 W_1) \mathbf{x}$, Jacobian = $W_2 W_1 \in \mathbb{R}^{1 \times 2}$
+
+**Key insight:** You compute the Jacobian of a **composition** by **multiplying the Jacobians** in order. That's the matrix chain rule. For a 100-layer network, you multiply 100 Jacobians. Backpropagation is the efficient algorithm for doing this multiplication **right-to-left** starting from the loss. Next section makes this precise.
+
+---
+
+## 4 · The Matrix Chain Rule
+
+This is the single most important equation in deep learning. For a composition $\mathbf{y} = \mathbf{g}(\mathbf{h}(\mathbf{x}))$ with $\mathbf{x} \in \mathbb{R}^n, \mathbf{h} \in \mathbb{R}^p, \mathbf{y} \in \mathbb{R}^m$:
+
+$$J_{\mathbf{g}\circ \mathbf{h}}(\mathbf{x}) = J_\mathbf{g}(\mathbf{h}(\mathbf{x})) J_\mathbf{h}(\mathbf{x})$$
+
+$$(m \times n) = (m \times p) \cdot (p \times n)$$
+
+Compare to the scalar chain rule $[f(g(x))]' = f'(g(x)) \cdot g'(x)$ — same thing, but the product is now matrix multiplication and the dimensions must fit end-to-end.
+
+**Special case — scalar loss.** If the outer function is a scalar loss $L : \mathbb{R}^m \to \mathbb{R}$, we usually care about $\nabla_\mathbf{x} L$. Setting $m = 1$ and transposing:
+
+$$\nabla_\mathbf{x} L = J_\mathbf{h}(\mathbf{x})^\top \nabla_\mathbf{h} L$$
+
+The $(n \times p)$ matrix $J_\mathbf{h}^\top$ pulls the $p$-dim gradient of the loss back into the $n$-dim input space. That right-to-left multiplication is the **backward pass**.
+
+---
+
+## 5 · Worked Example — One Neural-Network Layer
+
+A single layer: $\mathbf{u} = W\mathbf{x} + \mathbf{b}$, then $\mathbf{h} = \sigma(\mathbf{u})$ applied elementwise, then a scalar loss $L(\mathbf{h})$.
+
+**Forward pass** (shapes): $\mathbf{x} (n) \xrightarrow{W (m\times n)} \mathbf{u} (m) \xrightarrow{\sigma} \mathbf{h} (m) \xrightarrow{L} \text{scalar}.$
+
+**Watch it flow.** Before diving into the algebra, watch the animation below — it shows a 3-layer network computing a forward pass (activations light up left → right), then a backward pass (gradients flow right → left):
+
+![Backpropagation animation: 3-layer network x → h₁ → h₂ → ŷ. Forward pass lights up nodes in green as activations compute. Loss appears in top-right. Backward pass lights up edges in red as gradients flow from output back to input. Weight labels show ∂L/∂W values. Phase indicator shows current computation step.](img/ch06-backprop-animation.gif)
+
+The key insight: **the forward pass is left-to-right function composition**. The **backward pass is right-to-left gradient multiplication** — each layer's Jacobian (or its transpose) pulls the gradient one step closer to the input. That's the matrix chain rule in motion. Now the algebra:
+
+**Backward pass** — apply the chain rule right-to-left:
+
+$$\underbrace{\nabla_\mathbf{h} L}_{m} \xrightarrow[\text{mul by } J_\sigma]{} \underbrace{\nabla_\mathbf{u} L = \nabla_\mathbf{h} L \odot \sigma'(\mathbf{u})}_{m} \xrightarrow[\text{mul by } W^\top]{} \underbrace{\nabla_\mathbf{x} L = W^\top (\nabla_\mathbf{h} L \odot \sigma'(\mathbf{u}))}_{n}$$
+
+(The Jacobian of an elementwise activation $\sigma$ is the diagonal matrix $\mathrm{diag}(\sigma'(\mathbf{u}))$, so multiplying by it collapses to **elementwise product** $\odot$ — multiply each gradient entry by the corresponding derivative: $[\nabla_\mathbf{h} L]_i \cdot [\sigma'(\mathbf{u})]_i$. This is a huge speed-up: diagonal matrix-vector multiplication is $O(m)$ instead of $O(m^2)$.)
+
+> 🔗 **Recall Ch.3 §4.2.2 (ReLU's Kink):** For ReLU, $\sigma'(u) = \begin{cases} 0 & \text{if } u < 0 \\ 1 & \text{if } u > 0 \end{cases}$, with the derivative technically undefined at $u=0$. In practice, we use a subgradient convention (typically $\sigma'(0) := 0$) and the chain rule proceeds normally. This is why PyTorch's `.backward()` doesn't crash when backpropagating through ReLU — we're using the one-sided derivative discussed in Ch.3.
+
+For the weight gradient, another one-line chain rule:
+
+$$\nabla_W L = (\nabla_\mathbf{u} L) \mathbf{x}^\top \qquad (m \times n).$$
+
+Stack $L$ layers and you have backprop.
+
+### 5.1 · Worked Example — Forward and Backward by the Numbers
+
+Let's trace **§5's one-layer network** with concrete values. Setup: 2-input, 3-neuron layer with sigmoid activation $\sigma(u) = 1/(1 + e^{-u})$, squared loss $L = \frac{1}{2}(\mathbf{h} - \mathbf{y}_{\text{target}})^\top (\mathbf{h} - \mathbf{y}_{\text{target}})$.
+
+**Given:**  
+$$\mathbf{x} = \begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix}, \quad 
+W = \begin{bmatrix} 
+2.0 & -1.0 \\
+0.5 & 1.5 \\
+-1.0 & 0.8
+\end{bmatrix} \in \mathbb{R}^{3 \times 2}, \quad
+\mathbf{b} = \begin{bmatrix} 0.2 \\ -0.3 \\ 0.1 \end{bmatrix}, \quad
+\mathbf{y}_{\text{target}} = \begin{bmatrix} 0.8 \\ 0.3 \\ 0.1 \end{bmatrix}$$
+
+**Forward pass — compute left-to-right:**
+
+1. **Linear:** $\mathbf{u} = W\mathbf{x} + \mathbf{b}$  
+$$\mathbf{u} = \begin{bmatrix} 
+2.0 & -1.0 \\
+0.5 & 1.5 \\
+-1.0 & 0.8
+\end{bmatrix}
+\begin{bmatrix} 0.5 \\ 1.0 \end{bmatrix}
++ \begin{bmatrix} 0.2 \\ -0.3 \\ 0.1 \end{bmatrix}
+= \begin{bmatrix} 1.0 - 1.0 + 0.2 \\ 0.25 + 1.5 - 0.3 \\ -0.5 + 0.8 + 0.1 \end{bmatrix}
+= \begin{bmatrix} 0.2 \\ 1.45 \\ 0.4 \end{bmatrix}$$
+
+2. **Activation:** $\mathbf{h} = \sigma(\mathbf{u})$ (apply sigmoid elementwise)  
+$$\mathbf{h} = \begin{bmatrix} \sigma(0.2) \\ \sigma(1.45) \\ \sigma(0.4) \end{bmatrix}
+= \begin{bmatrix} 0.550 \\ 0.810 \\ 0.599 \end{bmatrix}$$
+
+3. **Loss:** $L = \frac{1}{2}\|\mathbf{h} - \mathbf{y}_{\text{target}}\|^2$  
+$$L = \frac{1}{2}[(0.550 - 0.8)^2 + (0.810 - 0.3)^2 + (0.599 - 0.1)^2] = \frac{1}{2}[0.0625 + 0.2601 + 0.2490] = 0.286$$
+
+**Backward pass — apply chain rule right-to-left:**
+
+4. **Gradient at $\mathbf{h}$:** $\nabla_\mathbf{h} L = \mathbf{h} - \mathbf{y}_{\text{target}}$  
+$$\nabla_\mathbf{h} L = \begin{bmatrix} 0.550 - 0.8 \\ 0.810 - 0.3 \\ 0.599 - 0.1 \end{bmatrix}
+= \begin{bmatrix} -0.250 \\ +0.510 \\ +0.499 \end{bmatrix}$$
+
+5. **Gradient through activation:** $\nabla_\mathbf{u} L = \nabla_\mathbf{h} L \odot \sigma'(\mathbf{u})$ where $\sigma'(u) = \sigma(u)(1 - \sigma(u))$  
+$$\sigma'(\mathbf{u}) = \begin{bmatrix} 0.550 \times 0.450 \\ 0.810 \times 0.190 \\ 0.599 \times 0.401 \end{bmatrix}
+= \begin{bmatrix} 0.248 \\ 0.154 \\ 0.240 \end{bmatrix}$$  
+$$\nabla_\mathbf{u} L = \begin{bmatrix} -0.250 \times 0.248 \\ +0.510 \times 0.154 \\ +0.499 \times 0.240 \end{bmatrix}
+= \begin{bmatrix} -0.062 \\ +0.079 \\ +0.120 \end{bmatrix}$$
+
+6. **Gradient w.r.t. input:** $\nabla_\mathbf{x} L = W^\top \nabla_\mathbf{u} L$  
+$$\nabla_\mathbf{x} L = \begin{bmatrix} 
+2.0 & 0.5 & -1.0 \\
+-1.0 & 1.5 & 0.8
+\end{bmatrix}
+\begin{bmatrix} -0.062 \\ +0.079 \\ +0.120 \end{bmatrix}
+= \begin{bmatrix} -0.124 + 0.040 - 0.120 \\ +0.062 + 0.119 + 0.096 \end{bmatrix}
+= \begin{bmatrix} -0.204 \\ +0.277 \end{bmatrix}$$
+
+7. **Gradient w.r.t. weights:** $\nabla_W L = \nabla_\mathbf{u} L \, \mathbf{x}^\top$ (outer product: $3 \times 1$ times $1 \times 2$ = $3 \times 2$)  
+$$\nabla_W L = \begin{bmatrix} -0.062 \\ +0.079 \\ +0.120 \end{bmatrix}
+\begin{bmatrix} 0.5 & 1.0 \end{bmatrix}
+= \begin{bmatrix} 
+-0.031 & -0.062 \\
++0.040 & +0.079 \\
++0.060 & +0.120
+\end{bmatrix}$$
+
+> 🧮 **What you just traced:** The **forward pass** moved data left-to-right (input → pre-activation → activation → loss). The **backward pass** moved gradients right-to-left (loss gradient → activation gradient → pre-activation gradient → input & weight gradients). Every multiplication matched the **shape rules** from §2: $(3 \times 2)$ weights multiplied by $(2 \times 1)$ input gave $(3 \times 1)$ pre-activations. The transpose $W^\top$ pulled $(3 \times 1)$ gradients back into $(2 \times 1)$ input space.
+
+**Connect to the animation:** The green nodes lighting up in the forward pass carry the values $\mathbf{u} = [0.2, 1.45, 0.4]$ and $\mathbf{h} = [0.550, 0.810, 0.599]$. The red edges lighting up in the backward pass carry the gradients $\nabla_\mathbf{u} L = [-0.062, +0.079, +0.120]$. The weight updates would subtract $\eta \cdot \nabla_W L$ — exactly gradient descent from Ch.4, now in matrix form.
+
+---
+
+## 6 · Reverse-Mode vs Forward-Mode Autodiff
+
+For a composition $\mathbf{y} = \mathbf{f}_L \circ \cdots \circ \mathbf{f}_1(\mathbf{x})$, the matrix chain rule gives $J = J_L J_{L-1} \cdots J_1$. Matrix multiplication is associative, so we can multiply in any order — but the **cost** of multiplying in different orders can differ by orders of magnitude.
+
+- **Forward mode** — multiply left-to-right: $((J_L J_{L-1}) J_{L-2}) \cdots J_1$. Efficient when the *input* dimension is small (one scalar input, many outputs).
+- **Reverse mode** — multiply right-to-left *starting from a scalar output*: $J_1^\top (J_2^\top (\cdots J_L^\top \nabla_\mathbf{y} L))$. Efficient when the *output* dimension is small (many parameters, one scalar loss — *exactly* the deep-learning setting).
+
+Reverse-mode autodiff = backpropagation. You never form any Jacobian explicitly; you just carry a running gradient vector and multiply it by $J_\ell^\top$ at each layer on the way back.
+
+---
+
+## 7 · Hessian & Curvature — Ch.4 Revisited in Vector Form
+
+The Hessian $H = \nabla^2 f \in \mathbb{R}^{d\times d}$ has entries $H_{ij} = \partial^2 f / \partial \theta_i \partial \theta_j$. Near a minimum:
+
+- If $H \succ 0$ (positive definite, all eigenvalues positive): strict local minimum.
+- The eigenvalues $\lambda_1 \le \cdots \le \lambda_d$ give the curvature along principal axes. The condition number $\kappa = \lambda_d / \lambda_1$ controls how "narrow" the valley is.
+- Gradient descent converges at rate $\rho = (\kappa - 1)/(\kappa + 1)$ with optimal step size $\eta = 2/(\lambda_1 + \lambda_d)$.
+
+The middle panel of the hero image uses a Hessian with eigenvalues $\{0.7, 3.3\}$, so $\kappa \approx 4.7$. That's why large steps zigzag across the short axis.
+
+---
+
+## 8 · Pitfalls
+
+1. **Shape mismatches.** Always track $(n), (m), (m\times n)$ annotations on paper. Most "math bugs" in deep-learning code are transposed Jacobians.
+2. **Forgetting the transpose in the backward pass.** The forward map multiplies by $W$; the backward map multiplies by $W^\top$. Not $W^{-1}$, not $W$.
+3. **Treating $\odot$ and matrix multiplication interchangeably.** For diagonal Jacobians (elementwise activations) they look the same numerically but have different shapes — be explicit.
+4. **Numerical gradient check against analytic formula every time.** `(L(θ + ε e_j) − L(θ − ε e_j)) / (2ε)` should match $\partial L / \partial \theta_j$ to ~6 digits.
+5. **Exploding/vanishing gradients in deep stacks.** If each $\|W_\ell^\top \mathrm{diag}(\sigma'_\ell)\|$ is $> 1$ on average, the backward product explodes; if $< 1$, it vanishes. This is the entire reason ResNets, LayerNorm, and gating exist.
+6. **Saddle points.** $\nabla f = 0$ does not mean a minimum. Look at Hessian eigenvalues — if they're mixed sign, you're at a saddle, not a valley floor.
+
+---
+
+## 9 · Where This Reappears
+
+- **ML Ch.5 Backprop & Optimisers.** The layer-by-layer derivation above, scaled up to arbitrary architectures.
+- **ML Ch.4 Neural Networks.** Every training step is forward + backward = two tours of the computation graph.
+- **ML Ch.7 CNNs** and **Ch.18 Transformers.** Same chain rule; convolutions and attention blocks are just specific Jacobians.
+- **RL policy gradients.** $\nabla_\theta \mathbb{E}[R]$ is chain rule through a stochastic computation graph.
+- **Ch.7 (next).** We'll need expectations and variances to define probabilistic losses whose gradients we then differentiate with the very rules above.
+
+---
+
+## 10 · References
+
+### Papers & Books
+- Nocedal & Wright, *Numerical Optimization*, Ch. 2.
+- Magnus & Neudecker, *Matrix Differential Calculus with Applications in Statistics and Econometrics* — the definitive shape-centric treatment.
+- Baydin et al., *Automatic Differentiation in Machine Learning: a Survey* (JMLR 2018).
+- Goodfellow, Bengio & Courville, *Deep Learning* Ch. 6.5 (back-propagation).
+
+### Video Tutorials (Beginner-Friendly)
+
+> 🎥 **If you need visual, step-by-step walkthroughs:** These YouTube series break down gradients and backpropagation with code examples and visualizations. Watch these if the algebra above feels dense.
+
+**Gradients & Partial Derivatives:**
+- **3Blue1Brown — Gradient** (12 min): Visual intuition for what a gradient is and why it points uphill. The gold standard for geometric understanding.  
+  → [What is the gradient?](https://www.youtube.com/watch?v=TrcCbdWwCBc)
+
+- **Jon Krohn — Calculus for Deep Learning** (playlist, ~4 hours total): Covers derivatives, partial derivatives, gradients, and chain rule with NumPy examples. Excellent for rusty math.  
+  → [Jon Krohn: Calculus for ML/DL](https://www.youtube.com/playlist?list=PLRDl2inPrWQW1QSWhBU0ki-jq_uElkh2a)
+
+**Backpropagation:**
+- **3Blue1Brown — Backpropagation** (14 min): The best visual explanation of how backprop chains derivatives layer-by-layer. Watch this before reading §5.  
+  → [What is backpropagation really doing?](https://www.youtube.com/watch?v=Ilg3gGewQ5U)
+
+---
+
+## 11 · Progress Check — What We Can Solve Now
+
+![Progress visualization: gradient vector shown on optimal trajectory, all constraints satisfied](img/ch06-gradient-chain-rule-progress-check.png)
+
+🎉 **COMPLETE OPTIMIZATION UNLOCK: We can now optimize ANY differentiable model with ANY number of parameters!**
+
+✅ **Unlocked capabilities:**
+- **Multi-parameter optimization**: Simultaneously tune $(\theta, v_0, h_0, \text{spin}, \ldots)$ using vector gradient descent: $\boldsymbol{\theta} \leftarrow \boldsymbol{\theta} - \eta \nabla L$
+- **Train neural networks**: Backpropagation is just the matrix chain rule applied layer-by-layer
+- **Optimize ANY differentiable model**: Logistic regression, CNNs, transformers — all use this machinery
+- **Compute gradients efficiently**: Automatic differentiation (PyTorch's `.backward()`) implements this chapter's chain rule
+
+**Example**: Find best $(\theta, v_0)$ pair for free kick:
+- Initialize: $\boldsymbol{\theta}_0 = [45°, 10 \text{ m/s}]$
+- Compute gradient: $\nabla L = [\frac{\partial L}{\partial \theta}, \frac{\partial L}{\partial v_0}]$
+- Update: $\boldsymbol{\theta}_1 = \boldsymbol{\theta}_0 - \eta \nabla L$
+- Converge to optimal $(\theta^\star, v_0^\star)$ after ~50 iterations
+
+✅ **Can now verify ALL three constraints** (with proper 3D modeling):
+1. ✓ Wall clearance: Optimize $(\theta, v_0)$ such that $h(t_{\text{wall}}) > 1.8m$
+2. ✓ Crossbar clearance: Constraint $h(t_{\text{goal}}) < 2.44m$
+3. ✓ Keeper speed: Ensure flight time $t_{\text{goal}} <$ keeper reaction time
+
+❌ **Still can't solve:**
+- ❌ **Handle uncertainty/noise**: What if the striker's $v_0$ varies randomly due to fatigue? What if wind is unpredictable? We're still treating everything as deterministic — that's **Ch.7** (probability & statistics)
+- ❌ **Quantify confidence**: "I'm 95% confident the kick will score" requires probability distributions
+- ❌ **Understand why MSE loss**: Why do we minimize squared error, not absolute error? — **Ch.7** explains MLE
+
+**Real-world status**: We can now solve "Find the best $(\theta, v_0, h_0, \ldots)$ combination that satisfies all constraints." But we can't yet answer "What if the striker is tired and $v_0$ is noisy — what's the probability this scores?"
+
+**Next up:** Ch.7 gives us **probability & statistics** — the language for describing uncertainty, estimating parameters from noisy data, and understanding why every ML loss function is secretly a likelihood.
+
+- **Andrej Karpathy — Building micrograd** (2.5 hours): Live-codes a tiny autograd engine (like PyTorch's `backward()`) from scratch. Shows the chain rule in actual Python.  
+  → [The spelled-out intro to neural networks and backpropagation](https://www.youtube.com/watch?v=VMj-3S1tku0)
+
+**Matrix Calculus (Advanced):**
+- **StatQuest — Matrix Derivatives** (20 min): Intuitive walkthrough of how derivatives become matrices when you have vector inputs/outputs.  
+  → [Matrix Calculus Basics](https://www.youtube.com/watch?v=iWxY7VdcSH8)
+
+**Interactive Tools:**
+- **TensorFlow Playground**: Visualize how changing weights affects a 2D loss landscape in real-time. Drag the gradients around!  
+  → [playground.tensorflow.org](https://playground.tensorflow.org)
+
+**Order to watch:** 3B1B Gradient → 3B1B Backprop → Jon Krohn's series → Karpathy's micrograd (if you want to code it). By the end you'll have seen the chain rule six different ways.

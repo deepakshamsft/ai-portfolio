@@ -23,16 +23,16 @@ This is not a demo chatbot. Every chapter threads through a single production ch
 
 | Ch | Title | What Unlocks | Constraints | Status |
 |----|-------|--------------|-------------|--------|
-| **1** | [LLM Fundamentals](LLMFundamentals/LLMFundamentals.md) | Understand tokenization, sampling, context windows | Foundation knowledge | 8% conv, 40% errors |
-| **2** | [Prompt Engineering](PromptEngineering/PromptEngineering.md) | System prompts, structured output, few-shot | #2 Partial, #4 tracking | 12% conv, 15% errors |
-| **3** | [Chain-of-Thought Reasoning](CoTReasoning/CoTReasoning.md) | Multi-step query logic, reasoning traces | Logic (not facts) | 15% conv, 10% errors |
-| **4** | [RAG & Embeddings](RAGAndEmbeddings/RAGAndEmbeddings.md) | **Ground answers in real menu data** | **#2 ✅ <5% errors!** | 18% conv, 5% errors |
-| **5** | [Vector Databases](VectorDBs/VectorDBs.md) | HNSW, IVF, scaling retrieval | #3 Partial | Fast retrieval |
-| **6** | [ReAct & Semantic Kernel](ReActAndSemanticKernel/ReActAndSemanticKernel.md) | **Tool orchestration, agent loop** | **#1 ✅ >25% conv!** | 27% conv, +$2.80 AOV |
-| **7** | [Safety & Hallucination](SafetyAndHallucination/SafetyAndHallucination.md) | **Prompt injection defense, guardrails** | **#5 ✅ Zero attacks!** | Safety hardened |
-| **8** | [Evaluating AI Systems](EvaluatingAISystems/EvaluatingAISystems.md) | Metrics, evals, A/B testing | #6 Partial | Monitoring |
-| **9** | [Cost & Latency Optimization](CostAndLatency/CostAndLatency.md) | **Caching, batching, model selection** | **#3 ✅ #4 ✅** | <2s p95, $0.06/conv |
-| **10** | [Fine-Tuning](FineTuning/FineTuning.md) | **Domain adaptation, production polish** | **#6 ✅ >99% uptime** | 🎉 **COMPLETE!** |
+| **1** | [LLM Fundamentals](llm_fundamentals/llm-fundamentals.md) | Understand tokenization, sampling, context windows | Foundation knowledge | 8% conv, 40% errors |
+| **2** | [Prompt Engineering](prompt_engineering/prompt-engineering.md) | System prompts, structured output, few-shot | #2 Partial, #4 tracking | 12% conv, 15% errors |
+| **3** | [Chain-of-Thought Reasoning](cot_reasoning/cot-reasoning.md) | Multi-step query logic, reasoning traces | Logic (not facts) | 15% conv, 10% errors |
+| **4** | [RAG & Embeddings](rag_and_embeddings/rag-and-embeddings.md) | **Ground answers in real menu data** | **#2 ✅ <5% errors!** | 18% conv, 5% errors |
+| **5** | [Vector Databases](vector_dbs/vector-dbs.md) | HNSW, IVF, scaling retrieval | #3 Partial | Fast retrieval |
+| **6** | [ReAct & Semantic Kernel](react_and_semantic_kernel/react-and-semantic-kernel.md) | **Tool orchestration, agent loop** | **#1 ✅ >25% conv!** | 27% conv, +$2.80 AOV |
+| **7** | [Safety & Hallucination](safety_and_hallucination/safety-and-hallucination.md) | **Prompt injection defense, guardrails** | **#5 ✅ Zero attacks!** | Safety hardened |
+| **8** | [Evaluating AI Systems](evaluating_ai_systems/evaluating-ai-systems.md) | Metrics, evals, A/B testing | #6 Partial | Monitoring |
+| **9** | [Cost & Latency Optimization](cost_and_latency/cost-and-latency.md) | **Caching, batching, model selection** | **#3 ✅ #4 ✅** | <2s p95, $0.06/conv |
+| **10** | [Fine-Tuning](fine_tuning/fine-tuning.md) | **Domain adaptation, production polish** | **#6 ✅ >99% uptime** | 🎉 **COMPLETE!** |
 
 ---
 
@@ -155,7 +155,7 @@ Work through Ch.1 → Ch.10 in order. Each chapter builds on previous concepts a
 ## Multi-Agent AI Extension
 
 For multi-agent systems (agent-to-agent delegation, shared memory, event-driven coordination):  
-→ See [**Multi-Agent AI Track**](../MultiAgentAI/README.md)
+→ See [**Multi-Agent AI Track**](../multi_agent_ai/README.md)
 
 The Multi-Agent track extends the single-agent foundation from this track with:
 - Message formats and agent communication protocols
@@ -175,8 +175,8 @@ The Multi-Agent track extends the single-agent foundation from this track with:
 - HTTP APIs (you'll call OpenAI/Anthropic/Cohere APIs)
 
 **Not required but helpful:**
-- [ML Track](../ML/README.md) — especially Ch.18 (Transformers)
-- [Math Under The Hood](../MathUnderTheHood/) — for deeper transformer understanding
+- [ML Track](../ml/README.md) — especially Ch.18 (Transformers)
+- [Math Under The Hood](../math_under_the_hood) — for deeper transformer understanding
 
 ---
 
@@ -191,7 +191,7 @@ Every chapter follows the same template:
 
 Plus a **Jupyter notebook** with runnable code and diagrams.
 
-📚 **Start here**: [AIPrimer.md](AIPrimer.md) — running example, conceptual overview, and complete reading guide in one place.
+📚 **Start here**: [AIPrimer.md](ai-primer.md) — running example, conceptual overview, and complete reading guide in one place.
 
 ---
 
@@ -199,4 +199,4 @@ Plus a **Jupyter notebook** with runnable code and diagrams.
 
 🎯 **Your mission**: Transform from "I can call GPT" (Ch.1) to "I can ship a production agentic system that beats human baselines" (Ch.10).
 
-Start here: **[Ch.1 — LLM Fundamentals](LLMFundamentals/LLMFundamentals.md)**
+Start here: **[Ch.1 — LLM Fundamentals](llm_fundamentals/llm-fundamentals.md)**
