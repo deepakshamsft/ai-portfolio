@@ -14,11 +14,11 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
+> 💡 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
 
 **What we know so far:**
-- ✅ MDP framework (Ch.1): states, actions, rewards, policies, Bellman equations
-- ✅ Dynamic programming (Ch.2): value iteration and policy iteration find $\pi^*$
+- ⚡ MDP framework (Ch.1): states, actions, rewards, policies, Bellman equations
+- ⚡ Dynamic programming (Ch.2): value iteration and policy iteration find $\pi^*$
 - ❌ **But DP requires knowing $P(s'|s,a)$ — unavailable in most real environments!**
 
 **What's blocking us:**
@@ -33,9 +33,9 @@ A robot learning to walk doesn't have perfect physics equations. A game agent do
 | Constraint | Status after this chapter |
 |-----------|-------------------------|
 | #1 OPTIMALITY | ✅ Q-learning converges to $Q^*$ (with conditions) |
-| #2 EFFICIENCY | 🔶 Needs many episodes, but learns online |
+| #2 EFFICIENCY | ⚠️ Needs many episodes, but learns online |
 | #3 SCALABILITY | ❌ Q-table is $|S| \times |A|$ — fails for large state spaces |
-| #4 STABILITY | 🔶 Converges under decaying $\alpha$, but sensitive to hyperparameters |
+| #4 STABILITY | ⚠️ Converges under decaying $\alpha$, but sensitive to hyperparameters |
 | #5 GENERALIZATION | ❌ Tabular — no generalization between similar states |
 
 ```mermaid
@@ -371,7 +371,8 @@ flowchart TD
 
 TD updates and the Q-function are the foundation of all value-based RL in the track:
 
-- **Ch.4 DQN**: replaces the lookup table with a neural network but uses the identical Bellman target —  + γ max Q(s', a'; θ⁻).
+- **Ch.4 DQN**: replaces the lookup table with a neural network but uses the identical Bellman target — 
+ + γ max Q(s', a'; θ⁻).
 - **Ch.5 Actor-Critic**: the critic is a learned V(s) or Q(s,a) updated by TD(0), exactly §3.1 here.
 - **Recommender Systems (Topic 4) Ch.6**: ε-greedy exploration for cold start is a direct application of the exploration policy in §3.5.
 

@@ -10,11 +10,11 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
+> 💡 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
 
 **What we know so far:**
-- ✅ Q-learning and DQN learn optimal policies for discrete action spaces (Ch.3–4)
-- ✅ Experience replay and target networks stabilize deep Q-learning
+- ⚡ Q-learning and DQN learn optimal policies for discrete action spaces (Ch.3–4)
+- ⚡ Experience replay and target networks stabilize deep Q-learning
 - ❌ **DQN requires discrete actions — fails for continuous control (robotics, driving)!**
 - ❌ **DQN learns a deterministic policy — can't express stochastic strategies!**
 
@@ -30,10 +30,10 @@ A robotic arm has 7 continuous joint angles. A self-driving car outputs continuo
 | Constraint | Status after this chapter |
 |-----------|-------------------------|
 | #1 OPTIMALITY | ✅ Converges to locally optimal policy |
-| #2 EFFICIENCY | 🔶 REINFORCE is sample-inefficient; actor-critic improves |
+| #2 EFFICIENCY | ⚠️ REINFORCE is sample-inefficient; actor-critic improves |
 | #3 SCALABILITY | ✅ Handles continuous actions and large state spaces |
-| #4 STABILITY | 🔶 High variance (REINFORCE); actor-critic helps |
-| #5 GENERALIZATION | 🔶 Neural network generalizes across states |
+| #4 STABILITY | ⚠️ High variance (REINFORCE); actor-critic helps |
+| #5 GENERALIZATION | ⚠️ Neural network generalizes across states |
 
 ```mermaid
 flowchart LR

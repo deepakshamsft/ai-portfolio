@@ -10,12 +10,12 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FraudShield** — a production fraud detection system satisfying 5 constraints:
+> 💡 **The mission**: Launch **FraudShield** — a production fraud detection system satisfying 5 constraints:
 > 1. **DETECTION**: >80% recall — 2. **PRECISION**: <0.5% FPR — 3. **REAL-TIME**: <100ms — 4. **ADAPTABILITY**: Handle drift — 5. **EXPLAINABILITY**: Justify flags
 
 **What we know so far:**
-- ✅ We have the Credit Card Fraud dataset (284,807 transactions, 31 features)
-- ✅ We understand the business problem (detect fraudulent transactions)
+- ⚡ We have the Credit Card Fraud dataset (284,807 transactions, 31 features)
+- ⚡ We understand the business problem (detect fraudulent transactions)
 - ❌ **But we have NO detector yet!**
 
 **What's blocking us:**
@@ -102,6 +102,18 @@ $$z = \frac{x - \mu}{\sigma}$$
 - Suspicious transaction: $x = €2,125.87$
 - Z-score: $z = (2125.87 - 88.35) / 250.12 = 8.14$
 - At threshold $\tau = 3$: **flagged** (8.14 > 3)
+
+**5-sample Z-score worked example** (Amount feature, $\mu = 88.35$, $\sigma = 250.12$, threshold $\tau = 3$):
+
+| $x$ (€) | $\mu$ (€) | $\sigma$ (€) | $z = (x - \mu)/\sigma$ | Anomaly? |
+|---------|-----------|--------------|------------------------|----------|
+| 12.50   | 88.35     | 250.12       | −0.30                  | No       |
+| 45.00   | 88.35     | 250.12       | −0.17                  | No       |
+| 88.35   | 88.35     | 250.12       | 0.00                   | No       |
+| 320.00  | 88.35     | 250.12       | 0.93                   | No       |
+| 2125.87 | 88.35     | 250.12       | **8.14**               | **Yes**  |
+
+The last row triggers the threshold because $|z| = 8.14 > \tau = 3$.
 
 **Problem**: Under Gaussianity, $P(|z| > 3) = 0.27\%$, so a threshold of 3 flags ~0.27% of data as anomalous. With 284,807 transactions, that's ~769 flags — but only 492 are actual fraud. Many flagged transactions are legitimate outliers (expensive but legal purchases).
 
@@ -373,7 +385,7 @@ flowchart TD
 
 ## 10 · Progress Check — What We Can Solve Now
 
-✅ **Unlocked capabilities:**
+⚡ **Unlocked capabilities:**
 - **First working detector!** Can flag transactions with extreme feature values
 - **Baseline recall**: ~45% at 0.5% FPR
 - **Anomaly scoring framework**: feature → score → threshold → decision

@@ -10,11 +10,11 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **FraudShield status after Ch.4:**
-> - ✅ Z-score: 45% recall @ 0.5% FPR
-> - ✅ Isolation Forest: 72% recall
-> - ✅ Autoencoder: 78% recall
-> - ✅ One-Class SVM: 75% recall
+> 💡 **FraudShield status after Ch.4:**
+> - ⚡ Z-score: 45% recall @ 0.5% FPR
+> - ⚡ Isolation Forest: 72% recall
+> - ⚡ Autoencoder: 78% recall
+> - ⚡ One-Class SVM: 75% recall
 > - ❌ **Best single model = 78%. Need 80%.**
 
 **What's blocking us:**
@@ -110,6 +110,16 @@ $$S_{\text{avg}}(\mathbf{x}) = \frac{1}{K}\sum_{k=1}^{K} \tilde{s}_k(\mathbf{x})
   - **Average**: $S = (0.72 + 0.45 + 0.38 + 0.41) / 4 = 0.49$ → **normal**
 
 The legitimate outlier had a high Z-score (extreme amount) but the other detectors correctly identified it as normal, pulling the average down.
+
+**3-sample ensemble vote worked example** (normalized scores, anomaly threshold $S > 0.60$):
+
+| Sample | $\tilde{s}_{\text{Z}}$ | $\tilde{s}_{\text{IF}}$ | $\tilde{s}_{\text{AE}}$ | $\tilde{s}_{\text{SVM}}$ | $S_{\text{avg}}$ | Decision |
+|--------|------------------------|-------------------------|-------------------------|--------------------------|------------------|----------|
+| Fraud A  | 0.65 | 0.82 | 0.91 | 0.78 | **0.79** | **Anomaly** |
+| Legit B  | 0.72 | 0.45 | 0.38 | 0.41 | 0.49     | Normal      |
+| Legit C  | 0.18 | 0.22 | 0.15 | 0.20 | 0.19     | Normal      |
+
+Fraud A scores highly across all detectors; Legit B's high Z-score is overridden by the other three; Legit C is confidently normal on all four.
 
 ### Fusion Strategy 2: Majority Voting
 
@@ -398,7 +408,7 @@ flowchart TD
 
 ## 10 · Progress Check — What We Can Solve Now
 
-✅ **Unlocked capabilities:**
+⚡ **Unlocked capabilities:**
 - **Ensemble anomaly detection!** Four complementary detectors fused into one system
 - **Target achieved**: ~83% recall @ 0.5% FPR (exceeds 80% target!)
 - **Three fusion strategies**: averaging, voting, stacking

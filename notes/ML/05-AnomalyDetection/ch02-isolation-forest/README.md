@@ -14,9 +14,9 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **FraudShield status after Ch.1:**
-> - ✅ Statistical baselines established (Z-score, IQR, Mahalanobis)
-> - ✅ Scoring paradigm: feature → score → threshold → decision
+> 💡 **FraudShield status after Ch.1:**
+> - ⚡ Statistical baselines established (Z-score, IQR, Mahalanobis)
+> - ⚡ Scoring paradigm: feature → score → threshold → decision
 > - ❌ **Only 45% recall** — missing more than half of all fraud!
 
 **What's blocking us:**
@@ -112,6 +112,17 @@ $$s(\mathbf{x}, n) = 2^{-\frac{E[h(\mathbf{x})]}{c(n)}}$$
   - $s = 2^{-8.7/9.0} = 2^{-0.967} = 0.51$ → **normal**
 - Transaction C (deeply normal, in dense cluster): average path length $E[h] = 12.1$
   - $s = 2^{-12.1/9.0} = 2^{-1.344} = 0.39$ → **very normal**
+
+**4-sample path length worked example** ($\psi = 256$, $c(256) \approx 9.0$, anomaly threshold $s > 0.65$):
+
+| Sample | Type  | $E[h(\mathbf{x})]$ | $s = 2^{-E[h]/c(n)}$ | Anomaly? |
+|--------|-------|---------------------|----------------------|----------|
+| A      | Fraud | 3.2                 | 0.78                 | **Yes**  |
+| B      | Fraud | 4.1                 | 0.73                 | **Yes**  |
+| C      | Legit | 8.7                 | 0.51                 | No       |
+| D      | Legit | 12.1                | 0.39                 | No       |
+
+Fraud cases isolate in fewer splits (short path → high score); dense normal points need many splits (long path → low score).
 
 ### Why Contamination Matters at 0.17%
 
@@ -345,7 +356,7 @@ flowchart TD
 
 ## 10 · Progress Check — What We Can Solve Now
 
-✅ **Unlocked capabilities:**
+⚡ **Unlocked capabilities:**
 - **Learning-based detector!** No distribution assumptions needed
 - **Improved recall**: ~72% at 0.5% FPR (+27% over Z-score)
 - **Sub-linear scaling**: Trains on sub-samples, O(t·log ψ) inference

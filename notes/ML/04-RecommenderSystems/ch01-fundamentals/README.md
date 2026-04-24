@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FlixAI** — a production movie recommendation engine satisfying 5 constraints:
+> 💡 **The mission**: Launch **FlixAI** — a production movie recommendation engine satisfying 5 constraints:
 > 1. **ACCURACY**: >85% hit rate@10 — 2. **COLD START**: New users/items — 3. **SCALABILITY**: 1M+ ratings — 4. **DIVERSITY**: Not just popular movies — 5. **EXPLAINABILITY**: "Because you liked X"
 
 **What we know so far:**
@@ -142,6 +142,26 @@ $$\text{NDCG@}k = \frac{\text{DCG@}k}{\text{IDCG@}k}$$
 where $\text{rel}_j$ is the relevance of the item at position $j$ and IDCG is the DCG of the ideal (perfect) ranking.
 
 **Example**: If the relevant item is at position 1, DCG = 1.0. At position 10, DCG = 1/log₂(11) = 0.29. NDCG captures that rank 1 is 3.4× more valuable than rank 10.
+
+### Worked 3×3 Example — Bayesian Average
+
+Three users rating three movies (— = not rated):
+
+| | Movie1 (Toy Story) | Movie2 (Fargo) | Movie3 (GoodFellas) |
+|---|---|---|---|
+| **Alice** | 5 | 4 | — |
+| **Bob** | 4 | — | 3 |
+| **Carol** | — | 5 | 4 |
+
+Global mean $\mu = (5+4+4+3+5+4)/6 = 4.17$. Damping constant $C = 2$ (median ratings per movie).
+
+| Movie | Ratings | $n$ | $\bar{r}$ | Bayesian avg $= (n\bar{r} + C\mu)/(n+C)$ |
+|-------|---------|-----|-----------|------------------------------------------|
+| Movie1 | 5, 4 | 2 | 4.50 | $(2 \times 4.50 + 2 \times 4.17)/4 = \mathbf{4.33}$ |
+| Movie2 | 4, 5 | 2 | 4.50 | $(2 \times 4.50 + 2 \times 4.17)/4 = \mathbf{4.33}$ |
+| Movie3 | 3, 4 | 2 | 3.50 | $(2 \times 3.50 + 2 \times 4.17)/4 = \mathbf{3.83}$ |
+
+Movies 1 & 2 tie at 4.33; Movie 3 is pulled toward $\mu$ because its raw mean (3.50) is below the global mean. Without damping, a niche movie with two 5-star ratings would top the chart.
 
 ---
 

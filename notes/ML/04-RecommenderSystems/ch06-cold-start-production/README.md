@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
+> 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.5:**
 - ✅ Hybrid system = 87% HR@10 (accuracy target met!)
@@ -140,6 +140,23 @@ $$n = \frac{(z_{\alpha/2} + z_\beta)^2 \cdot 2\hat{p}(1-\hat{p})}{(\Delta)^2}$$
 With $\hat{p} = 0.87$, $\Delta = 0.02$, $\alpha = 0.05$, $\beta = 0.2$:
 
 $$n = \frac{(1.96 + 0.84)^2 \cdot 2 \times 0.87 \times 0.13}{0.02^2} = \frac{7.84 \times 0.226}{0.0004} \approx 4{,}430 \text{ users per group}$$
+
+### Worked 3×3 Example — UCB Cold-Start Exploration
+
+Three candidate items for new user Sarah (content preferences: sci-fi, thriller), $t = 61$ total recommendations, $c = 1.5$:
+
+| | Movie1 (Sci-fi) | Movie2 (Thriller) | Movie3 (Documentary) |
+|---|---|---|---|
+| Predicted score $\hat{r}$ | 4.2 | 3.8 | 2.9 |
+| Times shown $T_a$ | 48 | 10 | 3 |
+
+| Movie | $\hat{r}$ | Bonus $c\sqrt{\ln t / T_a}$ | $\text{UCB}$ |
+|-------|-----------|---------------------------|--------------| 
+| Movie1 | 4.2 | $1.5\sqrt{\ln 61/48} = 0.38$ | $4.58$ |
+| Movie2 | 3.8 | $1.5\sqrt{\ln 61/10} = 0.93$ | $4.73$ |
+| Movie3 | 2.9 | $1.5\sqrt{\ln 61/3} = 1.88$ | $\mathbf{4.78}$ ← selected |
+
+Movie3 wins despite the lowest predicted score — its uncertainty bonus is huge after only 3 showings. Once explored further, the bonus shrinks and Movie1 or Movie2 will dominate.
 
 ---
 
@@ -378,7 +395,7 @@ Refine these cross-links during editorial review.
 | 4 | DIVERSITY | Not just popular | ✅ **MMR** | Re-ranking ensures diverse recommendations |
 | 5 | EXPLAINABILITY | "Because you liked X" | ✅ **Solved** | Content features enable natural explanations |
 
-**🏆 GRAND CHALLENGE COMPLETE**: FlixAI achieves 87% hit rate@10 with cold start handling, scalable serving, diverse recommendations, and explainable outputs. All 5 constraints satisfied.
+**💡 GRAND CHALLENGE COMPLETE**: FlixAI achieves 87% hit rate@10 with cold start handling, scalable serving, diverse recommendations, and explainable outputs. All 5 constraints satisfied.
 
 ---
 
@@ -391,6 +408,6 @@ The Recommender Systems track is complete. You've built a recommendation engine 
 - **Reinforcement Learning (Topic 6)**: The bandit algorithms you saw here are a taste of RL — learn to make sequential decisions that maximise cumulative reward
 - **Production ML**: Deploy your recommender with MLflow, feature stores, and monitoring (MLOps track)
 
-> 🎉 **Congratulations**: You've completed the FlixAI grand challenge. From "everyone gets the same 10 movies" to a personalised, diverse, explainable, and production-ready recommendation system.
+> 💡 **Congratulations**: You've completed the FlixAI grand challenge. From "everyone gets the same 10 movies" to a personalised, diverse, explainable, and production-ready recommendation system.
 
 

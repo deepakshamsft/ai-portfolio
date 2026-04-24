@@ -10,10 +10,10 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **FraudShield status after Ch.3:**
-> - ✅ Z-score: 45% recall
-> - ✅ Isolation Forest: 72% recall
-> - ✅ Autoencoder: 78% recall
+> 💡 **FraudShield status after Ch.3:**
+> - ⚡ Z-score: 45% recall
+> - ⚡ Isolation Forest: 72% recall
+> - ⚡ Autoencoder: 78% recall
 > - ❌ **Still 2% short of 80% target**
 
 **What's blocking us:**
@@ -129,6 +129,16 @@ The raw decision function value (distance from boundary) serves as an anomaly sc
 $$\text{score}(\mathbf{x}) = -(\mathbf{w} \cdot \phi(\mathbf{x}) - \rho)$$
 
 Higher score = further outside the boundary = more anomalous. This allows ROC-curve thresholding instead of using the hard $\nu$-based cutoff.
+
+**3-sample decision function worked example** ($\gamma = \text{scale}$, $\nu = 0.01$, anomaly threshold $\text{score} > 0.0$):
+
+| Sample | $f(\mathbf{x}) = \mathbf{w} \cdot \phi(\mathbf{x}) - \rho$ | $\text{score} = -f(\mathbf{x})$ | Anomaly? |
+|--------|--------------------------------------------------------------|----------------------------------|----------|
+| Normal A | +0.42                                                      | −0.42                            | No       |
+| Normal B | +0.08                                                      | −0.08                            | No       |
+| Fraud C  | −1.75                                                      | **+1.75**                        | **Yes**  |
+
+Positive decision function → inside boundary (normal); negative → outside boundary (anomaly). The fraud sample falls far outside, yielding a large positive score.
 
 ---
 
@@ -359,7 +369,7 @@ flowchart TD
 
 ## 10 · Progress Check — What We Can Solve Now
 
-✅ **Unlocked capabilities:**
+⚡ **Unlocked capabilities:**
 - **Boundary-based anomaly detection!** Kernel method draws tight boundary around normal data
 - **Recall**: ~75% at 0.5% FPR (different signal from autoencoder's 78%)
 - **Mathematical rigor**: Maximum-margin formulation with convergence guarantees

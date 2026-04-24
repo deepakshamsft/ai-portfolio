@@ -14,9 +14,9 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **FraudShield status after Ch.2:**
-> - ✅ Z-score baseline: 45% recall
-> - ✅ Isolation Forest: 72% recall @ 0.5% FPR
+> 💡 **FraudShield status after Ch.2:**
+> - ⚡ Z-score baseline: 45% recall
+> - ⚡ Isolation Forest: 72% recall @ 0.5% FPR
 > - ❌ **Still 8% short of the 80% target**
 
 **What's blocking us:**
@@ -98,6 +98,16 @@ $$\mathcal{L}(\theta, \phi) = \frac{1}{N} \sum_{i=1}^{N} \|\mathbf{x}_i - g_\phi
 - Fraud transaction: $\mathbf{x}_{\text{fraud}} = [-5.1, 3.2, -8.4, ..., 1250.00]$
 - Reconstructed: $\hat{\mathbf{x}}_{\text{fraud}} = [-1.2, 0.8, -2.1, ..., 88.50]$ (far off!)
 - Reconstruction error: $\|\mathbf{x} - \hat{\mathbf{x}}\|^2 = 147.3$ → **high** → anomaly!
+
+**3-sample reconstruction error worked example** (threshold $\tau = 1.0$):
+
+| Sample | $\mathbf{x}$ (Amount) | $\hat{\mathbf{x}}$ (Amount) | MSE error | Anomaly? |
+|--------|-----------------------|-----------------------------|-----------|----------|
+| Normal A | 42.50               | 42.31                       | 0.043     | No       |
+| Normal B | 9.99                | 10.12                       | 0.071     | No       |
+| Fraud C  | 1250.00             | 88.50                       | **147.3** | **Yes**  |
+
+The autoencoder reconstructs normal amounts accurately (low MSE); the fraud amount of €1,250 — unseen during training — reconstructs as ~€88 (the training mean), yielding high error.
 
 ### Why the Bottleneck Matters
 
@@ -378,7 +388,7 @@ flowchart TD
 
 ## 10 · Progress Check — What We Can Solve Now
 
-✅ **Unlocked capabilities:**
+⚡ **Unlocked capabilities:**
 - **Representation learning for anomaly detection!** Autoencoder learns normal transaction manifold
 - **Improved recall**: ~78% at 0.5% FPR (+6% over Isolation Forest)
 - **Continuous anomaly score**: Reconstruction error is a natural, interpretable metric

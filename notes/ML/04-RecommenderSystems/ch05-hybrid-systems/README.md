@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
+> 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.4:**
 - ✅ Neural CF captures non-linear taste patterns = 83% HR@10
@@ -125,6 +125,29 @@ $$\text{ILD}@k = \frac{2}{k(k-1)} \sum_{i \neq j} d(i, j)$$
 where $d(i, j)$ is the content distance (e.g., Jaccard distance on genre vectors) between items $i$ and $j$ in the top-$k$ list.
 
 **Example**: Top-5 = [Sci-fi, Sci-fi, Sci-fi, Action, Comedy]. ILD is low because 3/5 are the same genre. Adding a Drama would increase ILD.
+
+### Worked 3×3 Example — Hybrid Feature Vector & Scoring
+
+Rating matrix $R$ with item genres (— = not rated):
+
+| | Movie1 (Sci-fi, 1995) | Movie2 (Drama, 1994) | Movie3 (Comedy, 1997) |
+|---|---|---|---|
+| **Alice** (F, 28) | 5 | — | 2 |
+| **Bob** (M, 35) | 4 | 3 | — |
+| **Carol** (F, 22) | — | 5 | 4 |
+
+**Feature vector $\mathbf{x}$ for (Alice, Movie1)**:
+
+| Feature group | Values |
+|--------------|--------|
+| Collaborative embedding (d=2) | $\mathbf{p}_{Alice}=[0.9, 0.3]$, $\mathbf{q}_{M1}=[0.8, 0.4]$ |
+| Genre (one-hot: Sci-fi=1, Drama=0, Comedy=0) | $[1, 0, 0]$ |
+| Year (normalised) | $0.80$ |
+| User age (normalised) | $0.35$ |
+
+Cross network Layer 1 creates interaction terms like $\text{Sci-fi} \times \text{age} = 1 \times 0.35 = 0.35$ automatically. **Weighted blend** (collaborative score = 4.2, content score = 4.5, $\alpha=0.6$):
+
+$$\hat{y}_{Alice, M1} = 0.6 \times 4.2 + 0.4 \times 4.5 = 2.52 + 1.80 = \mathbf{4.32}$$
 
 ---
 

@@ -10,12 +10,12 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
+> 💡 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
 
 **What we know so far:**
-- ✅ MDPs and Bellman equations (Ch.1)
-- ✅ DP finds optimal policy with known model (Ch.2)
-- ✅ Q-learning finds optimal policy from experience (Ch.3)
+- ⚡ MDPs and Bellman equations (Ch.1)
+- ⚡ DP finds optimal policy with known model (Ch.2)
+- ⚡ Q-learning finds optimal policy from experience (Ch.3)
 - ❌ **Q-table requires enumerable states — fails for CartPole (continuous) and Atari ($10^9$ states)!**
 
 **What's blocking us:**
@@ -31,10 +31,10 @@ Two critical innovations to make it work:
 | Constraint | Status after this chapter |
 |-----------|-------------------------|
 | #1 OPTIMALITY | ✅ Converges to near-optimal with enough capacity |
-| #2 EFFICIENCY | 🔶 Experience replay reuses data (better than on-policy) |
+| #2 EFFICIENCY | ⚠️ Experience replay reuses data (better than on-policy) |
 | #3 SCALABILITY | ✅ **Solved!** Neural network handles continuous/high-dim states |
 | #4 STABILITY | ✅ Experience replay + target networks stabilize training |
-| #5 GENERALIZATION | 🔶 Generalizes across similar states (same environment) |
+| #5 GENERALIZATION | ⚠️ Generalizes across similar states (same environment) |
 
 ```mermaid
 flowchart LR
@@ -151,7 +151,15 @@ The online network $\theta$ picks the best action; the target network $\theta^-$
 
 ### 3.5 Numeric Example
 
-**DQN update for CartPole:**
+**Compact replay buffer (3 transitions):**
+
+| # | State $s$ | Action | Reward | Next $s'$ | Done |
+|---|-----------|--------|--------|-----------|------|
+| 1 | [0.02, 0.15, −0.03, −0.20] | 1 (Right) | +1 | [0.03, 0.10, −0.04, −0.15] | False |
+| 2 | [0.03, 0.10, −0.04, −0.15] | 0 (Left)  | +1 | [0.02, 0.09, −0.01, +0.10] | False |
+| 3 | [0.02, 0.09, −0.01, +0.10] | 1 (Right) | +1 | [0.04, 0.12, −0.03, −0.05] | False |
+
+**One gradient step using transition 1** ($\gamma = 0.99$):
 
 Given: State $s = [0.02, 0.15, -0.03, -0.2]$, action $a = 1$ (Right), reward $r = 1$, next state $s' = [0.03, 0.10, -0.04, -0.15]$, $\gamma = 0.99$
 

@@ -14,12 +14,12 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
+> 💡 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
 
 **What we know so far:**
-- ✅ MDP framework: states, actions, rewards, transitions, policies (Ch.1)
-- ✅ Bellman equations: recursive value relationships
-- ✅ Bellman optimality equation: $V^*(s) = \max_a \sum P(s'|s,a)[R + \gamma V^*(s')]$
+- ⚡ MDP framework: states, actions, rewards, transitions, policies (Ch.1)
+- ⚡ Bellman equations: recursive value relationships
+- ⚡ Bellman optimality equation: $V^*(s) = \max_a \sum P(s'|s,a)[R + \gamma V^*(s')]$
 - ❌ **But we have NO algorithm to find $V^*$ or $\pi^*$!**
 
 **What's blocking us:**
@@ -37,7 +37,7 @@ Both converge to optimality. Both require knowing $P(s'|s,a)$.
 | Constraint | Status after this chapter |
 |-----------|-------------------------|
 | #1 OPTIMALITY | ✅ **Achieved!** Both algorithms find $\pi^*$ |
-| #2 EFFICIENCY | 🔶 Depends on $|S|$ — polynomial in state space size |
+| #2 EFFICIENCY | ⚠️ Depends on $|S|$ — polynomial in state space size |
 | #3 SCALABILITY | ❌ $O(|S|^2 |A|)$ per iteration — infeasible for large state spaces |
 | #4 STABILITY | ✅ Guaranteed convergence (contraction mapping) |
 | #5 GENERALIZATION | ❌ Solution is specific to the given MDP |
@@ -128,6 +128,20 @@ Iteration 2 at state 10:
 $$V_2(10) = \max\{\ldots, \underbrace{-1 + 0.9 \cdot V_1(14)}_{a=\downarrow}, \ldots\} = \max\{\ldots, -1 + 0.9 \times 10, \ldots\} = 8.0$$
 
 Values propagate backward from the goal like a wave.
+
+#### Compact 3-State Value Iteration Table
+
+Toy MDP: **{s0 = Start, s1 = Mid, s2 = Goal}**, $\gamma = 0.9$.  
+Rewards: $R(\cdot, \text{right}) = -1$ except $s_1 \to s_2$ gives $+10$. Terminal: $V(s_2) = 0$ always.
+
+| State | $V$ iter 0 | $V$ iter 1 | $V$ iter 2 |
+|-------|-----------|-----------|-----------|
+| s0 (Start) | 0.0 | −1.0 | **8.0** |
+| s1 (Mid)   | 0.0 | **10.0** | 10.0 |
+| s2 (Goal)  | 0.0 | 0.0 | 0.0 |
+
+**Iter 1:** $V_1(s_1) = +10 + 0.9 \times 0 = 10.0$; $V_1(s_0) = -1 + 0.9 \times 0 = -1.0$  
+**Iter 2:** $V_2(s_0) = -1 + 0.9 \times V_1(s_1) = -1 + 9.0 = \mathbf{8.0}$ — the value wave propagates backward from the goal.
 
 ### 3.2 Policy Iteration
 

@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
+> 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.1:**
 - ✅ Evaluation framework (HR@10, Precision@k, NDCG)
@@ -114,6 +114,28 @@ where $\mathcal{N}_k(i)$ are the $k$ items most similar to item $i$ that user $u
 2. **Fewer items** than users in most systems → smaller similarity matrix
 3. Item similarities can be **precomputed** offline
 
+### Worked 3×3 Example — Cosine Similarity & Prediction
+
+Rating matrix $R$ (— = not rated):
+
+| | Movie1 (Star Wars) | Movie2 (Fargo) | Movie3 (Pulp Fiction) |
+|---|---|---|---|
+| **Alice** | 5 | 3 | — |
+| **Bob** | 4 | 2 | 5 |
+| **Carol** | — | 4 | 3 |
+
+**Step 1 — sim(Alice, Bob)** on co-rated items {Movie1, Movie2}:
+
+$$\text{sim}(Alice, Bob) = \frac{5 \times 4 + 3 \times 2}{\sqrt{5^2+3^2} \cdot \sqrt{4^2+2^2}} = \frac{26}{\sqrt{34} \cdot \sqrt{20}} = \frac{26}{26.05} \approx 0.998$$
+
+**Step 2 — Predict Alice's rating for Movie3** (Bob is her sole neighbor, sim = 0.998):
+
+$\bar{r}_{Alice} = (5+3)/2 = 4.0$, $\bar{r}_{Bob} = (4+2+5)/3 = 3.67$
+
+$$\hat{r}_{Alice, M3} = 4.0 + \frac{0.998 \times (5 - 3.67)}{0.998} = 4.0 + 1.33 = \mathbf{5.33} \rightarrow \text{clip to } 5.0$$
+
+➡️ Pulp Fiction is Alice's top recommendation with predicted rating 5.0.
+
 ---
 
 ## 4 · Step by Step
@@ -158,14 +180,14 @@ ITEM-BASED COLLABORATIVE FILTERING
 flowchart TB
     subgraph UB["User-Based CF"]
         direction LR
-        UA["User A<br/>🎬 Sci-fi fan"] --> SIM1["Find similar<br/>users"]
+        UA["User A<br/>📖 Sci-fi fan"] --> SIM1["Find similar<br/>users"]
         SIM1 --> UB2["User B (sim=0.95)<br/>User C (sim=0.82)"]
         UB2 --> REC1["Recommend what<br/>B & C liked"]
     end
     
     subgraph IB["Item-Based CF"]
         direction LR
-        IA["User A rated<br/>Star Wars: 5⭐"] --> SIM2["Find similar<br/>items"]
+        IA["User A rated<br/>Star Wars: 5★"] --> SIM2["Find similar<br/>items"]
         SIM2 --> IB2["Blade Runner (sim=0.91)<br/>Alien (sim=0.87)"]
         IB2 --> REC2["Recommend<br/>similar movies"]
     end

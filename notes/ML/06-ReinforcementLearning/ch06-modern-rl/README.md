@@ -10,11 +10,11 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
+> 💡 **AgentAI constraints**: 1. OPTIMALITY — 2. EFFICIENCY — 3. SCALABILITY — 4. STABILITY — 5. GENERALIZATION
 
 **What we know so far:**
-- ✅ Policy gradients optimize $\pi_\theta$ directly (Ch.5)
-- ✅ Actor-critic reduces variance with a value baseline
+- ⚡ Policy gradients optimize $\pi_\theta$ directly (Ch.5)
+- ⚡ Actor-critic reduces variance with a value baseline
 - ❌ **REINFORCE is sample-inefficient (on-policy, Monte Carlo)**
 - ❌ **Large policy updates can catastrophically destroy performance**
 - ❌ **No single algorithm is best for all problem types**
@@ -39,7 +39,7 @@
 | #2 EFFICIENCY | ✅ SAC/DDPG reuse data (off-policy) |
 | #3 SCALABILITY | ✅ All handle large/continuous spaces |
 | #4 STABILITY | ✅ **PPO's clipping prevents catastrophic updates** |
-| #5 GENERALIZATION | 🔶 Active research (sim-to-real, meta-RL) |
+| #5 GENERALIZATION | ⚠️ Active research (sim-to-real, meta-RL) |
 
 ---
 

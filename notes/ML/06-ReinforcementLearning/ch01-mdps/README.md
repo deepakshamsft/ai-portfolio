@@ -10,12 +10,12 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Build **AgentAI** — autonomous agents that learn optimal behavior through trial-and-error, satisfying 5 constraints:
+> 💡 **The mission**: Build **AgentAI** — autonomous agents that learn optimal behavior through trial-and-error, satisfying 5 constraints:
 > 1. **OPTIMALITY**: Find optimal policy — 2. **EFFICIENCY**: Minimal episodes — 3. **SCALABILITY**: Large state spaces — 4. **STABILITY**: Reliable convergence — 5. **GENERALIZATION**: Transfer to new environments
 
 **What we know so far:**
-- ✅ We know supervised learning (labeled data → minimize prediction error)
-- ✅ We know unsupervised learning (unlabeled data → find structure)
+- ⚡ We know supervised learning (labeled data → minimize prediction error)
+- ⚡ We know unsupervised learning (unlabeled data → find structure)
 - ❌ **But we have NO framework for sequential decision-making under uncertainty!**
 
 **What's blocking us:**
@@ -31,7 +31,7 @@ The **MDP framework** — the universal language of RL. Every algorithm in chapt
 
 | Constraint | Status after this chapter |
 |-----------|-------------------------|
-| #1 OPTIMALITY | 🔶 Defined mathematically (Bellman optimality), not yet achieved |
+| #1 OPTIMALITY | ⚠️ Defined mathematically (Bellman optimality), not yet achieved |
 | #2 EFFICIENCY | ❌ Not addressed (no learning algorithm yet) |
 | #3 SCALABILITY | ❌ Not addressed (small GridWorld only) |
 | #4 STABILITY | ❌ Not addressed (no iterative algorithm yet) |
@@ -186,6 +186,30 @@ Action Right from state 0 → goes to state 1:
 $$Q^\pi(0, \rightarrow) = R(0, \rightarrow, 1) + \gamma V^\pi(1) = -1 + 0.9 \cdot V^\pi(1)$$
 
 If $V^\pi(1) = 4.0$ (hypothetical), then $Q^\pi(0, \rightarrow) = -1 + 0.9 \times 4.0 = 2.6$.
+
+### 3.7 Compact Numeric Example — 3-State MDP
+
+Toy MDP: **{s0 = Start, s1 = Mid, s2 = Goal}**, two actions {left, right}, $\gamma = 0.9$.
+
+| State | Meaning | Known $V(s)$ |
+|-------|---------|-------------|
+| s0 | Start | ? (to compute) |
+| s1 | Mid | 5.0 |
+| s2 | Goal (terminal) | 0.0 |
+
+Transitions (deterministic): right moves forward (s0→s1, s1→s2), left loops back (s0→s0).  
+Rewards: $R = -1$ per step, $R = +10$ on s1→s2.
+
+**One-step Bellman update for $V(s_0)$:**
+
+Action right (s0 → s1, reward −1):
+$$Q(s_0, \text{right}) = -1 + 0.9 \times V(s_1) = -1 + 0.9 \times 5.0 = 3.5$$
+
+Action left (s0 → s0, reward −1 — self-loop, V(s0) ≈ 0 at init):
+$$Q(s_0, \text{left}) = -1 + 0.9 \times 0 = -1.0$$
+
+Bellman optimality selects the best action:
+$$V^*(s_0) = \max(3.5,\ -1.0) = \mathbf{3.5} \quad \Rightarrow \text{always go right}$$
 
 ---
 

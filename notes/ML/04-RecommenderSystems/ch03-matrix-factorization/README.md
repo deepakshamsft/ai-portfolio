@@ -14,7 +14,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
+> 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.2:**
 - ✅ Personalised recommendations via collaborative filtering = 68% HR@10
@@ -133,6 +133,28 @@ Instead of SGD, fix one matrix and solve for the other in closed form, alternati
 | **Convergence** | Needs learning rate tuning | Guaranteed convergence |
 | **Parallelism** | Hard to parallelise | Embarrassingly parallel (rows/columns independent) |
 | **Implicit data** | Needs adaptation | Natural fit (weighted regularisation) |
+
+### Worked 3×3 Example — One SGD Gradient Step
+
+Rating matrix $R$ (— = not rated), $d=2$ latent factors:
+
+| | Movie1 | Movie2 | Movie3 |
+|---|---|---|---|
+| **Alice** | 5 | — | 3 |
+| **Bob** | 4 | 2 | — |
+| **Carol** | — | 4 | 1 |
+
+Initial vectors (random init): $\mathbf{u}_{Alice} = [1.2,\; 0.8]$, $\mathbf{v}_{M1} = [1.0,\; 0.5]$. Hyperparameters: $\eta = 0.1$, $\lambda = 0.01$.
+
+**SGD step on $(Alice, Movie1, r=5)$:**
+
+$$\hat{r} = 1.2 \times 1.0 + 0.8 \times 0.5 = 1.60 \qquad e = 5 - 1.60 = 3.40$$
+
+$$\mathbf{u}_{Alice} \leftarrow [1.2, 0.8] + 0.1(3.4[1.0, 0.5] - 0.01[1.2, 0.8]) = [1.54,\; 0.97]$$
+
+$$\mathbf{v}_{M1} \leftarrow [1.0, 0.5] + 0.1(3.4[1.2, 0.8] - 0.01[1.0, 0.5]) = [1.41,\; 0.77]$$
+
+New prediction: $1.54 \times 1.41 + 0.97 \times 0.77 = 2.92$. Error reduced from 3.40 → 2.08 in a single step.
 
 ---
 

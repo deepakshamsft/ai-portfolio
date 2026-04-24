@@ -14,7 +14,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
+> 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.3:**
 - ✅ Matrix factorization handles sparsity via latent factors = 78% HR@10
@@ -126,6 +126,29 @@ $$\text{For each } (u, i) \in \mathcal{Y}^+: \text{ sample } j_1, j_2, \ldots, j
 Typical ratio: 4 negatives per positive ($k = 4$).
 
 **Why negative sampling matters**: Without it, the model sees only positive examples and learns to predict 1 for everything. Negatives teach it to discriminate.
+
+### Worked 3×3 Example — NCF Forward Pass
+
+Implicit interaction matrix $Y$ (1 = watched, 0 = not):
+
+| | Movie1 | Movie2 | Movie3 |
+|---|---|---|---|
+| **Alice** | 1 | 0 | 1 |
+| **Bob** | 1 | 1 | 0 |
+| **Carol** | 0 | 1 | 1 |
+
+**Predict $\hat{y}_{Alice, Movie2}$** (a negative pair to train on) with $d_{GMF} = d_{MLP} = 2$:
+
+| Path | Alice emb | Movie2 emb | Intermediate |
+|------|-----------|-----------|--------------|
+| GMF | $\mathbf{p}^G=[0.6, 0.4]$ | $\mathbf{q}^G=[0.2, 0.9]$ | $\mathbf{p}^G \odot \mathbf{q}^G = [0.12, 0.36]$ |
+| MLP | $\mathbf{p}^M=[0.8, -0.3]$ | $\mathbf{q}^M=[0.1, 0.7]$ | concat → ReLU layer → $[0.11, 0.21]$ |
+
+Fused: $[0.12, 0.36, 0.11, 0.21]$ with output weights $\mathbf{h}=[0.3, 0.5, 0.2, 0.4]$:
+
+$$\hat{y}_{Alice, M2} = \sigma(0.3 \times 0.12 + 0.5 \times 0.36 + 0.2 \times 0.11 + 0.4 \times 0.21) = \sigma(0.322) \approx 0.58$$
+
+Target $y=0$, so BCE loss pushes $\hat{y}$ downward — embeddings for Alice and Movie2 are updated to be less compatible.
 
 ---
 

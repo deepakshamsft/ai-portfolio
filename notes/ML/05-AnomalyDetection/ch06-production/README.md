@@ -10,9 +10,9 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **FraudShield status after Ch.5:**
-> - ✅ Detection: 83% recall @ 0.5% FPR ← met!
-> - ✅ Precision: <0.5% FPR ← met!
+> 💡 **FraudShield status after Ch.5:**
+> - ⚡ Detection: 83% recall @ 0.5% FPR ← met!
+> - ⚡ Precision: <0.5% FPR ← met!
 > - ⚡ Real-time: ~50ms ensemble inference ← under 100ms but can optimize
 > - ❌ **Adaptability**: Static model, no drift detection
 > - ❌ **Explainability**: No human-readable justifications
@@ -458,7 +458,7 @@ flowchart TD
 
 ## 10 · Progress Check — What We Can Solve Now
 
-✅ **ALL CONSTRAINTS SATISFIED:**
+⚡ **ALL CONSTRAINTS SATISFIED:**
 
 | Constraint | Status | Final State |
 |------------|--------|-------------|
@@ -479,7 +479,7 @@ flowchart TD
 | Ch.5 | Ensemble (all four) | 83% | Complementary errors cancel |
 | Ch.6 | Production system | 83%+ | Drift-aware, real-time, explainable |
 
-**🎉 FraudShield is production-ready.**
+**💡 FraudShield is production-ready.**
 
 ---
 
