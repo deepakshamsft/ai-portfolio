@@ -31,7 +31,7 @@ We've been reporting **accuracy** — but what does 88% mean for FaceAI's 40 att
 - **Precision/Recall/F1**: Proper evaluation for imbalanced classes
 - **ROC-AUC & PR-AUC**: Threshold-independent evaluation
 - **Multi-label metrics**: How to evaluate 40 attributes simultaneously
-- ✅ **Constraint #1 VALIDATED** — Now we know if 88% is actually good
+- **Constraint #1 VALIDATED** — Now we know if 88% is actually good
 
 ```mermaid
 graph LR
@@ -87,7 +87,7 @@ Test set: 750 faces, 19 Bald, 731 Not-Bald.
 **Model A** (always predicts Not-Bald):
 - $TP=0, FP=0, TN=731, FN=19$
 - Accuracy $= 731/750 = 97.5\%$ ⚡ (but useless!)
-- Recall $= 0/19 = 0\%$ 💀
+- Recall $= 0/19 = 0\%$
 - F1 $= 0$
 
 **Model B** (logistic regression with threshold 0.3):

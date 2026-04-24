@@ -27,8 +27,8 @@ Hand-picked hyperparameters are leaving accuracy on the table. Also, default thr
 - **Grid/Random/Bayesian search** across classification hyperparameters
 - **Per-attribute threshold tuning**: 40 independent optimal thresholds
 - **class_weight optimization**: Handle imbalanced attributes
-- ✅ **Constraint #1 ✅** — ~92% accuracy on Smiling
-- ✅ **Constraint #2 ✅** — Nested CV validates generalization
+- **Constraint #1** — ~92% accuracy on Smiling
+- **Constraint #2** — Nested CV validates generalization
 
 ```mermaid
 graph LR

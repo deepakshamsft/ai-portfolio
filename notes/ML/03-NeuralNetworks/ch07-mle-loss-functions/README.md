@@ -14,12 +14,12 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1-14: Achieved Constraints #1, #2, #3, #4
-- ✅ Can train models for regression, binary classification, multi-class segmentation
+- Ch.1-6: Achieved Constraints #1 and #2
+- Can train models for regression, binary classification, multi-class segmentation
 - 💡 **But why did we use MSE for regression and cross-entropy for classification?**
 
 **What's blocking us:**

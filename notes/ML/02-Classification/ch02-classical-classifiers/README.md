@@ -27,7 +27,7 @@ Logistic regression is linear — it can't capture curved decision boundaries. A
 - **Decision Trees**: Interpretable rules ("if HOG gradient at mouth > 0.3 → Smiling")
 - **KNN**: Non-parametric, captures local structure in feature space
 - **Naive Bayes**: Fast probabilistic baseline, handles high-dimensional data
-- ✅ **Constraint #4 PARTIAL** — Tree rules provide interpretability
+- **Constraint #4 PARTIAL** — Tree rules provide interpretability
 
 ```mermaid
 graph LR

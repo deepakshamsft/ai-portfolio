@@ -18,10 +18,10 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1-4: Built 3-layer neural network
-- ✅ Ch.5: Backprop + Adam optimizer → ✅ **Constraint #1 ACHIEVED** ($48k MAE)
-- ✅ Can train neural networks efficiently
-- ❌ **But the model is overfitting!**
+- Ch.1-2: Built 3-layer neural network
+- Ch.3: Backprop + Adam optimizer → ✅ **Constraint #1 ACHIEVED** ($48k MAE)
+- Can train neural networks efficiently
+- **But the model is overfitting!**
 
 **What's blocking us:**
 ⚠️ **CRITICAL PROBLEM: The model can't generalize!**
@@ -341,11 +341,11 @@ Adjust links and examples in an editorial pass if desired.
 ⚡ **MAJOR MILESTONE**: ✅ **Constraint #2 (GENERALIZATION) ACHIEVED!**
 
 **Unlocked capabilities:**
-- ✅ **L2 regularization**: Shrinks weights toward zero → simpler, smoother models
-- ✅ **Dropout**: Forces redundant representations → ensemble-like robustness
-- ✅ **Early stopping**: Prevents late-epoch memorization
-- ✅ **Batch normalization**: Normalizes layer inputs + implicit regularization
-- ✅ **Generalization achieved**: Test R² improved from 0.64 → 0.76, test MAE from $85k → **$52k**!
+- **L2 regularization**: Shrinks weights toward zero → simpler, smoother models
+- **Dropout**: Forces redundant representations → ensemble-like robustness
+- **Early stopping**: Prevents late-epoch memorization
+- **Batch normalization**: Normalizes layer inputs + implicit regularization
+- **Generalization achieved**: Test R² improved from 0.64 → 0.76, test MAE from $85k → **$52k**!
 
 **Progress toward constraints:**
 | Constraint | Status | Current State |
@@ -358,13 +358,13 @@ Adjust links and examples in an editorial pass if desired.
 
 **What we can solve:**
 
-✅ **Generalize to unseen data!**
+**Generalize to unseen data!**
 - **Before** (Ch.5): Train R²=0.88, Test R²=0.64 → gap=0.24 (overfitting!)
 - **Now** (Ch.6): Train R²=0.82, Test R²=0.76 → gap=0.06 (acceptable!)
 - **Test MAE**: $85k → **$52k** (37% improvement on unseen districts)
 - **Real-world**: Model now works on new property listings, not just memorized training data
 
-✅ **Control model complexity!**
+**Control model complexity!**
 - **L2** ($\lambda=0.01$): Largest weights shrunk from $\pm 15$ → $\pm 3$
 - **Dropout** (p=0.5): Half the neurons randomly zeroed each batch → no single neuron can memorize patterns
 - **Early stopping** (patience=10): Training stopped at epoch 87 (before validation loss started rising)
@@ -425,19 +425,19 @@ SmartVal AI can now predict house values on **new districts** (not in training d
 
 **What we still CAN'T solve:**
 
-❌ **Constraint #3 (MULTI-TASK)** — Limited to single-task:
+**Constraint #3 (MULTI-TASK)** — Limited to single-task:
 - Can predict house value (regression)
 - Can classify high/low value (binary)
-- ❌ Can't classify into 4+ market segments simultaneously ("Coastal Luxury", "Suburban Affordable", "Urban Dense", "Rural")
-- ❌ Can't do multi-label classification (e.g., "premium + new-construction + school-district")
+- Can't classify into 4+ market segments simultaneously ("Coastal Luxury", "Suburban Affordable", "Urban Dense", "Rural")
+- Can't do multi-label classification (e.g., "premium + new-construction + school-district")
 - **Need**: Ch.7-9 will add CNNs (spatial patterns), Ch.12 clustering (unsupervised segmentation)
 
-❌ **Constraint #4 (INTERPRETABILITY)** — Still a black box:
+**Constraint #4 (INTERPRETABILITY)** — Still a black box:
 - **Question**: "Why did the model predict $350k for this district?"
 - **Current answer**: "Because 128 neurons in layer 1 activated, then 64 in layer 2, then..." (useless!)
 - **Need**: Feature importance, SHAP values, decision rules (Ch.10-11)
 
-❌ **Constraint #5 (PRODUCTION)** — Research code only:
+**Constraint #5 (PRODUCTION)** — Research code only:
 - No model versioning (can't roll back to previous version)
 - No A/B testing (can't compare model versions in production)
 - No monitoring (can't detect model drift or degradation)

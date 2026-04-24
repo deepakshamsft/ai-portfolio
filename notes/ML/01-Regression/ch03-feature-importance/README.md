@@ -8,27 +8,6 @@
 
 ---
 
-## Notation
-
-| Symbol | Meaning |
-|---|---|
-| $x_j$ | Value of feature $j$ for one sample |
-| $\mu_j$, $\sigma_j$ | Mean and standard deviation of feature $j$ across the training set |
-| $x_j^{\text{std}}$ | Standardized (Z-score) feature: $(x_j - \mu_j)/\sigma_j$ — mean 0, std 1 |
-| $\rho(x_j, y)$ | Pearson correlation between feature $j$ and target $y$ |
-| $R^2_j$ | Univariate R² — fraction of target variance explained by feature $j$ **alone** |
-| $R^2_{j,\text{feat}}$ | Auxiliary R² — R² from regressing feature $j$ on all **other** features (used in VIF) |
-| $w_j^{\text{std}}$ | Fitted coefficient for feature $j$ in the full standardized model |
-| $\lvert w_j^{\text{std}} \rvert$ | Absolute standardized weight — partial contribution of feature $j$ |
-| $\text{VIF}_j$ | Variance Inflation Factor: $1/(1 - R^2_{j,\text{feat}})$ — how much collinearity inflates $\text{Var}(\hat{w}_j)$ |
-| $\pi_j$ | Permutation importance — rise in test MAE when feature $j$ is randomly shuffled |
-| $\text{SS}_{xy}$ | Sum of cross-products: $\sum_i (x_i - \bar{x})(y_i - \bar{y})$ |
-| $\text{SS}_{xx}$, $\text{SS}_{yy}$ | Squared-deviation sums for $x$ and $y$ respectively |
-| $\text{SS}_{\text{res}}$, $\text{SS}_{\text{tot}}$ | Residual and total sums of squares |
-| $\hat{\beta}$, $\hat{\alpha}$ | OLS slope and intercept in the VIF auxiliary regression |
-
----
-
 ## 0 · The Challenge — Where We Are
 
 > 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
@@ -1012,7 +991,7 @@ flowchart TD
     Q4 -->|"No — near zero"| FIX2["✅ Safe to drop\nboth or the weak one"]
 
     CHECK --> Q5{"Permutation results\nvery noisy (std > mean)?"}
-    Q5 -->|"Yes"| FIX3["📈 Increase n_repeats\nto 50–100"]
+    Q5 -->|"Yes"| FIX3["Increase n_repeats\nto 50–100"]
 
     style CHECK fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style SAFE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff

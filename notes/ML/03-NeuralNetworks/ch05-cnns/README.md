@@ -18,7 +18,7 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1-6: Dense neural networks achieving $48k MAE with good generalization
+- ✅ Ch.1-4: Dense neural networks achieving $48k MAE with good generalization
 - ✅ **Constraint #1 (ACCURACY)** ✅ **Constraint #2 (GENERALIZATION)** both achieved
 - ✅ Can train regularized models on **tabular data** (8 numerical features)
 - ❌ **But dense networks are wrong for spatial data!**
@@ -67,6 +67,8 @@ Conv layer: a 3×3 filter has only 9 weights;
 ---
 
 ## 2 · Running Example
+
+> 💡 **Dataset note:** CNNs require spatial (image) data; the compact 8×8 synthetic pixel grid below is the minimal self-contained example that avoids large download dependencies. In production you would swap this for a real image dataset (e.g., CIFAR-10 or property aerial photos).
 
 We create a **synthetic 8×8 pixel grid** representing a neighbourhood aerial view. Each grid cell has a brightness value: bright = well-maintained building, dark = distressed/empty lot. The task: binary classifier — `0 = tidy`, `1 = distressed`.
 

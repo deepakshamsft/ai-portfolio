@@ -14,8 +14,8 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1-6: Dense networks achieving Constraints #1 & #2
-- ✅ Ch.7: CNNs for spatial data (images)
+- ✅ Ch.1-4: Dense networks achieving Constraints #1 & #2
+- ✅ Ch.5: CNNs for spatial data (images)
 - ✅ Can handle tabular data and images
 - ❌ **But we can't handle sequences!**
 
@@ -52,16 +52,6 @@ Product team wants to add **price trend predictions**:
 
 ![Chapter animation](./img/ch06-rnns-lstms-needle.gif)
 
-## 9 · Where This Reappears
-
-Sequence modelling ideas and gated-recurrent primitives reappear in:
-
-- Later chapters on attention and transformers (Ch.9–Ch.10).
-- Time-series and forecasting examples in ML application notes.
-- Multimodal sequences (audio, text timelines) in MultimodalAI.
-
-Please refine these cross-links if you want chapter-specific references.
-
 ## 1 · Core Idea
 
 A **Recurrent Neural Network** processes a sequence one step at a time, updating a hidden state that summarises everything seen so far:
@@ -79,6 +69,8 @@ The problem: gradients of the loss with respect to early steps shrink exponentia
 ## 2 · Running Example
 
 The platform's analytics team wants a **monthly housing price index forecaster**. Given the last $T$ months of median house values for a district, predict next month's value.
+
+> 💡 **Dataset note:** RNNs/LSTMs require temporal sequences; the synthetic monthly price index below is the minimal standalone example. For housing data, lag features (Ch.4) are the standard alternative to sequence models.
 
 Dataset: **Synthetic monthly price index** 
 Features: normalised median house values, time index, 12-month seasonal signal 
@@ -460,6 +452,18 @@ gru_model.compile(optimizer='adam', loss='mse')
 - **Using `return_sequences=True` on the last LSTM layer before a Dense output.** This outputs `(N, T, H)` — a sequence prediction — rather than the single `(N, H)` summary needed for regression. Use `return_sequences=False` on the final LSTM layer, or add a `Flatten` / `GlobalAveragePooling1D`.
 
 - **Treating RNN hidden size and CNN filter count as equivalent dials.** An LSTM with `H=64` has $(4 × (64^2 + 64 + 64)) = 16,900$ parameters per step. Jumping straight to `H=256` quadruples parameters and training time. Start small, increase if validation loss is still decreasing.
+
+---
+
+## 9 · Where This Reappears
+
+Sequence modelling ideas and gated-recurrent primitives reappear in:
+
+- Later chapters on attention and transformers (Ch.9–Ch.10).
+- Time-series and forecasting examples in ML application notes.
+- Multimodal sequences (audio, text timelines) in MultimodalAI.
+
+Please refine these cross-links if you want chapter-specific references.
 
 ---
 

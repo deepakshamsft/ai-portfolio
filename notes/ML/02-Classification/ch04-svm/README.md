@@ -27,7 +27,7 @@ Logistic regression finds *a* hyperplane. But infinitely many hyperplanes separa
 - **Maximum-margin classifier**: Most robust linear boundary
 - **Kernel trick**: Non-linear boundaries without explicit feature maps
 - **Support vectors**: Only the boundary-defining points matter
-- ✅ **Constraint #1 IMPROVED** — ~89% accuracy on Smiling
+- **Constraint #1 IMPROVED** — ~89% accuracy on Smiling
 
 ```mermaid
 graph LR

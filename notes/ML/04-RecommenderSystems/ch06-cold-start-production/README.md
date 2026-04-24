@@ -13,10 +13,10 @@
 > 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.5:**
-- ✅ Hybrid system = 87% HR@10 (accuracy target met!)
-- ✅ Diversity via MMR re-ranking
-- ✅ Explainable: "Because it's sci-fi and you love Nolan"
-- ❌ Cold start: new users/items have no embeddings
+- Hybrid system = 87% HR@10 (accuracy target met!)
+- Diversity via MMR re-ranking
+- Explainable: "Because it's sci-fi and you love Nolan"
+- Cold start: new users/items have no embeddings
 
 **What's blocking production:**
 1. **New user**: User signs up → zero watch history → no collaborative embedding → what do we show?

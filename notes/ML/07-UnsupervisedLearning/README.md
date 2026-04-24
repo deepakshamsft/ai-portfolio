@@ -4,6 +4,8 @@
 
 You are the Lead Data Scientist at a retail company. The CMO says: "We blast the same marketing emails to 440 customers. Our open rate is 12%. I want segments — 'Loyalists', 'Price-sensitive', 'Big spenders' — so each group gets the right message. But nobody has time to label 440 customer records by hand." No labels. No ground truth. Pure unsupervised learning.
 
+> 💡 **Dataset choice:** This track uses the UCI Wholesale Customers dataset (440 customers, 6 spending categories) instead of California Housing. Unsupervised methods (clustering, PCA) are best illustrated with multi-dimensional non-target data where "labels" don't exist.
+
 ---
 
 ## The Grand Challenge: 5 SegmentAI Constraints

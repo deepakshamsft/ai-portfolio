@@ -16,8 +16,8 @@
 **What we know so far:**
 - ✅ Ch.1: Linear regression baseline (~$70k MAE)
 - ✅ Ch.2: Logistic regression (binary classification)
-- ✅ Ch.3: Diagnosed the problem — linear models can't handle non-linear boundaries (XOR failure)
-- ✅ Ch.3: Proved the solution — one hidden layer with non-linear activation can learn any function (Universal Approximation Theorem)
+- ✅ Ch.1: Diagnosed the problem — linear models can't handle non-linear boundaries (XOR failure)
+- ✅ Ch.1: Proved the solution — one hidden layer with non-linear activation can learn any function (Universal Approximation Theorem)
 
 **What's blocking us:**
 ⚠️ **We need to actually BUILD the neural network!**
@@ -130,6 +130,23 @@ Weights: $w_1=0.5$, $w_2=-0.3$, $b_h=0.1$; $w_{out}=0.8$, $b_{out}=0.2$.
 | C | 0.0 | 3.0 | 0.0−0.9+0.1 = −0.8 | ReLU(−0.8) = 0.0 | 0.2 |
 
 Sample C: the negative pre-activation is clipped to 0 by ReLU — this is dead neuron territory for this input.
+
+#### Numeric forward-pass example (3 samples, 2→3→1 network)
+
+Weights (random but fixed for reproducibility):  
+Layer 1: $W_1 = \begin{bmatrix}0.5 & -0.2 \\ 0.3 & 0.8 \\ -0.1 & 0.4\end{bmatrix}$, $b_1 = [0, 0, 0]$  
+Layer 2: $W_2 = [0.6, -0.3, 0.7]$, $b_2 = 0$
+
+Input sample x = [MedInc=3.0, AveRooms=5.0]:
+
+| Layer | Computation | Result |
+|-------|-------------|--------|
+| Pre-activation h₁ | W₁x + b₁ | [0.5×3+(-0.2×5), 0.3×3+0.8×5, -0.1×3+0.4×5] = **[−0.5, 4.9, 1.7]** |
+| After ReLU | max(0, h₁) | **[0.0, 4.9, 1.7]** (−0.5 clamped to 0) |
+| Output z | W₂·ReLU(h₁) + b₂ | 0.6×0 + (−0.3)×4.9 + 0.7×1.7 = **−0.28** |
+| Prediction ŷ | (no final activation for regression) | $28k ×10 = −$2.8k (before scaling) |
+
+> ⚠️ The negative prediction shows why random initialisation needs many updates — the network has not yet seen any loss gradient. After one Adam step with the MSE loss, all weights shift toward positive predictions for high-income areas.
 
 ### 3.3 Activation functions
 

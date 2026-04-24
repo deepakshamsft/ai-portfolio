@@ -14,8 +14,8 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1-16: Achieved Constraints #1-4, have training instrumentation (TensorBoard)
-- ✅ Ch.7-8: Can handle images (CNN) and sequences (RNN/LSTM)
+- ✅ Ch.1-9 (Ch.9: Sequences): Achieved Constraints #1-4, have training instrumentation (Ch.8: TensorBoard)
+- ✅ Ch.5-6: Can handle images (CNN) and sequences (RNN/LSTM)
 - 💡 **But RNNs are slow and bottlenecked**
 
 **What's blocking us:**

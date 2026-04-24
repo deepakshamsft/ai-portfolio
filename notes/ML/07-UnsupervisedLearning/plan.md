@@ -1,16 +1,12 @@
 # Plan — 07-UnsupervisedLearning
 
-Remaining work after audit (2026-04-24, re-verified 2026-04-24). Completed: `Notation` and `0 · The Challenge` sections are present in all sub-chapters with downstream links.
+Remaining work after audit (2026-04-24, re-verified 2026-04-24). Completed: `Notation` and `0 · The Challenge` sections are present in all sub-chapters with downstream links. `Emoji standardisation` and `Numeric PCA walkthrough` are done.
 
 ---
 
 ## Per-chapter TODOs
 
-- [ ] **Emoji standardisation** — Replace `❌` used as callout bullets with approved emojis {💡, ⚠️, ⚡, 📖, ➡️}. Affected files:
-  - `ch01-clustering/README.md` line ~19 (`- ❌ **No labels!**`)
-  - `ch02-dimensionality-reduction/README.md` lines ~19–20 (`- ❌ **Can't visualise…**`, `- ❌ **Silhouette only…**`)
-
-- [ ] **Numeric PCA walkthrough** — Add a 3–5 row hand-computed example to `ch02-dimensionality-reduction/README.md` §3.1 that shows: raw data → centred matrix → covariance matrix → eigenvectors → projected coordinates. The current section has symbolic steps and an EVR table but no concrete number walkthrough.
+*(No remaining per-chapter items.)*
 
 ---
 

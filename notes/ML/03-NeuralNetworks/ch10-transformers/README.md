@@ -49,16 +49,6 @@ Product team's text feature requirements:
 
 ![Chapter animation](./img/ch10-transformers-needle.gif)
 
-## 9 · Where This Reappears
-
-This chapter's core ideas reappear across the curriculum and application tracks. See also:
-
-- AI track: LLM fundamentals and RAG ([../../../AI/LLMFundamentals/](../../../AI/LLMFundamentals/), [../../../AI/RAGAndEmbeddings/](../../../AI/RAGAndEmbeddings/)).
-- MultimodalAI chapters that combine text, image, and audio models.
-- Practical model engineering in AIInfrastructure (inference, deployment, monitoring).
-
-Fill in specific cross-links as needed during editorial pass.
-
 ## 1 · Core Idea
 
 A **transformer** processes an entire sequence in parallel using **scaled dot-product attention** — a learned, differentiable lookup that computes, for each position, a weighted sum over all other positions.
@@ -527,6 +517,18 @@ print("LSTM processes tokens one by one — 8 sequential steps.")
 - **Forgetting `key_dim = d_model / num_heads`.** If `num_heads` doesn't divide `d_model` evenly, the projection dimensions are wrong and the concatenated heads don't reconstruct to `d_model`. Always check `d_model % num_heads == 0`.
 - **Treating causal mask and padding mask as interchangeable.** A causal mask prevents attending to the future; a padding mask prevents attending to meaningless padding tokens. An autoregressive model needs *both*. Using just one silently corrupts gradients.
 - **Skipping gradient clipping.** Large language models use `clip_by_global_norm=1.0` universally. Without it, early warmup steps with a large LR frequently produce gradient explosions that require a full training restart.
+
+---
+
+## 9 · Where This Reappears
+
+This chapter's core ideas reappear across the curriculum and application tracks. See also:
+
+- AI track: LLM fundamentals and RAG ([../../../AI/LLMFundamentals/](../../../AI/LLMFundamentals/), [../../../AI/RAGAndEmbeddings/](../../../AI/RAGAndEmbeddings/)).
+- MultimodalAI chapters that combine text, image, and audio models.
+- Practical model engineering in AIInfrastructure (inference, deployment, monitoring).
+
+Fill in specific cross-links as needed during editorial pass.
 
 ---
 

@@ -13,9 +13,9 @@
 > 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.1:**
-- ✅ Evaluation framework (HR@10, Precision@k, NDCG)
-- ✅ Popularity baseline = 42% hit rate@10
-- ✅ Understanding of data sparsity (93.7%)
+- Evaluation framework (HR@10, Precision@k, NDCG)
+- Popularity baseline = 42% hit rate@10
+- Understanding of data sparsity (93.7%)
 
 **What's blocking us:**
 The popularity baseline gives **everyone the same list**. A 20-year-old action fan and a 60-year-old romance lover see identical recommendations. We need **personalisation** — but how?

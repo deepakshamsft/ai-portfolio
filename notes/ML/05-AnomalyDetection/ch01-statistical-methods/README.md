@@ -16,7 +16,7 @@
 **What we know so far:**
 - ⚡ We have the Credit Card Fraud dataset (284,807 transactions, 31 features)
 - ⚡ We understand the business problem (detect fraudulent transactions)
-- ❌ **But we have NO detector yet!**
+- **But we have NO detector yet!**
 
 **What's blocking us:**
 We need the **simplest possible baseline**. Before building neural autoencoders or tree ensembles, we must establish:
@@ -42,8 +42,8 @@ The **statistical anomaly baseline** — use distributional assumptions to score
 ```mermaid
 flowchart LR
     DATA["284,807\ntransactions"] --> SCORE["Statistical\nScoring\n(Z/IQR/Mahal)"] --> THRESH["Threshold\n@ 0.5% FPR"] --> DEC{"Fraud?"}
-    DEC -->|"Yes (score > τ)"| FLAG["🚨 Flag\n(~45% caught)"]
-    DEC -->|"No (score ≤ τ)"| PASS["✅ Pass\n(~55% missed)"]
+    DEC -->|"Yes (score > τ)"| FLAG["Flag\n(~45% caught)"]
+    DEC -->|"No (score ≤ τ)"| PASS["Pass\n(~55% missed)"]
 
     style DATA fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style FLAG fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -242,8 +242,8 @@ flowchart TD
     DIST --> COMBINE
 
     COMBINE --> THRESHOLD{"score > τ?"}
-    THRESHOLD -->|"Yes"| FRAUD["🚨 Fraud\nAlert"]
-    THRESHOLD -->|"No"| LEGIT["✅ Legitimate"]
+    THRESHOLD -->|"Yes"| FRAUD["Fraud\nAlert"]
+    THRESHOLD -->|"No"| LEGIT["Legitimate"]
 
     style TX fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style FRAUD fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -370,8 +370,8 @@ flowchart TD
     SYMPTOM -->|"High FPR\n(>1%)"| CHECK2["Threshold too low\n→ Raise τ or use\nROC-based selection"]
     SYMPTOM -->|"Recall drops on\nnew data"| CHECK3["Distribution shift\n→ Recompute μ, σ\non recent normal data"]
 
-    CHECK1 -->|"Yes"| FIX1["✅ Use Mahalanobis\n(all features jointly)"]
-    CHECK1 -->|"No, using all"| FIX2["✅ Feature selection:\nuse top-5 discriminative\nfeatures (V14, V17, V12...)"]
+    CHECK1 -->|"Yes"| FIX1["Use Mahalanobis\n(all features jointly)"]
+    CHECK1 -->|"No, using all"| FIX2["Feature selection:\nuse top-5 discriminative\nfeatures (V14, V17, V12...)"]
 
     style PROBLEM fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style SYMPTOM fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -392,11 +392,11 @@ flowchart TD
 - **Three scoring methods**: Z-score (Gaussian), IQR (distribution-free), Mahalanobis (multivariate)
 - **Evaluation protocol**: ROC curves, recall@FPR
 
-❌ **Still can't solve:**
-- ❌ **Constraint #1 (DETECTION)**: 45% recall << 80% target. Missing more than half of all fraud!
-- ❌ **Constraint #2 (PRECISION)**: Achievable at 0.5% FPR, but only by sacrificing recall
+**Still can't solve:**
+- **Constraint #1 (DETECTION)**: 45% recall << 80% target. Missing more than half of all fraud!
+- **Constraint #2 (PRECISION)**: Achievable at 0.5% FPR, but only by sacrificing recall
 - ⚡ **Constraint #3 (REAL-TIME)**: Z-scores are trivially fast (<1ms). ✅ Partially met
-- ❌ **Constraint #4 (ADAPTABILITY)**: Static statistics don't adapt to new fraud patterns
+- **Constraint #4 (ADAPTABILITY)**: Static statistics don't adapt to new fraud patterns
 - ⚡ **Constraint #5 (EXPLAINABILITY)**: "V14 Z-score = -8.5" is interpretable. ✅ Partially met
 
 **The core problem**: Statistical methods assume fraud = extreme values. But sophisticated fraud mimics normal transaction patterns. We need methods that learn complex "normality" boundaries.
@@ -414,5 +414,7 @@ flowchart TD
 ## 11 · Bridge to Chapter 2
 
 Ch.1 established the scoring paradigm — compute a deviation measure, threshold it, flag anomalies — but statistical methods assume fraud lives in distribution tails. Ch.2 (Isolation Forest) flips the idea: instead of measuring *distance from normal*, it measures *how easy a point is to isolate*. The key insight is that anomalies, being rare and different, require fewer random splits to separate from the rest. No distribution assumptions needed — just recursive partitioning. Recall jumps from 45% to ~72%.
+
+➡️ **Clustering-based anomaly detection:** DBSCAN and GMM-based isolation are covered in [07-UnsupervisedLearning/ch01-clustering](../../../07-UnsupervisedLearning/ch01-clustering/) — the same density intuition applies.
 
 

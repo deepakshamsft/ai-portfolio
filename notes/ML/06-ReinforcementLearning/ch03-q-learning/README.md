@@ -19,7 +19,7 @@
 **What we know so far:**
 - ⚡ MDP framework (Ch.1): states, actions, rewards, policies, Bellman equations
 - ⚡ Dynamic programming (Ch.2): value iteration and policy iteration find $\pi^*$
-- ❌ **But DP requires knowing $P(s'|s,a)$ — unavailable in most real environments!**
+- **But DP requires knowing $P(s'|s,a)$ — unavailable in most real environments!**
 
 **What's blocking us:**
 A robot learning to walk doesn't have perfect physics equations. A game agent doesn't know the opponent's next move. A recommender system doesn't know how users will react. We need algorithms that learn from **experience** — observed transitions $(s, a, r, s')$ — not from a mathematical model.
@@ -96,6 +96,16 @@ Q-learning updates action-values using the **maximum** Q-value of the next state
 $$Q(s_t, a_t) \leftarrow Q(s_t, a_t) + \alpha \Big[\underbrace{r_{t+1} + \gamma \max_{a'} Q(s_{t+1}, a')}_{TD\ target} - Q(s_t, a_t)\Big]$$
 
 **Key property:** The update uses $\max_{a'} Q(s', a')$ — the best possible action — not the action the agent actually takes. This is **off-policy** learning: the agent can follow an exploratory policy (ε-greedy) while learning about the optimal policy.
+
+**Toy Q-update (3-state chain, γ=0.9, α=0.1):**
+
+| Step | State | Action | Reward | Next state | Old Q(s,a) | TD target | New Q(s,a) |
+|------|-------|--------|--------|------------|-----------|-----------|----------|
+| 1 | s0 | a1 | −1 | s1 | 0.0 | −1 + 0.9×0.0 = −1.0 | 0 + 0.1×(−1.0) = **−0.10** |
+| 2 | s1 | a0 | +5 | s2 | 0.0 | 5 + 0.9×0.0 = +5.0 | 0 + 0.1×5.0 = **+0.50** |
+| 3 | s2 | a1 | 0 | s0 | 0.0 | 0 + 0.9×(−0.10) = −0.09 | 0 + 0.1×(−0.09) = **−0.01** |
+
+After 3 steps the Q-table begins to assign negative credit to the dead-end s2→a1 path and positive credit to the rewarding s1→a0 hop.
 
 **Numeric example** — Agent is in state 10, takes action Right, arrives at state 11 with reward −1:
 

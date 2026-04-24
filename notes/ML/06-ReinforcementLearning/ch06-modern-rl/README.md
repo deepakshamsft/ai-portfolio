@@ -15,9 +15,9 @@
 **What we know so far:**
 - ⚡ Policy gradients optimize $\pi_\theta$ directly (Ch.5)
 - ⚡ Actor-critic reduces variance with a value baseline
-- ❌ **REINFORCE is sample-inefficient (on-policy, Monte Carlo)**
-- ❌ **Large policy updates can catastrophically destroy performance**
-- ❌ **No single algorithm is best for all problem types**
+- **REINFORCE is sample-inefficient (on-policy, Monte Carlo)**
+- **Large policy updates can catastrophically destroy performance**
+- **No single algorithm is best for all problem types**
 
 **What's blocking us from production RL:**
 1. **Stability**: Actor-critic can diverge if the policy changes too much in one update
@@ -111,6 +111,19 @@ $$\text{clip}(1.5, 0.8, 1.2) = 1.2$$
 $$L = \min(1.5 \times 3.0,\ 1.2 \times 3.0) = \min(4.5, 3.6) = 3.6$$
 
 The clip limits the effective update to $r = 1.2$, preventing an excessively large policy change.
+
+**Toy PPO clip (single transition, ε=0.2):**
+
+Suppose the old policy gave π_old(a1|s0) = 0.3 and the new policy gives π_new(a1|s0) = 0.45.  
+Ratio r = 0.45/0.30 = **1.5**, advantage Â = +3.0.
+
+| Term | Value |
+|------|-------|
+| Unclipped: r·Â | 1.5 × 3.0 = 4.5 |
+| Clipped: clip(1.5, 0.8, 1.2) × 3.0 | 1.2 × 3.0 = 3.6 |
+| PPO objective: min(4.5, 3.6) | **3.6** |
+
+The clip prevented a 50% policy shift from being fully rewarded — conserving the trust region.
 
 ### 3.2 Asynchronous Advantage Actor-Critic (A3C)
 

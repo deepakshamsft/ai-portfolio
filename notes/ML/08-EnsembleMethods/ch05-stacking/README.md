@@ -266,6 +266,9 @@ print(f"Stack: RMSE = {rmse_stack:.4f}")
 
 Stacking gives the best possible accuracy on tabular data — but at what cost? $K$ base models means $K\times$ inference latency, $K\times$ memory, and $K\times$ deployment complexity. Chapter 6 tackles the **production reality**: when ensembles are worth the overhead, how to prune weak members, latency budgets, A/B testing ensemble vs single model, and the decision framework for "ensemble or not?"
 
+➡️ **Evaluation:** Stack accuracy, AUC, and calibration metrics are covered in depth at [02-Classification/ch03-metrics](../../../02-Classification/ch03-metrics/).  
+➡️ **Tuning:** Meta-learner selection and base model grid search strategies are in [02-Classification/ch05-hyperparameter-tuning](../../../02-Classification/ch05-hyperparameter-tuning/).
+
 ---
 
 ## Appendix A · Evaluation Protocol and Stability Checks

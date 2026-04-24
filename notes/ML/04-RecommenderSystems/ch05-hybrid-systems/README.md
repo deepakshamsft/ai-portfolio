@@ -13,9 +13,9 @@
 > 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.4:**
-- ✅ Neural CF captures non-linear taste patterns = 83% HR@10
-- ✅ Embedding space is expressive
-- ❌ Ignores content features (genres, year, demographics)
+- Neural CF captures non-linear taste patterns = 83% HR@10
+- Embedding space is expressive
+- Ignores content features (genres, year, demographics)
 
 **What's blocking us:**
 NCF treats every movie as an opaque ID — it doesn't know that "Inception" and "Interstellar" share the same director, are both sci-fi, and were released in the same decade. These content signals are free information we're leaving on the table.

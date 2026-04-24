@@ -16,7 +16,7 @@
 **What we know so far:**
 - ⚡ Dataset: 440 wholesale customers, 6 spending features (Fresh, Milk, Grocery, Frozen, Detergents_Paper, Delicatessen)
 - ⚡ Business goal: Targeted marketing instead of one-size-fits-all
-- ❌ **No labels!** Nobody has classified these customers as "Loyalists" or "Price-sensitive"
+- **No labels!** Nobody has classified these customers as "Loyalists" or "Price-sensitive"
 
 **What's blocking us:**
 ⚠️ **No target variable — supervised learning is impossible**

@@ -306,3 +306,6 @@ flowchart TD
 ## 11 · Bridge to Chapter 3
 
 Gradient Boosting works, but sklearn's implementation is single-threaded, slow on large datasets, and lacks modern regularization. Chapter 3 introduces **XGBoost**, **LightGBM**, and **CatBoost** — industrial-strength frameworks that add second-order optimization, histogram-based splits, GPU acceleration, and native categorical handling. These are the models that actually win competitions and run in production.
+
+➡️ **Evaluation:** Track learning curve overfitting with the metrics in [02-Classification/ch03-metrics](../../../02-Classification/ch03-metrics/).  
+➡️ **Tuning:** `n_estimators`, `learning_rate`, `max_depth` search strategies are in [02-Classification/ch05-hyperparameter-tuning](../../../02-Classification/ch05-hyperparameter-tuning/).

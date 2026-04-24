@@ -21,9 +21,9 @@
 > | 5 | PRODUCTION | <200ms inference | ❌ |
 
 **What we know so far:**
-- ✅ Topic 01: Linear regression for continuous targets
-- ✅ Understand MSE loss, gradient descent, feature engineering
-- ❌ **But we can only predict continuous values, not categories!**
+- Topic 01: Linear regression for continuous targets
+- Understand MSE loss, gradient descent, feature engineering
+- **But we can only predict continuous values, not categories!**
 
 **What's blocking us:**
 The FaceAI app needs binary labels: is the person Smiling or not? Linear regression outputs unbounded values ($-\infty$ to $+\infty$), not probabilities.
@@ -32,7 +32,7 @@ The FaceAI app needs binary labels: is the person Smiling or not? Linear regress
 - **Sigmoid activation**: Squash $z \in (-\infty, \infty)$ → $\hat{p} \in (0, 1)$
 - **Binary cross-entropy loss**: Optimize probability predictions
 - **Evaluation**: Confusion matrix, precision, recall, F1
-- ✅ **Constraint #1 PARTIAL** — ~88% accuracy on Smiling attribute
+- **Constraint #1 PARTIAL** — ~88% accuracy on Smiling attribute
 
 ```mermaid
 graph LR

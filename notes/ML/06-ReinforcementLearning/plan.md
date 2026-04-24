@@ -1,13 +1,6 @@
 # Plan — 06-ReinforcementLearning
 
-**Audit summary (2026-04-24, re-verified 2026-04-24):** Notation blocks and `0 · The Challenge` sections are present and correct in all 6 chapters. Compact 3-state MDP examples added to ch01 and ch02. All remaining TODOs confirmed still pending: emoji cleanup (❌ bullet callouts present in all 6 chapters), 3-state examples for ch03–ch06 (no `{s0,s1,s2}` toy MDP found in any of ch03-q-learning, ch04-dqn, ch05-policy-gradients, ch06-modern-rl), notebook determinism, and TensorBoard cross-links.
-
----
-
-## Per-chapter TODOs
-
-- [ ] **All chapters (ch01–ch06):** Replace non-approved emojis with {💡, ⚠️, ⚡, 📖, ➡️}. Currently ❌ and ✅ appear in constraint-status tables and bullet points across all chapters — neither is in the approved set.
-- [ ] **ch03–ch06:** Add a compact 3-state, 2-action worked example in the `Math` section (ch01 and ch02 already have one). Show a single TD(0) step (ch03), a DQN target computation (ch04), a policy-gradient update (ch05), or a PPO clip calculation (ch06) on the toy {s0, s1, s2} MDP.
+**Audit summary (2026-04-24, re-verified 2026-04-24):** Notation blocks and `0 · The Challenge` sections are present and correct in all 6 chapters. Compact 3-state MDP examples added to all 6 chapters (ch01–ch06). Emoji cleanup complete — ❌ bullet callouts removed from all 6 chapters. Remaining TODOs: notebook determinism and TensorBoard cross-links.
 
 ---
 

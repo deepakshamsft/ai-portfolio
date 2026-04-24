@@ -15,8 +15,8 @@
 **What we know so far:**
 - ⚡ Q-learning and DQN learn optimal policies for discrete action spaces (Ch.3–4)
 - ⚡ Experience replay and target networks stabilize deep Q-learning
-- ❌ **DQN requires discrete actions — fails for continuous control (robotics, driving)!**
-- ❌ **DQN learns a deterministic policy — can't express stochastic strategies!**
+- **DQN requires discrete actions — fails for continuous control (robotics, driving)!**
+- **DQN learns a deterministic policy — can't express stochastic strategies!**
 
 **What's blocking us:**
 A robotic arm has 7 continuous joint angles. A self-driving car outputs continuous steering and throttle values. DQN would need to discretize these into bins — but $100^7 = 10^{14}$ bins for the robot. Even the $\arg\max$ over actions becomes intractable for high-dimensional continuous spaces.
@@ -117,6 +117,18 @@ Replace $Q^{\pi}(s_t, a_t)$ with the sampled return $G_t$:
 $$\nabla_\theta J(\theta) \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t^{(i)} | s_t^{(i)}) \cdot G_t^{(i)}$$
 
 where $G_t = \sum_{k=0}^{T-t} \gamma^k r_{t+k+1}$ is the return from time $t$.
+
+**Toy policy-gradient update (3-state, one episode):**
+
+Episode: s0→a1 (r=−1) → s1→a0 (r=+5) → s2 (terminal).  
+Returns: G0 = −1 + 0.9×5 = 3.5, G1 = 5, G2 = 0.
+
+| Step | State | Action | Return G | log π(a\|s) gradient direction |
+|------|-------|--------|----------|-------------------------------|
+| 0 | s0 | a1 | 3.5 | push up π(a1\|s0) |
+| 1 | s1 | a0 | 5.0 | push up π(a0\|s1) strongly |
+
+Positive returns reinforce the taken actions; a negative baseline (−2) would only reinforce actions better than chance.
 
 **Numeric example** — CartPole episode:
 

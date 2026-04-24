@@ -50,7 +50,7 @@ flowchart LR
     
     LP -..->|"$55k MAE"| GAP["Still $15k away"]
     PP -..->|"$48k MAE"| CLOSE["Only $8k away!"]
-    CLOSE --> TARGET["🎯 $40k target<br/>→ Ch.5 regularization"]
+    CLOSE --> TARGET["$40k target<br/>→ Ch.5 regularization"]
     
     style LP fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style PP fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff

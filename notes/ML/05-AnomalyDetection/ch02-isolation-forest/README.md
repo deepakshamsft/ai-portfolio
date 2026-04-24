@@ -17,7 +17,7 @@
 > 💡 **FraudShield status after Ch.1:**
 > - ⚡ Statistical baselines established (Z-score, IQR, Mahalanobis)
 > - ⚡ Scoring paradigm: feature → score → threshold → decision
-> - ❌ **Only 45% recall** — missing more than half of all fraud!
+> - **Only 45% recall** — missing more than half of all fraud!
 
 **What's blocking us:**
 Statistical methods assume fraud = extreme feature values. But sophisticated fraud transactions have **normal-looking individual features** — their anomalousness is in the *structure*, not the extremes. We need a method that:
@@ -172,7 +172,7 @@ flowchart TD
     ROOT["All ψ=256 samples"] -->|"Split: V14 < -2.3"| L1["Left: 3 samples"]
     ROOT -->|"Split: V14 ≥ -2.3"| R1["Right: 253 samples"]
 
-    L1 -->|"Split: V17 < 1.1"| L2["🚨 1 sample\n(FRAUD)\npath length = 2"]
+    L1 -->|"Split: V17 < 1.1"| L2["1 sample\n(FRAUD)\npath length = 2"]
     L1 -->|"Split: V17 ≥ 1.1"| R2["2 samples"]
 
     R1 -->|"Split: V10 < 0.5"| L3["127 samples\n(keep splitting...)"]
@@ -218,8 +218,8 @@ flowchart LR
 
     AVG --> SCORE["s = 2^(-3.0/9.0)\n= 0.79"]
     SCORE --> DEC{"s > τ?"}
-    DEC -->|"Yes"| FRAUD["🚨 Fraud"]
-    DEC -->|"No"| LEGIT["✅ Legit"]
+    DEC -->|"Yes"| FRAUD["Fraud"]
+    DEC -->|"No"| LEGIT["Legit"]
 
     style X fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style FRAUD fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -362,11 +362,11 @@ flowchart TD
 - **Sub-linear scaling**: Trains on sub-samples, O(t·log ψ) inference
 - **Interpretable structure**: Can extract feature importance from split frequencies
 
-❌ **Still can't solve:**
-- ❌ **Constraint #1 (DETECTION)**: 72% recall < 80% target. Getting close but not there yet
+**Still can't solve:**
+- **Constraint #1 (DETECTION)**: 72% recall < 80% target. Getting close but not there yet
 - ✅ **Constraint #2 (PRECISION)**: Achievable at 0.5% FPR with proper thresholding
 - ✅ **Constraint #3 (REAL-TIME)**: ~5ms inference (100 trees × shallow depth). Well under 100ms
-- ❌ **Constraint #4 (ADAPTABILITY)**: Static model — no drift detection
+- **Constraint #4 (ADAPTABILITY)**: Static model — no drift detection
 - ⚡ **Constraint #5 (EXPLAINABILITY)**: Can identify which features contributed to isolation, but not as clear as Z-scores
 
 | Constraint | Status | Current State |

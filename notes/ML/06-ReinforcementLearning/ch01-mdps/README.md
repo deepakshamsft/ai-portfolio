@@ -16,7 +16,7 @@
 **What we know so far:**
 - ⚡ We know supervised learning (labeled data → minimize prediction error)
 - ⚡ We know unsupervised learning (unlabeled data → find structure)
-- ❌ **But we have NO framework for sequential decision-making under uncertainty!**
+- **But we have NO framework for sequential decision-making under uncertainty!**
 
 **What's blocking us:**
 Before we can build agents that learn, we need a **mathematical language** for the problem itself. What is a "state"? What does "optimal" mean formally? How do we express the fact that actions have consequences that unfold over time?

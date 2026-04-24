@@ -15,7 +15,7 @@
 > - ⚡ Isolation Forest: 72% recall
 > - ⚡ Autoencoder: 78% recall
 > - ⚡ One-Class SVM: 75% recall
-> - ❌ **Best single model = 78%. Need 80%.**
+> - **Best single model = 78%. Need 80%.**
 
 **What's blocking us:**
 Each detector catches *different* fraud. Analysis of false negatives reveals:
@@ -35,8 +35,8 @@ flowchart TD
     AE["Autoencoder\n78%"] --> FUSE
     SVM["One-Class SVM\n75%"] --> FUSE
 
-    FUSE --> ENS["Ensemble\n~83% ✅"]
-    ENS --> TARGET["Target: 80% ✅\nACHIEVED!"]
+    FUSE --> ENS["Ensemble\n~83%"]
+    ENS --> TARGET["Target: 80%\nACHIEVED!"]
 
     style Z fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style IF fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -233,8 +233,8 @@ flowchart TD
     N4 --> FUSE
 
     FUSE --> DEC{"0.79 > τ?"}
-    DEC -->|"Yes"| FRAUD["🚨 Fraud"]
-    DEC -->|"No"| LEGIT["✅ Legit"]
+    DEC -->|"Yes"| FRAUD["Fraud"]
+    DEC -->|"No"| LEGIT["Legit"]
 
     style TX fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style FRAUD fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -278,7 +278,7 @@ flowchart LR
     end
     subgraph STACK["Stacking"]
         S1["Meta-learner on\nbase detector scores"]
-        S2["Recall: ~83% ✅"]
+        S2["Recall: ~83%"]
     end
 
     AVG -->|"Good baseline\nbut equal weights"| NOTE1["All detectors\nweighted equally"]

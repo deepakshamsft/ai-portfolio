@@ -11,15 +11,15 @@
 ## 0 · The Challenge — Where We Are
 
 > 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
-> 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+> 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1: Linear regression baseline ($70k MAE)
-- ✅ Ch.2: Logistic regression (binary classification)
-- ✅ Ch.3: XOR problem (diagnosed linear model limits)
-- ✅ Ch.4: Neural network architecture (3 layers, ReLU, He init) → **$55k MAE**
-- ✅ Can compute forward pass through the network
-- ❌ **But we can't train it yet!**
+- Ch.1: Linear regression baseline ($70k MAE)
+- Ch.2: Logistic regression (binary classification)
+- Ch.1: XOR problem (diagnosed linear model limits)
+- Ch.2: Neural network architecture (3 layers, ReLU, He init) → **$55k MAE**
+- Can compute forward pass through the network
+- **But we can't train it yet!**
 
 **What's blocking us:**
 ⚠️ **We're SO CLOSE to Constraint #1 (<$40k MAE), but we're stuck!**
@@ -556,7 +556,7 @@ flowchart TD
     RANGE --> GOOD
     
     GOOD --> SCHEDULE["Add LR schedule<br/>(cosine annealing)"]
-    SCHEDULE --> FINAL["🎯 Optimal training"]
+    SCHEDULE --> FINAL["Optimal training"]
     
     style START fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style GOOD fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -658,12 +658,12 @@ def adam_step(W, g, m, v, t, lr=1e-3, b1=0.9, b2=0.999, eps=1e-8):
 ⚡ **MAJOR MILESTONE**: ✅ **Constraint #1 (ACCURACY) ACHIEVED!**
 
 **Unlocked capabilities:**
-- ✅ **Backpropagation**: Can compute gradients through any network depth in one backward pass
-- ✅ **Adam optimizer**: 5-10× faster convergence than vanilla SGD
-- ✅ **Adaptive learning rates**: Per-parameter step sizes that adjust automatically
-- ✅ **Gradient clipping**: Stable training even with exploding gradients
-- ✅ **Learning rate schedules**: Cosine annealing, warm restarts for fine-tuning
-- ✅ **<$50k MAE achieved**: **$48k MAE** on California Housing dataset!
+- **Backpropagation**: Can compute gradients through any network depth in one backward pass
+- **Adam optimizer**: 5-10× faster convergence than vanilla SGD
+- **Adaptive learning rates**: Per-parameter step sizes that adjust automatically
+- **Gradient clipping**: Stable training even with exploding gradients
+- **Learning rate schedules**: Cosine annealing, warm restarts for fine-tuning
+- **<$50k MAE achieved**: **$48k MAE** on California Housing dataset!
 
 **Progress toward constraints:**
 | Constraint | Status | Current State |
@@ -676,13 +676,13 @@ def adam_step(W, g, m, v, t, lr=1e-3, b1=0.9, b2=0.999, eps=1e-8):
 
 **What we can solve:**
 
-✅ **Train neural networks efficiently!**
+**Train neural networks efficiently!**
 - **Before** (Ch.4): Could only do forward pass, no training
 - **Now** (Ch.5): Full training loop with backprop + Adam
 - **Performance**: Converges in ~200 epochs (vs 10,000+ with vanilla SGD)
 - **Robustness**: Gradient clipping prevents training instability
 
-✅ **Achieved accuracy target!**
+**Achieved accuracy target!**
 - **Baseline** (Ch.1 linear regression): $70k MAE
 - **Ch.4** (neural network, no training): $55k MAE
 - **Ch.5** (Adam optimizer): **$48k MAE** → ✅ **<$50k target met!**

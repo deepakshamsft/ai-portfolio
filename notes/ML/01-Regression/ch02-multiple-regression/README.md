@@ -51,7 +51,7 @@ flowchart LR
     
     P1 -..->|"$70k MAE"| GAP["Gap: $15k"]
     P2 -..->|"$55k MAE"| GAP
-    GAP --> TARGET["🎯 $40k target"]
+    GAP --> TARGET["$40k target"]
     
     style A fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style P1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff

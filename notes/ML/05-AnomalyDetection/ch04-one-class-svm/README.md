@@ -14,7 +14,7 @@
 > - ⚡ Z-score: 45% recall
 > - ⚡ Isolation Forest: 72% recall
 > - ⚡ Autoencoder: 78% recall
-> - ❌ **Still 2% short of 80% target**
+> - **Still 2% short of 80% target**
 
 **What's blocking us:**
 Each method captures a different aspect of anomalousness: Z-score catches extremes, Isolation Forest catches geometrically isolated points, autoencoders catch poorly-reconstructed points. But each misses some fraud that others catch. Before combining them (Ch.5), we add one more complementary signal: a **boundary-based** method.
@@ -26,7 +26,7 @@ One-Class SVM draws a tight boundary around normal data in a high-dimensional ke
 flowchart LR
     CH2["Ch.2: iForest\n72%"] --> CH3["Ch.3: Autoencoder\n78%"]
     CH3 -->|"Add boundary-based\nmethod"| CH4["Ch.4: OC-SVM\n~75%"]
-    CH4 -->|"Combine all\nfour methods"| CH5["Ch.5: Ensemble\n~83% ✅"]
+    CH4 -->|"Combine all\nfour methods"| CH5["Ch.5: Ensemble\n~83%"]
 
     style CH2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style CH3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -189,8 +189,8 @@ flowchart TD
     end
 
     INPUT["Transaction x\n(30 features)"] -->|"φ(x) via\nRBF kernel"| KERNEL
-    ANOMALY --> FLAG["🚨 Anomaly\nscore > τ"]
-    NORMAL --> PASS["✅ Normal\nscore ≤ τ"]
+    ANOMALY --> FLAG["Anomaly\nscore > τ"]
+    NORMAL --> PASS["Normal\nscore ≤ τ"]
 
     style ORIGIN fill:#f0f0f0,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style NORMAL fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -375,11 +375,11 @@ flowchart TD
 - **Mathematical rigor**: Maximum-margin formulation with convergence guarantees
 - **Support vector interpretability**: Boundary defined by key training examples
 
-❌ **Still can't solve:**
-- ❌ **Constraint #1 (DETECTION)**: 75% recall < 80% target. But we now have 4 complementary detectors!
+**Still can't solve:**
+- **Constraint #1 (DETECTION)**: 75% recall < 80% target. But we now have 4 complementary detectors!
 - ✅ **Constraint #2 (PRECISION)**: <0.5% FPR achievable with ROC thresholding
 - ⚡ **Constraint #3 (REAL-TIME)**: ~20ms inference (kernel evaluation against support vectors). Under 100ms
-- ❌ **Constraint #4 (ADAPTABILITY)**: Static model — retraining with new data is slow
+- **Constraint #4 (ADAPTABILITY)**: Static model — retraining with new data is slow
 - ⚡ **Constraint #5 (EXPLAINABILITY)**: Can identify closest support vectors, but kernel-space reasoning is opaque
 
 | Constraint | Status | Current State |

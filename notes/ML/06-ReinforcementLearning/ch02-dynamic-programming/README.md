@@ -20,7 +20,7 @@
 - ⚡ MDP framework: states, actions, rewards, transitions, policies (Ch.1)
 - ⚡ Bellman equations: recursive value relationships
 - ⚡ Bellman optimality equation: $V^*(s) = \max_a \sum P(s'|s,a)[R + \gamma V^*(s')]$
-- ❌ **But we have NO algorithm to find $V^*$ or $\pi^*$!**
+- **But we have NO algorithm to find $V^*$ or $\pi^*$!**
 
 **What's blocking us:**
 The Bellman optimality equation is a system of $|S|$ non-linear equations (because of the $\max$ operator). We can't solve it in closed form. We need an **iterative** approach.

@@ -18,7 +18,7 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1-15: Achieved Constraints #1-4, understand loss functions from first principles
+- ✅ Ch.1-8 (Ch.8: TensorBoard): Achieved Constraints #1-4, understand loss functions from first principles
 - ✅ Can train accurate, generalizable, interpretable models
 - ❌ **But training is still a black box!**
 
@@ -104,6 +104,14 @@ Each layer's weight matrix $\mathbf{W}$ at epoch $t$ has a distribution. Healthy
 | 1000 | 0.000 | 0.001 | 0.003 | ❌ Vanishing — check lr/init |
 
 Rule of thumb: if `std(grad) < 1e-3` at mid-training, gradients are vanishing. If `max(|grad|) > 10`, gradients are exploding. TensorBoard's histogram tab shows this at a glance.
+
+### Gradient Health Diagnostic Reference
+
+| Diagnostic | Healthy range | 🚩 Sign of trouble | Typical cause | Fix |
+|---|---|---|---|---|
+| Gradient norm (per layer) | 0.01–10 | > 100 (exploding) | LR too high, no clip | Clip to 1.0; reduce LR |
+| Gradient norm (per layer) | 0.01–10 | < 0.0001 (vanishing) | Deep net, sigmoid | Switch to ReLU; add skip connections |
+| Weight-to-gradient ratio | 10²–10⁴ | > 10⁶ | Dying layer | Lower LR; check batch norm |
 
 ### 3.2 Embedding Projector
 

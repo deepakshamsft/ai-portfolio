@@ -14,9 +14,9 @@
 > 1. **ACCURACY**: >85% hit rate@10 — 2. **COLD START**: New users/items — 3. **SCALABILITY**: 1M+ ratings — 4. **DIVERSITY**: Not just popular movies — 5. **EXPLAINABILITY**: "Because you liked X"
 
 **What we know so far:**
-- ✅ We have the MovieLens 100k dataset (943 users, 1,682 movies, 100k ratings)
-- ✅ We understand the business problem (recommend movies users will watch)
-- ❌ **But we have NO model yet!**
+- We have the MovieLens 100k dataset (943 users, 1,682 movies, 100k ratings)
+- We understand the business problem (recommend movies users will watch)
+- **But we have NO model yet!**
 
 **What's blocking us:**
 We need the **simplest possible baseline** and a rigorous evaluation framework. Before building matrix factorization or neural networks, we must establish:

@@ -16,7 +16,7 @@
 - ⚡ MDPs and Bellman equations (Ch.1)
 - ⚡ DP finds optimal policy with known model (Ch.2)
 - ⚡ Q-learning finds optimal policy from experience (Ch.3)
-- ❌ **Q-table requires enumerable states — fails for CartPole (continuous) and Atari ($10^9$ states)!**
+- **Q-table requires enumerable states — fails for CartPole (continuous) and Atari ($10^9$ states)!**
 
 **What's blocking us:**
 CartPole has 4 continuous state variables: position $x$, velocity $\dot{x}$, pole angle $\theta$, angular velocity $\dot{\theta}$. We can't build a Q-table because there are infinitely many states. Even discretizing coarsely (100 bins per dimension) gives $100^4 = 10^8$ entries — and most will never be visited.
@@ -110,6 +110,15 @@ $\theta^-$ are the **target network** parameters — a frozen copy of $\theta$ u
 $$\nabla_\theta \mathcal{L} = \mathbb{E}\Big[-2\big(y - Q(s,a;\theta)\big) \nabla_\theta Q(s,a;\theta)\Big]$$
 
 Note: the gradient is only taken w.r.t. $Q(s,a;\theta)$, not through $y$ (which uses $\theta^-$).
+
+**Toy DQN target (3-state, γ=0.9):**
+
+| Transition | r | max Q(s′,·) | Target y | Current Q estimate |
+|-----------|---|------------|---------|-------------------|
+| s0→a1→s1 | −1 | 0.50 | −1 + 0.9×0.50 = **−0.55** | 0.0 |
+| s1→a0→s2 | +5 | 0.0 | +5 + 0.9×0.0 = **+5.0** | 0.0 |
+
+The loss penalises the gap between the current network output and these targets; gradient descent pulls Q(s0,a1) toward −0.55 and Q(s1,a0) toward +5.
 
 ### 3.2 Why Naive Q-Learning + Neural Networks Fails
 

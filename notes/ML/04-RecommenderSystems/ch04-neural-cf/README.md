@@ -17,9 +17,9 @@
 > 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.3:**
-- ✅ Matrix factorization handles sparsity via latent factors = 78% HR@10
-- ✅ Efficient: SGD/ALS scales to large datasets
-- ❌ Linear dot product can't model complex interactions
+- Matrix factorization handles sparsity via latent factors = 78% HR@10
+- Efficient: SGD/ALS scales to large datasets
+- Linear dot product can't model complex interactions
 
 **What's blocking us:**
 The dot product $\mathbf{u}^T\mathbf{v}$ is a weighted sum of factor products — it's linear. Consider this: User A loves action films (factor 1 high) and comedies (factor 2 high), but dislikes action-comedies. A linear model can't capture this because $u_1 v_1 + u_2 v_2$ doesn't have an interaction term for "action AND comedy."
@@ -356,3 +356,5 @@ NCF is powerful but uses only collaborative signals (who rated what). It ignores
 **What Ch.5 solves**: Fusing content + collaborative features → 87% hit rate ✅ target achieved.
 
 **What Ch.5 can't solve (yet)**: Cold start for brand-new users with zero interaction history (Ch.6).
+
+➡️ **Clustering insight:** Hybrid systems that group users by behaviour rely on the same mechanics as k-means — see [07-UnsupervisedLearning/ch01-clustering](../../../07-UnsupervisedLearning/ch01-clustering/) for the full walkthrough.

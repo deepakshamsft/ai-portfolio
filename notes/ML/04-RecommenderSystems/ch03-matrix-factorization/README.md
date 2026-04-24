@@ -17,9 +17,9 @@
 > 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
 
 **What we unlocked in Ch.2:**
-- ✅ Personalised recommendations via collaborative filtering = 68% HR@10
-- ✅ Explainable: "Users like you also watched X"
-- ❌ Sparsity kills: 93.7% empty matrix → weak similarity estimates
+- Personalised recommendations via collaborative filtering = 68% HR@10
+- Explainable: "Users like you also watched X"
+- Sparsity kills: 93.7% empty matrix → weak similarity estimates
 
 **What's blocking us:**
 Collaborative filtering needs **shared ratings** between users to compute similarity. But in a 943×1682 matrix with 93.7% missing entries, most user pairs share fewer than 5 movies. The similarity estimates are noisy, and coverage is poor.
@@ -336,3 +336,5 @@ Matrix factorization learns user and item embeddings, but the prediction functio
 **What Ch.4 solves**: Non-linear interaction modeling → 83% hit rate.
 
 **What Ch.4 can't solve (yet)**: The model still only uses rating data. Adding content features (genres, directors, user demographics) requires a hybrid approach (Ch.5).
+
+➡️ **Embedding background:** The feature embeddings used here connect directly to dimensionality reduction — see [07-UnsupervisedLearning/ch02-dimensionality-reduction](../../../07-UnsupervisedLearning/ch02-dimensionality-reduction/) for PCA and t-SNE applied to the same latent-space idea.

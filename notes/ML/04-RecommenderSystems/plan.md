@@ -1,14 +1,6 @@
 # Plan — 04-RecommenderSystems (remaining work)
 
-**Last audited:** 2026-04-24 (re-verified). All six remaining todos confirmed still pending — no new completions found.
-
----
-
-## Per-chapter TODOs
-
-- [ ] **Standardise emoji usage to approved set `{💡, ⚠️, ⚡, 📖, ➡️}`.**
-  `✅` and `❌` appear in bullet lists and constraint tables across all six chapter READMEs.
-  Replace with approved emoji or plain text (`Done` / `Not started`).
+**Last audited:** 2026-04-24. Emoji standardisation and UnsupervisedLearning cross-links completed.
 
 ---
 
@@ -19,13 +11,6 @@
 
 - [ ] **Seed RNGs and reduce dataset sizes for deterministic CI runs.**
   Add `np.random.seed(42)` (and framework equivalents) and cap datasets to a small reproducible subset so CI passes consistently.
-
----
-
-## Sequence assessment
-
-- [ ] **Add cross-links from embedding-heavy chapters (ch03, ch04) to `07-UnsupervisedLearning`.**
-  No cross-links found in any chapter README. Linking to the unsupervised track for embedding background would strengthen the narrative.
 
 ---
 

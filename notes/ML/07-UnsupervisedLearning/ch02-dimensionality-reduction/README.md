@@ -16,8 +16,8 @@
 **What we know so far:**
 - ⚡ Ch.1: K-Means discovered 5 initial segments (silhouette = 0.42)
 - ⚡ DBSCAN identified 23 noise customers (outlier spenders)
-- ❌ **Can't visualise 6D clusters — stakeholders need to SEE segments**
-- ❌ **Silhouette only 0.42 — distances in 6D are noisy**
+- **Can't visualise 6D clusters — stakeholders need to SEE segments**
+- **Silhouette only 0.42 — distances in 6D are noisy**
 
 **What's blocking us:**
 ⚠️ **Curse of dimensionality + no visualisation**
@@ -104,6 +104,47 @@ PCA finds a new orthogonal coordinate system aligned with the directions of maxi
 **Step 3 — eigendecomposition:** $\mathbf{C} = \mathbf{V}\mathbf{\Lambda}\mathbf{V}^\top$, where columns of $\mathbf{V}$ are **principal components** (eigenvectors) and $\mathbf{\Lambda} = \text{diag}(\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_d)$ holds the eigenvalues.
 
 **Step 4 — project:** $\mathbf{Z} = \mathbf{X}_c \mathbf{V}_k$, where $\mathbf{V}_k$ contains the top $k$ eigenvectors.
+
+#### Numeric PCA walkthrough (3 × 2 toy data)
+
+Raw data (3 customers, 2 features — Fresh spend, Frozen spend in £000s):
+
+| Customer | Fresh (x₁) | Frozen (x₂) |
+|----------|-----------|------------|
+| A | 2 | 6 |
+| B | 4 | 4 |
+| C | 6 | 2 |
+
+**Step 1 — Centre the data** (subtract column means: x̄₁=4, x̄₂=4):
+
+| Customer | x₁−x̄₁ | x₂−x̄₂ |
+|----------|--------|--------|
+| A | −2 | +2 |
+| B | 0 | 0 |
+| C | +2 | −2 |
+
+**Step 2 — Covariance matrix** (n−1=2):
+
+$$\Sigma = \frac{1}{2}\begin{bmatrix}-2 & 0 & 2 \\ 2 & 0 & -2\end{bmatrix}\begin{bmatrix}-2 & 2 \\ 0 & 0 \\ 2 & -2\end{bmatrix} = \begin{bmatrix}4 & -4 \\ -4 & 4\end{bmatrix}$$
+
+**Step 3 — Eigenvectors & eigenvalues:**
+
+Characteristic equation: $(4-λ)^2 - 16 = 0$ → $λ_1=8$, $λ_2=0$.
+
+Eigenvector for λ₁=8: $v_1 = [1/\sqrt{2},\,-1/\sqrt{2}]$ (the "diagonal contrast" direction).  
+Eigenvector for λ₂=0: $v_2 = [1/\sqrt{2},\,1/\sqrt{2}]$ (the "sum" direction — zero variance).
+
+**Step 4 — Project onto PC1:**
+
+| Customer | PC1 score = (x₁−x̄₁)/√2 − (x₂−x̄₂)/√2 |
+|----------|----------------------------------------|
+| A | (−2)/√2 − (+2)/√2 = **−2√2 ≈ −2.83** |
+| B | 0 − 0 = **0** |
+| C | (+2)/√2 − (−2)/√2 = **+2√2 ≈ +2.83** |
+
+EVR of PC1 = λ₁/(λ₁+λ₂) = 8/8 = **100%** — perfect: all variance lies along the Fresh−Frozen contrast axis. Projecting to 1D loses zero information here.
+
+> 💡 In practice with 6 UCI features, λ₁ explains ~45–60% of variance. The numeric walkthrough above shows *why* the first PC finds the axis of maximum spread — it's the eigenvector of the covariance matrix with the largest eigenvalue.
 
 **Explained variance ratio:**
 

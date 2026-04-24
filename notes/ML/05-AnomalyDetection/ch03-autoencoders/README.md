@@ -17,7 +17,7 @@
 > 💡 **FraudShield status after Ch.2:**
 > - ⚡ Z-score baseline: 45% recall
 > - ⚡ Isolation Forest: 72% recall @ 0.5% FPR
-> - ❌ **Still 8% short of the 80% target**
+> - **Still 8% short of the 80% target**
 
 **What's blocking us:**
 Isolation Forest captures geometric isolation but doesn't learn a *model* of normal behavior. It can tell you a point is isolated, but not *what normal transactions should look like*. We need a method that:
@@ -195,8 +195,8 @@ flowchart LR
     X --> LOSS
 
     LOSS --> DEC{"Error > τ?"}
-    DEC -->|"Yes"| FRAUD["🚨 Fraud"]
-    DEC -->|"No"| LEGIT["✅ Legit"]
+    DEC -->|"Yes"| FRAUD["Fraud"]
+    DEC -->|"No"| LEGIT["Legit"]
 
     style X fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style Z fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -373,8 +373,8 @@ flowchart TD
     SYMPTOM -->|"High FPR\n(>1%)"| OVERFIT["Overfitting →\nAdd dropout, reduce\nepochs, early stopping"]
     SYMPTOM -->|"Loss not\nconverging"| SCALE["Features not scaled\n→ StandardScaler()"]
 
-    BOTTLENECK -->|"d_z > 15"| FIX1["✅ Reduce bottleneck\nto 7-10 dims"]
-    BOTTLENECK -->|"d_z < 10"| FIX2["✅ Check if fraud\nis in training data\n→ Train on normal only"]
+    BOTTLENECK -->|"d_z > 15"| FIX1["Reduce bottleneck\nto 7-10 dims"]
+    BOTTLENECK -->|"d_z < 10"| FIX2["Check if fraud\nis in training data\n→ Train on normal only"]
 
     style PROBLEM fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style SYMPTOM fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -394,11 +394,11 @@ flowchart TD
 - **Continuous anomaly score**: Reconstruction error is a natural, interpretable metric
 - **Flexible architecture**: Can add layers, dropout, denoising for further improvements
 
-❌ **Still can't solve:**
-- ❌ **Constraint #1 (DETECTION)**: 78% recall < 80% target. Only 2% away!
+**Still can't solve:**
+- **Constraint #1 (DETECTION)**: 78% recall < 80% target. Only 2% away!
 - ✅ **Constraint #2 (PRECISION)**: <0.5% FPR achievable with ROC thresholding
 - ⚡ **Constraint #3 (REAL-TIME)**: ~10ms inference (forward pass). Under 100ms but heavier than IF
-- ❌ **Constraint #4 (ADAPTABILITY)**: Static model — must retrain for new fraud patterns
+- **Constraint #4 (ADAPTABILITY)**: Static model — must retrain for new fraud patterns
 - ⚡ **Constraint #5 (EXPLAINABILITY)**: Per-feature reconstruction error shows *which features* reconstructed poorly — semi-interpretable
 
 | Constraint | Status | Current State |

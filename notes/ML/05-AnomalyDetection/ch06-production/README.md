@@ -14,8 +14,8 @@
 > - ⚡ Detection: 83% recall @ 0.5% FPR ← met!
 > - ⚡ Precision: <0.5% FPR ← met!
 > - ⚡ Real-time: ~50ms ensemble inference ← under 100ms but can optimize
-> - ❌ **Adaptability**: Static model, no drift detection
-> - ❌ **Explainability**: No human-readable justifications
+> - **Adaptability**: Static model, no drift detection
+> - **Explainability**: No human-readable justifications
 
 **What's blocking us:**
 Two critical production gaps:
@@ -25,7 +25,7 @@ Two critical production gaps:
 ```mermaid
 flowchart LR
     LAB["Lab Prototype\n83% recall\n(static)"] -->|"Add drift detection\n+ explanations\n+ monitoring"| PROD["Production System\n83%+ recall\n(adaptive)"]
-    PROD --> ALL["All 5 Constraints\n✅✅✅✅✅"]
+    PROD --> ALL["All 5 Constraints\nAll Met!"]
 
     style LAB fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style PROD fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
@@ -141,6 +141,23 @@ where:
   - V12 = -2.1: **+0.03**
   - → **Explanation**: "Flagged primarily due to unusual V14 pattern (contributes 46% of anomaly score) and high transaction amount (€2,125 vs. average €88)."
 
+**Precision@k — numeric example:**
+
+Given 20 scored transactions (descending by anomaly score), suppose the top 5 flagged are:
+
+| Rank | Score | True label |
+|------|-------|-----------|
+| 1 | 0.97 | anomaly |
+| 2 | 0.91 | anomaly |
+| 3 | 0.85 | normal |
+| 4 | 0.82 | anomaly |
+| 5 | 0.79 | normal |
+
+Precision@5 = (true anomalies in top 5) / 5 = 3/5 = **0.60**.  
+The full list has 8 true anomalies, so Recall@5 = 3/8 = **0.375**.
+
+> 💡 Precision@k matters when ops teams review a fixed daily alert queue — catching 60% of the worst cases in 5 reviews is actionable; recall@5 tells you how many you missed.
+
 ---
 
 ## 4 · Step by Step
@@ -209,9 +226,9 @@ flowchart TD
     FUSE --> DEC{"Score > τ?"}
 
     DEC -->|"Yes"| EXPLAIN["Generate SHAP\nExplanation (15ms)"]
-    DEC -->|"No"| APPROVE["✅ Approve\n(total: ~25ms)"]
+    DEC -->|"No"| APPROVE["Approve\n(total: ~25ms)"]
 
-    EXPLAIN --> BLOCK["🚨 Block + Reason\n(total: ~47ms)"]
+    EXPLAIN --> BLOCK["Block + Reason\n(total: ~47ms)"]
 
     FUSE --> LOG["Log to\nMonitoring DB"]
     LOG --> DRIFT["Drift Detector\n(ADWIN)"]
