@@ -440,6 +440,6 @@ Ch.1 established that hidden layers with non-linear activations can represent an
 
 ## Illustrations
 
-![XOR problem — why a single linear separator cannot solve non-linear classification](img/ch3%20XOR%20Problem.png)
+![XOR problem — why a single linear separator cannot solve non-linear classification](img/ch3-xor-problem.png)
 
 

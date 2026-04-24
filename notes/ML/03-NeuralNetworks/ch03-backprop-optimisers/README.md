@@ -781,7 +781,7 @@ You can now train the network and watch the loss decrease. But if you let it run
 
 ## Illustrations
 
-![Gradient descent optimisers — SGD, momentum, and Adam loss-surface trajectories](img/ch5%20optimizers.png)
+![Gradient descent optimisers — SGD, momentum, and Adam loss-surface trajectories](img/ch5-optimizers.png)
 
 ## 9 · Where This Reappears
 

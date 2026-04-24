@@ -541,6 +541,6 @@ Ch.10 established the transformer encoder — the architecture that turns a sequ
 
 ## Illustrations
 
-![Transformer architecture — multi-head self-attention, encoder stack, and decoder blocks](img/ch17%20Transformers.png)
+![Transformer architecture — multi-head self-attention, encoder stack, and decoder blocks](img/ch17-transformers.png)
 
 

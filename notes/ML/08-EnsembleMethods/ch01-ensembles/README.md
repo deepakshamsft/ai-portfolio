@@ -292,8 +292,8 @@ flowchart TD
 
 Random Forest reduces **variance** by averaging decorrelated trees — but it doesn't directly address **bias**. A shallow Random Forest of stumps still underfits. Chapter 2 introduces **boosting**: instead of training trees in parallel on random subsets, train them *sequentially*, with each tree correcting the previous ensemble's errors. AdaBoost reweights misclassified samples; Gradient Boosting fits the *residuals*. The strategy shifts from "average out the noise" to "focus on what's still wrong."
 
-➡️ **Evaluation:** Ensemble accuracy, AUC, and precision/recall trade-offs are covered in depth at [02-Classification/ch03-metrics](../../../02-Classification/ch03-metrics/).  
-➡️ **Tuning:** Grid search and cross-validation for `n_estimators` and `max_depth` are in [02-Classification/ch05-hyperparameter-tuning](../../../02-Classification/ch05-hyperparameter-tuning/).
+➡️ **Evaluation:** Ensemble accuracy, AUC, and precision/recall trade-offs are covered in depth at [02-Classification/ch03-metrics](../../02-Classification/ch03-metrics/).  
+➡️ **Tuning:** Grid search and cross-validation for `n_estimators` and `max_depth` are in [02-Classification/ch05-hyperparameter-tuning](../../02-Classification/ch05-hyperparameter-tuning/).
 # Ch.11 — SVM & Ensembles
 
 > **The story.** Two parallel revolutions in the 1990s. **SVMs** came from **Vladimir Vapnik and Corinna Cortes** at AT&T Bell Labs in **1995** — the maximum-margin classifier plus the kernel trick let SVMs handle non-linear boundaries without explicitly building the feature space. For about a decade SVMs *were* statistical machine learning, dominating bioinformatics and text classification. The ensemble lineage ran in parallel: **Leo Breiman's bagging** (1996) showed that averaging many high-variance trees crushes their variance; the same year **Yoav Freund & Robert Schapire's AdaBoost** built trees *sequentially* with each one focusing on the previous's mistakes; Breiman's **Random Forests** (2001) added feature subsampling to bagging. The end of the boosting line was **Tianqi Chen & Carlos Guestrin's XGBoost** (**2014**) and Microsoft's **LightGBM** (2017), which between them won effectively every tabular Kaggle competition for a decade and remain the production default for structured data.
@@ -844,6 +844,6 @@ Ch.11 completed the supervised learning toolkit — we can now classify and regr
 
 ## Illustrations
 
-![SVM maximum-margin boundary and ensemble bagging/boosting variance reduction](img/ch11%20svm%20and%20ensembles.png)
+<!-- TODO: regenerate ensemble visualisation — img/ch01-ensembles.png (run gen_scripts/gen_ch01_ensembles.py when available) -->
 
 

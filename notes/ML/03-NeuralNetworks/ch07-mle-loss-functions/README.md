@@ -309,7 +309,7 @@ Ch.7 showed that training loss has a mathematical meaning — it's a log-likelih
 
 ## Illustrations
 
-![MLE and loss functions — log-likelihood derivation of MSE and cross-entropy](img/ch15%20MLE%20and%20loss%20funcs.png)
+![MLE and loss functions — log-likelihood derivation of MSE and cross-entropy](img/ch15-mle-and-loss-funcs.png)
 
 ## 9 · Where This Reappears
 

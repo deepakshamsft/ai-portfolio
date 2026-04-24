@@ -337,4 +337,4 @@ Matrix factorization learns user and item embeddings, but the prediction functio
 
 **What Ch.4 can't solve (yet)**: The model still only uses rating data. Adding content features (genres, directors, user demographics) requires a hybrid approach (Ch.5).
 
-➡️ **Embedding background:** The feature embeddings used here connect directly to dimensionality reduction — see [07-UnsupervisedLearning/ch02-dimensionality-reduction](../../../07-UnsupervisedLearning/ch02-dimensionality-reduction/) for PCA and t-SNE applied to the same latent-space idea.
+➡️ **Embedding background:** The feature embeddings used here connect directly to dimensionality reduction — see [07-UnsupervisedLearning/ch02-dimensionality-reduction](../../07-UnsupervisedLearning/ch02-dimensionality-reduction/) for PCA and t-SNE applied to the same latent-space idea.

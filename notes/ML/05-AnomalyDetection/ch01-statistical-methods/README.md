@@ -415,6 +415,6 @@ flowchart TD
 
 Ch.1 established the scoring paradigm — compute a deviation measure, threshold it, flag anomalies — but statistical methods assume fraud lives in distribution tails. Ch.2 (Isolation Forest) flips the idea: instead of measuring *distance from normal*, it measures *how easy a point is to isolate*. The key insight is that anomalies, being rare and different, require fewer random splits to separate from the rest. No distribution assumptions needed — just recursive partitioning. Recall jumps from 45% to ~72%.
 
-➡️ **Clustering-based anomaly detection:** DBSCAN and GMM-based isolation are covered in [07-UnsupervisedLearning/ch01-clustering](../../../07-UnsupervisedLearning/ch01-clustering/) — the same density intuition applies.
+➡️ **Clustering-based anomaly detection:** DBSCAN and GMM-based isolation are covered in [07-UnsupervisedLearning/ch01-clustering](../../07-UnsupervisedLearning/ch01-clustering/) — the same density intuition applies.
 
 

@@ -545,6 +545,6 @@ Ch.8 showed how to train recurrent models and get predictions. But predictions a
 
 ## Illustrations
 
-![RNN and LSTM architecture — hidden-state flow and gating through time steps](img/ch8%20rnn.png)
+![RNN and LSTM architecture — hidden-state flow and gating through time steps](img/ch8-rnn.png)
 
 

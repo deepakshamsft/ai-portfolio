@@ -577,7 +577,7 @@ Xᵀ · e                                            (2×3) · (3×1) → (2×1)
 
 **The forward pointer callout box** (`> ➡️`) is used for concepts that will be formally introduced later but need to be planted early. Ch.01 plants the seed for R² at the end of the loss section with a `> ➡️` callout that says R² will be introduced in Ch.02 §1.5 where comparing two models makes it meaningful.
 
-**Cross-track links** to MathUnderTheHood are standard for rigorous derivations. Always reference the specific chapter: `[MathUnderTheHood ch06 — Gradient & Chain Rule](../../../../MathUnderTheHood/ch06-gradient-chain-rule/)`.
+**Cross-track links** to MathUnderTheHood are standard for rigorous derivations. Always reference the specific chapter: `[MathUnderTheHood ch06 — Gradient & Chain Rule](../MathUnderTheHood/ch06-gradient-chain-rule/)`.
 
 ---
 

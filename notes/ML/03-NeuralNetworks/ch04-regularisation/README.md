@@ -488,4 +488,4 @@ You can now train a well-regularised dense network. But dense networks treat eve
 
 ## Illustrations
 
-![Regularisation — effect of L1, L2 penalties and dropout on learned weights](img/ch6%20regularization.png)
+![Regularisation — effect of L1, L2 penalties and dropout on learned weights](img/ch6-regularization.png)

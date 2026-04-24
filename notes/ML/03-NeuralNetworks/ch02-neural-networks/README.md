@@ -439,6 +439,6 @@ You now have a network that can do a forward pass and make predictions. But you 
 
 ## Illustrations
 
-![Neural network architecture — layers, neurons, activations, and weight connections](img/ch4%20Network%20architecture.png)
+![Neural network architecture — layers, neurons, activations, and weight connections](img/ch4-network-architecture.png)
 
 

@@ -357,4 +357,4 @@ NCF is powerful but uses only collaborative signals (who rated what). It ignores
 
 **What Ch.5 can't solve (yet)**: Cold start for brand-new users with zero interaction history (Ch.6).
 
-➡️ **Clustering insight:** Hybrid systems that group users by behaviour rely on the same mechanics as k-means — see [07-UnsupervisedLearning/ch01-clustering](../../../07-UnsupervisedLearning/ch01-clustering/) for the full walkthrough.
+➡️ **Clustering insight:** Hybrid systems that group users by behaviour rely on the same mechanics as k-means — see [07-UnsupervisedLearning/ch01-clustering](../../07-UnsupervisedLearning/ch01-clustering/) for the full walkthrough.

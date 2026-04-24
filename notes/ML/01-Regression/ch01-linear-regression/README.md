@@ -979,7 +979,7 @@ Too high: loss ────/\/\/\/\── (oscillates / diverges)
 Too low: loss ──────────────────────────── (barely moving)
 ```
 
-![Regression line and gradient descent learning rate comparison](img/Gradient%20Descent%20Paths.png)
+![Regression line and gradient descent learning rate comparison](img/gradient-descent-paths.png)
 
 ### Animation — derivative slices compound into the curve
 

@@ -335,7 +335,7 @@ Ch.10:    Transformers & Attention (the architecture behind modern LLMs)
 
 ## Illustrations
 
-![TensorBoard panels — scalars, weight histograms, embedding projector, and diagnostics dashboard](img/ch16%20tensorboard.png)
+![TensorBoard panels — scalars, weight histograms, embedding projector, and diagnostics dashboard](img/ch16-tensorboard.png)
 
 ## 9 · Where This Reappears
 
