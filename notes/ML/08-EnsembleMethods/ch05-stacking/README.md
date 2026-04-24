@@ -14,13 +14,13 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
+> 💡 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
 >
 > **5 Constraints**: 1. IMPROVEMENT >5% — 2. DIVERSITY — 3. EFFICIENCY <5× latency — 4. INTERPRETABILITY (SHAP) — 5. ROBUSTNESS (stable across seeds)
 
 **What Ch.1–4 achieved:**
 - ✅ All 5 constraints addressed with individual ensemble methods
-- 🤔 But can we squeeze even more by *combining* different ensemble types?
+- 💡 But can we squeeze even more by *combining* different ensemble types?
 
 **What this chapter unlocks:**
 - ✅ **Constraint #1**: Stacking can beat the best single ensemble, with the seeded example moving accuracy from about $88\%$ to $93\%$
@@ -105,6 +105,18 @@ $$\text{Stack gain} \propto \text{Diversity}(\{f_1, \ldots, f_K\}) = \frac{1}{K}
 | **Logistic Regression** | Good for classification stacking | Same as Ridge |
 | **XGBoost (shallow)** | Learns non-linear interactions | Risk of overfitting meta-features |
 | **Simple average** | Zero variance, no overfitting | Ignores model quality differences |
+
+### 3.5 Meta-Learner Input Construction — Numeric Example
+
+Three samples, 2 base models (RF and XGBoost), using 5-fold cross-validated out-of-fold predictions.
+
+| Sample | $\hat{y}_{\text{RF}}$ | $\hat{y}_{\text{XGB}}$ | Meta-input $[\hat{y}_1, \hat{y}_2]$ | True $y$ |
+|--------|---------------------|----------------------|--------------------------------------|----------|
+| 1 | 2.8 | 3.1 | [2.8, 3.1] | 3.0 |
+| 2 | 1.5 | 1.6 | [1.5, 1.6] | 1.6 |
+| 3 | 4.2 | 3.9 | [4.2, 3.9] | 4.0 |
+
+The meta-learner (RidgeCV) is fitted on $\mathbf{Z} = [\hat{y}_{\text{RF}}, \hat{y}_{\text{XGB}}]$. It learns weights $\beta_1, \beta_2$ minimizing $\sum(y_i - \beta_1\hat{y}_{1i} - \beta_2\hat{y}_{2i})^2$. When models disagree (sample 1: RF=2.8, XGB=3.1), the meta-learner learns which base model is more reliable in that region.
 
 ---
 

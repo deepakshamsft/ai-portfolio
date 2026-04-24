@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
+> 💡 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
 >
 > **5 Constraints**: 1. IMPROVEMENT >5% — 2. DIVERSITY — 3. EFFICIENCY <5× latency — 4. INTERPRETABILITY (SHAP) — 5. ROBUSTNESS (stable across seeds)
 
@@ -22,7 +22,7 @@
 **What this chapter unlocks:**
 - ✅ **Constraint #1**: XGBoost/LightGBM beat sklearn GB on accuracy AND speed
 - ✅ **Constraint #3**: LightGBM trains 10×+ faster than sklearn GB; inference is fast
-- 🔧 Regularization toolkit: `reg_lambda`, `reg_alpha`, `min_child_weight`, `gamma`
+- ⚡ Regularization toolkit: `reg_lambda`, `reg_alpha`, `min_child_weight`, `gamma`
 
 ```mermaid
 flowchart LR
@@ -106,6 +106,19 @@ If $\text{Gain} < 0$, the split is not worth the added complexity → built-in p
 $$\hat{x}_i^k = \frac{\sum_{j: \pi(j) < \pi(i), x_j^k = x_i^k} y_j + a \cdot p}{\sum_{j: \pi(j) < \pi(i), x_j^k = x_i^k} 1 + a}$$
 
 where $\pi$ is a random permutation, $a$ is a smoothing parameter, $p$ is the prior (global target mean).
+
+### 3.4 XGBoost Leaf Score — Numeric Example
+
+Three samples assigned to one leaf. For MSE loss: $g_i = \hat{y}_i - y_i$ (gradient), $h_i = 1$ (hessian), $\lambda = 1$.
+
+| Sample | $y_i$ (true) | $\hat{y}_i$ (current) | $g_i$ | $h_i$ | Optimal leaf score $w^* = -G/(H+\lambda)$ |
+|--------|------------|---------------------|-------|-------|-------------------------------------------|
+| 1 | 3.0 | 2.5 | −0.5 | 1 | — |
+| 2 | 2.0 | 2.5 | +0.5 | 1 | — |
+| 3 | 4.0 | 2.5 | −1.5 | 1 | — |
+| **Sum** | | | $G = -1.5$ | $H = 3$ | $w^* = -(-1.5)/(3+1) = \mathbf{+0.375}$ |
+
+The leaf adds $+0.375$ to each sample’s current prediction. This is better than the gradient alone ($G/n = -0.5$) because the Hessian $H + \lambda$ acts as a denominator that regularizes the step size.
 
 ---
 

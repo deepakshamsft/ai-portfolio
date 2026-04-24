@@ -10,28 +10,28 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Build **SegmentAI** — discover 5 actionable customer segments with silhouette >0.5
+> 💡 **The mission**: Build **SegmentAI** — discover 5 actionable customer segments with silhouette >0.5
 > 1. **SEGMENTATION**: 5 distinct segments — 2. **INTERPRETABILITY**: Business-actionable names — 3. **STABILITY**: Reproducible — 4. **SCALABILITY**: 10k+ customers — 5. **VALIDATION**: Silhouette >0.5
 
 **What we know so far:**
-- ✅ Dataset: 440 wholesale customers, 6 spending features (Fresh, Milk, Grocery, Frozen, Detergents_Paper, Delicatessen)
-- ✅ Business goal: Targeted marketing instead of one-size-fits-all
+- ⚡ Dataset: 440 wholesale customers, 6 spending features (Fresh, Milk, Grocery, Frozen, Detergents_Paper, Delicatessen)
+- ⚡ Business goal: Targeted marketing instead of one-size-fits-all
 - ❌ **No labels!** Nobody has classified these customers as "Loyalists" or "Price-sensitive"
 
 **What's blocking us:**
-🚨 **No target variable — supervised learning is impossible**
+⚠️ **No target variable — supervised learning is impossible**
 
 The CMO asks: "What types of customers do we have?"
 - **Supervised approach** would need: 440 hand-labelled records → too expensive, too subjective
 - **Unsupervised approach**: Let the data speak — discover structure from purchase patterns alone
 
 **What this chapter unlocks:**
-🚀 **Three clustering algorithms to discover customer segments:**
+⚡ **Three clustering algorithms to discover customer segments:**
 1. **K-Means**: Fast, assumes spherical clusters, needs K upfront
 2. **DBSCAN**: Arbitrary shapes, auto-detects noise customers, needs ε
 3. **HDBSCAN**: Hierarchical density, auto-detects K, most robust
 
-🎯 **Outcome**: K-Means with K=5 discovers initial segments (silhouette = 0.42). DBSCAN reveals 23 outlier customers. First pass at Constraint #1 (SEGMENTATION).
+💡 **Outcome**: K-Means with K=5 discovers initial segments (silhouette = 0.42). DBSCAN reveals 23 outlier customers. First pass at Constraint #1 (SEGMENTATION).
 
 | Constraint | Status | This Chapter |
 |------------|--------|-------------|

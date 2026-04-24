@@ -10,17 +10,17 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Build **SegmentAI** — discover 5 actionable customer segments with silhouette >0.5
+> 💡 **The mission**: Build **SegmentAI** — discover 5 actionable customer segments with silhouette >0.5
 > 1. **SEGMENTATION**: 5 distinct segments — 2. **INTERPRETABILITY**: Business-actionable — 3. **STABILITY**: Reproducible — 4. **SCALABILITY**: 10k+ — 5. **VALIDATION**: Silhouette >0.5
 
 **What we know so far:**
-- ✅ Ch.1: K-Means discovered 5 initial segments (silhouette = 0.42)
-- ✅ DBSCAN identified 23 noise customers (outlier spenders)
+- ⚡ Ch.1: K-Means discovered 5 initial segments (silhouette = 0.42)
+- ⚡ DBSCAN identified 23 noise customers (outlier spenders)
 - ❌ **Can't visualise 6D clusters — stakeholders need to SEE segments**
 - ❌ **Silhouette only 0.42 — distances in 6D are noisy**
 
 **What's blocking us:**
-🚨 **Curse of dimensionality + no visualisation**
+⚠️ **Curse of dimensionality + no visualisation**
 
 Stakeholders ask: "Show us the segments!"
 - **Problem**: Clusters exist in 6-dimensional spending space
@@ -28,12 +28,12 @@ Stakeholders ask: "Show us the segments!"
 - **Deeper issue**: In 6D, Euclidean distances become noisy → cluster boundaries blur
 
 **What this chapter unlocks:**
-🚀 **Dimensionality reduction — compress 6D → 2D while preserving structure:**
+⚡ **Dimensionality reduction — compress 6D → 2D while preserving structure:**
 1. **PCA**: Linear projection preserving maximum variance (fast, deterministic)
 2. **t-SNE**: Non-linear projection preserving local neighbourhoods (beautiful cluster plots)
 3. **UMAP**: Non-linear preserving global + local structure (fast, has transform())
 
-🎯 **Outcome**: K-Means on PCA-reduced data → silhouette jumps from 0.42 to 0.48! Plus 2D scatter plots that stakeholders can actually interpret.
+💡 **Outcome**: K-Means on PCA-reduced data → silhouette jumps from 0.42 to 0.48! Plus 2D scatter plots that stakeholders can actually interpret.
 
 | Constraint | Status | This Chapter |
 |------------|--------|-------------|

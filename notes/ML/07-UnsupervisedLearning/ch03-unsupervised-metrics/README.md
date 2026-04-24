@@ -10,16 +10,16 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Build **SegmentAI** — discover 5 actionable customer segments with silhouette >0.5
+> 💡 **The mission**: Build **SegmentAI** — discover 5 actionable customer segments with silhouette >0.5
 > 1. **SEGMENTATION**: 5 distinct segments — 2. **INTERPRETABILITY**: Business-actionable — 3. **STABILITY**: Reproducible — 4. **SCALABILITY**: 10k+ — 5. **VALIDATION**: Silhouette >0.5
 
 **What we know so far:**
-- ✅ Ch.1: K-Means discovered 5 initial segments (silhouette = 0.42)
-- ✅ Ch.2: PCA compression improved silhouette to 0.48, beautiful 2D plots
-- 🤔 **But was the clustering actually good? Is K=5 optimal?**
+- ⚡ Ch.1: K-Means discovered 5 initial segments (silhouette = 0.42)
+- ⚡ Ch.2: PCA compression improved silhouette to 0.48, beautiful 2D plots
+- 💡 **But was the clustering actually good? Is K=5 optimal?**
 
 **What's blocking us:**
-🚨 **No way to evaluate unsupervised learning quantitatively!**
+⚠️ **No way to evaluate unsupervised learning quantitatively!**
 
 The CMO asks: "How do we know 5 segments is better than 3 or 7?"
 - **Supervised learning** (earlier topics): Compare predictions to ground truth → MAE, F1, AUC
@@ -27,14 +27,14 @@ The CMO asks: "How do we know 5 segments is better than 3 or 7?"
 - **Metric vs business**: Silhouette says K=3 is best (0.58), business needs K=5 (0.52)
 
 **What this chapter unlocks:**
-🚀 **Unsupervised evaluation metrics + business validation:**
+⚡ **Unsupervised evaluation metrics + business validation:**
 1. **Silhouette score**: Cluster cohesion vs separation ([-1, 1])
 2. **Davies-Bouldin index**: Cluster compactness ratio ([0, ∞), lower better)
 3. **Calinski-Harabasz index**: Between/within dispersion ratio (higher better)
 4. **Bootstrap stability**: Are segments reproducible?
 5. **Business validation**: Do segments make marketing sense?
 
-🎯 **Outcome**: K-Means K=5 on PCA data achieves silhouette = 0.52 ✅ (above 0.5 target!). Bootstrap shows 95% stability. Business names assigned. **All 5 SegmentAI constraints satisfied!**
+💡 **Outcome**: K-Means K=5 on PCA data achieves silhouette = 0.52 ⚡ (above 0.5 target!). Bootstrap shows 95% stability. Business names assigned. **All 5 SegmentAI constraints satisfied!**
 
 | Constraint | Status | This Chapter |
 |------------|--------|-------------|
@@ -356,7 +356,7 @@ Internal validation metrics and bootstrap stability testing generalise beyond cl
 | #4 SCALABILITY | ✅ **ACHIEVED** | K-Means + PCA pipeline handles 10k+ customers |
 | #5 VALIDATION | ✅ **ACHIEVED** | Silhouette = 0.52 > 0.5 threshold |
 
-🎉 **ALL FIVE SEGMENTAI CONSTRAINTS SATISFIED!**
+⚡ **ALL FIVE SEGMENTAI CONSTRAINTS SATISFIED!**
 
 ---
 

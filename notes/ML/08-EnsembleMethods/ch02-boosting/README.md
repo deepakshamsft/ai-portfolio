@@ -14,7 +14,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
+> 💡 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
 >
 > **5 Constraints**: 1. IMPROVEMENT >5% — 2. DIVERSITY — 3. EFFICIENCY <5× latency — 4. INTERPRETABILITY (SHAP) — 5. ROBUSTNESS (stable across seeds)
 
@@ -74,6 +74,18 @@ For round $m = 1, \ldots, M$:
 Final prediction: $H(\mathbf{x}) = \text{sign}\left(\sum_{m=1}^M \alpha_m \cdot h_m(\mathbf{x})\right)$
 
 **Numeric example**: Round 1 misclassifies 3 of 10 samples → $\epsilon_1 = 0.3$ → $\alpha_1 = \frac{1}{2}\ln\frac{0.7}{0.3} = 0.424$. Misclassified samples get weight multiplied by $e^{0.424} = 1.53$; correct samples by $e^{-0.424} = 0.65$. The next learner focuses 1.53/0.65 = 2.4× more on the mistakes.
+
+**Weight update table** (3 samples, labels $y \in \{-1, +1\}$, initial weight $w = 1/3$, $\epsilon_1 = 1/3$, $\alpha_1 = 0.35$):
+
+**Round 1** — stump misclassifies sample C:
+
+| Sample | $x$ | $y$ | Predicted | Correct? | Old $w$ | New $w$ (after $w \cdot e^{\pm\alpha_1}$, renorm.) |
+|--------|-----|-----|-----------|---------|---------|----------------------------------------------------|
+| A | 1.2 | +1 | +1 | ✅ | 0.333 | $0.333 \times e^{-0.35} = 0.237 \to$ **0.250** |
+| B | 0.8 | +1 | +1 | ✅ | 0.333 | $0.333 \times e^{-0.35} = 0.237 \to$ **0.250** |
+| C | 2.5 | −1 | +1 | ❌ | 0.333 | $0.333 \times e^{+0.35} = 0.472 \to$ **0.500** |
+
+**Formula**: $w_i^{(m+1)} \propto w_i^{(m)} \cdot \exp(-\alpha_m \cdot y_i \cdot h_m(x_i))$, then renormalize. Round 2 will focus 2× more on sample C (weight 0.50 vs 0.25 each for A and B).
 
 ### 3.2 Gradient Boosting (Regression)
 

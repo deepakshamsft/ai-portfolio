@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
+> 💡 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
 >
 > **5 Constraints**: 1. IMPROVEMENT >5% — 2. DIVERSITY — 3. EFFICIENCY <5× latency — 4. INTERPRETABILITY (SHAP) — 5. ROBUSTNESS (stable across seeds)
 
@@ -103,6 +103,20 @@ For each training sample $i$, collect predictions only from trees where $i$ was 
 $$\hat{y}_i^{\text{OOB}} = \frac{1}{|T_i^{\text{OOB}}|} \sum_{t \in T_i^{\text{OOB}}} \hat{f}_t(\mathbf{x}_i)$$
 
 The OOB error is the average loss over all training samples using only their OOB predictions. It approximates leave-one-out cross-validation — for free.
+
+### 3.5 Bagging Vote Aggregation — Numeric Example
+
+Three decision stumps trained on separate bootstrap samples, predicting class (0 = low-value, 1 = high-value) for 5 test samples.
+
+| Sample | Stump 1 | Stump 2 | Stump 3 | Majority Vote | True Label |
+|--------|---------|---------|---------|--------------|------------|
+| A | 1 | 1 | 0 | **1** (2/3) | 1 ✅ |
+| B | 0 | 0 | 1 | **0** (2/3) | 0 ✅ |
+| C | 1 | 0 | 0 | **0** (2/3) | 1 ❌ |
+| D | 1 | 1 | 1 | **1** (3/3) | 1 ✅ |
+| E | 0 | 1 | 0 | **0** (2/3) | 0 ✅ |
+
+Ensemble accuracy = 4/5 = **80%**. Each stump alone achieves at most 3/5 = 60%. Vote aggregation smooths out individual tree mistakes.
 
 ---
 
@@ -289,17 +303,17 @@ Random Forest reduces **variance** by averaging decorrelated trees — but it do
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
+> 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
 - ✅ Ch.1-9: Neural networks achieving Constraints #1 & #2, plus evaluation toolkit
 - ✅ Ch.10: Interpretable models (decision trees, KNN) but with accuracy trade-off
 - ⚡ **Constraint #4 PARTIAL**: Can explain predictions, but $10k MAE penalty
-- 🤔 **Can we have both accuracy AND interpretability?**
+- 💡 **Can we have both accuracy AND interpretability?**
 
 **What's blocking us:**
-🚨 **The accuracy-interpretability trade-off**
+⚠️ **The accuracy-interpretability trade-off**
 
 Current state:
 - **Neural Network**: $38k MAE, black box ❌
@@ -313,13 +327,13 @@ Current state:
 4. **Accuracy requirement**: Can't sacrifice $10k MAE for interpretability
 
 **What this chapter unlocks:**
-🚀 **The best of both worlds:**
+⚡ **The best of both worlds:**
 1. **XGBoost**: Ensemble of 100-500 trees → **$35k MAE** (beats neural net!)
 2. **SHAP values**: Explain ANY model's predictions (neural net, XGBoost, etc.)
 3. **Feature importance**: Which features matter most (stable, model-agnostic)
 4. **Individual explanations**: "For this district: MedInc contributed +$80k, Latitude contributed -$20k..."
 
-🎉 **Constraint #4 (INTERPRETABILITY) ACHIEVED!**
+⚡ **Constraint #4 (INTERPRETABILITY) ACHIEVED!**
 - **XGBoost + SHAP**: $35k MAE (best accuracy yet!) + full explainability
 - **Model-agnostic**: SHAP works on neural nets too (can explain Ch.4-6 models retroactively)
 - **Production-ready**: Fast inference + human-readable explanations
@@ -693,7 +707,7 @@ for name, (preds, _) in models.items():
 
 ## 10 · Progress Check — What We Can Solve Now
 
-🎉 **MAJOR MILESTONE**: ✅ **Constraint #4 (INTERPRETABILITY) ACHIEVED!**
+⚡ **MAJOR MILESTONE**: ✅ **Constraint #4 (INTERPRETABILITY) ACHIEVED!**
 
 **Unlocked capabilities:**
 - ✅ **XGBoost**: **$45k MAE** (best accuracy yet! Beats neural net $48k and decision tree $58k)
@@ -816,7 +830,7 @@ XGBoost critical hyperparameters:
 ❌ **A/B testing**: Need deployment infrastructure (Ch.19)  
 
 **Next step:**
-We've mastered **supervised learning** (Constraints #1, #2, #4 achieved!). But all our models require **labeled data** (house values, class labels). What if we have **unlabeled data** and want to discover structure? Next up: [Ch.12 — Clustering](../../07-UnsupervisedLearning/ch01-clustering/) introduces **unsupervised learning** → discover market segments ("Coastal Luxury", "Suburban Affordable", etc.) without manual labels → 🎯 **Constraint #3 ACHIEVED!**
+We've mastered **supervised learning** (Constraints #1, #2, #4 achieved!). But all our models require **labeled data** (house values, class labels). What if we have **unlabeled data** and want to discover structure? Next up: [Ch.12 — Clustering](../../07-UnsupervisedLearning/ch01-clustering/) introduces **unsupervised learning** → discover market segments ("Coastal Luxury", "Suburban Affordable", etc.) without manual labels → 💡 **Constraint #3 ACHIEVED!**
 
 ---
 

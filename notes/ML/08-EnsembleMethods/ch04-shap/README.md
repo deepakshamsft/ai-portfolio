@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
+> 💡 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
 >
 > **5 Constraints**: 1. IMPROVEMENT >5% — 2. DIVERSITY — 3. EFFICIENCY <5× latency — 4. INTERPRETABILITY (SHAP) — 5. ROBUSTNESS (stable across seeds)
 
@@ -20,7 +20,7 @@
 
 **What this chapter unlocks:**
 - ✅ **Constraint #4**: SHAP provides per-prediction explanations for any ensemble
-- 🎯 All 5 constraints now addressed!
+- 💡 All 5 constraints now addressed!
 
 ```mermaid
 flowchart LR

@@ -10,13 +10,13 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
+> 💡 **EnsembleAI**: Beat any single model by >5% in MAE/accuracy via intelligent combination.
 >
 > **5 Constraints**: 1. IMPROVEMENT >5% — 2. DIVERSITY — 3. EFFICIENCY <5× latency — 4. INTERPRETABILITY (SHAP) — 5. ROBUSTNESS (stable across seeds)
 
 **What Ch.1–5 achieved:**
 - ✅ All 5 constraints addressed in theory
-- 🤔 But can we meet Constraint #3 in a real production setting?
+- 💡 But can we meet Constraint #3 in a real production setting?
 
 **What this chapter validates:**
 - ✅ **Constraint #3**: Inference latency benchmarks — single XGBoost vs RF vs stacked ensemble
