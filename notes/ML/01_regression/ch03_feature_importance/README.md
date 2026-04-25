@@ -1,4 +1,4 @@
-# Ch.3 — Feature Importance, Scaling & Multicollinearity
+﻿# Ch.3 — Feature Importance, Scaling & Multicollinearity
 
 > **The story.** In **1885** Francis Galton measured the heights of 928 parents and children and asked a question that no one before him had properly quantified: "Which part of a parent's height actually predicts the child's height, and which part is just noise?" His answer — correlation — was the first formal tool for ranking how much a single variable contributes to an outcome. Pearson formalised it in **1895**. Sixty years later, Hoerl and Kennard (1970) rediscovered what happens when two predictors are *too* correlated: the weights blow up and become uninterpretable, even when predictions stay fine. Their fix — Ridge regression — lives in Ch.5. This chapter is where you learn to *see* the problem before you reach for the fix.
 >
@@ -108,7 +108,11 @@ Filter methods rank features by their statistical relationship to the target —
 
 **Pearson Correlation (linear relationships):**
 
-> 📖 **Need the intuition first?** [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) walks through covariance and Pearson from scratch — signed rectangles, unit-cancellation, and why $R^2 = \rho^2$ — with animated diagrams. Come back here once the formula feels grounded.
+> 💡 **Think of it as: The Ruler.** Pearson asks "if I draw a straight line through the data, how tightly do the points cluster around it?" It cares about *direction* — if $X$ rises, does $Y$ rise too (positive) or fall (negative)? The score lives in $[{-1}, +1]$: 0 means no linear relationship, ±1 means a perfect line. The catch: **it only sees straight lines.** Bend the data into a U and the ruler reads zero, even though the pattern is obvious.
+>
+> **When to reach for it:** Use Pearson as the first pass for Linear Regression. A feature with |ρ| > 0.3 is a prime candidate for a linear model. Always plot the scatter first — a curve or cluster that Pearson misses will be visible immediately.
+
+> 📖 **Need the formula intuition first?** [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) walks through covariance and Pearson from scratch — signed rectangles, unit-cancellation, and why $R^2 = \rho^2$ — with animated diagrams. Come back here once the formula feels grounded.
 
 $$\rho(x_j, y) = \frac{\sum(x_{ij}-\bar{x}_j)(y_i - \bar{y})}{\sqrt{\sum(x_{ij}-\bar{x}_j)^2 \cdot \sum(y_i-\bar{y})^2}}$$
 
@@ -139,6 +143,10 @@ where $\rho_s$ is the Spearman correlation coefficient, $d_i$ is the rank differ
 > ⚠️ **Use Spearman when the scatter plot shows a curve rather than a line** — e.g., `MedInc` vs `MedHouseVal` is roughly linear (Pearson fine), but `Population` vs price is non-linear (Spearman safer). Both are available via `scipy.stats.spearmanr`.
 
 **Mutual Information (non-linear relationships):**
+
+> 🔍 **Think of it as: The Detective's Clue.** MI asks "if I tell you the value of $X$, how much easier does it become to guess $Y$?" It doesn't care about *shape* — a straight line, a U, a wave, or a cluster all register as long as $X$ gives you information about $Y$. The score lives in $[0, \infty)$: 0 means $X$ tells you nothing; higher means a stronger link of any shape.
+>
+> **When to reach for it:** Use MI as a general "first pass" when working with tree-based models (Random Forest, XGBoost) or when you suspect non-linear patterns. It finds hidden relationships that Pearson would miss entirely — the model architecture then determines whether those relationships get exploited.
 
 Mutual information measures *any* statistical dependence, not just linear:
 
@@ -190,6 +198,39 @@ Pearson ρ  moderate (captures partial signal)
 MI         high      (captures the full jump)
 ```
 
+**The "Broken Ruler" — The Aha! Moment:**
+
+The clearest proof of Pearson's blind spot is $y = x^2$ — a parabola. $X$ perfectly predicts $Y$, but the upward deviations on the right cancel the downward deviations on the left, so Pearson reads zero. MI does not cancel.
+
+```python
+import numpy as np
+from scipy.stats import pearsonr
+from sklearn.feature_selection import mutual_info_regression
+
+x = np.linspace(-3, 3, 300).reshape(-1, 1)
+y = x.ravel() ** 2          # perfect parabola: y = x²
+
+r, _ = pearsonr(x.ravel(), y)
+mi   = mutual_info_regression(x, y, random_state=42)[0]
+
+print(f"Pearson ρ : {r:.3f}")   # → 0.000  ← ruler says "no relationship"
+print(f"MI score  : {mi:.3f}")  # → 0.95+  ← detective says "strong link"
+```
+
+```
+Scatter of y = x²:
+y  ↑
+ 9 │ ●               ●
+ 4 │   ●           ●
+ 1 │     ●       ●
+ 0 │       ● ●
+   └─────────────────── x
+      −3             +3
+
+The ruler sees symmetric deviations and calls it zero.
+The detective sees that every x uniquely determines y and calls it strong.
+```
+
 For California Housing's 8 features, most relationships are roughly monotonic (Pearson and MI rank them similarly). MI becomes decisive when you suspect non-linear effects — e.g., `HouseAge` may have a non-linear relationship with price (new builds and historic homes both premium).
 
 #### How MI Is Estimated for Continuous Variables
@@ -239,6 +280,27 @@ The key rows are Latitude and Longitude: ρ² ≈ 0 and ρ² ≈ 0 (they explain
 | Dataset is small (< 200 samples) | Pearson — MI estimator is noisy with few neighbours |
 
 For California Housing: run both. Where they agree, the ranking is reliable. Where MI is substantially higher than ρ², the feature has non-linear signal that a linear model will underuse — a cue to engineer a transformation or switch to a tree-based model.
+
+#### Pearson vs MI — Quick-Reference Cheat Sheet
+
+| Property | Pearson Correlation | Mutual Information |
+|---|---|---|
+| **Relationship type** | Linear only (straight lines) | Any — curves, waves, thresholds, clusters |
+| **Score range** | −1 to +1 | 0 to ∞ |
+| **Sensitive to outliers?** | Yes — one extreme point can shift ρ significantly | No — density-based estimator is more robust |
+| **Tells you direction?** | Yes — positive (both rise) or negative (one falls) | No — only that a link exists, not its sign |
+| **Best model pairing** | Linear Regression | Tree-based models (Random Forest, XGBoost) |
+| **Mental model** | A straight ruler | A detective's magnifying glass |
+
+**Venn diagram intuition:** Imagine two overlapping circles — one for $X$, one for $Y$. The overlap represents *shared information*. Pearson only recognises overlap that lines up in a straight direction; tip the circles into a curve and Pearson sees no overlap even if the circles sit directly on top of each other. MI measures the actual area of overlap regardless of orientation — the more overlap, the higher the score.
+
+```
+Pearson sees:                 MI sees:
+  [  X  ][overlap][  Y  ]     [  X  ][overlap][  Y  ]
+          ↑                           ↑
+   only if the overlap                always — any shape
+   points in a straight line          of shared information
+```
 
 > 📖 For the information-theoretic foundation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
 
