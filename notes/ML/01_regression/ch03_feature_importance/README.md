@@ -102,7 +102,7 @@ This is the core reason the rankings diverge. The full diagnostic tool for measu
 
 ---
 
-### Filter Methods — Feature-Target Relationship Assessment
+### 3.1 Filter Methods — Feature-Target Relationship Assessment
 
 Before diving into the three model-dependent methods (Methods 1-3), let's establish the foundation. **Filter methods** assess features using only their statistical relationship with the target — no model is trained. Two complementary tools cover the space: **Pearson correlation** for straight-line relationships, and **Mutual Information** for any shape.
 
@@ -110,7 +110,7 @@ These metrics are the building blocks for Method 1 (Univariate R²) and provide 
 
 > 🔍 **Scope note:** This section covers **relationship filters** — metrics that measure feature→target association. **Quality filters** like Variance Threshold (which drop degenerate features regardless of their relationship to the target) are covered later alongside multicollinearity diagnostics, since both address feature quality and redundancy rather than predictive signal.
 
-#### Pearson Correlation — The Ruler
+#### 3.1.1 Pearson Correlation — The Ruler
 
 > 💡 **Think of it as: The Ruler.** Pearson asks "if I draw a straight line through the data, how tightly do the points cluster around it?" It cares about *direction* — if $X$ rises, does $Y$ rise too (positive) or fall (negative)? The score lives in $[{-1}, +1]$: 0 means no linear relationship, ±1 means a perfect line. The catch: **it only sees straight lines.** Bend the data into a U and the ruler reads zero, even though the pattern is obvious.
 >
@@ -126,7 +126,7 @@ where $\rho$ (rho) is the correlation coefficient, $x_{ij}$ is the value of feat
 
 ![Pearson correlation in action: scatter points cluster tightly around the regression line for MedInc (ρ = 0.69) and form a random cloud for HouseAge (ρ ≈ 0), while AveOccup shows a slight downward slope](img/ch03-pearson-in-action.gif)
 
-#### Mutual Information — The Detective's Clue
+#### 3.1.2 Mutual Information — The Detective's Clue
 
 > 🔍 **Think of it as: The Detective's Clue.** MI asks "if I tell you the value of $X$, how much easier does it become to guess $Y$?" It doesn't care about *shape* — a straight line, a U, a wave, or a cluster all register as long as $X$ gives you information about $Y$. The score lives in $[0, \infty)$: 0 means $X$ tells you nothing; higher means a stronger link of any shape.
 >
@@ -271,7 +271,7 @@ $$= 0.3465 + 0.3465 = \mathbf{0.693} \text{ bits}$$
 
 **Why this toy example matters:** Notice that Pearson correlation on this same dataset would be ρ ≈ +0.95 (nearly perfect linear). Both Pearson and MI flag the strong relationship, so where's the advantage? The advantage shows up when the relationship is *non-linear* but still perfectly predictive — see the parabola case below.
 
-**When Pearson Fails — Two Cases Where MI Catches Signal**
+#### When Pearson Fails — Two Cases Where MI Catches Signal
 
 The real power of MI shows up when the relationship is strong but non-linear. Pearson's formula $\sum (x-\bar{x})(y-\bar{y})$ is a sum of signed products — positive when both are above or both below their means, negative when they go opposite directions. **When deviations cancel symmetrically, Pearson reads zero even though the relationship is perfect.** MI doesn't cancel — it accumulates information regardless of direction.
 
@@ -431,11 +431,11 @@ For California Housing: run both. Where they agree, the ranking is reliable. Whe
 
 ---
 
-### Method 1 — Univariate R²
+### 3.2 Method 1 — Univariate R²
 
 > **How ŷ is determined here:** A **separate, single-feature model** is fitted from scratch for each feature — 8 features means 8 independent mini-models, each with only one predictor. The ŷ from a MedInc model has never seen Latitude; the ŷ from a Latitude model has never seen MedInc. This is what makes the R² "univariate" — every score is measured in pure isolation.
 
-As we established in **Filter Methods** above, Pearson ρ² equals Univariate R² for single-feature linear regression. This is not a coincidence — they measure the same thing through different lenses.
+As we established in **§ 3.1 Filter Methods** above, Pearson ρ² equals Univariate R² for single-feature linear regression. This is not a coincidence — they measure the same thing through different lenses.
 
 Fit each feature against the target in isolation:
 
@@ -449,7 +449,7 @@ $$R^2_j = \rho(x_j,\, y)^2 = \left(\frac{\text{Cov}(x_j, y)}{\sigma_{x_j} \sigma
 
 where $\text{Cov}(x_j, y)$ is the covariance between feature $j$ and target $y$, $\sigma_{x_j}$ is the standard deviation of feature $j$, and $\sigma_y$ is the standard deviation of the target.
 
-#### What high vs low R² looks like — signal in one glance
+#### 3.2.1 What high vs low R² looks like — signal in one glance
 
 A high-R² feature forms a visible trend when plotted against the target. A low-R² feature produces a random cloud. The two scatter plots below show why MedInc dominates the univariate ranking while HouseAge is nearly flat:
 
@@ -480,7 +480,7 @@ That is not the end of the story.
 
 ---
 
-### Feature Scaling
+### 3.3 Feature Scaling
 
 Before comparing weights across features you need a common unit. Raw weights are unit-dependent: a weight of +0.40 for `MedInc` (measured in steps of $10k) and −0.000014 for `Population` (measured per person) look 28,000× apart — but that gap is almost entirely a scale artefact, not an importance signal.
 
@@ -509,7 +509,7 @@ Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
 
 > ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
 
-#### Understanding Positive Skew — Why Some Features Need Log Transform
+#### 3.3.1 Understanding Positive Skew — Why Some Features Need Log Transform
 
 **What is skew?** Skew measures distributional asymmetry. In a symmetric distribution (like a normal curve), the mean equals the median. **Positive skew** means a long right tail — most values cluster near the low end, but a few extreme values stretch far to the right, pulling the mean above the median.
 
@@ -526,7 +526,7 @@ Symmetric distribution:       Positively skewed distribution:
 
 **Example:** `Population` ranges from 3 to 35,682. After standardization, a typical district (Population = 1,500) becomes −0.1σ, while the extreme district (Population = 35,682) becomes +12σ. The model's weight updates are dominated by that one extreme case, even though it's not representative.
 
-#### Log Transform & Box-Cox
+#### 3.3.2 Log Transform & Box-Cox
 
 When a feature has a heavy right tail (long positive skew), standardisation alone may not help — the largest values still dominate. Log-transforming first compresses the tail:
 
@@ -566,7 +566,7 @@ The raw scale ranges over 4× (322–2401); the log scale compresses this to a 2
 
 ---
 
-### Method 2 — Standardised Weights (Partial Contribution)
+### 3.4 Method 2 — Standardised Weights (Partial Contribution)
 
 > **How ŷ is determined here:** There is **one model containing all features simultaneously** — the same Ch.2 model. No features are removed. ŷ = $w_1 x_1 + w_2 x_2 + \cdots + w_p x_p + b$. The standardised weight $|w_j^{\text{std}}|$ measures the **marginal (partial) effect** of feature $j$: how much ŷ shifts for a 1-σ change in $x_j$ while all other features are held fixed at their current values. This is why rankings can flip versus Method 1 — a feature that was absorbing shared signal alone now only gets credit for what it adds *above and beyond* all other features.
 
@@ -636,7 +636,7 @@ This apparent contradiction is the most important insight in the chapter.
 
 ---
 
-### Why M1 and M2 Often Disagree — The Joint Signal Problem
+### 3.5 Why M1 and M2 Often Disagree — The Joint Signal Problem
 
 MedInc is a powerful standalone predictor *precisely because* it is correlated with many other variables. Rich districts tend to have newer housing, more rooms, and be in coastal locations. When those other features enter the model alongside MedInc, they absorb portions of the signal that MedInc was previously soaking up alone. MedInc's partial contribution shrinks to what it contributes *above and beyond* everything else.
 
@@ -655,7 +655,7 @@ M1 and M2 together already reveal a lot, but they share a blind spot: both rely 
 
 ---
 
-### Method 3 — Permutation Importance
+### 3.6 Method 3 — Permutation Importance
 
 > **How ŷ is determined here:** The **original full model is used unchanged — it is never retrained**. ŷ still equals $w_1 x_1 + w_2 x_2 + \cdots + w_p x_p + b$ with the same fitted weights from training. What changes is the **input**: for feature $j$, its column is randomly shuffled across all test rows, destroying its correlation with $y$ while keeping its marginal distribution intact. The model then makes predictions with the same weights but scrambled signal for that one feature. The rise in MAE reveals how badly those fixed weights are handicapped — i.e., how much the model was genuinely relying on that feature's ordering. **Critically, this is not the same as removing the feature and retraining.** Retraining would allow correlated features to compensate; permutation does not — it tests the trained model's reliance, not the feature's replaceability.
 
@@ -702,7 +702,7 @@ Permutation importance is generally the most trustworthy of the three methods be
 
 ---
 
-### Three-Method Convergence — Reading the Full Picture
+### 3.7 Three-Method Convergence — Reading the Full Picture
 
 ![Three-method reveal animation](img/three-method-reveal.gif)
 
@@ -769,9 +769,9 @@ The side-by-side bar chart makes the ranking reversal concrete:
 
 ---
 
-### Variance Threshold — Dropping Near-Constant Features
+### 3.8 Variance Threshold — Dropping Near-Constant Features
 
-> ⚙️ **Why this comes after Methods 1-3:** Unlike Pearson/MI (which measure feature→target relationships), Variance Threshold is a **quality filter** — it checks whether a feature varies at all, independent of the target. Group it with multicollinearity diagnostics because both address feature quality and redundancy rather than predictive signal.
+> ⚙️ **Why this comes after Methods 1-3:** Unlike Pearson/MI (§ 3.1, which measure feature→target relationships), Variance Threshold is a **quality filter** — it checks whether a feature varies at all, independent of the target. Group it with multicollinearity diagnostics because both address feature quality and redundancy rather than predictive signal.
 
 A feature that barely changes gives the model nothing to latch onto — it's like trying to predict house prices using a column that says "2.00" for every district. Before testing for multicollinearity, drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
 
@@ -797,7 +797,7 @@ For California Housing: none of the 8 base features hits this threshold, but eng
 
 ---
 
-### Multicollinearity — When Features Compete for the Same Signal
+### 3.9 Multicollinearity — When Features Compete for the Same Signal
 
 Multicollinearity is the condition where two or more features are strongly correlated with each other. When this happens:
 
@@ -825,7 +825,9 @@ The heatmap visualises the full 8×8 inter-feature correlation matrix. Two off-d
 
 The target column (`MedHouseVal`) shows that only MedInc has substantial direct feature-target Pearson correlation (ρ = +0.69). Everything else is in the 0.02–0.14 range.
 
-### Variance Inflation Factor (VIF)
+---
+
+### 3.10 Variance Inflation Factor (VIF)
 
 VIF measures how much a feature's weight blows up due to correlation with other features:
 
@@ -918,13 +920,13 @@ For SmartVal AI, we'll keep both for now and let Ridge handle it in Ch.5 — but
 
 ---
 
-### Joint Feature Importance — When Two Features Are Stronger Together
+### 3.11 Joint Feature Importance — When Two Features Are Stronger Together
 
 VIF catches the *competition* case: two features measure the same thing, weights blow up, one should be dropped or merged.
 
-But the opposite case exists too. Two features can encode **complementary dimensions** of the same concept — individually weak, jointly irreplaceable. Neither Latitude nor Longitude alone can tell you whether a district is in San Francisco or Los Angeles, but together they place every district precisely on the California map. This is the **cooperation case**, and none of the three methods from above directly measures it.
+But the opposite case exists too. Two features can encode **complementary dimensions** of the same concept — individually weak, jointly irreplaceable. Neither Latitude nor Longitude alone can tell you whether a district is in San Francisco or Los Angeles, but together they place every district precisely on the California map. This is the **cooperation case**, and none of the three methods from § 3.2-3.6 directly measures it.
 
-#### The Diagnostic — Joint Permutation Importance
+#### 3.11.1 The Diagnostic — Joint Permutation Importance
 
 The method is a straightforward extension of Method 3. Instead of shuffling one feature at a time, **shuffle both together** and measure the performance drop. Then compare three numbers:
 
@@ -948,7 +950,7 @@ $$\Delta_{\text{interact}}(j,k) = \pi_{jk} - \pi_j - \pi_k$$
 
 Positive → the pair has synergistic signal the individual scores miss. Negative → the features are substitutes (consistent with VIF > 1).
 
-#### Worked Example — Latitude and Longitude
+#### 3.11.2 Worked Example — Latitude and Longitude
 
 From the California Housing dataset (numbers approximate, all in $\Delta$ MAE ×$1k):
 
@@ -973,7 +975,7 @@ Now contrast with AveRooms / AveBedrms:
 
 Shuffling both together does almost no extra damage — the features were substitutes. Dropping AveBedrms loses essentially nothing.
 
-#### What to Do When You Find Genuine Joint Importance
+#### 3.11.3 What to Do When You Find Genuine Joint Importance
 
 **For linear models** — the model has no way to discover interactions on its own; you must engineer them:
 
@@ -987,7 +989,7 @@ Shuffling both together does almost no extra damage — the features were substi
 
 **The general principle**: if $\Delta_{\text{interact}}(j,k) > 0.5 \times \pi_j$ (the joint uplift is more than half the stronger feature's individual importance), consider creating a composite or interaction feature rather than treating them as independent columns.
 
-#### The Flag — How to Spot Candidates Without Exhaustive Search
+#### 3.11.4 The Flag — How to Spot Candidates Without Exhaustive Search
 
 Checking all $\binom{p}{2}$ pairs for joint permutation importance is $O(p^2)$ — feasible for $p \leq 20$, expensive for larger datasets. Two cheaper pre-screens:
 
@@ -997,7 +999,7 @@ Checking all $\binom{p}{2}$ pairs for joint permutation importance is $O(p^2)$ �
 
 ---
 
-### Putting It Together — A Three-View Dashboard
+### 3.12 Putting It Together — A Three-View Dashboard
 
 | Feature | Univariate R² | \|Std weight\| | Permutation | VIF | Verdict |
 |---|---|---|---|---|---|
