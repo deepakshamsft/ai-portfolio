@@ -4,7 +4,7 @@
 >
 > **Where you are in the curriculum.** Ch.2 gave us all 8 features and dropped MAE from \$70k to \$55k. But we trained the model, printed the weights, and moved on. We have not yet asked: which of these 8 features is genuinely useful, which is redundant because it overlaps with another, and which is nearly inert? Before adding polynomial interactions (Ch.4) or applying regularization (Ch.5) — which will create or prune features — you need an honest diagnostic pass. This chapter is that diagnostic.
 >
-> **Notation in this chapter.** $\rho(x_j, y)$ — Pearson correlation of feature $j$ with target; $R^2_j$ — univariate R² of feature $j$ alone; $|w_j^{\text{std}}|$ — absolute standardised weight (partial contribution); $\text{VIF}_j = 1/(1-R^2_{j,\text{feat}})$ — Variance Inflation Factor where $R^2_{j,\text{feat}}$ is the R² from regressing feature $j$ on all other features; $\pi_j$ — permutation importance of feature $j$.
+> **Notation in this chapter.** $\rho(x_j, y)$ — Pearson correlation of feature $j$ with target; $R^2_j$ — univariate R² of feature $j$ alone; $|w_j^{\text{std}}|$ — absolute standardised weight (partial contribution); $\text{VIF}_j = 1/(1-R^2_{j,\text{feat}})$ — Variance Inflation Factor where $R^2_{j,\text{feat}}$ is the R² from regressing feature $j$ on all other features; $\pi_j$ — permutation importance of feature $j$; $\pi_{jk}$ — joint permutation importance of the pair $(j,k)$; $\Delta_{\text{interact}}(j,k) = \pi_{jk} - \pi_j - \pi_k$ — interaction uplift.
 
 ---
 
@@ -28,6 +28,7 @@ You can't answer any of those questions from Ch.2's output. You have weights, bu
 - How much variance each feature explains **alone** (univariate R²)
 - Which features overlap so heavily that one is redundant (VIF / multicollinearity)
 - The most stable **joint** ranking of feature contributions (permutation importance)
+- Which feature *pairs* are **stronger together** than the sum of their parts (joint permutation, interaction uplift)
 - A **bar chart** and **heatmap** you can hand to any stakeholder
 
 This does not change the MAE. It changes your understanding of *why* you're at \$55k and what levers exist to push lower.
@@ -320,7 +321,7 @@ The lesson:
 |---|---|---|
 | High | High | Strong predictor; independent signal |
 | High | Lower than expected | Correlated with other features — signal is shared |
-| Low | High | **Jointly irreplaceable** — only useful in combination |
+| Low | High | **Jointly irreplaceable** — only useful in combination → run joint permutation (see below) |
 | Low | Low | Genuinely uninformative |
 
 M1 and M2 together already reveal a lot, but they share a blind spot: both rely on the fitted weights, which can be distorted by multicollinearity. Method 3 sidesteps weights entirely — it measures importance by directly breaking each feature's signal and watching what happens.
@@ -407,7 +408,7 @@ Population       ·  0.00                 ·   0.01                 ·         $
 | Feature | Pattern | Story |
 |---|---|---|
 | **MedInc** | High on all three | Strong, independent, irreplaceable — income is the dominant single signal |
-| **Latitude / Longitude** | Low on M1, high on M2 + M3 | **Jointly irreplaceable.** Neither coordinate alone is informative; together they place every district on the California map. Geographic segmentation only emerges in combination. |
+| **Latitude / Longitude** | Low on M1, high on M2 + M3 | **Jointly irreplaceable.** Neither coordinate alone is informative; together they place every district on the California map. Geographic segmentation only emerges in combination. Joint permutation uplift ≈ +$10.6k — see *Joint Feature Importance* below. |
 | **AveRooms** | Modest on M1, moderate on M2, weak on M3 | Standalone signal exists, but it's absorbed by AveBedrms in the joint model. The pair share the same house-size signal. |
 | **Population** | Near-zero on all three | Genuinely uninformative at district level — safe to drop without affecting MAE. |
 
@@ -565,60 +566,37 @@ where $\text{VIF}_j$ is the Variance Inflation Factor for feature $j$, and $R^2_
 | 5–10 | High | ⚡ Consider dropping one |
 | >10 | Severe | ❌ Drop one feature *or* regularize (Ch.5) |
 
-The algorithm behind this formula is demonstrated in the worked example below — three toy observations show every arithmetic step from regressing one feature on the others all the way to the final VIF number.
+The threshold table above gives the VIF verdict per feature. What it doesn't show is how VIF fits into the full picture alongside the three importance methods. The decision flow below combines all five signals into a single diagnostic path.
 
-#### VIF by Hand — A 3-Sample Worked Example
+#### Feature Candidacy Decision Flow
 
-> **Why show this?** The formula $\text{VIF}_j = 1/(1-R^2_j)$ names two quantities: (1) regress feature $j$ on *all other features*, (2) call the resulting $R^2$ the "auxiliary R²." Below we work through both steps with round numbers so the algorithm is unambiguous.
+```mermaid
+flowchart TD
+    START(["Feature j — compute all five signals:\nM1 · M2 · M3 · VIF · Δ_interact"])
 
-**California Housing dataset** (3 districts, 3 features):
+    START --> M1{"M1 · Univariate R²\nsubstantial?"}
 
-| $i$ | MedInc ($x_1$) | Lat ($x_2$) | HouseAge ($x_3$) | $y$ |
-|-----|----------------|-------------|------------------|-----|
-| 1 | 1 | 34 | 10 | 1.5 |
-| 2 | 2 | 36 | 20 | 2.8 |
-| 3 | 3 | 35 | 30 | 3.2 |
+    M1 -->|"Yes — standalone signal exists"| VIF
+    M1 -->|"No — weak in isolation"| M2M3
 
-> Note: Lat = [34, 36, 35] is positively correlated with MedInc but not perfectly so (ρ ≈ 0.5). HouseAge tracks MedInc closely. We compute VIF for MedInc.
+    VIF{"VIF > 5?\ncollinear with\nanother feature"}
 
-**Step 1 — Regress MedInc on Lat (the pairwise auxiliary regression).**
+    VIF -->|No| M3A
+    VIF -->|Yes| COLLINEAR["⚡ Collinear signal\nReal signal, unstable weight\nDrop partner · merge · or regularize\n― AveRooms / AveBedrms pair ―"]
 
-With only 3 observations and 2 remaining predictors plus an intercept, the design matrix would be exactly determined (3 equations, 3 unknowns, 0 degrees of freedom). For a pedagogically clean illustration we use the single most-correlated predictor — Lat — as the auxiliary regressor. (In practice, regress on *all* remaining features simultaneously.)
+    M3A{"M3 · Permutation\nhigh?"}
 
-Compute the OLS slope:
+    M3A -->|Yes| STRONG["✅ Strong independent predictor\nAll three lenses agree\n― MedInc ―"]
+    M3A -->|No| ABSORBED["⚠️ Signal absorbed under competition\nUseful alone, displaced in joint model\nMonitor; candidate for Lasso pruning"]
 
-$$\hat{\beta} = \frac{\sum_{i=1}^3 (x_{i2} - \bar{x}_2)(x_{i1} - \bar{x}_1)}{\sum_{i=1}^3 (x_{i2} - \bar{x}_2)^2}$$
+    M2M3{"M2 or M3 high\ndespite low M1?"}
 
-Mean values: $\bar{x}_1 = 2$, $\bar{x}_2 = 35$.
+    M2M3 -->|No| DROP["❌ Drop candidate\nNear-zero on all metrics\n― Population ―"]
+    M2M3 -->|Yes| JOINT{"Joint permutation uplift\nΔ_interact > 0?"}
 
-| $i$ | $x_{i1} - \bar{x}_1$ | $x_{i2} - \bar{x}_2$ | $(x_{i2}-\bar{x}_2)(x_{i1}-\bar{x}_1)$ | $(x_{i2}-\bar{x}_2)^2$ |
-|-----|---------------------|---------------------|--------------------------------------|----------------------|
-| 1 | $-1$ | $-1$ | $+1$ | $1$ |
-| 2 | $+0$ | $+1$ | $+0$ | $1$ |
-| 3 | $+1$ | $+0$ | $+0$ | $0$ |
-| **Σ** | | | **1** | **2** |
-
-$$\hat{\beta} = \frac{1}{2} = 0.5, \qquad \hat{\alpha} = \bar{x}_1 - \hat{\beta}\,\bar{x}_2 = 2 - 0.5 \times 35 = -15.5$$
-
-**Step 2 — Compute auxiliary predictions and residuals.**
-
-$$\hat{x}_{i1} = -15.5 + 0.5\,x_{i2}$$
-
-| $i$ | Lat ($x_{i2}$) | $\hat{x}_{i1}$ | Residual $e_i = x_{i1} - \hat{x}_{i1}$ | $e_i^2$ |
-|-----|----------------|----------------|----------------------------------------|-------|
-| 1 | 34 | $-15.5 + 17 = 1.5$ | $1 - 1.5 = -0.5$ | $0.25$ |
-| 2 | 36 | $-15.5 + 18 = 2.5$ | $2 - 2.5 = -0.5$ | $0.25$ |
-| 3 | 35 | $-15.5 + 17.5 = 2.0$ | $3 - 2.0 = +1.0$ | $1.00$ |
-
-$$\text{SS}_{\text{res}} = 0.25 + 0.25 + 1.00 = 1.50 \qquad \text{SS}_{\text{tot}} = \sum(x_{i1} - \bar{x}_1)^2 = 1 + 0 + 1 = 2.00$$
-
-**Step 3 — Compute auxiliary R² and VIF.**
-
-$$R^2_1 = 1 - \frac{\text{SS}_{\text{res}}}{\text{SS}_{\text{tot}}} = 1 - \frac{1.50}{2.00} = 0.25$$
-
-$$\text{VIF}_{\text{MedInc}} = \frac{1}{1 - R^2_1} = \frac{1}{1 - 0.25} = \frac{1}{0.75} = 1.333$$
-
-**Interpretation**: VIF ≈ 1.33 is safely below 5 — the pairwise overlap between MedInc and Lat inflates the standard error of $w_{\text{MedInc}}$ by only $\sqrt{1.33} \approx 1.15\times$. MedInc's weight estimate is stable.
+    JOINT -->|Yes| IRREPLACEABLE["✅ Jointly irreplaceable\nEngineer composite or interaction\nfeature before a linear model\n― Latitude + Longitude ―"]
+    JOINT -->|No| PROXY["⚠️ Proxy rider\nApparent importance borrowed\nfrom a correlated partner\nCheck which partner it mirrors"]
+```
 
 **The high-VIF case — AveRooms in California Housing.** When we regress AveRooms on all 7 other features in the full 20,640-sample dataset, the auxiliary R² is approximately 0.86 (driven mainly by the ρ = 0.85 correlation with AveBedrms). That gives:
 
@@ -650,6 +628,85 @@ Option 2 — **Combine them**: Create `rooms_per_bedroom = AveRooms / AveBedrms`
 Option 3 — **Regularize**: Ridge regression (Ch.5) automatically shrinks correlated features toward each other, stabilising the weights without dropping information.  
 
 For SmartVal AI, we'll keep both for now and let Ridge handle it in Ch.5 — but armed with the VIF numbers, we understand *why* the weights fluctuate.
+
+---
+
+### Joint Feature Importance — When Two Features Are Stronger Together
+
+VIF catches the *competition* case: two features measure the same thing, weights blow up, one should be dropped or merged.
+
+But the opposite case exists too. Two features can encode **complementary dimensions** of the same concept — individually weak, jointly irreplaceable. Neither Latitude nor Longitude alone can tell you whether a district is in San Francisco or Los Angeles, but together they place every district precisely on the California map. This is the **cooperation case**, and none of the three methods from above directly measures it.
+
+#### The Diagnostic — Joint Permutation Importance
+
+The method is a straightforward extension of Method 3. Instead of shuffling one feature at a time, **shuffle both together** and measure the performance drop. Then compare three numbers:
+
+| Quantity | Definition |
+|---|---|
+| $\pi_j$ | Permutation importance of feature $j$ alone |
+| $\pi_k$ | Permutation importance of feature $k$ alone |
+| $\pi_{jk}$ | Permutation importance when **both $j$ and $k$ are shuffled simultaneously** |
+
+Three patterns emerge from comparing these:
+
+**Pattern 1 — Competition (same signal):** $\pi_{jk} \approx \max(\pi_j, \pi_k)$. Shuffling both together isn't much worse than shuffling the dominant one alone — the second feature was redundant. This is the AveRooms / AveBedrms case.
+
+**Pattern 2 — Independence (different signals):** $\pi_{jk} \approx \pi_j + \pi_k$. The features contribute additive, non-overlapping information. Shuffling both removes both contributions.
+
+**Pattern 3 — Cooperation (joint signal):** $\pi_{jk} > \pi_j + \pi_k$. The joint drop is larger than the sum of individual drops — the model was using the *interaction* between the features, not just each independently. This is the Lat / Long case.
+
+Define the **interaction uplift**:
+
+$$\Delta_{\text{interact}}(j,k) = \pi_{jk} - \pi_j - \pi_k$$
+
+Positive → the pair has synergistic signal the individual scores miss. Negative → the features are substitutes (consistent with VIF > 1).
+
+#### Worked Example — Latitude and Longitude
+
+From the California Housing dataset (numbers approximate, all in $\Delta$ MAE ×$1k):
+
+| Quantity | Value | Interpretation |
+|---|---|---|
+| $\pi_{\text{Lat}}$ alone | $9.1k | Shuffle Lat only; Long still present |
+| $\pi_{\text{Long}}$ alone | $7.3k | Shuffle Long only; Lat still present |
+| $\pi_{\text{Lat+Long}}$ joint | ~$27k | Shuffle *both*; model can no longer localise |
+| Sum of individuals | $16.4k | What additive independence would predict |
+| **Interaction uplift** | **+$10.6k** | The joint loss the sum misses |
+
+The uplift of ~$10.6k confirms the claim in the convergence table: the geographic signal is not just additive — the model is exploiting the *combination* (a district's actual position on a 2-D plane), not just each axis separately.
+
+Now contrast with AveRooms / AveBedrms:
+
+| Quantity | Value |
+|---|---|
+| $\pi_{\text{AveRooms}}$ alone | $0.9k |
+| $\pi_{\text{AveBedrms}}$ alone | $0.3k |
+| $\pi_{\text{AveRooms+AveBedrms}}$ joint | ~$1.0k |
+| Interaction uplift | ~$−0.2k (negative) |
+
+Shuffling both together does almost no extra damage — the features were substitutes. Dropping AveBedrms loses essentially nothing.
+
+#### What to Do When You Find Genuine Joint Importance
+
+**For linear models** — the model has no way to discover interactions on its own; you must engineer them:
+
+- **Crossed feature**: create an explicit product $x_j \times x_k$ (works for low-cardinality numerics, e.g., income × bedrooms)
+- **Composite representation**: for location specifically, transform (Lat, Long) → a richer encoding:
+  - **Distance to a reference point** (e.g., Haversine distance to the San Francisco city centre) — one interpretable scalar that captures urban premium
+  - **Cluster assignment** (k-means on the coordinates) — gives the model a named region for each district
+  - **Geohash or H3 cell** — discretises the map into hexagonal cells; encode as a categorical feature
+
+**For tree-based models** (Random Forest, Gradient Boosting) — trees find interactions automatically: a split on Lat at a high level followed by a split on Long at a lower level is exactly what a decision tree does. You don't need to pre-engineer the interaction; the model discovers it. This is one reason tree models often outperform linear models on spatial data without feature engineering.
+
+**The general principle**: if $\Delta_{\text{interact}}(j,k) > 0.5 \times \pi_j$ (the joint uplift is more than half the stronger feature's individual importance), consider creating a composite or interaction feature rather than treating them as independent columns.
+
+#### The Flag — How to Spot Candidates Without Exhaustive Search
+
+Checking all $\binom{p}{2}$ pairs for joint permutation importance is $O(p^2)$ — feasible for $p \leq 20$, expensive for larger datasets. Two cheaper pre-screens:
+
+1. **M1/M3 divergence**: if a feature has low Univariate R² but high Permutation importance (Lat: 0.02 → 0.165), something in the full model is enabling it. The enabling partner is usually findable by checking correlation with the high-M3 feature.
+
+2. **Feature correlation check**: features that are moderately correlated with *each other* (0.3 < |ρ| < 0.8) but both weakly correlated with the *target* individually are prime candidates for joint testing. Lat/Long have ρ ≈ −0.90 with *each other* in California Housing — strong spatial coupling — but individually explain only 2% and 0% of target variance.
 
 ---
 

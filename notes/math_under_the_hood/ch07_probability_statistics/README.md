@@ -236,22 +236,22 @@ $$\mathrm{Var}(\bar X) = \left(\frac{1}{10}\right)^2 \mathrm{Var}(Y) = \frac{1}{
 
 Variance tells you how much *one* variable wiggles on its own. **Covariance** asks a different question: when $x$ goes up, does $y$ tend to go up too — or down, or neither?
 
-### The Intuition — Walking in the Same Direction
+### The Intuition — Two Variables on the Same Pitch
 
-Imagine two things you might track about a football player after each of their 5 training sessions:
+Our striker is practising free kicks across 5 sessions. The analyst logs two things each session:
 
-- $x$ = how far they ran (in km) 
-- $y$ = how tired they felt afterwards (self-reported, 1–10)
+- $x$ = wind speed (m/s) that day, measured at pitch level
+- $y$ = ball deviation from the target line (cm), measured by a camera at goal
 
-| Session | km run ($x$) | Tiredness ($y$) |
-|---------|-------------|----------------|
-| 1 | 3 | 4 |
-| 2 | 5 | 6 |
-| 3 | 7 | 8 |
-| 4 | 4 | 5 |
-| 5 | 6 | 7 |
+| Session | Wind (m/s) $x$ | Deviation (cm) $y$ |
+|---------|---------------|-------------------|
+| 1 | 1 | 8 |
+| 2 | 3 | 18 |
+| 3 | 2 | 20 |
+| 4 | 5 | 32 |
+| 5 | 4 | 22 |
 
-Eyeballing the table: when $x$ is high, $y$ is also high. When $x$ is low, $y$ is low. They move together. That "moving together" is what covariance captures.
+Eyeballing the table: high wind → high deviation; calm conditions → small deviation. They move together. That "moving together" is what covariance captures.
 
 Here is the key idea in plain English before any formula:
 
@@ -263,34 +263,34 @@ Here is the key idea in plain English before any formula:
 
 **Step 1 — Centre each variable.** Subtract the mean so that "above average" becomes positive and "below average" becomes negative.
 
-Mean of $x$: $\bar{x} = (3+5+7+4+6)/5 = 5$  
-Mean of $y$: $\bar{y} = (4+6+8+5+7)/5 = 6$
+$\bar{x} = (1+3+2+5+4)/5 = 3.0$ m/s  
+$\bar{y} = (8+18+20+32+22)/5 = 20.0$ cm
 
 | Session | $x - \bar{x}$ | $y - \bar{y}$ |
 |---------|--------------|--------------|
-| 1 | $3-5 = -2$ | $4-6 = -2$ |
-| 2 | $5-5 = 0$ | $6-6 = 0$ |
-| 3 | $7-5 = +2$ | $8-6 = +2$ |
-| 4 | $4-5 = -1$ | $5-6 = -1$ |
-| 5 | $6-5 = +1$ | $7-6 = +1$ |
+| 1 | $1-3 = -2$ | $8-20 = -12$ |
+| 2 | $3-3 = 0$ | $18-20 = -2$ |
+| 3 | $2-3 = -1$ | $20-20 = 0$ |
+| 4 | $5-3 = +2$ | $32-20 = +12$ |
+| 5 | $4-3 = +1$ | $22-20 = +2$ |
 
 **Step 2 — Multiply the deviations pairwise.** If both are positive (above their averages together) → product is positive. If both are negative (below their averages together) → product is also positive (negative × negative = positive). If they go in opposite directions → product is negative.
 
 | Session | $(x-\bar{x})$ | $(y-\bar{y})$ | product |
 |---------|--------------|--------------|---------|
-| 1 | $-2$ | $-2$ | $+4$ |
-| 2 | $0$ | $0$ | $0$ |
-| 3 | $+2$ | $+2$ | $+4$ |
-| 4 | $-1$ | $-1$ | $+1$ |
-| 5 | $+1$ | $+1$ | $+1$ |
+| 1 | $-2$ | $-12$ | $+24$ |
+| 2 | $0$ | $-2$ | $0$ |
+| 3 | $-1$ | $0$ | $0$ |
+| 4 | $+2$ | $+12$ | $+24$ |
+| 5 | $+1$ | $+2$ | $+2$ |
 
-Sum of products = $4 + 0 + 4 + 1 + 1 = 10$.
+Sum of products = $24 + 0 + 0 + 24 + 2 = 50$.
 
 **Step 3 — Average the products.** This is the covariance:
 
-$$\text{Cov}(x, y) = \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y}) = \frac{10}{5} = 2.0$$
+$$\text{Cov}(x, y) = \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y}) = \frac{50}{5} = 10.0$$
 
-> **Why average instead of sum?** If you doubled the dataset from 5 to 10 sessions (by repeating it), the sum of products would double — but the relationship between km and tiredness hasn't changed. Dividing by $n$ keeps the covariance the same regardless of dataset size.
+> **Why average instead of sum?** If you doubled the dataset from 5 to 10 sessions (by repeating it), the sum of products would double — but the relationship between wind speed and deviation hasn't changed. Dividing by $n$ keeps the covariance the same regardless of dataset size.
 
 ![Covariance animation: deviations above/below mean, product sign, accumulation](img/ch07-pearson-covariance.gif)
 
@@ -298,9 +298,9 @@ $$\text{Cov}(x, y) = \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y}) =
 
 ### The Problem with Covariance — It Depends on Units
 
-Covariance $= 2.0$ sounds great, but what does it mean? If you measured distance in *metres* instead of *kilometres*, $x$ would be 3000 instead of 3, the deviations would be 2000 instead of 2, and the covariance would be $2,000,000$ — even though the relationship between running distance and tiredness is completely unchanged.
+Covariance $= 10.0$ sounds great, but what does it mean? If you measured wind in **km/h** instead of m/s, $x$ would be 3.6, 10.8, 7.2, 18.0, 14.4 — about 3.6× larger. The deviations would also be 3.6× larger and the covariance would jump to $~129$ — even though the physical relationship between wind and ball deviation is completely unchanged.
 
-**Covariance inherits the units of both variables.** A covariance of 2.0 km·fatigue-points is not comparable to a covariance of 0.8 hours·fatigue-points. You cannot look at a covariance number and say "this is a strong relationship."
+**Covariance inherits the units of both variables.** A covariance of 10 (m/s)·cm is not comparable to a covariance of 0.8 (m/s)·m. You cannot look at a covariance number and say "this is a strong relationship."
 
 ### Pearson Correlation — Covariance on a Standard Scale
 
@@ -312,26 +312,26 @@ where $\rho$ (Greek letter "rho") is the **Pearson correlation coefficient**, $\
 
 **Completing the walkthrough with the same 5 sessions:**
 
-$\sigma_x = \sqrt{(4+0+4+1+1)/5} = \sqrt{2} \approx 1.414$
+$\sigma_x = \sqrt{(4+0+1+4+1)/5} = \sqrt{10/5} = \sqrt{2} \approx 1.414$ m/s
 
-$\sigma_y = \sqrt{(4+0+4+1+1)/5} = \sqrt{2} \approx 1.414$
+$\sigma_y = \sqrt{(144+4+0+144+4)/5} = \sqrt{296/5} = \sqrt{59.2} \approx 7.694$ cm
 
-$$\rho = \frac{2.0}{1.414 \times 1.414} = \frac{2.0}{2.0} = \mathbf{1.00}$$
+$$\rho = \frac{10.0}{1.414 \times 7.694} = \frac{10.0}{10.88} \approx \mathbf{0.92}$$
 
-$\rho = 1.00$ — perfect positive correlation. That makes sense: in our toy dataset, every time $x$ goes up by 1 km, $y$ goes up by exactly 1 fatigue point. There is no scatter at all.
+$\rho = 0.92$ — strong positive correlation. Wind speed explains much of the deviation, but not all of it: sessions 2 and 3 have the same wind (roughly) but different deviations, showing that other factors (angle of attack, spin, pitch surface) also play a role. That residual scatter is why $\rho < 1$.
 
 ### Reading the Correlation Value
 
-| $\rho$ value | What it means | Example |
+| $\rho$ value | What it means | Free-kick example |
 |---|---|---|
-| $+1.0$ | Perfect positive — one goes up, other always goes up by a fixed proportion | Our toy example |
-| $+0.7$ to $+0.9$ | Strong positive — clear upward trend with some scatter | MedInc vs house value ($\rho = 0.69$) |
-| $+0.3$ to $+0.6$ | Moderate positive — tendency but much scatter | HouseAge vs price |
-| $-0.1$ to $+0.1$ | Near zero — no linear pattern | Population vs price |
-| $-0.3$ to $-0.6$ | Moderate negative | Latitude vs price (higher latitude → lower CA price) |
-| $-1.0$ | Perfect negative — one goes up, other always goes down by fixed proportion | Hypothetical |
+| $+1.0$ | Perfect positive — one goes up, other always goes up by a fixed proportion | Initial speed $v_0$ vs air distance (pure physics — no scatter) |
+| $+0.7$ to $+0.9$ | Strong positive — clear upward trend with real scatter | Wind speed vs ball deviation (our worked example, $\rho \approx 0.92$) |
+| $+0.3$ to $+0.6$ | Moderate positive — tendency but a lot of scatter | Striker fatigue level vs miss distance |
+| $-0.1$ to $+0.1$ | Near zero — no linear pattern | Ambient temperature vs goal probability |
+| $-0.3$ to $-0.6$ | Moderate negative — one tends to go up as the other goes down | Rest hours before session vs launch angle error |
+| $-1.0$ | Perfect negative — one goes up, other always goes down by a fixed proportion | Hypothetical |
 
-> ⚠️ **Correlation measures linear relationships only.** A U-shaped curve (performance peaks in the middle of a training schedule) can have $\rho \approx 0$ even though the variables are strongly related. Always plot the scatter before trusting $\rho$.
+> ⚠️ **Correlation measures linear relationships only.** A U-shaped curve (performance peaks at the *optimal* launch angle — too shallow and the ball hits the wall, too steep and it sails over the bar) can have $\rho \approx 0$ even though launch angle is highly informative. Always plot the scatter before trusting $\rho$.
 
 ![Pearson correlation animation: four scatter plots at ρ ≈ +1, +0.7, 0, −0.8](img/ch07-pearson-correlation.gif)
 
@@ -343,21 +343,21 @@ There is a beautiful shortcut that connects Pearson correlation directly to the 
 
 $$R^2 = \rho(x, y)^2$$
 
-This means: **the fraction of target variance explained by a single linear model is just the square of the correlation between feature and target.** You don't need to fit a model at all — compute the correlation matrix once, square the target column, and you have all 8 Univariate R² values instantly.
+This means: **the fraction of target variance explained by a single linear model is just the square of the correlation between feature and target.** You don't need to fit a model at all — compute the correlation matrix once, square the target column, and you have all Univariate R² values instantly.
 
 **Why does this work?** When you fit $\hat{y} = wx + b$ by OLS, the optimal $w = \text{Cov}(x,y) / \text{Var}(x)$. The explained variance is $\text{Var}(\hat{y}) = w^2 \text{Var}(x)$. Divide by total variance $\text{Var}(y)$ and expand — the result simplifies to $\rho^2$ exactly. (Full derivation in Ch.6 if you want to trace through it.)
 
-**Example with California Housing:**
+**Example — predicting ball range from free-kick features:**
 
-| Feature | $\rho$ with target | $\rho^2$ = Univariate R² |
+| Feature | $\rho$ with ball range | $\rho^2$ = Univariate R² |
 |---|---|---|
-| MedInc | +0.688 | **0.473** |
-| AveRooms | +0.151 | 0.023 |
-| Latitude | −0.144 | 0.021 |
-| AveBedrms | −0.047 | 0.002 |
-| Population | −0.025 | 0.001 |
+| Initial velocity $v_0$ | +0.97 | **0.94** |
+| Launch angle $\theta$ | +0.85 | **0.72** |
+| Wind speed (headwind) | −0.38 | 0.14 |
+| Topspin rate | +0.29 | 0.08 |
+| Ambient temperature | +0.06 | 0.004 |
 
-MedInc dominates not because its correlation is much above 0.5, but because $\rho^2$ amplifies the gap: 0.69 vs 0.15 becomes 0.47 vs 0.02 once squared.
+$v_0$ dominates not because 0.97 is much higher than 0.85, but because $\rho^2$ amplifies the gap: 0.97 vs 0.85 becomes 0.94 vs 0.72 once squared — and wind/spin/temperature are exposed as minor contributors.
 
 ### Covariance in Matrices — Why You See It Everywhere
 
@@ -367,11 +367,11 @@ $$\Sigma_{jk} = \text{Cov}(x_j, x_k) = \frac{1}{n}\sum_{i=1}^{n}(x_{ij} - \bar{x
 
 The diagonal entries $\Sigma_{jj} = \text{Var}(x_j)$ (variance of each feature). The off-diagonal entries are the pairwise covariances. Divide each entry by the product of standard deviations and you get the **correlation matrix** — the heat map you see in ML Ch.3.
 
-> 💡 **AveRooms and AveBedrms:** Their correlation coefficient $\rho = 0.85$ means 72% of their variance is shared ($0.85^2 = 0.72$). When both are in the model, the model has two variables that are 72% "the same thing" — this is the root cause of the weight instability that VIF diagnoses.
+> 💡 **Launch angle $\theta$ and ball height at the wall** are tightly correlated ($\rho \approx 0.88$) — both describe the vertical trajectory, just measured at different points. If you put both into a model, they fight over the same signal. Their shared variance is $0.88^2 \approx 0.77$, meaning 77% of what $\theta$ knows, the wall-height measure also knows. This is the physical intuition behind why correlated features cause unstable weights — a concept explored in ML Ch.3's Multicollinearity section.
 
 ![Covariance matrix animation: from individual variances to the full heatmap](img/ch07-covariance-matrix.gif)
 
-*The animation builds the 8×8 correlation matrix column by column. Each cell lights up when its pair of features are processed, colour-coded blue (positive) or red (negative).*
+*The animation builds the 5×5 free-kick correlation matrix ($v_0$, $\theta$, wind, spin, temperature) column by column. Each cell lights up when its pair of features is processed, colour-coded blue (positive) or red (negative).*
 
 ### Summary — Three Things to Take Away
 

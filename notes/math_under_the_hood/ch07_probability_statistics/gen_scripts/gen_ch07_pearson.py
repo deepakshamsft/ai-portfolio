@@ -1,10 +1,14 @@
 """
 Generate three Pearson/covariance animations for ch07 § 4b.
 
+Story arc: the free-kick knuckleball challenge.
+  x = wind speed (m/s) per training session
+  y = ball deviation from target line (cm) measured at goal
+
 Outputs (all to ../img/):
   ch07-pearson-covariance.gif   – signed-rectangle covariance build-up
   ch07-pearson-correlation.gif  – four scatter plots at different ρ values
-  ch07-covariance-matrix.gif    – 8×8 California Housing correlation matrix build
+  ch07-covariance-matrix.gif    – 5×5 free-kick feature correlation matrix build
 
 Run from repo root:
     python notes/math_under_the_hood/ch07_probability_statistics/gen_scripts/gen_ch07_pearson.py
@@ -40,14 +44,20 @@ def fig_to_pil(fig):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 1.  COVARIANCE BUILD-UP — signed rectangle per session
+# 1.  COVARIANCE BUILD-UP
+#     x = wind speed (m/s), y = ball deviation from target line (cm)
+#     across 5 free-kick training sessions
 # ═══════════════════════════════════════════════════════════════════════════════
-X = np.array([3., 5., 7., 4., 6.])
-Y = np.array([4., 6., 8., 5., 7.])
-xbar, ybar = X.mean(), Y.mean()
+X = np.array([1., 3., 2., 5., 4.])   # wind speed (m/s)
+Y = np.array([8., 18., 20., 32., 22.]) # deviation (cm)
+xbar, ybar = X.mean(), Y.mean()        # 3.0, 20.0
 dx = X - xbar
 dy = Y - ybar
 products = dx * dy
+
+LABELS = [f"S{i+1}" for i in range(len(X))]
+X_LABEL = "wind speed  (m/s)"
+Y_LABEL = "ball deviation  (cm)"
 
 frames_cov = []
 
@@ -60,9 +70,9 @@ for k in range(1, len(X) + 1):
     # mean lines
     ax.axvline(xbar, color=GREY, lw=1, ls="--", alpha=0.6)
     ax.axhline(ybar, color=GREY, lw=1, ls="--", alpha=0.6)
-    ax.text(xbar + 0.1, 3.3, f"$\\bar{{x}}={xbar:.0f}$",
+    ax.text(xbar + 0.1, 5.5, f"$\\bar{{x}}={xbar:.0f}$",
             color=GREY, fontsize=9)
-    ax.text(2.2, ybar + 0.1, f"$\\bar{{y}}={ybar:.0f}$",
+    ax.text(0.25, ybar + 0.8, f"$\\bar{{y}}={ybar:.0f}$",
             color=GREY, fontsize=9)
 
     # draw rectangles for sessions 1..k
@@ -72,7 +82,6 @@ for k in range(1, len(X) + 1):
         ry = min(Y[i], ybar)
         rw = abs(dx[i])
         rh = abs(dy[i])
-        rect = mpatches.FancyArrowPatch
         ax.add_patch(mpatches.Rectangle(
             (rx, ry), rw, rh,
             linewidth=1.2, edgecolor=colour,
@@ -80,20 +89,20 @@ for k in range(1, len(X) + 1):
         ))
         ax.plot(X[i], Y[i], "o", color=colour, ms=9, zorder=5)
         ax.annotate(
-            f"  S{i+1}\n  Δx={dx[i]:+.0f}, Δy={dy[i]:+.0f}\n  prod={products[i]:+.0f}",
-            xy=(X[i], Y[i]), xytext=(X[i] + 0.15, Y[i] - 0.05),
+            f"  {LABELS[i]}\n  Δx={dx[i]:+.0f}, Δy={dy[i]:+.0f}\n  prod={products[i]:+.0f}",
+            xy=(X[i], Y[i]), xytext=(X[i] + 0.1, Y[i] - 1.0),
             color=colour, fontsize=7.5
         )
 
     running_cov = products[:k].mean()
-    ax.set_xlim(1.5, 9)
-    ax.set_ylim(2.5, 10)
-    ax.set_xlabel("km run  ($x$)", color=FG)
-    ax.set_ylabel("tiredness  ($y$)", color=FG)
+    ax.set_xlim(0, 7)
+    ax.set_ylim(3, 38)
+    ax.set_xlabel(X_LABEL, color=FG)
+    ax.set_ylabel(Y_LABEL, color=FG)
     ax.tick_params(colors=FG)
     ax.set_title(
         f"Covariance build-up — session {k} of {len(X)}\n"
-        f"Running Cov(x,y) = {running_cov:.2f}  "
+        f"Running Cov(wind, deviation) = {running_cov:.1f}  "
         f"[blue = same direction, red = opposite]",
         color=FG, fontsize=10, pad=8
     )
@@ -112,7 +121,7 @@ print("✓ ch07-pearson-covariance.gif")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 2.  FOUR SCATTER PLOTS — different ρ values
+# 2.  FOUR SCATTER PLOTS — different ρ values, all in the free-kick context
 # ═══════════════════════════════════════════════════════════════════════════════
 rng = np.random.default_rng(42)
 N = 120
@@ -124,10 +133,10 @@ def make_corr_data(r, n=N, seed=42):
     return data[:, 0], data[:, 1]
 
 configs = [
-    (0.97,  "+0.97 — near-perfect positive\n(like standardised MedInc vs house value)",  BLUE),
-    (0.69,  "+0.69 — strong positive\n(MedInc ↔ MedHouseVal actual ρ)",                  GREEN),
-    (0.03,  "≈ 0 — no linear relationship\n(Population ↔ MedHouseVal actual ρ)",         GOLD),
-    (-0.80, "−0.80 — strong negative\n(Latitude ↔ price in northern CA cheaper)",        RED),
+    (0.97,  "$v_0$ (m/s)  ↔  ball range (m)\n$\\rho \\approx +0.97$ — near-perfect (physics)",  BLUE),
+    (0.92,  "wind speed  ↔  ball deviation\n$\\rho \\approx +0.92$ — our worked example",        GREEN),
+    (0.03,  "temperature  ↔  goal probability\n$\\rho \\approx 0$ — no linear relationship",     GOLD),
+    (-0.55, "rest hours  ↔  launch angle error\n$\\rho \\approx -0.55$ — moderate negative",     RED),
 ]
 
 frames_scatter = []
@@ -147,7 +156,7 @@ for rho, title, colour in configs:
     ax.axvline(0, color=GREY, lw=0.6, ls="--", alpha=0.5)
     ax.axhline(0, color=GREY, lw=0.6, ls="--", alpha=0.5)
     ax.set_xlabel("feature $x$ (standardised)", color=FG)
-    ax.set_ylabel("target $y$ (standardised)", color=FG)
+    ax.set_ylabel("feature / outcome $y$ (standardised)", color=FG)
     ax.tick_params(colors=FG)
     rho_label = f"$\\rho = {rho:+.2f}$"
     ax.text(0.05, 0.93, rho_label, transform=ax.transAxes,
@@ -155,7 +164,6 @@ for rho, title, colour in configs:
             va="top")
     ax.set_title(title, color=FG, fontsize=10, pad=8)
     fig.tight_layout()
-    # hold each panel for 1.8 s
     pil_frame = fig_to_pil(fig)
     frames_scatter += [pil_frame] * 2
     plt.close(fig)
@@ -169,72 +177,83 @@ print("✓ ch07-pearson-correlation.gif")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 3.  COVARIANCE MATRIX BUILD — California Housing 8×8
+# 3.  COVARIANCE MATRIX BUILD — 5×5 free-kick features
+#
+#  Features: v0 (m/s), theta (deg), wind (m/s), spin (rpm), temperature (°C)
+#  Synthetic data generated from a target correlation structure:
+#    v0 ↔ theta:  +0.35  (partially planned together)
+#    v0 ↔ wind:   −0.10  (wind is external — no correlation)
+#    v0 ↔ spin:   +0.42  (kicker adjusts spin with power)
+#    v0 ↔ temp:   +0.05
+#    theta ↔ wind: +0.20  (keeper adjusts angle in wind)
+#    theta ↔ spin: +0.88  (angle and spin tightly coupled — same kick style)
+#    theta ↔ temp: −0.08
+#    wind ↔ spin:  −0.12
+#    wind ↔ temp:  +0.15
+#    spin ↔ temp:  +0.07
 # ═══════════════════════════════════════════════════════════════════════════════
-try:
-    from sklearn.datasets import fetch_california_housing
-    import pandas as pd
-    data = fetch_california_housing()
-    df = pd.DataFrame(data.data, columns=data.feature_names)
-    df["MedHouseVal"] = data.target
-    corr = df.corr().values
-    labels = list(df.columns)
-    HAS_SKLEARN = True
-except ImportError:
-    HAS_SKLEARN = False
-    print("  (sklearn not available — covariance matrix gif skipped)")
+labels = ["$v_0$ (m/s)", r"$\theta$ (°)", "wind (m/s)", "spin (rpm)", "temp (°C)"]
+p = len(labels)
 
-if HAS_SKLEARN:
-    p = len(labels)
-    frames_mat = []
+# Build a valid positive-definite correlation matrix from the target values
+target_corr = np.array([
+    [1.00,  0.35, -0.10,  0.42,  0.05],
+    [0.35,  1.00,  0.20,  0.88, -0.08],
+    [-0.10,  0.20,  1.00, -0.12,  0.15],
+    [0.42,  0.88, -0.12,  1.00,  0.07],
+    [0.05, -0.08,  0.15,  0.07,  1.00],
+])
 
-    # Build frames: reveal one column at a time (plus target col always shown)
-    for reveal_up_to in range(p):
-        fig, ax = plt.subplots(figsize=(8, 7), facecolor=BG)
-        ax.set_facecolor(BG)
+rng_mat = np.random.default_rng(99)
+raw = rng_mat.multivariate_normal(np.zeros(p), target_corr, size=500)
+# Recompute actual correlation from the sample for honest annotation
+import pandas as pd
+df_kick = pd.DataFrame(raw, columns=labels)
+corr = df_kick.corr().values
 
-        # mask unrevealed cells
-        display = np.full_like(corr, np.nan)
-        for col in range(reveal_up_to + 1):
-            display[:, col] = corr[:, col]
-            display[col, :] = corr[col, :]   # symmetric
+frames_mat = []
+for reveal_up_to in range(p):
+    fig, ax = plt.subplots(figsize=(7, 6.5), facecolor=BG)
+    ax.set_facecolor(BG)
 
-        im = ax.imshow(display, vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
-        ax.set_xticks(range(p))
-        ax.set_yticks(range(p))
-        ax.set_xticklabels(labels, rotation=45, ha="right",
-                           color=FG, fontsize=8)
-        ax.set_yticklabels(labels, color=FG, fontsize=8)
+    display = np.full_like(corr, np.nan)
+    for col in range(reveal_up_to + 1):
+        display[:, col] = corr[:, col]
+        display[col, :] = corr[col, :]   # symmetric
 
-        # annotate revealed cells
-        for r in range(p):
-            for c in range(p):
-                if not np.isnan(display[r, c]):
-                    val = display[r, c]
-                    txt_col = "white" if abs(val) > 0.55 else BG
-                    ax.text(c, r, f"{val:.2f}", ha="center", va="center",
-                            color=txt_col, fontsize=6.5)
+    im = ax.imshow(display, vmin=-1, vmax=1, cmap="RdBu_r", aspect="auto")
+    ax.set_xticks(range(p))
+    ax.set_yticks(range(p))
+    ax.set_xticklabels(labels, rotation=30, ha="right", color=FG, fontsize=9)
+    ax.set_yticklabels(labels, color=FG, fontsize=9)
 
-        ax.set_title(
-            f"California Housing correlation matrix\n"
-            f"(revealing column {reveal_up_to + 1}/{p}: {labels[reveal_up_to]})",
-            color=FG, fontsize=10, pad=8
-        )
-        cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        cb.ax.yaxis.set_tick_params(color=FG)
-        plt.setp(cb.ax.yaxis.get_ticklabels(), color=FG)
-        fig.tight_layout()
-        pil_frame = fig_to_pil(fig)
-        frames_mat.append(pil_frame)
-        plt.close(fig)
+    for r in range(p):
+        for c in range(p):
+            if not np.isnan(display[r, c]):
+                val = display[r, c]
+                txt_col = "white" if abs(val) > 0.55 else BG
+                ax.text(c, r, f"{val:.2f}", ha="center", va="center",
+                        color=txt_col, fontsize=8)
 
-    # pause on final frame
-    frames_mat += [frames_mat[-1]] * 5
-    frames_mat[0].save(
-        OUT / "ch07-covariance-matrix.gif",
-        save_all=True, append_images=frames_mat[1:],
-        duration=700, loop=0
+    ax.set_title(
+        f"Free-kick feature correlation matrix\n"
+        f"(revealing column {reveal_up_to + 1}/{p}: {labels[reveal_up_to]})",
+        color=FG, fontsize=10, pad=8
     )
-    print("✓ ch07-covariance-matrix.gif")
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cb.ax.yaxis.set_tick_params(color=FG)
+    plt.setp(cb.ax.yaxis.get_ticklabels(), color=FG)
+    fig.tight_layout()
+    frames_mat.append(fig_to_pil(fig))
+    plt.close(fig)
+
+frames_mat += [frames_mat[-1]] * 5
+frames_mat[0].save(
+    OUT / "ch07-covariance-matrix.gif",
+    save_all=True, append_images=frames_mat[1:],
+    duration=700, loop=0
+)
+print("✓ ch07-covariance-matrix.gif")
 
 print("\nAll Pearson/covariance animations written to", OUT)
+
