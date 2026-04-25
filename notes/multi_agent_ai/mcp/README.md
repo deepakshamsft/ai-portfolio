@@ -3,6 +3,7 @@
 > **The story.** **Anthropic** announced the **Model Context Protocol** on **25 November 2024** as an open standard built on JSON-RPC 2.0. The motivating problem was the **N×M integration explosion** — every agent had to ship custom adapter code for every data source. MCP defined three reusable primitives — *Resources*, *Tools*, *Prompts* — plus standard transports (stdio for local, SSE/HTTP for remote). Adoption was unusually fast for a protocol: by mid-2025 OpenAI, Microsoft, and Google had all shipped MCP support; Claude Desktop, Cursor, Zed, and VS Code Copilot all spoke MCP natively; and the public registry had passed several thousand servers. **MCP is now the protocol for tool/data integration in multi-agent systems**, the same way HTTP is the protocol for hypertext.
 >
 > **Where you are in the curriculum.** [Ch.1](../message_formats) gave you the message envelope. This chapter answers: **what problem does MCP solve that plain function calling does not, and how does the JSON-RPC 2.0 protocol turn any data source or executable function into something any compliant agent can discover and use without bespoke adapter code?** Master this and the [A2A](../a2a) chapter — agent-to-agent delegation — will compose cleanly with it.
+<!-- TODO: notation sentence — define symbols used in chapter -->
 
 ---
 
@@ -188,7 +189,7 @@ messages = await mcp_client.get_prompt("negotiate_price_prompt",
 
 ---
 
-## OrderFlow — Ch.2 Scenario
+## 2 · Running Example
 
 OrderFlow's tool sprawl had become a maintenance bottleneck: three teams, each owning one agent, each maintaining their own wrappers for the ERP, pricing API, and email service — nine wrappers total, each with subtly different error handling.
 
@@ -198,7 +199,42 @@ The additional gain: the compliance team added a logging proxy MCP server that s
 
 ---
 
-## § 11.5 · Progress Check — What We Achieved
+
+## 4 · How It Works
+
+> Step-by-step walkthrough of the mechanism.
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows here.
+
+
+## 6 · Hyperparameter Dial
+
+> List the key knobs and their effect on behaviour.
+
+
+## 8 · What Can Go Wrong
+
+> 3–5 common failure modes and mitigations.
+
+## 11 · Progress Check — What We Achieved
+
+```mermaid
+graph LR
+    Ch1["Ch.1\nMessage Formats"]:::done
+    Ch2["Ch.2\nMCP"]:::done
+    Ch3["Ch.3\nA2A"]:::done
+    Ch4["Ch.4\nEvent-Driven"]:::done
+    Ch5["Ch.5\nShared Memory"]:::done
+    Ch6["Ch.6\nTrust & Sandboxing"]:::done
+    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
+    classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ### Constraint Status After Ch.2
 

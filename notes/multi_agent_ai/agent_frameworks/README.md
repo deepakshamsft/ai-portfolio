@@ -3,6 +3,7 @@
 > **The story.** Three frameworks define the multi-agent landscape in 2026, and each one started with a different design instinct. **AutoGen** (Microsoft Research, **September 2023**) made conversational multi-agent debate the primitive — agents talk to each other in a group chat and the orchestrator referees turn-taking. **LangGraph** (LangChain Inc., **January 2024**) treated multi-agent coordination as a *state machine*, with explicit nodes, edges, and graph state — the right model when control flow needs to be auditable and resumable. **Microsoft Semantic Kernel** (open-sourced May 2023, AgentGroupChat 2024) added .NET-native plugins, telemetry, and enterprise-grade observability around the same agent loop. **CrewAI** (2024) and **OpenAI Swarm** (October 2024) added lighter-weight role-based variants. The frameworks look superficially interchangeable until you try to express a workflow that doesn't fit — then the underlying execution model dictates everything.
 >
 > **Where you are in the curriculum.** [Ch.1](../message_formats)–[Ch.6](../trust_and_sandboxing) gave you the primitives: messages, tools, agent-to-agent calls, event bus, blackboard, trust. This chapter shows how three production frameworks compose those primitives differently — and how to pick the one whose execution model matches your actual control-flow requirements. Picking wrong costs more to undo than it would have cost to understand the tradeoffs upfront.
+<!-- TODO: notation sentence — define symbols used in chapter -->
 
 ---
 
@@ -256,7 +257,7 @@ SK's key enterprise-specific features:
 
 ---
 
-## OrderFlow — Ch.7 Scenario
+## 2 · Running Example
 
 OrderFlow used LangGraph for its production PO lifecycle (deterministic compliance requirement: always inventory before negotiation before approval before drafting, no exceptions). But the pricing team wanted to experiment with multi-agent debate for pricing decisions without rebuilding the production graph.
 
@@ -382,7 +383,42 @@ def build_orderflow_graph() -> StateGraph:
 
 ---
 
-## § 11.5 · Progress Check — What We Achieved
+
+## 4 · How It Works
+
+> Step-by-step walkthrough of the mechanism.
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows here.
+
+
+## 6 · Hyperparameter Dial
+
+> List the key knobs and their effect on behaviour.
+
+
+## 8 · What Can Go Wrong
+
+> 3–5 common failure modes and mitigations.
+
+## 11 · Progress Check — What We Achieved
+
+```mermaid
+graph LR
+    Ch1["Ch.1\nMessage Formats"]:::done
+    Ch2["Ch.2\nMCP"]:::done
+    Ch3["Ch.3\nA2A"]:::done
+    Ch4["Ch.4\nEvent-Driven"]:::done
+    Ch5["Ch.5\nShared Memory"]:::done
+    Ch6["Ch.6\nTrust & Sandboxing"]:::done
+    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
+    classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ### Constraint Status After Ch.7 (FINAL)
 

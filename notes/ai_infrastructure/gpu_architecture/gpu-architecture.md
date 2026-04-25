@@ -1,10 +1,16 @@
 # Ch.1 — GPU Architecture Fundamentals
 
 > **The story.** GPUs were invented to draw triangles. NVIDIA's **GeForce 256** (October **1999**) coined the term *GPU* for a fixed-function 3-D graphics pipeline aimed at *Quake* players, not scientists. The pivot to general-purpose compute began when **Ian Buck** (then a Stanford PhD student, later NVIDIA's VP of Accelerated Computing) shipped **CUDA** in **2006**, exposing the GPU's parallel execution model as a C-like programming environment. For six years CUDA was a niche HPC tool. Then in **September 2012** **Alex Krizhevsky** trained **AlexNet** on two consumer **GTX 580** cards in his bedroom and won ImageNet by 10 percentage points — the moment that made GPUs synonymous with deep learning. **cuDNN** (2014) gave Caffe and TensorFlow a fast convolution library. **Pascal P100** (2016) introduced HBM2; **Volta V100** (2017) introduced **Tensor Cores** for mixed-precision matmul; **A100** (2020) added bf16 and Multi-Instance GPU; **H100** (2022) added FP8 and the Transformer Engine; **B100/B200 Blackwell** (2024) crossed into native FP4 and 192 GB HBM3e. Every layer of the modern AI stack \u2014 PyTorch, vLLM, TensorRT-LLM, Triton, FlashAttention \u2014 is built on this 25-year hardware lineage and the CUDA programming model that made it accessible.\n>\n> **Where you are in the curriculum.** This is the foundation chapter for the AI Infrastructure track. **Running scenario:** InferenceBase needs to self-host Llama-3-8B to cut an $80k/month OpenAI bill. Before ordering a single machine, the Platform Engineer has to answer: *which GPU, and why?* That question is impossible to answer correctly without understanding what a GPU actually does \u2014 and why its specs translate to AI workloads the way they do.
+> <!-- TODO: add notation sentence here -->
 
 ---
 
 ## 0 · The Challenge — Where We Are
+
+## Animation
+
+> 🎬 *Animation placeholder — needle-builder agent will generate this.*
+
 
 > 🎯 **The mission**: Self-host Llama-3-8B for <$15k/month, replacing $80k OpenAI API costs
 > 
@@ -89,7 +95,7 @@ Every layer of every neural network reduces to matrix multiplications. The trans
 
 ---
 
-## 2 · The InferenceBase Angle
+## 2 · Running Example
 
 InferenceBase's Llama-3-8B model has 8 billion parameters. Running one inference forward pass requires roughly **16 TFLOP** of computation (in FP16). At 50 tokens per second — the minimum useful generation speed — the GPU must sustain approximately **800 GFLOP/s** of actual throughput. A consumer RTX 4090 delivers 165 TFLOP/s (BF16 tensor). That sounds like plenty. But in practice, inference is almost never compute-bound: the GPU spends most of its time *waiting for data to arrive from memory*, not doing arithmetic. Understanding why requires understanding the GPU memory hierarchy and the concept of **arithmetic intensity**.
 
@@ -389,7 +395,7 @@ TFLOP/s
 
 ---
 
-## 11 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 - **Buying for TFLOP/s when you need VRAM** — a GPU with 2× the compute but half the VRAM won't run your model at all; always size for VRAM first, then check bandwidth.
 - **Ignoring memory bandwidth for inference** — LLM decode is bandwidth-limited; the A10G (24 GB, 0.6 TB/s) is significantly slower than the RTX 4090 (24 GB, 1.0 TB/s) for LLM inference despite similar VRAM.
@@ -642,6 +648,34 @@ Result: ✅ CEO has confidence in the plan!
 | RTX 4090 has 24GB VRAM + 1.0 TB/s bandwidth → best price/performance for 8B models | What is the difference between V100, A100, and H100 for LLM workloads? | Assuming NVLink is the default — consumer GPUs only have PCIe |
 
 ---
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows or architectural boundaries here.
+
+
+## 6 · The Hyperparameter Dial
+
+> List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
+> effect on the latency/throughput/memory triangle.
+
+
+## 7 · Code Skeleton
+
+### Educational
+
+```python
+# Educational: concept from scratch
+pass
+```
+
+### Production
+
+```python
+# Production: optimized pipeline call
+pass
+```
 
 ## 12 · Interview Checklist
 

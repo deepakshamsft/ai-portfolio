@@ -3,10 +3,16 @@
 > **The story.** For most of deep learning history, training meant FP32 and inference meant FP32 or FP16. Mixed-precision training (Micikevicius et al., NVIDIA, **2017**) showed you could train with FP16 activations and FP32 master weights without accuracy loss, cutting memory by 50%. **INT8 quantization** (Jacob et al., Google, **2018**) took this further: by mapping FP32 weights to 8-bit integers, you could shrink models by 4× with <1% accuracy drop. **GPTQ** (Frantar et al., IST Austria, **2022**) and **AWQ** (Lin et al., MIT, **2023**) pushed to **INT4** — a single 4-bit integer per weight — achieving 75% compression with careful per-channel scaling. The 2023 wave of open LLMs (Llama-2, Mistral) arrived with pre-quantized INT4 checkpoints, enabling 70B-parameter models to run on consumer GPUs. By 2024, the community consensus: *INT4 is the default for inference, FP16 for training, BF16 for stability.*
 >
 > **Where you are in the curriculum.** Ch.1 picked the GPU. Ch.2 calculated that Llama-3-8B (FP16) uses 22 GB / 24 GB, leaving zero headroom for batching. This chapter shrinks the model from 16 GB → 4 GB via INT4 quantization, unlocking batch=4 and 4× throughput. The InferenceBase question: *Does INT4 quantization destroy quality?* We validate with perplexity benchmarks and document extraction accuracy tests.
+> <!-- TODO: add notation sentence here -->
 
 ---
 
 ## 0 · The Challenge — Where We Are
+
+## Animation
+
+> 🎬 *Animation placeholder — needle-builder agent will generate this.*
+
 
 > 🎯 **The mission**: Self-host Llama-3-8B for <$15k/month, replacing $80k OpenAI API costs
 > 
@@ -99,7 +105,7 @@ Where:
 
 ---
 
-## 2 · The InferenceBase Angle
+## 2 · Running Example
 
 **Scenario**: Llama-3-8B at FP16 uses 16 GB for parameters. INT4 quantization → 4 GB (75% reduction). The freed 12 GB enables batch=4, increasing throughput from 3,000 → 12,000 req/day ✅.
 
@@ -334,7 +340,7 @@ Quantization trade-off:
 
 ---
 
-## 11 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 - **Quantizing without calibration data** — random quantization can drop accuracy by 10%+; always use representative samples
 - **Using CPU-based quantization (GGUF) for cloud deployment** — slow and unnecessary when you have a GPU; use GPTQ/AWQ
@@ -573,3 +579,32 @@ Ch.3 solved inference throughput with INT4 quantization. But what about **traini
 ## Illustrations
 
 ![Quantization — Model compression FP16 → INT4, VRAM savings, batch size gains, quality validation](img/Quantization.png)
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows or architectural boundaries here.
+
+
+## 6 · The Hyperparameter Dial
+
+> List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
+> effect on the latency/throughput/memory triangle.
+
+
+## 7 · Code Skeleton
+
+### Educational
+
+```python
+# Educational: concept from scratch
+pass
+```
+
+### Production
+
+```python
+# Production: optimized pipeline call
+pass
+```
+

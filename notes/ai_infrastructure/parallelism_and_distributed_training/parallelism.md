@@ -3,10 +3,16 @@
 > **The story.** Training a large model on a single GPU is slow. Training GPT-3 (175B params) on one V100 would take 355 years. **Data parallelism** (Goyal et al., Facebook, **2017**) split batches across GPUs — if 1 GPU trains on 32 examples, 8 GPUs train on 256 → 8× faster. But memory was still the bottleneck. **ZeRO** (Rajbhandari et al., Microsoft, **2019**) sharded optimizer states across GPUs, cutting per-GPU memory by 4–8× → train 10× larger models. **FSDP** (Zhao et al., Meta, **2023**) took this further: shard parameters themselves, not just optimizer states → train 1T-param models on 128 GPUs. **LoRA** (Hu et al., Microsoft, **2021**) sidestepped the problem: freeze base model, only train small adapter weights → fine-tune 65B models on single consumer GPUs.
 >
 > **Where you are in the curriculum.** Ch.1-5 solved the inference problem (12k req/day, <2s latency). This chapter tackles training: **can we fine-tune Llama-3-8B to improve document extraction accuracy?** Ch.2 showed full fine-tuning needs 104GB → requires expensive A100s. This chapter introduces ZeRO-2 (shard optimizer across GPUs) and LoRA (train only adapters) → fine-tune on RTX 4090 budget.
+> <!-- TODO: add notation sentence here -->
 
 ---
 
 ## 0 · The Challenge — Where We Are
+
+## Animation
+
+> 🎬 *Animation placeholder — needle-builder agent will generate this.*
+
 
 > 🎯 **The mission**: Self-host Llama-3-8B for <$15k/month, replacing $80k OpenAI API costs
 > 
@@ -117,7 +123,7 @@ CEO: "Do LoRA. If it works, we save $5,500. If quality improvement is insufficie
 
 ---
 
-## 2 · The InferenceBase Angle
+## 2 · Running Example
 
 **Goal**: Fine-tune Llama-3-8B on 50,000 proprietary invoice PDFs to improve accuracy from 96.2% → 98%.
 
@@ -389,7 +395,7 @@ Memory savings: 104GB → 18GB (83% reduction!)
 
 ---
 
-## 11 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 - **LoRA rank too low (r=4)** — under-parameterized, cannot capture task complexity → poor quality
 - **LoRA rank too high (r=128)** — defeats the purpose, memory approaches full fine-tuning
@@ -614,3 +620,32 @@ Ch.4 enabled cost-efficient fine-tuning, but didn't address production inference
 ## Illustrations
 
 ![Parallelism — Data parallelism (DDP), ZeRO optimizer sharding, LoRA adapter architecture, memory comparison](img/Parallelism.png)
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows or architectural boundaries here.
+
+
+## 6 · The Hyperparameter Dial
+
+> List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
+> effect on the latency/throughput/memory triangle.
+
+
+## 7 · Code Skeleton
+
+### Educational
+
+```python
+# Educational: concept from scratch
+pass
+```
+
+### Production
+
+```python
+# Production: optimized pipeline call
+pass
+```
+

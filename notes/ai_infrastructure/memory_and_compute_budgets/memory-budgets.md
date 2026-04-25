@@ -3,10 +3,16 @@
 > **The story.** For the first decade of deep learning (2012–2022), VRAM was the hard constraint. AlexNet (2012) barely fit on two GTX 580s (3 GB total). ResNet-152 (2015) required batching gymnastics on a single Titan X (12 GB). GPT-2 (2019, 1.5 B params) needed 6 GB just to load — training required gradient checkpointing and mixed precision to squeeze into V100s (32 GB). The breakthrough was **ZeRO** (Rajbhandari et al., Microsoft, **2019**), which sharded optimizer states across GPUs, cutting per-GPU memory by up to 8×. **Flash Attention** (Dao et al., Stanford, **2022**) made self-attention subquadratic in memory by fusing operations and tiling through HBM. **PagedAttention** (Kwon et al., vLLM, **2023**) extended the paging idea to KV caches, eliminating fragmentation waste. By 2024, the memory wall had shifted: you could fit a 70 B model on a single H100 (80 GB) with INT4 quantization — but only if you understood the exact breakdown of where every GB goes.
 >
 > **Where you are in the curriculum.** Ch.1 told you which GPU to pick. This chapter tells you whether your model actually fits — and if not, what to cut. The InferenceBase question: *Llama-3-8B has 8 billion parameters. The RTX 4090 has 24 GB VRAM. Does it fit?* The answer requires understanding parameters, activations, KV cache, optimizer states, and gradients — and how each scales with batch size, sequence length, and precision.
+> <!-- TODO: add notation sentence here -->
 
 ---
 
 ## 0 · The Challenge — Where We Are
+
+## Animation
+
+> 🎬 *Animation placeholder — needle-builder agent will generate this.*
+
 
 > 🎯 **The mission**: Self-host Llama-3-8B for <$15k/month, replacing $80k OpenAI API costs
 > 
@@ -92,7 +98,7 @@ For **inference**, you only pay for #1, #2, #3. For **training**, you pay for al
 
 ---
 
-## 2 · The InferenceBase Angle
+## 2 · Running Example
 
 Llama-3-8B at FP16 precision:
 - Parameters: 8B × 2 bytes = **16 GB**
@@ -275,7 +281,7 @@ RTX 4090 24GB      │                             │
 
 ---
 
-## 11 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 - **Forgetting KV cache** — it is not part of the model file, but grows during inference and can OOM unexpectedly on long sequences
 - **Ignoring batch size scaling** — doubling batch size does NOT double total VRAM; KV cache scales linearly, but params stay constant
@@ -512,3 +518,32 @@ Ch.2 confirmed the model fits — but revealed a critical bottleneck: **batch=1 
 ## Illustrations
 
 ![Memory budgets — VRAM breakdown for inference vs training, KV cache scaling, batch size limits](img/Memory%20Budgets.png)
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows or architectural boundaries here.
+
+
+## 6 · The Hyperparameter Dial
+
+> List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
+> effect on the latency/throughput/memory triangle.
+
+
+## 7 · Code Skeleton
+
+### Educational
+
+```python
+# Educational: concept from scratch
+pass
+```
+
+### Production
+
+```python
+# Production: optimized pipeline call
+pass
+```
+

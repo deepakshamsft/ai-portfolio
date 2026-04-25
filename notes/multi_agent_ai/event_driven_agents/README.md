@@ -3,6 +3,7 @@
 > **The story.** Async, durable messaging is older than ML — IBM's MQSeries shipped in 1993, **Apache Kafka** came out of LinkedIn in 2011, **Redpanda** and **NATS JetStream** modernised the Kafka recipe a decade later. The patterns themselves — dead-letter queues, idempotency keys, correlation IDs, fan-out/fan-in — came from Gregor Hohpe & Bobby Woolf's *Enterprise Integration Patterns* (2003), the same book every microservices architect kept on their desk in the 2010s. The multi-agent twist arrived in 2023–25: when an orchestrator agent has to coordinate dozens of long-running sub-agents (each potentially making LLM calls that take seconds), synchronous request-response collapses. The fix is exactly what the EIP book wrote down 20 years earlier — just with LLM tasks on the bus instead of stock trades. AWS's **Step Functions**, Azure's **Durable Functions**, **Temporal**, and **Inngest** are all cloud-native expressions of this pattern, increasingly billed as agent orchestrators.
 >
 > **Where you are in the curriculum.** [Ch.1](../message_formats)–[Ch.3](../a2a) used synchronous protocols. This chapter answers: **when does synchronous request-response break down in a multi-agent system, and how do you rebuild the coordination layer on top of async pub/sub messaging to handle thousands of concurrent agent tasks without blocking?** The patterns here are the foundation for the [SharedMemory](../shared_memory) blackboard architecture and for any production multi-agent system at scale.
+<!-- TODO: notation sentence — define symbols used in chapter -->
 
 ---
 
@@ -193,7 +194,7 @@ The aggregator listens to a shared topic, accumulates partial results in a store
 
 ---
 
-## OrderFlow — Ch.4 Scenario
+## 2 · Running Example
 
 OrderFlow's synchronous pipeline hit its ceiling on day 3 of a high-demand period: 240 POs in the queue, the orchestrator running 240 blocking coroutines, memory at 92%, and supplier response times averaging 37 minutes.
 
@@ -299,7 +300,42 @@ async def consume_events(stream: str, group: str, consumer: str, handler):
 
 ---
 
-## § 11.5 · Progress Check — What We Achieved
+
+## 4 · How It Works
+
+> Step-by-step walkthrough of the mechanism.
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows here.
+
+
+## 6 · Hyperparameter Dial
+
+> List the key knobs and their effect on behaviour.
+
+
+## 8 · What Can Go Wrong
+
+> 3–5 common failure modes and mitigations.
+
+## 11 · Progress Check — What We Achieved
+
+```mermaid
+graph LR
+    Ch1["Ch.1\nMessage Formats"]:::done
+    Ch2["Ch.2\nMCP"]:::done
+    Ch3["Ch.3\nA2A"]:::done
+    Ch4["Ch.4\nEvent-Driven"]:::done
+    Ch5["Ch.5\nShared Memory"]:::done
+    Ch6["Ch.6\nTrust & Sandboxing"]:::done
+    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
+    classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ### Constraint Status After Ch.4
 

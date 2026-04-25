@@ -3,6 +3,7 @@
 > **The story.** The **blackboard architecture** was invented for **HEARSAY-II** at Carnegie Mellon in **1976** — a speech-understanding system where independent "knowledge sources" (acoustic, phonetic, syntactic, semantic) all read from and wrote to a shared structured workspace. It became one of the canonical AI architectures of the 1980s and shows up in **Engelmore & Morgan's** *Blackboard Systems* (1988). Forty years later the pattern was rediscovered for LLM agents: when a planner spawns research, coding, and review sub-agents, they need a shared workspace richer than message history but lighter than a database. **Microsoft's AutoGen** GroupChat (2023), **LangGraph** state stores (2024), and **CrewAI** shared context (2024) are all blackboard descendants. The classical concurrency primitives — write-once guards, compare-and-swap, optimistic locking — are now the same primitives that keep two agents from clobbering each other's work.
 >
 > **Where you are in the curriculum.** Single-agent ReAct ([AI track](../../ai/react_and_semantic_kernel)) keeps all context in one window. The moment you split work across agents, unified memory shatters. **Central question:** how do multiple agents read and update a single source of truth, and what are the tradeoffs between a shared blackboard, direct history passthrough, and per-entity key-value memory? After this you have the memory model for [trust](../trust_and_sandboxing) (who can write what) and for the [framework patterns](../agent_frameworks).
+<!-- TODO: notation sentence — define symbols used in chapter -->
 
 ---
 
@@ -188,7 +189,7 @@ Long-term memory introduces data retention obligations (GDPR, etc.) that task-sc
 
 ---
 
-## OrderFlow — Ch.5 Scenario
+## 2 · Running Example
 
 OrderFlow's negotiation agent was crashing mid-session on long supplier negotiations. Each crash lost all the accumulated negotiation context — which items the agent had offered, which the supplier had rejected, what the current floor price was.
 
@@ -307,7 +308,42 @@ async def blackboard_lock(key: str, timeout_ms: int = 5000):
 
 ---
 
-## § 11.5 · Progress Check — What We Achieved
+
+## 4 · How It Works
+
+> Step-by-step walkthrough of the mechanism.
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows here.
+
+
+## 6 · Hyperparameter Dial
+
+> List the key knobs and their effect on behaviour.
+
+
+## 8 · What Can Go Wrong
+
+> 3–5 common failure modes and mitigations.
+
+## 11 · Progress Check — What We Achieved
+
+```mermaid
+graph LR
+    Ch1["Ch.1\nMessage Formats"]:::done
+    Ch2["Ch.2\nMCP"]:::done
+    Ch3["Ch.3\nA2A"]:::done
+    Ch4["Ch.4\nEvent-Driven"]:::done
+    Ch5["Ch.5\nShared Memory"]:::done
+    Ch6["Ch.6\nTrust & Sandboxing"]:::done
+    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
+    classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ### Constraint Status After Ch.5
 

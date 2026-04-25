@@ -3,6 +3,7 @@
 > **The story.** The classical web has spent 25 years building defences against untrusted input — SQL injection (named by Jeff Forristal in **1998**), XSS (Aaron Spencer, **2000**), CSRF — and the response was OWASP, the Top 10, and a security industry. LLM agents reset the clock to 1998. **Prompt injection** was demonstrated by **Riley Goodside** in September 2022; **Simon Willison** has been documenting variants ever since. **OWASP** published its first **LLM Top 10** in **2023** with prompt injection at #1, and updated it in 2025 to add agent-specific risks (excessive agency, insecure tool plugins, supply-chain compromise). The sandboxing playbook — capability tokens (**Macaroons** by Birgisson et al., NDSS 2014), gVisor / Firecracker for code execution, **HMAC** for inter-service auth (Bellare et al., 1996), constant-time comparisons against timing attacks — is being repurposed for the agent era. Every multi-agent system you ship is, by default, an injection target.
 >
 > **Where you are in the curriculum.** Previous chapters built the protocols ([MCP](../mcp), [A2A](../a2a), [event bus](../event_driven_agents), [shared memory](../shared_memory)) assuming everyone plays nice. This chapter asks: **why is inter-agent trust non-trivial even when you own every agent in the system, and what are the concrete patterns for authentication, sandboxing, and prompt-injection defence that make a multi-agent chain safe to deploy in production?** Read it before you wire any agent into anything that touches money or PII.
+<!-- TODO: notation sentence — define symbols used in chapter -->
 
 ---
 
@@ -217,7 +218,7 @@ def run_code_in_sandbox(code: str, timeout_seconds: int = 30) -> str:
 
 ---
 
-## OrderFlow — Ch.6 Scenario
+## 2 · Running Example
 
 OrderFlow's security audit found that the negotiation agent was passing raw supplier email text to the approval agent as a string interpolated into the system prompt — the exact injection vector described above. The audit also found that the negotiation agent's ERPass ERP access used a hardcoded API key stored in a `config.py` checked into the repository.
 
@@ -333,7 +334,42 @@ async def receive_agent_message(msg: AgentMessage):
 
 ---
 
-## § 11.5 · Progress Check — What We Achieved
+
+## 4 · How It Works
+
+> Step-by-step walkthrough of the mechanism.
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows here.
+
+
+## 6 · Hyperparameter Dial
+
+> List the key knobs and their effect on behaviour.
+
+
+## 8 · What Can Go Wrong
+
+> 3–5 common failure modes and mitigations.
+
+## 11 · Progress Check — What We Achieved
+
+```mermaid
+graph LR
+    Ch1["Ch.1\nMessage Formats"]:::done
+    Ch2["Ch.2\nMCP"]:::done
+    Ch3["Ch.3\nA2A"]:::done
+    Ch4["Ch.4\nEvent-Driven"]:::done
+    Ch5["Ch.5\nShared Memory"]:::done
+    Ch6["Ch.6\nTrust & Sandboxing"]:::done
+    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
+    classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ### Constraint Status After Ch.6
 

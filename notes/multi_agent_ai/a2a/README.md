@@ -3,6 +3,7 @@
 > **The story.** **Google** announced the **Agent-to-Agent (A2A)** protocol in **April 2025** at Google Cloud Next, with launch partners including Anthropic, MongoDB, Salesforce, and SAP. The motivating distinction: an agent is *not* a tool. A tool is stateless, returns in milliseconds, and trusts whoever called it. An agent is stateful, may take minutes to complete, can spawn sub-agents, and lives in a different trust domain. A2A standardises **Agent Cards** (machine-readable capability manifests at `/.well-known/agent.json`), the task lifecycle (submit → working → completed/failed/canceled), and **SSE streaming** for incremental updates. Where [MCP](../mcp) is the protocol for an agent calling *tools*, A2A is the protocol for an agent delegating *to other agents* — and the two were explicitly designed to compose.
 >
 > **Where you are in the curriculum.** [Ch.2](../mcp) gave you tool integration. This chapter explains how delegating a task to another agent is fundamentally different from calling a tool, and what the A2A protocol provides to make that difference manageable in production: capability discovery, async task lifecycle, streaming progress, and trust boundaries. After this you have the protocol vocabulary for the rest of the track.
+<!-- TODO: notation sentence — define symbols used in chapter -->
 
 ---
 
@@ -185,7 +186,7 @@ A calling agent should not care whether the sub-agent uses MCP, direct API calls
 
 ---
 
-## OrderFlow — Ch.3 Scenario
+## 2 · Running Example
 
 OrderFlow's procurement orchestrator needed to call the supplier negotiation service — a team-owned Python service running in a separate container — without the orchestrator team coupling to the negotiation team's internal API.
 
@@ -310,7 +311,42 @@ async def delegate_negotiation(po_id: str, supplier_id: str) -> dict:
 
 ---
 
-## § 11.5 · Progress Check — What We Achieved
+
+## 4 · How It Works
+
+> Step-by-step walkthrough of the mechanism.
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows here.
+
+
+## 6 · Hyperparameter Dial
+
+> List the key knobs and their effect on behaviour.
+
+
+## 8 · What Can Go Wrong
+
+> 3–5 common failure modes and mitigations.
+
+## 11 · Progress Check — What We Achieved
+
+```mermaid
+graph LR
+    Ch1["Ch.1\nMessage Formats"]:::done
+    Ch2["Ch.2\nMCP"]:::done
+    Ch3["Ch.3\nA2A"]:::done
+    Ch4["Ch.4\nEvent-Driven"]:::done
+    Ch5["Ch.5\nShared Memory"]:::done
+    Ch6["Ch.6\nTrust & Sandboxing"]:::done
+    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
+    classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ### Constraint Status After Ch.3
 

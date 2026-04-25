@@ -3,6 +3,7 @@
 > **The story.** When **OpenAI's ChatCompletions API** launched in **March 2023**, it shipped a deceptively boring data structure — a JSON list of `{role, content}` messages with three roles (system, user, assistant). Within months, that envelope became the *de facto* lingua franca for the entire industry: Anthropic's Messages API, Google's Gemini API, every open-source serving framework (vLLM, llama.cpp, Ollama) all settled on the same shape. **Function calling** (OpenAI, June 2023) added a fourth role and turned messages into a structured action language. **JSON mode** and **structured outputs** (OpenAI, August 2024) made the envelope rigorously typed. Every multi-agent protocol in this track — [MCP](../mcp), [A2A](../a2a), [Event-driven agents](../event_driven_agents) — either reuses this envelope verbatim or wraps it in transport metadata. Get this chapter right and every later chapter is just a different choreography over the same data structure.
 >
 > **Where you are in the curriculum.** This is the first chapter of the multi-agent track and it intentionally starts at the wire format, not at the orchestration layer. **Central question:** how do agents actually exchange information — what is physically in the message envelope, and how is shared context managed when the accumulated conversation history exceeds a single context window? The running scenario is **OrderFlow**, a B2B purchase-order automation platform.
+<!-- TODO: notation sentence — define symbols used in chapter -->
 
 ---
 
@@ -42,8 +43,7 @@ A single-agent system hits the 8k token context window after 3 supplier negotiat
 
 ---
 
-## Core Concepts
-
+## 1 · Core Idea
 ### The OpenAI Message Envelope
 
 Every major agentic framework — LangChain, Semantic Kernel, AutoGen, LangGraph — serialises inter-agent communication as a list of message objects that conform to (or translate to) the OpenAI Chat Completions format. Understanding this schema makes every framework legible.
@@ -164,7 +164,7 @@ def trim_to_budget(messages, max_tokens, reserve_for_output=0.2):
 
 ---
 
-## OrderFlow — Ch.1 Scenario
+## 2 · Running Example
 
 OrderFlow's first version used a single agent to handle a PO end-to-end. By order #12, the context filled up before the supplier negotiation was complete, and the model started hallucinating supplier names from earlier orders.
 
@@ -187,7 +187,42 @@ Each agent sees only what it needs (structured payload from previous agent). No 
 
 ---
 
-## § 11.5 · Progress Check — What We Achieved
+
+## 4 · How It Works
+
+> Step-by-step walkthrough of the mechanism.
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows here.
+
+
+## 6 · Hyperparameter Dial
+
+> List the key knobs and their effect on behaviour.
+
+
+## 8 · What Can Go Wrong
+
+> 3–5 common failure modes and mitigations.
+
+## 11 · Progress Check — What We Achieved
+
+```mermaid
+graph LR
+    Ch1["Ch.1\nMessage Formats"]:::done
+    Ch2["Ch.2\nMCP"]:::done
+    Ch3["Ch.3\nA2A"]:::done
+    Ch4["Ch.4\nEvent-Driven"]:::done
+    Ch5["Ch.5\nShared Memory"]:::done
+    Ch6["Ch.6\nTrust & Sandboxing"]:::done
+    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
+    classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ### Constraint Status After Ch.1
 

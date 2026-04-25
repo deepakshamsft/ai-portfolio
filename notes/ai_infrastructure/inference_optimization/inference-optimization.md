@@ -3,10 +3,16 @@
 > **The story.** For the first wave of LLM inference (GPT-2/3 era, 2019–2022), the standard approach was "generate one token, concatenate, repeat" — no batching, no caching optimizations. Every request was independent. **Continuous batching** (Orca, Yu et al., Microsoft, **2022**) changed this: instead of waiting for the slowest request in a batch to finish, dynamically add new requests as soon as a slot frees up → 10× higher throughput. **PagedAttention** (Kwon et al., vLLM, **2023**) solved KV cache fragmentation by treating it like OS virtual memory — page in/out blocks as needed → 24× higher batch sizes. **Speculative decoding** (Leviathan et al., Google, **2023**) used a small "draft" model (1B params) to predict multiple tokens, then verified with the large model in parallel → 2–3× speedup. By 2024, these techniques were bundled into serving frameworks (vLLM, TGI, TensorRT-LLM), making them transparent to users.
 >
 > **Where you are in the curriculum.** Ch.3 validated INT4 quantization → 12,000 req/day throughput at batch=4. But that was a synthetic benchmark (uniform request arrival). Real production traffic has spiky arrival patterns, variable sequence lengths, and different request priorities. This chapter optimizes the *inference loop* for real-world conditions: continuous batching, PagedAttention, speculative decoding, and KV cache management. The InferenceBase question: *Can we maintain <2s latency at 12,000 req/day under realistic load?*
+> <!-- TODO: add notation sentence here -->
 
 ---
 
 ## 0 · The Challenge — Where We Are
+
+## Animation
+
+> 🎬 *Animation placeholder — needle-builder agent will generate this.*
+
 
 > 🎯 **The mission**: Self-host Llama-3-8B for <$15k/month, replacing $80k OpenAI API costs
 > 
@@ -112,7 +118,7 @@ Result: 3–5× higher throughput, 50% lower tail latency, same VRAM budget.
 
 ---
 
-## 2 · The InferenceBase Angle
+## 2 · Running Example
 
 **Problem**: Lunch rush (40 req/sec spike) causes 8.7s p95 latency → misses 2s SLA.
 
@@ -367,7 +373,7 @@ Improvement: 2.5× lower tail latency! ✅
 
 ---
 
-## 11 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 - **Implementing continuous batching from scratch** — extremely complex (attention mask management, KV cache indexing); use vLLM/TGI instead
 - **Assuming speculative decoding always helps** — if draft model acceptance rate <50%, overhead dominates → measure on your workload first
@@ -595,3 +601,32 @@ Ch.5 validated that continuous batching, PagedAttention, and speculative decodin
 ## Illustrations
 
 ![Inference optimization — Continuous batching timeline, PagedAttention memory savings, speculative decoding acceleration](img/Inference%20Optimization.png)
+
+
+## 5 · Key Diagrams
+
+> Add 2–3 diagrams showing the key data flows or architectural boundaries here.
+
+
+## 6 · The Hyperparameter Dial
+
+> List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
+> effect on the latency/throughput/memory triangle.
+
+
+## 7 · Code Skeleton
+
+### Educational
+
+```python
+# Educational: concept from scratch
+pass
+```
+
+### Production
+
+```python
+# Production: optimized pipeline call
+pass
+```
+
