@@ -34,7 +34,7 @@ This is not a Kaggle competition. Every chapter builds toward a single productio
 
 ## Narrative Arc: From $70k Baseline to $32k Production Model
 
-### 🎬 Act 1: Foundations (Ch.1-2)
+### 💡 Act 1: Foundations (Ch.1-2)
 **Build simple models, understand their limits**
 
 - **Ch.1**: Can we predict value from income alone? → Yes, but $70k MAE (too high!)
@@ -47,7 +47,7 @@ This is not a Kaggle competition. Every chapter builds toward a single productio
 
 ---
 
-### 🔍 Act 2: Feature Diagnostics (Ch.3)
+### � Act 2: Feature Diagnostics (Ch.3)
 **Understand what the 8 features are actually doing before adding complexity**
 
 - **Ch.3**: Univariate R², VIF, permutation importance → same $55k MAE but full interpretability
@@ -71,7 +71,7 @@ This is not a Kaggle competition. Every chapter builds toward a single productio
 
 ---
 
-### 📊 Act 4: Evaluation & Production (Ch.6-7)
+### ➡️ Act 4: Evaluation & Production (Ch.6-7)
 **Measure properly, optimize for production, add explainability**
 
 - **Ch.6**: Proper evaluation → Cross-validation, residual analysis, learning curves
@@ -119,7 +119,7 @@ By the end of this track, you'll have:
 4. ✅ **Proper evaluation** (cross-validation, residual analysis, learning curves)
 5. ✅ **Production ensemble model** (XGBoost achieving $32k MAE)
 6. ✅ **Interpretable predictions** (SHAP values for every estimate)
-7. 🎓 **Deep understanding** of when to use MSE vs MAE vs Huber loss, how to detect overfitting, and when linear models hit their limits
+7. 💡 **Deep understanding** of when to use MSE vs MAE vs Huber loss, how to detect overfitting, and when linear models hit their limits
 
 ---
 
@@ -227,7 +227,7 @@ Use chapter READMEs + notebooks for stepwise learning, then use `GRAND_CHALLENGE
 
 ## Let's Build
 
-🎯 **Your first milestone**: Predict California house values from median income alone.
+💡 **Your first milestone**: Predict California house values from median income alone.
 
 **Start here**: [Ch.1 — Linear Regression](ch01_linear_regression/README.md)
 

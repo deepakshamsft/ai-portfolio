@@ -1,4 +1,4 @@
-# Ch.3 — Feature Scaling, Importance & Multicollinearity
+# Ch.3 — Feature Importance, Scaling & Multicollinearity
 
 > **The story.** In **1885** Francis Galton measured the heights of 928 parents and children and asked a question that no one before him had properly quantified: "Which part of a parent's height actually predicts the child's height, and which part is just noise?" His answer — correlation — was the first formal tool for ranking how much a single variable contributes to an outcome. Pearson formalised it in **1895**. Sixty years later, Hoerl and Kennard (1970) rediscovered what happens when two predictors are *too* correlated: the weights blow up and become uninterpretable, even when predictions stay fine. Their fix — Ridge regression — lives in Ch.5. This chapter is where you learn to *see* the problem before you reach for the fix.
 >
@@ -85,102 +85,9 @@ Three questions, three tools. Each method answers a different version of "how im
 | **Standardised weights** | Given all other features are in the model, how much does this feature still add? | Contributes unique signal *above and beyond* everything else |
 | **Permutation importance** | If we scramble this feature's values (killing its signal), how badly does accuracy drop? | The model *relies* on this feature and can't compensate with others |
 
-The three methods often give different rankings for the same dataset. That divergence — not the numbers themselves — is the diagnostic story. **Use this convergence table to interpret any feature:**
+The three methods often give different rankings for the same dataset. That divergence — not the numbers themselves — is the diagnostic story. Work through all three methods below; the interpretation framework for reading the divergence is assembled at the end in the Three-Method Convergence section.
 
-| Univariate R² | Methods 2+3 (Joint) | Interpretation | California Housing Example |
-|---|---|---|---|
-| **High** | **High** | ✅ Strong, independent, irreplaceable | MedInc — dominates alone *and* in joint model |
-| **High** | **Low** | ⚠️ Signal shared with correlated features | AveRooms — standalone power absorbed by AveBedrms |
-| **Low** | **High** | 🔵 Jointly irreplaceable — only works in combination | Lat/Lon — useless alone, critical together for geography |
-| **Low** | **Low** | ❌ Genuinely uninformative | Population — contributes ~$0 regardless of method |
-
-Armed with this framework, let's walk through each method:
-
-### Feature Scaling
-
-Before any importance ranking is possible, all features must be on a common scale. Raw weights from an unstandardized model are not comparable — a weight of 200 for `Population` (range 3–35,682) looks enormous next to a weight of 0.4 for `MedInc` (range 0.5–15), but that gap reflects the input scale, not the feature's importance.
-
-Think of this like comparing heights measured in millimeters vs kilometers — a 1.8m person becomes 1,800 mm but 0.0018 km. The number changes dramatically, but the person stays exactly the same height. Similarly, a feature's raw weight depends entirely on what units you happened to choose for measurement. StandardScaler fixes this by converting every feature to the same unit: **"one typical swing in that feature across the dataset."** After standardization, a coefficient of 0.8 on income and 0.1 on population means income has genuinely 8× the effect per standard deviation of change — a fair comparison.
-
-**Standardization (Z-score normalization):**
-
-$$x_j^{\text{std}} = \frac{x_j - \mu_j}{\sigma_j}$$
-
-where $x_j^{\text{std}}$ is the standardized feature value, $x_j$ is the original feature value, $\mu_j$ is the mean of feature $j$ across all samples, and $\sigma_j$ is the standard deviation of feature $j$. After standardization every feature has mean = 0 and std = 1, so weight magnitudes can be compared directly.
-
-```
-BEFORE scaling:              AFTER scaling:
-
-MedInc:    [0.5, 15]         MedInc:    [-1.8, 3.1]
-Population: [3, 35682]        Population: [-0.6, 12.8]
-
-Gradient for MedInc: ~0.1    Gradient for MedInc: ~0.8
-Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
-
-→ Gradient steps dominated    → Balanced gradient steps
-  by Population!               across all features ✅
-```
-
-**Min-max scaling** is an alternative — $x_j^{\text{mm}} = (x_j - \min_j) / (\max_j - \min_j)$ — but it is sensitive to outliers. StandardScaler is the safer default for regression and gradient-based training.
-
-> ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
-
-#### Understanding Positive Skew — Why Some Features Need Log Transform
-
-**What is skew?** Skew measures distributional asymmetry. In a symmetric distribution (like a normal curve), the mean equals the median. **Positive skew** means a long right tail — most values cluster near the low end, but a few extreme values stretch far to the right, pulling the mean above the median.
-
-```
-Symmetric distribution:       Positively skewed distribution:
-    ●●●●●●●                        ●●●●●●
-  ●●●●●●●●●                      ●●●●●●●●
-●●●●●●●●●●●                    ●●●●●●●●●●              ●●
-   ↑                              ↑       ↑           ↑
- mean = median                   median  mean    long right tail
-```
-
-**Why skew breaks StandardScaler:** When you standardize a heavily skewed feature, the few extreme values inflate the standard deviation (σ), compressing 95% of the data into a narrow band near zero while placing outlier districts at +8σ or +12σ. This creates an unbalanced feature where most gradient updates are driven by a handful of extreme cases. 
-
-**Example:** `Population` ranges from 3 to 35,682. After standardization, a typical district (Population = 1,500) becomes −0.1σ, while the extreme district (Population = 35,682) becomes +12σ. The model's weight updates are dominated by that one extreme case, even though it's not representative.
-
-#### Log Transform & Box-Cox
-
-When a feature has a heavy right tail (long positive skew), standardisation alone may not help — the largest values still dominate. Log-transforming first compresses the tail:
-
-$$x' = \log(x + 1)$$
-
-(The `+1` guards against `log(0)` when values can be zero. This transformation is often called **log1p** — numpy's `np.log1p(x)` implements exactly this formula and is numerically more stable than computing `log(x + 1)` directly.)
-
-**Box-Cox generalises this** with a piecewise transformation:
-
-$$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \\ \log x & \lambda = 0 \end{cases}$$
-
-This formula has **two branches** depending on the value of λ:
-- **When λ ≠ 0**: use the formula $(x^\lambda - 1) / \lambda$
-- **When λ = 0**: use $\log x$ (because dividing by zero is undefined)
-
-where $x'(\lambda)$ is the transformed feature value, $x$ is the original feature value, and $\lambda$ is a transformation parameter that controls the strength of the transformation. When $\lambda = 1$ (no transformation needed), $x'(\lambda) = x - 1$. When $\lambda = 0$, it reduces to the log transform. When $\lambda = 0.5$, it's a square root transform.
-
-`sklearn.preprocessing.PowerTransformer(method='box-cox')` finds the optimal λ by maximum likelihood.
-
-**When to log-transform vs standardise:** If a feature's histogram has a long right tail (e.g., `AveRooms` has a few districts with 20+ rooms), apply log1p *before* StandardScaler. If the feature is roughly symmetric, skip log and standardise directly.
-
-**5-value numeric walkthrough** (`Population` feature, μ=1427, σ=1132):
-
-| Raw | log1p(Raw) | z after log-scaling |
-|-----|-----------|---------------------|
-| 322 | 5.78 | −0.88 |
-| 2401 | 7.78 | +0.80 |
-| 496 | 6.21 | −0.46 |
-| 558 | 6.33 | −0.33 |
-| 565 | 6.34 | −0.32 |
-
-The raw scale ranges over 4× (322–2401); the log scale compresses this to a 2-unit range — gradient descent converges faster and weight magnitudes are more comparable.
-
-> 💡 **Scaling doubles as importance quantification.** Once features are on the same scale, a coefficient of 0.83 on `MedInc` and −0.12 on `Population` directly compare: income has 7× the marginal effect. We formalise this as Method 2 (Standardised Weights) in §8.
-
-![Feature scaling: gradient paths before and after StandardScaler](img/feature-scaling-gradient.gif)
-
----
+Let’s walk through each method:
 
 ### Filter Methods — Scoring Features Before Training
 
@@ -228,8 +135,7 @@ where $I(X; Y)$ is the mutual information between features $X$ and target $Y$, $
 
 `sklearn.feature_selection.mutual_info_regression` uses a k-nearest-neighbour estimator for continuous variables.
 
-**Lasso as embedded selection (bridge to Ch.5):**
-When you are unsure which features to drop, Lasso with cross-validated λ is the principled answer. The L1 penalty drives weak-signal coefficients exactly to zero — selection happens during training rather than before. Full treatment in [Ch.5 — Regularization](../ch05_regularization).
+> 📖 **Embedded selection (bridge to Ch.5):** When you are unsure which features to drop, Lasso is the principled alternative to filter methods — selection happens *during* training, not before it. The L1 penalty drives weak-signal coefficients exactly to zero. Full treatment in [Ch.5 — Regularization](../ch05_regularization).
 
 ---
 
@@ -441,6 +347,10 @@ Permutation importance is generally the most trustworthy of the three methods be
 
 ### Three-Method Convergence — Reading the Full Picture
 
+![Three-method reveal animation](img/three-method-reveal.gif)
+
+> The animation above reveals each method in sequence. Watch how Latitude and Longitude are nearly invisible in M1 (blue — 8 isolated models) but leap to the top in M2 (amber — full joint model) and stay high in M3 (green — full model with column shuffled). The ŷ source changes with each method; the ranking shifts follow directly from that.
+
 Now run all three methods on the same 8 California Housing features and read across the rows. **Agreement across all three methods is confidence. Divergence is diagnostic information.**
 
 ```
@@ -484,6 +394,92 @@ Population       ·  0.00                 ·   0.01                 ·         $
 | **Population** | Near-zero on all three | Genuinely uninformative at district level — safe to drop without affecting MAE. |
 
 > 💡 **The three-lens rule.** A feature earns full trust only when all three lenses independently confirm its importance. MedInc passes all three. Latitude and Longitude together pass Methods 2 and 3 — the geographic signal is real, but only emerges jointly. AveBedrms fails Method 3 — its signal is almost entirely duplicated by AveRooms. Population fails all three.
+
+---
+
+### Feature Scaling
+
+The three importance metrics are now established. This section examines the mechanical prerequisite that makes Method 2 valid: features must be on a common scale before their weights can be compared. Without standardization, raw weights are unit-dependent and carry no importance signal — a weight of 200 for `Population` (range 3–35,682) looks enormous next to a weight of 0.4 for `MedInc` (range 0.5–15), but that gap reflects the input scale, not the feature's importance.
+
+Think of this like comparing heights measured in millimeters vs kilometers — a 1.8m person becomes 1,800 mm but 0.0018 km. The number changes dramatically, but the person stays exactly the same height. Similarly, a feature's raw weight depends entirely on what units you happened to choose for measurement. StandardScaler fixes this by converting every feature to the same unit: **"one typical swing in that feature across the dataset."** After standardization, a coefficient of 0.8 on income and 0.1 on population means income has genuinely 8× the effect per standard deviation of change — a fair comparison.
+
+**Standardization (Z-score normalization):**
+
+$$x_j^{\text{std}} = \frac{x_j - \mu_j}{\sigma_j}$$
+
+where $x_j^{\text{std}}$ is the standardized feature value, $x_j$ is the original feature value, $\mu_j$ is the mean of feature $j$ across all samples, and $\sigma_j$ is the standard deviation of feature $j$. After standardization every feature has mean = 0 and std = 1, so weight magnitudes can be compared directly.
+
+```
+BEFORE scaling:              AFTER scaling:
+
+MedInc:    [0.5, 15]         MedInc:    [-1.8, 3.1]
+Population: [3, 35682]        Population: [-0.6, 12.8]
+
+Gradient for MedInc: ~0.1    Gradient for MedInc: ~0.8
+Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
+
+→ Gradient steps dominated    → Balanced gradient steps
+  by Population!               across all features ✅
+```
+
+**Min-max scaling** is an alternative — $x_j^{\text{mm}} = (x_j - \min_j) / (\max_j - \min_j)$ — but it is sensitive to outliers. StandardScaler is the safer default for regression and gradient-based training.
+
+> ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
+
+#### Understanding Positive Skew — Why Some Features Need Log Transform
+
+**What is skew?** Skew measures distributional asymmetry. In a symmetric distribution (like a normal curve), the mean equals the median. **Positive skew** means a long right tail — most values cluster near the low end, but a few extreme values stretch far to the right, pulling the mean above the median.
+
+```
+Symmetric distribution:       Positively skewed distribution:
+    ●●●●●●●                        ●●●●●●
+  ●●●●●●●●●                      ●●●●●●●●
+●●●●●●●●●●●                    ●●●●●●●●●●              ●●
+   ↑                              ↑       ↑           ↑
+ mean = median                   median  mean    long right tail
+```
+
+**Why skew breaks StandardScaler:** When you standardize a heavily skewed feature, the few extreme values inflate the standard deviation (σ), compressing 95% of the data into a narrow band near zero while placing outlier districts at +8σ or +12σ. This creates an unbalanced feature where most gradient updates are driven by a handful of extreme cases. 
+
+**Example:** `Population` ranges from 3 to 35,682. After standardization, a typical district (Population = 1,500) becomes −0.1σ, while the extreme district (Population = 35,682) becomes +12σ. The model's weight updates are dominated by that one extreme case, even though it's not representative.
+
+#### Log Transform & Box-Cox
+
+When a feature has a heavy right tail (long positive skew), standardisation alone may not help — the largest values still dominate. Log-transforming first compresses the tail:
+
+$$x' = \log(x + 1)$$
+
+(The `+1` guards against `log(0)` when values can be zero. This transformation is often called **log1p** — numpy's `np.log1p(x)` implements exactly this formula and is numerically more stable than computing `log(x + 1)` directly.)
+
+**Box-Cox generalises this** with a piecewise transformation:
+
+$$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \\ \log x & \lambda = 0 \end{cases}$$
+
+This formula has **two branches** depending on the value of λ:
+- **When λ ≠ 0**: use the formula $(x^\lambda - 1) / \lambda$
+- **When λ = 0**: use $\log x$ (because dividing by zero is undefined)
+
+where $x'(\lambda)$ is the transformed feature value, $x$ is the original feature value, and $\lambda$ is a transformation parameter that controls the strength of the transformation. When $\lambda = 1$ (no transformation needed), $x'(\lambda) = x - 1$. When $\lambda = 0$, it reduces to the log transform. When $\lambda = 0.5$, it's a square root transform.
+
+`sklearn.preprocessing.PowerTransformer(method='box-cox')` finds the optimal λ by maximum likelihood.
+
+**When to log-transform vs standardise:** If a feature's histogram has a long right tail (e.g., `AveRooms` has a few districts with 20+ rooms), apply log1p *before* StandardScaler. If the feature is roughly symmetric, skip log and standardise directly.
+
+**5-value numeric walkthrough** (`Population` feature, μ=1427, σ=1132):
+
+| Raw | log1p(Raw) | z after log-scaling |
+|-----|-----------|---------------------|
+| 322 | 5.78 | −0.88 |
+| 2401 | 7.78 | +0.80 |
+| 496 | 6.21 | −0.46 |
+| 558 | 6.33 | −0.33 |
+| 565 | 6.34 | −0.32 |
+
+The raw scale ranges over 4× (322–2401); the log scale compresses this to a 2-unit range — gradient descent converges faster and weight magnitudes are more comparable.
+
+> 💡 **Scaling doubles as importance quantification.** Once features are on the same scale, a coefficient of 0.83 on `MedInc` and −0.12 on `Population` directly compare: income has 7× the marginal effect — the exact numbers produced by Method 2 (Standardised Weights) above.
+
+![Feature scaling: gradient paths before and after StandardScaler](img/feature-scaling-gradient.gif)
 
 ---
 

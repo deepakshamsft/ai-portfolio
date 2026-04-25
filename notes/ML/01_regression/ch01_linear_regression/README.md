@@ -157,7 +157,7 @@ $$\hat{\beta} = \tfrac{1}{6}\begin{bmatrix}14 & -6\\-6 & 3\end{bmatrix}\begin{bm
 
 MSE $= (0.45 + 0.11 + 0.11)/3 = 0.22$. Verify: gradient $\nabla_\beta \text{MSE} = 0$ at these weights (by construction).
 
-> 📝 **When to prefer the Normal Equation over gradient descent**
+> � **When to prefer the Normal Equation over gradient descent**
 
 | Criterion | Normal Equation | Gradient Descent |
 |---|---|---|
@@ -408,7 +408,7 @@ There is no single correct $\alpha$ — it depends on the loss scale, the featur
 - **`SGDRegressor` (sklearn)**: default `eta0=0.01`, `learning_rate='invscaling'` (decays over time)
 - **Adam optimizer** (Ch.3 Neural Networks): `1e-3` is the near-universal default; it is largely insensitive to the exact value because Adam adapts the effective step per parameter
 
-> 👁 **Visual:** The "Learning Rate Effect" sub-section below shows two animations — a well-chosen $\alpha$ walking smoothly into the minimum vs. a too-large $\alpha$ spiralling outward. If you want the intuition before the math, skip ahead and come back.
+> � **Visual:** The "Learning Rate Effect" sub-section below shows two animations — a well-chosen $\alpha$ walking smoothly into the minimum vs. a too-large $\alpha$ spiralling outward. If you want the intuition before the math, skip ahead and come back.
 
 **Hiking analogy.** You are standing on a hillside. The gradient is the slope underfoot. Take a step *opposite* the direction you'd slide (i.e., downhill). Repeat. If the slope is gentle you're near the bottom; if steep, you have far to go. MSE's quadratic shape guarantees this slope gets gentler as you approach the minimum — the steps self-shorten automatically.
 
