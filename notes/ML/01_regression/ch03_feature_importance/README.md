@@ -150,9 +150,13 @@ $$x' = \log(x + 1)$$
 
 (The `+1` guards against `log(0)` when values can be zero. This transformation is often called **log1p** — numpy's `np.log1p(x)` implements exactly this formula and is numerically more stable than computing `log(x + 1)` directly.)
 
-**Box-Cox generalises this:**
+**Box-Cox generalises this** with a piecewise transformation:
 
 $$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \\ \log x & \lambda = 0 \end{cases}$$
+
+This formula has **two branches** depending on the value of λ:
+- **When λ ≠ 0**: use the formula $(x^\lambda - 1) / \lambda$
+- **When λ = 0**: use $\log x$ (because dividing by zero is undefined)
 
 where $x'(\lambda)$ is the transformed feature value, $x$ is the original feature value, and $\lambda$ is a transformation parameter that controls the strength of the transformation. When $\lambda = 1$ (no transformation needed), $x'(\lambda) = x - 1$. When $\lambda = 0$, it reduces to the log transform. When $\lambda = 0.5$, it's a square root transform.
 
