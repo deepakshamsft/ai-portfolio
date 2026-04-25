@@ -132,7 +132,7 @@ Mutual information measures *any* statistical dependence, not just linear:
 
 $$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)\,p(y)}$$
 
-where $I(X; Y)$ is the mutual information between feature $X$ and target $Y$, $p(x,y)$ is the joint probability density of observing $x$ and $y$ together, and $p(x)$, $p(y)$ are the marginal densities. Range: $[0, \infty)$ — zero means completely independent; larger values mean stronger dependence of any shape.
+where $I(X; Y)$ is the mutual information between feature $X$ and target $Y$; $p(x,y)$ is the **joint probability density** — a 2-D map of where the scatter plot concentrates (not *whether* $x$ and $y$ co-occur — every sample has both — but *how densely* each $(x, y)$ region is populated); and $p(x)$, $p(y)$ are the **marginal densities** (the two independent 1-D histograms). Range: $[0, \infty)$ — zero means completely independent; larger values mean stronger dependence of any shape.
 
 **The Intuition — Reduction in Uncertainty**
 
@@ -145,6 +145,22 @@ $$I(X; Y) = H(Y) - H(Y \mid X)$$
 where $H(Y)$ is the entropy of $y$ (how unpredictable it is on its own) and $H(Y \mid X)$ is the conditional entropy (how unpredictable $y$ remains after $x$ is known). If knowing $x$ cuts your uncertainty in half, $I(X; Y) = 0.5 \cdot H(Y)$. If $x$ tells you nothing, $H(Y \mid X) = H(Y)$ and $I = 0$.
 
 > **Why this matters:** Pearson is zero for a U-shaped or threshold relationship even though knowing $x$ dramatically reduces uncertainty about $y$. MI is not. This is the key difference in one sentence.
+
+**The Density Map — Where the Relationship Lives**
+
+Think of $p(x,y)$ as pouring sand onto the scatter plot. Sand piles up where data points cluster, stays thin where they are sparse. $p(x) \cdot p(y)$ is what that surface would look like if $x$ and $y$ had *nothing to do with each other* — just the two independent 1-D histograms multiplied together, producing a featureless blob.
+
+The log ratio $\log \frac{p(x,y)}{p(x)p(y)}$ measures, at every point in the scatter, how much the actual pile deviates from the independent baseline:
+
+| Log ratio | What it means |
+|---|---|
+| **> 0** | This $(x, y)$ pair occurs more than independence predicts — the relationship runs through here |
+| **= 0** | Matches the independent baseline — no signal here |
+| **< 0** | This pair occurs less than independence predicts — the relationship actively avoids here |
+
+MI sums these deviations across the entire surface — so any shape of relationship (diagonal, U, cluster, step) accumulates as long as the actual surface is unequal to the flat independent baseline *somewhere*.
+
+![Joint density vs independence: left panel shows actual p(x,y) as a narrow diagonal band, middle shows the independent baseline p(x)p(y) as a spread blob, right shows the log-ratio heatmap revealing where the relationship lives](img/ch03-mi-joint-density.png)
 
 **When Pearson Fails — Two Cases Where MI Catches Signal**
 
