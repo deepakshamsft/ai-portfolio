@@ -58,34 +58,46 @@ Each method can give a completely different ranking for the same dataset. Unders
 
 Same California Housing dataset. Same 8 features. Same Ch.2 model.
 
-| Feature | What it measures |
-|---|---|
-| `MedInc` | Median income (×\$10k) |
-| `HouseAge` | Median house age (years) |
-| `AveRooms` | Average rooms per household |
-| `AveBedrms` | Average bedrooms per household |
-| `Population` | Block population |
-| `AveOccup` | Average household size |
-| `Latitude` | North–South coordinate |
-| `Longitude` | East–West coordinate |
+| Feature | What it measures | Notable relationships |
+|---|---|---|
+| `MedInc` | Median income (×\$10k) | Strong standalone predictor (ρ = 0.69 with target) |
+| `HouseAge` | Median house age (years) | Weak standalone (ρ = −0.04); small joint contribution |
+| `AveRooms` | Average rooms per household | **Overlaps with AveBedrms** (ρ = 0.85 with each other) |
+| `AveBedrms` | Average bedrooms per household | **Overlaps with AveRooms** (ρ = 0.85 with each other) |
+| `Population` | Block population | Near-zero signal at district level |
+| `AveOccup` | Average household size | Small but independent signal |
+| `Latitude` | North–South coordinate | **Jointly irreplaceable with Longitude** — neither useful alone |
+| `Longitude` | East–West coordinate | **Jointly irreplaceable with Latitude** — neither useful alone |
 
 **Target:** `MedHouseVal` — median house value (×\$100k)
 
-The diagnostic question: which of these 8 features is genuinely informative, which overlaps with another, and which is nearly irrelevant?
+The diagnostic question: which of these 8 features is genuinely informative, which overlaps with another, and which is nearly irrelevant? Two feature pairs will tell the most interesting story: `AveRooms`/`AveBedrms` (shared signal, one is redundant) and `Latitude`/`Longitude` (neither useful alone, critical together).
 
 ---
 
 ## 3 · Math
 
-Three questions, three tools. Each method answers a different version of "how important is this feature?" — and all three are needed because no single method tells the whole story:
+Three questions, three tools — the same three introduced in §1, now with their formulas. Before the math, a quick anchor on what a high score from each method actually signals:
 
-| Method | The question it answers | What a high value means |
+| Method | What a high score means | Blind spot |
 |---|---|---|
-| **Univariate R²** | How much target variance can this feature explain *on its own*? | Strong standalone predictor — even without any other feature |
-| **Standardised weights** | Given all other features are in the model, how much does this feature still add? | Contributes unique signal *above and beyond* everything else |
-| **Permutation importance** | If we scramble this feature's values (killing its signal), how badly does accuracy drop? | The model *relies* on this feature and can't compensate with others |
+| **Univariate R²** | Feature is a strong standalone predictor | Can't see jointly-irreplaceable pairs (Lat/Lon both score low) |
+| **Standardised weights** | Feature adds unique signal above all others | Unstable when correlated features compete (AveRooms vs AveBedrms) |
+| **Permutation importance** | Model visibly breaks without this feature | Low for redundant features even if they carry real signal |
 
 The three methods often give different rankings for the same dataset. That divergence — not the numbers themselves — is the diagnostic story. Work through all three methods below; the interpretation framework for reading the divergence is assembled at the end in the Three-Method Convergence section.
+
+Before diving into the methods, there is one concept to hold in mind throughout: **feature correlation**.
+
+Some features in our dataset measure overlapping things. `AveRooms` and `AveBedrms` both capture dwelling size — they correlate at ρ = 0.85. `Latitude` and `Longitude` both encode geography — neither is informative alone, but together they pinpoint a district on the California map. When features share signal like this, the three importance methods will give *systematically different rankings* for those features — and that divergence is information, not noise.
+
+> 📖 **What is ρ exactly?** If the formula is unfamiliar, [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) builds up covariance and Pearson correlation step by step with a small worked example and animated diagrams. It also proves why $R^2_j = \rho^2$ — the identity that powers Method 1 below.
+
+- **Method 1 (Univariate R²)** measures each feature in total isolation — it cannot see that AveRooms and AveBedrms are measuring the same thing, so it may give both modest scores.
+- **Method 2 (Standardised Weights)** trains a joint model — now AveRooms must *compete* with AveBedrms for the shared signal. One may end up with an inflated weight, the other suppressed or even negative.
+- **Method 3 (Permutation Importance)** shuffles one feature at a time while keeping others intact — if AveBedrms can compensate for a scrambled AveRooms, the measured importance of AveRooms will be artificially low.
+
+This is the core reason the rankings diverge. The full diagnostic tool for measuring how severe this overlap is — the Variance Inflation Factor (VIF) — is covered after all three methods, once you have concrete numbers to reason about.
 
 Let’s walk through each method:
 
@@ -94,6 +106,8 @@ Let’s walk through each method:
 Filter methods rank features by their statistical relationship to the target — no model is trained. Use them to prune large feature sets before applying a model.
 
 **Pearson Correlation (linear relationships):**
+
+> 📖 **Need the intuition first?** [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) walks through covariance and Pearson from scratch — signed rectangles, unit-cancellation, and why $R^2 = \rho^2$ — with animated diagrams. Come back here once the formula feels grounded.
 
 $$\rho(x_j, y) = \frac{\sum(x_{ij}-\bar{x}_j)(y_i - \bar{y})}{\sqrt{\sum(x_{ij}-\bar{x}_j)^2 \cdot \sum(y_i-\bar{y})^2}}$$
 
@@ -136,6 +150,8 @@ where $I(X; Y)$ is the mutual information between features $X$ and target $Y$, $
 `sklearn.feature_selection.mutual_info_regression` uses a k-nearest-neighbour estimator for continuous variables.
 
 > 📖 **Embedded selection (bridge to Ch.5):** When you are unsure which features to drop, Lasso is the principled alternative to filter methods — selection happens *during* training, not before it. The L1 penalty drives weak-signal coefficients exactly to zero. Full treatment in [Ch.5 — Regularization](../ch05_regularization).
+
+> 💡 **Connection to Method 1:** Pearson correlation is the direct mathematical input to Univariate R². For single-feature OLS, $R^2_j = \rho(x_j, y)^2$ exactly. Filter methods give you the raw scores; Method 1 reframes them as fraction of target variance explained.
 
 ---
 
@@ -292,7 +308,7 @@ This apparent contradiction is the most important insight in the chapter.
 
 ---
 
-### Why the Two Rankings Differ — The Joint Signal Problem
+### Why M1 and M2 Often Disagree — The Joint Signal Problem
 
 MedInc is a powerful standalone predictor *precisely because* it is correlated with many other variables. Rich districts tend to have newer housing, more rooms, and be in coastal locations. When those other features enter the model alongside MedInc, they absorb portions of the signal that MedInc was previously soaking up alone. MedInc's partial contribution shrinks to what it contributes *above and beyond* everything else.
 
@@ -306,6 +322,8 @@ The lesson:
 | High | Lower than expected | Correlated with other features — signal is shared |
 | Low | High | **Jointly irreplaceable** — only useful in combination |
 | Low | Low | Genuinely uninformative |
+
+M1 and M2 together already reveal a lot, but they share a blind spot: both rely on the fitted weights, which can be distorted by multicollinearity. Method 3 sidesteps weights entirely — it measures importance by directly breaking each feature's signal and watching what happens.
 
 ---
 
@@ -453,7 +471,7 @@ $$x' = \log(x + 1)$$
 
 **Box-Cox generalises this** with a piecewise transformation:
 
-$$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \\ \log x & \lambda = 0 \end{cases}$$
+$$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \newline    \log x & \lambda = 0 \end{cases}$$
 
 This formula has **two branches** depending on the value of λ:
 - **When λ ≠ 0**: use the formula $(x^\lambda - 1) / \lambda$
@@ -637,16 +655,16 @@ For SmartVal AI, we'll keep both for now and let Ridge handle it in Ch.5 — but
 
 ### Putting It Together — A Three-View Dashboard
 
-| Feature | Univariate R² | Permutation importance | VIF | Verdict |
-|---|---|---|---|---|
-| **MedInc** | 0.473 | 0.334 | 1.5 | ✅ Strong, independent, irreplaceable |
-| **Latitude** | 0.021 | 0.165 | 3.5 | ✅ Jointly irreplaceable with Longitude |
-| **Longitude** | 0.002 | 0.133 | 3.4 | ✅ Jointly irreplaceable with Latitude |
-| **AveOccup** | 0.001 | 0.058 | 1.8 | ⚠️ Modest but clean signal |
-| **HouseAge** | 0.001 | 0.029 | 1.2 | ⚠️ Small but independent |
-| **AveRooms** | 0.023 | 0.016 | 7.2 | ⚡ Collinear with AveBedrms — keep, but monitor |
-| **AveBedrms** | 0.002 | 0.005 | 6.8 | ⚡ Collinear with AveRooms — weakest of the pair |
-| **Population** | 0.001 | 0.002 | 2.1 | ❌ Near-zero contribution |
+| Feature | Univariate R² | \|Std weight\| | Permutation | VIF | Verdict |
+|---|---|---|---|---|---|
+| **MedInc** | 0.473 | 0.83 | 0.334 | 1.5 | ✅ Strong, independent, irreplaceable |
+| **Latitude** | 0.021 | 0.89 | 0.165 | 3.5 | ✅ Jointly irreplaceable with Longitude |
+| **Longitude** | 0.002 | 0.87 | 0.133 | 3.4 | ✅ Jointly irreplaceable with Latitude |
+| **AveOccup** | 0.001 | 0.03 | 0.058 | 1.8 | ⚠️ Modest but clean signal |
+| **HouseAge** | 0.001 | 0.06 | 0.029 | 1.2 | ⚠️ Small but independent |
+| **AveRooms** | 0.023 | 0.12 | 0.016 | 7.2 | ⚡ Collinear with AveBedrms — keep, but monitor |
+| **AveBedrms** | 0.002 | 0.10 | 0.005 | 6.8 | ⚡ Collinear with AveRooms — weakest of the pair |
+| **Population** | 0.001 | 0.01 | 0.002 | 2.1 | ❌ Near-zero contribution |
 
 ---
 

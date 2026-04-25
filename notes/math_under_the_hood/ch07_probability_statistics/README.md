@@ -230,6 +230,159 @@ $$\mathrm{Var}(\bar X) = \left(\frac{1}{10}\right)^2 \mathrm{Var}(Y) = \frac{1}{
 
 ---
 
+## 4b · Covariance and Pearson Correlation — Do Two Things Move Together?
+
+> 📖 **Used in:** [ML Ch.3 — Feature Importance](../../ml/01_regression/ch03_feature_importance/README.md) (Filter Methods, Univariate R²). The Pearson formula there becomes trivial once you see what covariance and correlation actually measure.
+
+Variance tells you how much *one* variable wiggles on its own. **Covariance** asks a different question: when $x$ goes up, does $y$ tend to go up too — or down, or neither?
+
+### The Intuition — Walking in the Same Direction
+
+Imagine two things you might track about a football player after each of their 5 training sessions:
+
+- $x$ = how far they ran (in km) 
+- $y$ = how tired they felt afterwards (self-reported, 1–10)
+
+| Session | km run ($x$) | Tiredness ($y$) |
+|---------|-------------|----------------|
+| 1 | 3 | 4 |
+| 2 | 5 | 6 |
+| 3 | 7 | 8 |
+| 4 | 4 | 5 |
+| 5 | 6 | 7 |
+
+Eyeballing the table: when $x$ is high, $y$ is also high. When $x$ is low, $y$ is low. They move together. That "moving together" is what covariance captures.
+
+Here is the key idea in plain English before any formula:
+
+> **Covariance is positive** when both variables tend to be above their averages at the same time (and below their averages at the same time).  
+> **Covariance is negative** when one tends to be above its average while the other is below.  
+> **Covariance is near zero** when there is no pattern — they move independently.
+
+### Building the Formula Step by Step
+
+**Step 1 — Centre each variable.** Subtract the mean so that "above average" becomes positive and "below average" becomes negative.
+
+Mean of $x$: $\bar{x} = (3+5+7+4+6)/5 = 5$  
+Mean of $y$: $\bar{y} = (4+6+8+5+7)/5 = 6$
+
+| Session | $x - \bar{x}$ | $y - \bar{y}$ |
+|---------|--------------|--------------|
+| 1 | $3-5 = -2$ | $4-6 = -2$ |
+| 2 | $5-5 = 0$ | $6-6 = 0$ |
+| 3 | $7-5 = +2$ | $8-6 = +2$ |
+| 4 | $4-5 = -1$ | $5-6 = -1$ |
+| 5 | $6-5 = +1$ | $7-6 = +1$ |
+
+**Step 2 — Multiply the deviations pairwise.** If both are positive (above their averages together) → product is positive. If both are negative (below their averages together) → product is also positive (negative × negative = positive). If they go in opposite directions → product is negative.
+
+| Session | $(x-\bar{x})$ | $(y-\bar{y})$ | product |
+|---------|--------------|--------------|---------|
+| 1 | $-2$ | $-2$ | $+4$ |
+| 2 | $0$ | $0$ | $0$ |
+| 3 | $+2$ | $+2$ | $+4$ |
+| 4 | $-1$ | $-1$ | $+1$ |
+| 5 | $+1$ | $+1$ | $+1$ |
+
+Sum of products = $4 + 0 + 4 + 1 + 1 = 10$.
+
+**Step 3 — Average the products.** This is the covariance:
+
+$$\text{Cov}(x, y) = \frac{1}{n} \sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y}) = \frac{10}{5} = 2.0$$
+
+> **Why average instead of sum?** If you doubled the dataset from 5 to 10 sessions (by repeating it), the sum of products would double — but the relationship between km and tiredness hasn't changed. Dividing by $n$ keeps the covariance the same regardless of dataset size.
+
+![Covariance animation: deviations above/below mean, product sign, accumulation](img/ch07-pearson-covariance.gif)
+
+*The animation above shows each session as a point. The shaded rectangle at each point has area = $(x_i - \bar{x}) \times (y_i - \bar{y})$. Blue rectangles (both same sign) add to covariance; red rectangles (opposite signs) subtract. The total signed area is the covariance.*
+
+### The Problem with Covariance — It Depends on Units
+
+Covariance $= 2.0$ sounds great, but what does it mean? If you measured distance in *metres* instead of *kilometres*, $x$ would be 3000 instead of 3, the deviations would be 2000 instead of 2, and the covariance would be $2,000,000$ — even though the relationship between running distance and tiredness is completely unchanged.
+
+**Covariance inherits the units of both variables.** A covariance of 2.0 km·fatigue-points is not comparable to a covariance of 0.8 hours·fatigue-points. You cannot look at a covariance number and say "this is a strong relationship."
+
+### Pearson Correlation — Covariance on a Standard Scale
+
+The fix: divide the covariance by the standard deviations of both variables. This cancels the units and squeezes the result into the range $[-1, +1]$.
+
+$$\rho(x, y) = \frac{\text{Cov}(x, y)}{\sigma_x \cdot \sigma_y} = \frac{\dfrac{1}{n}\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\dfrac{1}{n}\sum_{i=1}^{n}(x_i - \bar{x})^2} \cdot \sqrt{\dfrac{1}{n}\sum_{i=1}^{n}(y_i - \bar{y})^2}}$$
+
+where $\rho$ (Greek letter "rho") is the **Pearson correlation coefficient**, $\sigma_x$ is the standard deviation of $x$, and $\sigma_y$ is the standard deviation of $y$.
+
+**Completing the walkthrough with the same 5 sessions:**
+
+$\sigma_x = \sqrt{(4+0+4+1+1)/5} = \sqrt{2} \approx 1.414$
+
+$\sigma_y = \sqrt{(4+0+4+1+1)/5} = \sqrt{2} \approx 1.414$
+
+$$\rho = \frac{2.0}{1.414 \times 1.414} = \frac{2.0}{2.0} = \mathbf{1.00}$$
+
+$\rho = 1.00$ — perfect positive correlation. That makes sense: in our toy dataset, every time $x$ goes up by 1 km, $y$ goes up by exactly 1 fatigue point. There is no scatter at all.
+
+### Reading the Correlation Value
+
+| $\rho$ value | What it means | Example |
+|---|---|---|
+| $+1.0$ | Perfect positive — one goes up, other always goes up by a fixed proportion | Our toy example |
+| $+0.7$ to $+0.9$ | Strong positive — clear upward trend with some scatter | MedInc vs house value ($\rho = 0.69$) |
+| $+0.3$ to $+0.6$ | Moderate positive — tendency but much scatter | HouseAge vs price |
+| $-0.1$ to $+0.1$ | Near zero — no linear pattern | Population vs price |
+| $-0.3$ to $-0.6$ | Moderate negative | Latitude vs price (higher latitude → lower CA price) |
+| $-1.0$ | Perfect negative — one goes up, other always goes down by fixed proportion | Hypothetical |
+
+> ⚠️ **Correlation measures linear relationships only.** A U-shaped curve (performance peaks in the middle of a training schedule) can have $\rho \approx 0$ even though the variables are strongly related. Always plot the scatter before trusting $\rho$.
+
+![Pearson correlation animation: four scatter plots at ρ ≈ +1, +0.7, 0, −0.8](img/ch07-pearson-correlation.gif)
+
+*The animation steps through four datasets with different ρ values. Watch how the scatter cloud rotates and spreads as ρ moves from +1 → +0.7 → 0 → −0.8.*
+
+### How Correlation Gives You Univariate R²
+
+There is a beautiful shortcut that connects Pearson correlation directly to the Univariate R² used in ML Ch.3. For a single-feature linear regression (one predictor $x$, one target $y$):
+
+$$R^2 = \rho(x, y)^2$$
+
+This means: **the fraction of target variance explained by a single linear model is just the square of the correlation between feature and target.** You don't need to fit a model at all — compute the correlation matrix once, square the target column, and you have all 8 Univariate R² values instantly.
+
+**Why does this work?** When you fit $\hat{y} = wx + b$ by OLS, the optimal $w = \text{Cov}(x,y) / \text{Var}(x)$. The explained variance is $\text{Var}(\hat{y}) = w^2 \text{Var}(x)$. Divide by total variance $\text{Var}(y)$ and expand — the result simplifies to $\rho^2$ exactly. (Full derivation in Ch.6 if you want to trace through it.)
+
+**Example with California Housing:**
+
+| Feature | $\rho$ with target | $\rho^2$ = Univariate R² |
+|---|---|---|
+| MedInc | +0.688 | **0.473** |
+| AveRooms | +0.151 | 0.023 |
+| Latitude | −0.144 | 0.021 |
+| AveBedrms | −0.047 | 0.002 |
+| Population | −0.025 | 0.001 |
+
+MedInc dominates not because its correlation is much above 0.5, but because $\rho^2$ amplifies the gap: 0.69 vs 0.15 becomes 0.47 vs 0.02 once squared.
+
+### Covariance in Matrices — Why You See It Everywhere
+
+When you have $p$ features instead of just $x$ and $y$, you compute *all pairs* of covariances at once. The result is a $p \times p$ **covariance matrix**:
+
+$$\Sigma_{jk} = \text{Cov}(x_j, x_k) = \frac{1}{n}\sum_{i=1}^{n}(x_{ij} - \bar{x}_j)(x_{ik} - \bar{x}_k)$$
+
+The diagonal entries $\Sigma_{jj} = \text{Var}(x_j)$ (variance of each feature). The off-diagonal entries are the pairwise covariances. Divide each entry by the product of standard deviations and you get the **correlation matrix** — the heat map you see in ML Ch.3.
+
+> 💡 **AveRooms and AveBedrms:** Their correlation coefficient $\rho = 0.85$ means 72% of their variance is shared ($0.85^2 = 0.72$). When both are in the model, the model has two variables that are 72% "the same thing" — this is the root cause of the weight instability that VIF diagnoses.
+
+![Covariance matrix animation: from individual variances to the full heatmap](img/ch07-covariance-matrix.gif)
+
+*The animation builds the 8×8 correlation matrix column by column. Each cell lights up when its pair of features are processed, colour-coded blue (positive) or red (negative).*
+
+### Summary — Three Things to Take Away
+
+1. **Covariance** = how much two variables deviate from their means *in the same direction*. Units = product of both variables' units. Positive = move together; negative = move opposite; zero = independent.
+
+2. **Pearson ρ** = covariance divided by both standard deviations. Units cancel. Range = $[-1, +1]$. Measures *linear* dependence only.
+
+3. **Univariate R²** = $\rho^2$. Measures the fraction of target variance explained by one feature in isolation — equivalent to single-feature OLS without fitting a model.
+
+---
+
 ## 5 · The Central Limit Theorem
 
 **Statement.** Let $X_1, \dots, X_n$ be i.i.d. with finite mean $\mu$ and finite variance $\sigma^2$. Let $\bar X_n = \tfrac{1}{n}\sum X_i$. Then
