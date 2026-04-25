@@ -106,7 +106,7 @@ Think of this like comparing heights measured in millimeters vs kilometers — a
 
 $$x_j^{\text{std}} = \frac{x_j - \mu_j}{\sigma_j}$$
 
-After standardization every feature has mean = 0 and std = 1, so weight magnitudes can be compared directly.
+where $x_j^{\text{std}}$ is the standardized feature value, $x_j$ is the original feature value, $\mu_j$ is the mean of feature $j$ across all samples, and $\sigma_j$ is the standard deviation of feature $j$. After standardization every feature has mean = 0 and std = 1, so weight magnitudes can be compared directly.
 
 ```
 BEFORE scaling:              AFTER scaling:
@@ -190,7 +190,7 @@ Filter methods rank features by their statistical relationship to the target —
 
 $$\rho(x_j, y) = \frac{\sum(x_{ij}-\bar{x}_j)(y_i - \bar{y})}{\sqrt{\sum(x_{ij}-\bar{x}_j)^2 \cdot \sum(y_i-\bar{y})^2}}$$
 
-Range: [−1, 1]. Rule of thumb: |ρ| < 0.05 → likely noise; |ρ| > 0.3 → worth including; |ρ| > 0.7 → strong predictor.
+where $\rho$ (rho) is the correlation coefficient, $x_{ij}$ is the value of feature $j$ for sample $i$, $\bar{x}_j$ is the mean of feature $j$, $y_i$ is the target value for sample $i$, and $\bar{y}$ is the mean of the target. Range: [−1, 1]. Rule of thumb: |ρ| < 0.05 → likely noise; |ρ| > 0.3 → worth including; |ρ| > 0.7 → strong predictor.
 
 > ⚠️ **Pearson only captures linear associations.** A U-shaped relationship (e.g., performance vs experience — improves then plateaus) can have ρ ≈ 0 even when x is highly informative.
 
@@ -212,7 +212,7 @@ Ranks both x and y, then computes Pearson on the ranks. Captures non-linear but 
 
 $$\rho_s = 1 - \frac{6\,\sum d_i^2}{n(n^2-1)}$$
 
-where $d_i$ is the rank difference between $x_i$ and $y_i$.
+where $\rho_s$ is the Spearman correlation coefficient, $d_i$ is the rank difference between $x_i$ and $y_i$ (if $x_i$ is the 3rd largest value and $y_i$ is the 5th largest, then $d_i = 3 - 5 = -2$), and $n$ is the number of samples.
 
 > ⚠️ **Use Spearman when the scatter plot shows a curve rather than a line** — e.g., `MedInc` vs `MedHouseVal` is roughly linear (Pearson fine), but `Population` vs price is non-linear (Spearman safer). Both are available via `scipy.stats.spearmanr`.
 
@@ -221,6 +221,8 @@ where $d_i$ is the rank difference between $x_i$ and $y_i$.
 Mutual information measures *any* statistical dependence, not just linear:
 
 $$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)\,p(y)}$$
+
+where $I(X; Y)$ is the mutual information between features $X$ and target $Y$, $p(x,y)$ is the joint probability of observing values $x$ and $y$ together, $p(x)$ is the marginal probability of $x$, and $p(y)$ is the marginal probability of $y$. Higher values indicate stronger dependence between the feature and target.
 
 > 📖 For the full information-theoretic derivation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
 
@@ -237,9 +239,13 @@ Fit each feature against the target in isolation:
 
 $$\hat{y} = w_j x_j + b, \quad R^2_j = 1 - \frac{\sum(\hat{y}_i - y_i)^2}{\sum(\bar{y} - y_i)^2}$$
 
+where $\hat{y}$ is the predicted target value, $w_j$ is the weight for feature $j$, $b$ is the intercept, $R^2_j$ is the coefficient of determination for feature $j$ alone, $y_i$ is the actual target value for sample $i$, and $\bar{y}$ is the mean of all target values. The numerator is the sum of squared residuals (prediction errors); the denominator is the total variance in the target.
+
 **The shortcut.** For linear regression, this reduces to the Pearson correlation squared:
 
 $$R^2_j = \rho(x_j,\, y)^2 = \left(\frac{\text{Cov}(x_j, y)}{\sigma_{x_j} \sigma_y}\right)^2$$
+
+where $\text{Cov}(x_j, y)$ is the covariance between feature $j$ and target $y$, $\sigma_{x_j}$ is the standard deviation of feature $j$, and $\sigma_y$ is the standard deviation of the target.
 
 #### What high vs low R² looks like — signal in one glance
 
@@ -399,7 +405,7 @@ The most reliable and model-agnostic method: after fitting, **randomly shuffle o
 
 $$\pi_j = \text{MAE}_{\text{shuffled } x_j} - \text{MAE}_{\text{original}}$$
 
-A large rise → the feature was carrying real signal. Near-zero rise → the model barely used it (or another feature duplicated it).
+where $\pi_j$ is the permutation importance of feature $j$, $\text{MAE}_{\text{shuffled } x_j}$ is the mean absolute error computed after randomly reordering (permuting) the values of feature $j$ across all samples while keeping all other features unchanged, and $\text{MAE}_{\text{original}}$ is the baseline error with all features intact. A large positive value → the feature was carrying real signal. Near-zero → the model barely used it (or another feature duplicated it).
 
 **California Housing results:**
 
@@ -476,7 +482,7 @@ A feature that barely changes gives the model nothing to latch onto — it's lik
 
 $$\text{Var}(x_j) = \frac{1}{n}\sum_{i=1}^{n}(x_{ij} - \bar{x}_j)^2$$
 
-Set a threshold τ (e.g., 0.01 after standardisation); drop any feature with Var < τ.
+where $\text{Var}(x_j)$ is the variance of feature $j$, $n$ is the number of samples, $x_{ij}$ is the value of feature $j$ for sample $i$, and $\bar{x}_j$ is the mean of feature $j$ across all samples. Set a threshold τ (tau, e.g., 0.01 after standardisation); drop any feature with Var < τ.
 
 `sklearn.feature_selection.VarianceThreshold(threshold=0.01)`
 
@@ -521,7 +527,7 @@ VIF measures how much a feature's weight blows up due to correlation with other 
 
 $$\text{VIF}_j = \frac{1}{1 - R^2_j}$$
 
-where $R^2_j$ is the R² from regressing feature $j$ on all the *other* features (not the target).
+where $\text{VIF}_j$ is the Variance Inflation Factor for feature $j$, and $R^2_j$ is the coefficient of determination obtained by regressing feature $j$ (as the target) on all the *other* features (as predictors) — **not** the original target $y$. This auxiliary R² measures how well feature $j$ can be predicted from the other features: high $R^2_j$ means strong collinearity.
 
 - $\text{VIF} = 1$: feature $j$ is uncorrelated with all other features — weight is perfectly stable
 - $\text{VIF} = 5$: standard error of $w_j$ is $\sqrt{5} \approx 2.2\times$ larger than it would be without collinearity
