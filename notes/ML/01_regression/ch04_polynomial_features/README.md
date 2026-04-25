@@ -386,30 +386,6 @@ flowchart TD
 
 ## 5 · Key Diagrams
 
-### The Bending Animation
-
-![Bending animation showing line becoming curve](img/ch04-bending-animation.gif)
-
-*As the weight for $x^2$ increases from 0 to 1.0, a flat line transforms into a perfect parabola fit.*
-
----
-
-### The Weight Divergence Animation
-
-![Weight divergence during training](img/ch04-weight-divergence.gif)
-
-*Left: Model fit improving. Right: Weights evolving—$x^2$ rises to 2.0 while $x$ and $x^3$ drop to near-zero. Training discovers which features matter.*
-
----
-
-### The Survival of the Fittest Bar Chart
-
-![Before and after weight comparison](img/ch04-survival-of-fittest.png)
-
-*Left: All features start equal. Right: Only $x^2$ survives with high weight; others are silenced. The model automatically discovers which polynomial terms fit the data.*
-
----
-
 ### The Polynomial Combination Animation
 
 ![Polynomial terms combining animation](img/ch04-polynomial-combination.gif)
@@ -447,14 +423,6 @@ With interaction:
 ![Degree selection U-curve](img/ch04-bias-variance-curve.png)
 
 *The U-shaped test MAE curve shows the sweet spot at degree=2. Train MAE always decreases (blue line), but test MAE (red line) increases after degree 3 due to overfitting. The golden circle marks the optimal choice.*
-
-### Generated Visualizations
-
-![Degree sweep: train vs test MAE](img/ch04-degree-sweep.png)
-
-![Polynomial fits: degree 1, 2, 3 overlaid on MedInc scatter](img/ch04-polynomial-fit.png)
-
-![Feature explosion by degree](img/ch04-feature-explosion.png)
 
 ---
 
