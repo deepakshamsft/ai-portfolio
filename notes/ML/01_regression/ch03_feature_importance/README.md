@@ -102,11 +102,11 @@ This is the core reason the rankings diverge. The full diagnostic tool for measu
 
 Let’s walk through each method:
 
-### Filter Methods — Scoring Features Before Training
+### Feature-Target Correlation — Linear vs Non-Linear
 
-Filter methods rank features by their statistical relationship to the target — no model is trained. Use them to prune large feature sets before applying a model.
+Before fitting any model, it helps to understand *how* each feature relates to the target. Two complementary tools cover the space: **Pearson correlation** for straight-line relationships, and **Mutual Information** for any shape. Together they give you a reliable signal-vs-noise ranking before a single model is trained.
 
-**Pearson Correlation (linear relationships):**
+#### Pearson Correlation — The Ruler
 
 > 💡 **Think of it as: The Ruler.** Pearson asks "if I draw a straight line through the data, how tightly do the points cluster around it?" It cares about *direction* — if $X$ rises, does $Y$ rise too (positive) or fall (negative)? The score lives in $[{-1}, +1]$: 0 means no linear relationship, ±1 means a perfect line. The catch: **it only sees straight lines.** Bend the data into a U and the ruler reads zero, even though the pattern is obvious.
 >
@@ -120,29 +120,9 @@ where $\rho$ (rho) is the correlation coefficient, $x_{ij}$ is the value of feat
 
 > ⚠️ **Pearson only captures linear associations.** A U-shaped relationship (e.g., performance vs experience — improves then plateaus) can have ρ ≈ 0 even when x is highly informative.
 
-**Pearson by hand** (5 points, x = MedInc sample, y = MedHouseVal sample):
+![Pearson correlation in action: scatter points cluster tightly around the regression line for MedInc (ρ = 0.69) and form a random cloud for HouseAge (ρ ≈ 0), while AveOccup shows a slight downward slope](img/ch03-pearson-in-action.gif)
 
-| i | x | y | x−x̄ | y−ȳ | (x−x̄)(y−ȳ) | (x−x̄)² |
-|---|---|---|------|-----|------------|--------|
-| 1 | 1.0 | 2.2 | −2.0 | −1.38 | +2.76 | 4.00 |
-| 2 | 2.0 | 2.8 | −1.0 | −0.78 | +0.78 | 1.00 |
-| 3 | 3.0 | 4.5 | 0.0 | +0.92 | 0.00 | 0.00 |
-| 4 | 4.0 | 3.9 | +1.0 | +0.32 | +0.32 | 1.00 |
-| 5 | 5.0 | 5.1 | +2.0 | +1.52 | +3.04 | 4.00 |
-
-x̄ = 3.0, ȳ = 3.58. SS_xy = 6.90, SS_xx = 10.0, SS_yy = 7.49. ρ = 6.90 / √(10 × 7.49) = 6.90 / 8.65 = **0.80** — strong positive linear association.
-
-**Spearman Correlation (monotonic, non-parametric):**
-
-Ranks both x and y, then computes Pearson on the ranks. Captures non-linear but *monotonic* relationships:
-
-$$\rho_s = 1 - \frac{6\,\sum d_i^2}{n(n^2-1)}$$
-
-where $\rho_s$ is the Spearman correlation coefficient, $d_i$ is the rank difference between $x_i$ and $y_i$ (if $x_i$ is the 3rd largest value and $y_i$ is the 5th largest, then $d_i = 3 - 5 = -2$), and $n$ is the number of samples.
-
-> ⚠️ **Use Spearman when the scatter plot shows a curve rather than a line** — e.g., `MedInc` vs `MedHouseVal` is roughly linear (Pearson fine), but `Population` vs price is non-linear (Spearman safer). Both are available via `scipy.stats.spearmanr`.
-
-**Mutual Information (non-linear relationships):**
+#### Mutual Information — The Detective's Clue
 
 > 🔍 **Think of it as: The Detective's Clue.** MI asks "if I tell you the value of $X$, how much easier does it become to guess $Y$?" It doesn't care about *shape* — a straight line, a U, a wave, or a cluster all register as long as $X$ gives you information about $Y$. The score lives in $[0, \infty)$: 0 means $X$ tells you nothing; higher means a stronger link of any shape.
 >
@@ -154,7 +134,7 @@ $$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)\,p(y)}$$
 
 where $I(X; Y)$ is the mutual information between feature $X$ and target $Y$, $p(x,y)$ is the joint probability density of observing $x$ and $y$ together, and $p(x)$, $p(y)$ are the marginal densities. Range: $[0, \infty)$ — zero means completely independent; larger values mean stronger dependence of any shape.
 
-#### The Intuition — Reduction in Uncertainty
+**The Intuition — Reduction in Uncertainty**
 
 Pearson asks: "when $x$ increases, does $y$ tend to increase too?" MI asks a more fundamental question: **"knowing $x$, how much does my uncertainty about $y$ shrink?"**
 
@@ -166,7 +146,7 @@ where $H(Y)$ is the entropy of $y$ (how unpredictable it is on its own) and $H(Y
 
 > **Why this matters:** Pearson is zero for a U-shaped or threshold relationship even though knowing $x$ dramatically reduces uncertainty about $y$. MI is not. This is the key difference in one sentence.
 
-#### When Pearson Fails — Two Cases Where MI Catches Signal
+**When Pearson Fails — Two Cases Where MI Catches Signal**
 
 **Case 1 — U-shaped relationship (e.g., optimal dose):**  
 A drug at low dose does nothing; at the optimal dose it works; at high dose it becomes toxic. Price vs HouseAge in some sub-markets follows a similar arc — very new and very old houses both command a premium over mid-age stock.
@@ -231,25 +211,7 @@ The ruler sees symmetric deviations and calls it zero.
 The detective sees that every x uniquely determines y and calls it strong.
 ```
 
-For California Housing's 8 features, most relationships are roughly monotonic (Pearson and MI rank them similarly). MI becomes decisive when you suspect non-linear effects — e.g., `HouseAge` may have a non-linear relationship with price (new builds and historic homes both premium).
-
-#### How MI Is Estimated for Continuous Variables
-
-The formula above is written as a sum over discrete $(x, y)$ pairs. For continuous features, you cannot enumerate all values — you need an estimator.
-
-`sklearn.feature_selection.mutual_info_regression` uses the **Kraskov k-NN estimator**: for each sample point, it measures the distance to its $k$-th nearest neighbour in joint $(x, y)$ space vs in the marginal $x$ and $y$ spaces separately. The ratio of those distances is related to the log density ratio in the MI integral — no binning, no histogram choice, no smoothing parameter.
-
-Key properties of the estimator:
-- **$k$ controls bias-variance**: small $k$ (default: $k=3$) is lower bias but noisier; larger $k$ is smoother but may underestimate MI for complex shapes.
-- **`random_state` matters**: the estimator adds a tiny random perturbation to break ties; set `random_state` for reproducibility.
-- **Scale-invariant**: unlike Pearson, MI does not change if you log-transform or standardise a feature (the rank structure is preserved, and the density estimator adapts).
-
-```python
-from sklearn.feature_selection import mutual_info_regression
-
-mi_scores = mutual_info_regression(X_train, y_train, random_state=42)
-# Returns one score per feature. Not normalised — compare relative magnitude.
-```
+![Mutual information in action: as the scatter morphs from a diagonal line into a U-shape, Pearson ρ falls to zero while the MI score stays high — proving MI catches what Pearson misses](img/ch03-mi-in-action.gif)
 
 #### Pearson vs MI in the California Housing Dataset
 
@@ -268,6 +230,39 @@ The key rows are Latitude and Longitude: ρ² ≈ 0 and ρ² ≈ 0 (they explain
 
 > ⚠️ **MI scores are not on a standard scale.** You cannot say "MI = 0.18 means 18% of variance explained." They are relative rankings. To compare Pearson and MI side by side, normalise: divide each MI score by the maximum MI score in the feature set, giving a [0, 1] relative importance.
 
+#### Pearson vs MI — Quick-Reference Cheat Sheet
+
+| Property | Pearson Correlation | Mutual Information |
+|---|---|---|
+| **Relationship type** | Linear only (straight lines) | Any — curves, waves, thresholds, clusters |
+| **Score range** | −1 to +1 | 0 to ∞ |
+| **Sensitive to outliers?** | Yes — one extreme point can shift ρ significantly | No — density-based estimator is more robust |
+| **Tells you direction?** | Yes — positive (both rise) or negative (one falls) | No — only that a link exists, not its sign |
+| **Best model pairing** | Linear Regression | Tree-based models (Random Forest, XGBoost) |
+| **Mental model** | A straight ruler | A detective's magnifying glass |
+
+![Venn diagram: two overlapping circles representing X and Y drift together — Pearson counts only the linearly-aligned slice of overlap (the narrow horizontal band), while MI counts the full shared area regardless of shape](img/ch03-pearson-mi-venn.gif)
+
+> 📖 For the information-theoretic foundation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
+
+> 📖 **Technical Note — How `sklearn` estimates MI for continuous variables.** `mutual_info_regression` uses the **Kraskov k-NN estimator**: for each sample, it measures the distance to its $k$-th nearest neighbour in joint $(x, y)$ space versus in the marginal $x$ and $y$ spaces separately — no binning, no histogram choice, no smoothing parameter. Key properties: **$k$ controls bias-variance** (default $k=3$: lower bias but noisier; larger $k$ smooths but may underestimate MI for complex shapes); **set `random_state`** (the estimator adds a tiny perturbation to break ties); **scale-invariant** (MI does not change if you log-transform or standardise a feature — the rank structure is preserved and the density estimator adapts). Returns one score per feature; scores are not normalised — use relative magnitude only.
+
+---
+
+### Filter Methods — Pre-Training Feature Selection
+
+Filter methods rank features by their statistical relationship to the target — no model is trained. Use them to prune large feature sets before applying a model. Pearson and MI (above) are the primary filter signals; Spearman fills the gap when relationships are monotonic but not linear.
+
+**Spearman Correlation (monotonic, non-parametric):**
+
+Ranks both x and y, then computes Pearson on the ranks. Captures non-linear but *monotonic* relationships:
+
+$$\rho_s = 1 - \frac{6\,\sum d_i^2}{n(n^2-1)}$$
+
+where $\rho_s$ is the Spearman correlation coefficient, $d_i$ is the rank difference between $x_i$ and $y_i$ (if $x_i$ is the 3rd largest value and $y_i$ is the 5th largest, then $d_i = 3 - 5 = -2$), and $n$ is the number of samples.
+
+> ⚠️ **Use Spearman when the scatter plot shows a curve rather than a line** — e.g., `MedInc` vs `MedHouseVal` is roughly linear (Pearson fine), but `Population` vs price is non-linear (Spearman safer). Both are available via `scipy.stats.spearmanr`.
+
 #### Decision Rule — When to Use Which Filter
 
 | Situation | Use |
@@ -280,29 +275,6 @@ The key rows are Latitude and Longitude: ρ² ≈ 0 and ρ² ≈ 0 (they explain
 | Dataset is small (< 200 samples) | Pearson — MI estimator is noisy with few neighbours |
 
 For California Housing: run both. Where they agree, the ranking is reliable. Where MI is substantially higher than ρ², the feature has non-linear signal that a linear model will underuse — a cue to engineer a transformation or switch to a tree-based model.
-
-#### Pearson vs MI — Quick-Reference Cheat Sheet
-
-| Property | Pearson Correlation | Mutual Information |
-|---|---|---|
-| **Relationship type** | Linear only (straight lines) | Any — curves, waves, thresholds, clusters |
-| **Score range** | −1 to +1 | 0 to ∞ |
-| **Sensitive to outliers?** | Yes — one extreme point can shift ρ significantly | No — density-based estimator is more robust |
-| **Tells you direction?** | Yes — positive (both rise) or negative (one falls) | No — only that a link exists, not its sign |
-| **Best model pairing** | Linear Regression | Tree-based models (Random Forest, XGBoost) |
-| **Mental model** | A straight ruler | A detective's magnifying glass |
-
-**Venn diagram intuition:** Imagine two overlapping circles — one for $X$, one for $Y$. The overlap represents *shared information*. Pearson only recognises overlap that lines up in a straight direction; tip the circles into a curve and Pearson sees no overlap even if the circles sit directly on top of each other. MI measures the actual area of overlap regardless of orientation — the more overlap, the higher the score.
-
-```
-Pearson sees:                 MI sees:
-  [  X  ][overlap][  Y  ]     [  X  ][overlap][  Y  ]
-          ↑                           ↑
-   only if the overlap                always — any shape
-   points in a straight line          of shared information
-```
-
-> 📖 For the information-theoretic foundation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
 
 > 📖 **Embedded selection (bridge to Ch.5):** When you are unsure which features to drop, Lasso is the principled alternative to filter methods — selection happens *during* training, not before it. The L1 penalty drives weak-signal coefficients exactly to zero. Full treatment in [Ch.5 — Regularization](../ch05_regularization).
 
@@ -371,37 +343,101 @@ That is not the end of the story.
 
 ---
 
+### Feature Scaling
+
+Before comparing weights across features you need a common unit. Raw weights are unit-dependent: a weight of +0.40 for `MedInc` (measured in steps of $10k) and −0.000014 for `Population` (measured per person) look 28,000× apart — but that gap is almost entirely a scale artefact, not an importance signal.
+
+Think of this like measuring the same height in millimeters versus kilometers — the number changes dramatically but the person doesn't. StandardScaler fixes this by converting every feature to the same unit: **"one typical swing in that feature across the dataset."** After standardization, a coefficient of 0.8 on income and 0.1 on population means income has genuinely 8× the marginal effect — a fair comparison.
+
+**Standardization (Z-score normalization):**
+
+$$x_j^{\text{std}} = \frac{x_j - \mu_j}{\sigma_j}$$
+
+where $x_j^{\text{std}}$ is the standardized feature value, $x_j$ is the original feature value, $\mu_j$ is the mean of feature $j$ across all samples, and $\sigma_j$ is the standard deviation of feature $j$. After standardization every feature has mean = 0 and std = 1, so weight magnitudes are directly comparable.
+
+```
+BEFORE scaling:              AFTER scaling:
+
+MedInc:    [0.5, 15]         MedInc:    [-1.8, 3.1]
+Population: [3, 35682]        Population: [-0.6, 12.8]
+
+Gradient for MedInc: ~0.1    Gradient for MedInc: ~0.8
+Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
+
+→ Gradient steps dominated    → Balanced gradient steps
+  by Population!               across all features ✅
+```
+
+**Min-max scaling** is an alternative — $x_j^{\text{mm}} = (x_j - \min_j) / (\max_j - \min_j)$ — but it is sensitive to outliers. StandardScaler is the safer default for regression and gradient-based training.
+
+> ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
+
+#### Understanding Positive Skew — Why Some Features Need Log Transform
+
+**What is skew?** Skew measures distributional asymmetry. In a symmetric distribution (like a normal curve), the mean equals the median. **Positive skew** means a long right tail — most values cluster near the low end, but a few extreme values stretch far to the right, pulling the mean above the median.
+
+```
+Symmetric distribution:       Positively skewed distribution:
+    ●●●●●●●                        ●●●●●●
+  ●●●●●●●●●                      ●●●●●●●●
+●●●●●●●●●●●                    ●●●●●●●●●●              ●●
+   ↑                              ↑       ↑           ↑
+ mean = median                   median  mean    long right tail
+```
+
+**Why skew breaks StandardScaler:** When you standardize a heavily skewed feature, the few extreme values inflate the standard deviation (σ), compressing 95% of the data into a narrow band near zero while placing outlier districts at +8σ or +12σ. This creates an unbalanced feature where most gradient updates are driven by a handful of extreme cases.
+
+**Example:** `Population` ranges from 3 to 35,682. After standardization, a typical district (Population = 1,500) becomes −0.1σ, while the extreme district (Population = 35,682) becomes +12σ. The model's weight updates are dominated by that one extreme case, even though it's not representative.
+
+#### Log Transform & Box-Cox
+
+When a feature has a heavy right tail (long positive skew), standardisation alone may not help — the largest values still dominate. Log-transforming first compresses the tail:
+
+$$x' = \log(x + 1)$$
+
+(The `+1` guards against `log(0)` when values can be zero. This transformation is often called **log1p** — numpy's `np.log1p(x)` implements exactly this formula and is numerically more stable than computing `log(x + 1)` directly.)
+
+**Box-Cox generalises this** with a piecewise transformation:
+
+$$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \newline    \log x & \lambda = 0 \end{cases}$$
+
+This formula has **two branches** depending on the value of λ:
+- **When λ ≠ 0**: use the formula $(x^\lambda - 1) / \lambda$
+- **When λ = 0**: use $\log x$ (because dividing by zero is undefined)
+
+where $x'(\lambda)$ is the transformed feature value, $x$ is the original feature value, and $\lambda$ is a transformation parameter that controls the strength of the transformation. When $\lambda = 1$ (no transformation needed), $x'(\lambda) = x - 1$. When $\lambda = 0$, it reduces to the log transform. When $\lambda = 0.5$, it's a square root transform.
+
+`sklearn.preprocessing.PowerTransformer(method='box-cox')` finds the optimal λ by maximum likelihood.
+
+**When to log-transform vs standardise:** If a feature's histogram has a long right tail (e.g., `AveRooms` has a few districts with 20+ rooms), apply log1p *before* StandardScaler. If the feature is roughly symmetric, skip log and standardise directly.
+
+**5-value numeric walkthrough** (`Population` feature, μ=1427, σ=1132):
+
+| Raw | log1p(Raw) | z after log-scaling |
+|-----|-----------|---------------------|
+| 322 | 5.78 | −0.88 |
+| 2401 | 7.78 | +0.80 |
+| 496 | 6.21 | −0.46 |
+| 558 | 6.33 | −0.33 |
+| 565 | 6.34 | −0.32 |
+
+The raw scale ranges over 4× (322–2401); the log scale compresses this to a 2-unit range — gradient descent converges faster and weight magnitudes are more comparable.
+
+![Log transform effect on Population distribution — before and after log1p](img/ch03-log-transform.png)
+
+![Feature scaling: gradient paths before and after StandardScaler](img/feature-scaling-gradient.gif)
+
+---
+
 ### Method 2 — Standardised Weights (Partial Contribution)
 
 > **How ŷ is determined here:** There is **one model containing all features simultaneously** — the same Ch.2 model. No features are removed. ŷ = $w_1 x_1 + w_2 x_2 + \cdots + w_p x_p + b$. The standardised weight $|w_j^{\text{std}}|$ measures the **marginal (partial) effect** of feature $j$: how much ŷ shifts for a 1-σ change in $x_j$ while all other features are held fixed at their current values. This is why rankings can flip versus Method 1 — a feature that was absorbing shared signal alone now only gets credit for what it adds *above and beyond* all other features.
 
-After standardising all features to mean = 0, std = 1, the fitted absolute weight measures how much the model *uses* each feature when all others are also present:
+Feature Scaling (above) is the prerequisite. After `StandardScaler`, the fitted absolute weight measures how much the model *uses* each feature when all others are present:
 
 $$\text{importance}_j^{\text{partial}} = |w_j^{\text{std}}|$$
 
-#### What standardisation actually does to the weights — a numerical walkthrough
-
-**The problem with raw weights.** Fit a linear model on the raw (unscaled) California Housing features and the coefficients look like this:
-
-```
-Feature        Raw weight       What "1 unit" means
-────────────────────────────────────────────────────────────
-MedInc         +0.40            +$10k income      → ŷ rises by 0.40 (×$100k)
-Population     −0.000014        +1 person          → ŷ falls by 0.000014
-```
-
-Naive comparison: MedInc weight (0.40) is **28,000× bigger** than Population weight (−0.000014). Does that mean MedInc is 28,000× more important? No — the gap reflects **input scale**, not importance. MedInc is measured in $10k steps; Population in individual-person steps.
-
-**The fix: use std-dev as the common unit.** StandardScaler replaces each raw value with how many standard deviations it is from its mean. After this transform, "1 unit" means the same thing for every feature: *one typical swing in that feature across the dataset*.
-
-| Feature | Raw std-dev ($\sigma_j$) | Raw weight ($w_j$) | Standardised weight $w_j^{\text{std}} = w_j \times \sigma_j$ | Meaning |
-|---|---|---|---|---|
-| MedInc | 2.0 (in $10k units) | +0.40 | $0.40 \times 2.0 = \mathbf{+0.80}$ | A 1-std swing in income changes ŷ by 0.80 |
-| Population | 1,140 (people) | −0.000014 | $-0.000014 \times 1140 = \mathbf{-0.016}$ | A 1-std swing in population changes ŷ by −0.016 |
-
-The standardised weights now say: **MedInc (0.80) is genuinely ~50× more important than Population (0.016)** — not 28,000×, because the raw-weight gap was almost entirely scale artefact.
-
-> 💡 **In practice** you don't apply this conversion manually. You call `StandardScaler().fit_transform(X_train)` *before* fitting, and the resulting model's `coef_` array is already the standardised weight vector — the conversion happens implicitly. The formula $w_j^{\text{std}} = w_j^{\text{raw}} \times \sigma_j$ just shows *why* the two are different.
+The formula $w_j^{\text{std}} = w_j^{\text{raw}} \times \sigma_j$ explains the weight gap: MedInc's raw weight of +0.40 (per $10k income step) scales to $0.40 \times 2.0 = +0.80$, while Population's raw weight of −0.000014 (per person) scales to $−0.000014 \times 1140 = −0.016$. The raw 28,000× gap shrinks to ~50× — the true importance ratio once unit artefact is removed.
 
 **Worked toy example — 3 California Housing districts:**
 
@@ -567,92 +603,6 @@ Population       ·  0.00                 ·   0.01                 ·         $
 | **Population** | Near-zero on all three | Genuinely uninformative at district level — safe to drop without affecting MAE. |
 
 > 💡 **The three-lens rule.** A feature earns full trust only when all three lenses independently confirm its importance. MedInc passes all three. Latitude and Longitude together pass Methods 2 and 3 — the geographic signal is real, but only emerges jointly. AveBedrms fails Method 3 — its signal is almost entirely duplicated by AveRooms. Population fails all three.
-
----
-
-### Feature Scaling
-
-The three importance metrics are now established. This section examines the mechanical prerequisite that makes Method 2 valid: features must be on a common scale before their weights can be compared. Without standardization, raw weights are unit-dependent and carry no importance signal — a weight of 200 for `Population` (range 3–35,682) looks enormous next to a weight of 0.4 for `MedInc` (range 0.5–15), but that gap reflects the input scale, not the feature's importance.
-
-Think of this like comparing heights measured in millimeters vs kilometers — a 1.8m person becomes 1,800 mm but 0.0018 km. The number changes dramatically, but the person stays exactly the same height. Similarly, a feature's raw weight depends entirely on what units you happened to choose for measurement. StandardScaler fixes this by converting every feature to the same unit: **"one typical swing in that feature across the dataset."** After standardization, a coefficient of 0.8 on income and 0.1 on population means income has genuinely 8× the effect per standard deviation of change — a fair comparison.
-
-**Standardization (Z-score normalization):**
-
-$$x_j^{\text{std}} = \frac{x_j - \mu_j}{\sigma_j}$$
-
-where $x_j^{\text{std}}$ is the standardized feature value, $x_j$ is the original feature value, $\mu_j$ is the mean of feature $j$ across all samples, and $\sigma_j$ is the standard deviation of feature $j$. After standardization every feature has mean = 0 and std = 1, so weight magnitudes can be compared directly.
-
-```
-BEFORE scaling:              AFTER scaling:
-
-MedInc:    [0.5, 15]         MedInc:    [-1.8, 3.1]
-Population: [3, 35682]        Population: [-0.6, 12.8]
-
-Gradient for MedInc: ~0.1    Gradient for MedInc: ~0.8
-Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
-
-→ Gradient steps dominated    → Balanced gradient steps
-  by Population!               across all features ✅
-```
-
-**Min-max scaling** is an alternative — $x_j^{\text{mm}} = (x_j - \min_j) / (\max_j - \min_j)$ — but it is sensitive to outliers. StandardScaler is the safer default for regression and gradient-based training.
-
-> ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
-
-#### Understanding Positive Skew — Why Some Features Need Log Transform
-
-**What is skew?** Skew measures distributional asymmetry. In a symmetric distribution (like a normal curve), the mean equals the median. **Positive skew** means a long right tail — most values cluster near the low end, but a few extreme values stretch far to the right, pulling the mean above the median.
-
-```
-Symmetric distribution:       Positively skewed distribution:
-    ●●●●●●●                        ●●●●●●
-  ●●●●●●●●●                      ●●●●●●●●
-●●●●●●●●●●●                    ●●●●●●●●●●              ●●
-   ↑                              ↑       ↑           ↑
- mean = median                   median  mean    long right tail
-```
-
-**Why skew breaks StandardScaler:** When you standardize a heavily skewed feature, the few extreme values inflate the standard deviation (σ), compressing 95% of the data into a narrow band near zero while placing outlier districts at +8σ or +12σ. This creates an unbalanced feature where most gradient updates are driven by a handful of extreme cases. 
-
-**Example:** `Population` ranges from 3 to 35,682. After standardization, a typical district (Population = 1,500) becomes −0.1σ, while the extreme district (Population = 35,682) becomes +12σ. The model's weight updates are dominated by that one extreme case, even though it's not representative.
-
-#### Log Transform & Box-Cox
-
-When a feature has a heavy right tail (long positive skew), standardisation alone may not help — the largest values still dominate. Log-transforming first compresses the tail:
-
-$$x' = \log(x + 1)$$
-
-(The `+1` guards against `log(0)` when values can be zero. This transformation is often called **log1p** — numpy's `np.log1p(x)` implements exactly this formula and is numerically more stable than computing `log(x + 1)` directly.)
-
-**Box-Cox generalises this** with a piecewise transformation:
-
-$$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \newline    \log x & \lambda = 0 \end{cases}$$
-
-This formula has **two branches** depending on the value of λ:
-- **When λ ≠ 0**: use the formula $(x^\lambda - 1) / \lambda$
-- **When λ = 0**: use $\log x$ (because dividing by zero is undefined)
-
-where $x'(\lambda)$ is the transformed feature value, $x$ is the original feature value, and $\lambda$ is a transformation parameter that controls the strength of the transformation. When $\lambda = 1$ (no transformation needed), $x'(\lambda) = x - 1$. When $\lambda = 0$, it reduces to the log transform. When $\lambda = 0.5$, it's a square root transform.
-
-`sklearn.preprocessing.PowerTransformer(method='box-cox')` finds the optimal λ by maximum likelihood.
-
-**When to log-transform vs standardise:** If a feature's histogram has a long right tail (e.g., `AveRooms` has a few districts with 20+ rooms), apply log1p *before* StandardScaler. If the feature is roughly symmetric, skip log and standardise directly.
-
-**5-value numeric walkthrough** (`Population` feature, μ=1427, σ=1132):
-
-| Raw | log1p(Raw) | z after log-scaling |
-|-----|-----------|---------------------|
-| 322 | 5.78 | −0.88 |
-| 2401 | 7.78 | +0.80 |
-| 496 | 6.21 | −0.46 |
-| 558 | 6.33 | −0.33 |
-| 565 | 6.34 | −0.32 |
-
-The raw scale ranges over 4× (322–2401); the log scale compresses this to a 2-unit range — gradient descent converges faster and weight magnitudes are more comparable.
-
-> 💡 **Scaling doubles as importance quantification.** Once features are on the same scale, a coefficient of 0.83 on `MedInc` and −0.12 on `Population` directly compare: income has 7× the marginal effect — the exact numbers produced by Method 2 (Standardised Weights) above.
-
-![Feature scaling: gradient paths before and after StandardScaler](img/feature-scaling-gradient.gif)
 
 ---
 
@@ -1020,30 +970,6 @@ The diagram shows four frames:
 4. **Step 3 — Repeat for each feature, average over 30 shuffles**: final ranking.
 
 Key annotation: *"The model is never retrained. Only the test-set column is shuffled. This measures how badly the model's existing weights rely on that feature."*
-
----
-
-### Log Transform — Population Distribution Before and After
-
-![Log transform effect on Population distribution](img/ch03-log-transform.png)
-
-### Pearson vs Mutual Information — Linear and Non-Linear Relationships
-
-![Pearson vs Mutual Information on linear vs U-shaped data](img/ch03-pearson-vs-mi.png)
-
-Three panels, left to right:
-
-- **Panel 1 — Linear relationship** (MedInc vs MedHouseVal): Pearson ρ = 0.69, MI = 0.52. Both are high; Pearson's R² maps directly to Model 1 Univariate R².
-- **Panel 2 — U-shaped relationship** (simulated HouseAge premium): Pearson ρ ≈ 0, MI = 0.38. The symmetric arch cancels all linear correlation but MI detects the strong dependence. Pearson would silently drop this feature.
-- **Panel 3 — Lat/Long scatter** coloured by target decile: the price gradient is spatial (clusters), not a straight line. ρ is near-zero per coordinate; MI per coordinate is 0.15–0.18, reflecting the geographic information that only emerges once both coordinates are considered.
-
-The takeaway from the diagram: a feature with Pearson ≈ 0 and MI > 0.10 is flagged for non-linear investigation before discarding.
-
-### Lasso Coefficient Path
-
-![Lasso coefficient path — features going to zero](img/ch03-lasso-path.png)
-
----
 
 ## 6 · Hyperparameter Dial
 
