@@ -4,7 +4,7 @@
 >
 > **Where you are in the curriculum.** Ch.2 gave us all 8 features and dropped MAE from \$70k to \$55k. But we trained the model, printed the weights, and moved on. We have not yet asked: which of these 8 features is genuinely useful, which is redundant because it overlaps with another, and which is nearly inert? Before adding polynomial interactions (Ch.4) or applying regularization (Ch.5) — which will create or prune features — you need an honest diagnostic pass. This chapter is that diagnostic.
 >
-> **Notation in this chapter.** $\rho(x_j, y)$ — Pearson correlation of feature $j$ with target; $R^2_j$ — univariate R² of feature $j$ alone; $|w_j^{\text{std}}|$ — absolute standardised weight (partial contribution); $\text{VIF}_j = 1/(1-R^2_{j,\text{feat}})$ — Variance Inflation Factor where $R^2_{j,\text{feat}}$ is the R² from regressing feature $j$ on all other features; $\pi_j$ — permutation importance of feature $j$; $\pi_{jk}$ — joint permutation importance of the pair $(j,k)$; $\Delta_{\text{interact}}(j,k) = \pi_{jk} - \pi_j - \pi_k$ — interaction uplift.
+> **Notation in this chapter.** $\rho(x_j, y)$ — Pearson correlation of feature $j$ with the **target** (feature-target); $\rho(x_j, x_k)$ — Pearson correlation between features $j$ and $k$ (**inter-feature**); note that the same formula is used in both cases — only the second argument changes; $R^2_j$ — univariate R² of feature $j$ alone; $|w_j^{\text{std}}|$ — absolute standardised weight (partial contribution); $\text{VIF}_j = 1/(1-R^2_{j,\text{feat}})$ — Variance Inflation Factor where $R^2_{j,\text{feat}}$ is the R² from regressing feature $j$ on all other features; $\pi_j$ — permutation importance of feature $j$; $\pi_{jk}$ — joint permutation importance of the pair $(j,k)$; $\Delta_{\text{interact}}(j,k) = \pi_{jk} - \pi_j - \pi_k$ — interaction uplift.
 
 ---
 
@@ -62,9 +62,9 @@ Same California Housing dataset. Same 8 features. Same Ch.2 model.
 | Feature | What it measures | Notable relationships |
 |---|---|---|
 | `MedInc` | Median income (×\$10k) | Strong standalone predictor (ρ = 0.69 with target) |
-| `HouseAge` | Median house age (years) | Weak standalone (ρ = −0.04); small joint contribution |
-| `AveRooms` | Average rooms per household | **Overlaps with AveBedrms** (ρ = 0.85 with each other) |
-| `AveBedrms` | Average bedrooms per household | **Overlaps with AveRooms** (ρ = 0.85 with each other) |
+| `HouseAge` | Median house age (years) | Weak standalone (feature-target ρ = −0.04); small joint contribution |
+| `AveRooms` | Average rooms per household | **Overlaps with AveBedrms** (inter-feature ρ = 0.85) |
+| `AveBedrms` | Average bedrooms per household | **Overlaps with AveRooms** (inter-feature ρ = 0.85) |
 | `Population` | Block population | Near-zero signal at district level |
 | `AveOccup` | Average household size | Small but independent signal |
 | `Latitude` | North–South coordinate | **Jointly irreplaceable with Longitude** — neither useful alone |
@@ -90,7 +90,7 @@ The three methods often give different rankings for the same dataset. That diver
 
 Before diving into the methods, there is one concept to hold in mind throughout: **feature correlation**.
 
-Some features in our dataset measure overlapping things. `AveRooms` and `AveBedrms` both capture dwelling size — they correlate at ρ = 0.85. `Latitude` and `Longitude` both encode geography — neither is informative alone, but together they pinpoint a district on the California map. When features share signal like this, the three importance methods will give *systematically different rankings* for those features — and that divergence is information, not noise.
+Some features in our dataset measure overlapping things. `AveRooms` and `AveBedrms` both capture dwelling size — their **inter-feature** Pearson ρ = 0.85. `Latitude` and `Longitude` both encode geography — neither is informative alone, but together they pinpoint a district on the California map. When features share signal like this, the three importance methods will give *systematically different rankings* for those features — and that divergence is information, not noise.
 
 > 📖 **What is ρ exactly?** If the formula is unfamiliar, [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) builds up covariance and Pearson correlation step by step with a small worked example and animated diagrams. It also proves why $R^2_j = \rho^2$ — the identity that powers Method 1 below.
 
@@ -318,7 +318,7 @@ MedInc → MedHouseVal  (ρ = 0.69, R² = 0.47)      HouseAge → MedHouseVal  (
   predicts home value. R² = 0.47.                     us almost nothing alone. R² ≈ 0.
 ```
 
-**Key fact — ρ² = R² for single-feature OLS.** A tight scatter = high ρ = high R². The practical payoff: to rank all 8 features by univariate R², compute the correlation matrix once and square the target column — that's all 8 R² values instantly, with no model fitting.
+**Key fact — ρ² = R² for single-feature OLS.** A tight scatter = high feature-target ρ = high R². The practical payoff: to rank all 8 features by univariate R², compute the **feature-target** Pearson correlations (the target column of the full 9×9 correlation matrix) and square them — that's all 8 R² values instantly, with no model fitting.
 
 **California Housing results:**
 
@@ -548,6 +548,17 @@ AveBedrms      +$0.3k                 0.005
 Population     +$0.1k                 0.002
 ```
 
+![Permutation importance: conceptual diagram of the shuffle loop](img/ch03-permutation-loop.png)
+
+The diagram shows four frames:
+
+1. **Step 0 — Baseline**: test set, model predictions, MAE = \$55k.
+2. **Step 1 — Shuffle one feature** (e.g., MedInc column scrambled): model predictions change.
+3. **Step 2 — Recompute MAE**: rises to \$73k. Δ MAE = +\$18k → permutation importance = 0.334.
+4. **Step 3 — Repeat for each feature, average over 30 shuffles**: final ranking.
+
+Key annotation: *"The model is never retrained. Only the test-set column is shuffled. This measures how badly the model's existing weights rely on that feature."*
+
 MedInc reclaims the top spot under permutation importance — it is individually the most irreplaceable feature. Latitude and Longitude remain important. AveBedrms and Population contribute almost nothing that isn't captured elsewhere.
 
 Permutation importance is generally the most trustworthy of the three methods because it directly measures the model's *reliance* on each feature, not just correlation or fitted weights.
@@ -604,6 +615,21 @@ Population       ·  0.00                 ·   0.01                 ·         $
 
 > 💡 **The three-lens rule.** A feature earns full trust only when all three lenses independently confirm its importance. MedInc passes all three. Latitude and Longitude together pass Methods 2 and 3 — the geographic signal is real, but only emerges jointly. AveBedrms fails Method 3 — its signal is almost entirely duplicated by AveRooms. Population fails all three.
 
+![Univariate R² and permutation importance side-by-side bar chart for top-6 features](img/ch03-importance-comparison.png)
+
+The side-by-side bar chart makes the ranking reversal concrete:
+
+| Feature | Univariate R² | Permutation importance | Movement |
+|---------|--------------|----------------------|----------|
+| MedInc | 0.473 | 0.334 | Stays #1 under both criteria |
+| Latitude | 0.021 | 0.165 | ↑ Low alone → high in joint model |
+| Longitude | 0.002 | 0.133 | ↑ ~0 alone → high in joint model |
+| AveOccup | 0.001 | 0.058 | ↑ Tiny alone → modest in joint model |
+| HouseAge | 0.001 | 0.029 | Small but present in both |
+| AveRooms | 0.023 | 0.016 | ↓ Has standalone signal → absorbed by AveBedrms jointly |
+
+**The visual story:** MedInc's bar shrinks in the right panel (its univariate dominance partly reflects correlation with other variables). Latitude and Longitude bars grow dramatically (their joint geographic segmentation only appears when both are in the model simultaneously).
+
 ---
 
 ### Variance Threshold — Dropping Near-Constant Features
@@ -641,7 +667,7 @@ Multicollinearity is the condition where two or more features are strongly corre
 
 **The concrete California Housing example:**
 
-`AveRooms` and `AveBedrms` both measure house size (ρ = 0.85). The model sees a prize worth, say, 0.20 units, and needs to split it between them. With different random seeds or slightly different training subsets:
+`AveRooms` and `AveBedrms` both measure house size (inter-feature Pearson ρ = 0.85). The model sees a prize worth, say, 0.20 units, and needs to split it between them. With different random seeds or slightly different training subsets:
 
 ```
 Run 1:  AveRooms = +0.12,  AveBedrms = −0.10  (bedrooms negative?!)
@@ -650,6 +676,15 @@ Run 3:  AveRooms = +0.20,  AveBedrms = −0.01  (all signal on rooms)
 ```
 
 All three configurations produce nearly identical predictions — but the individual weights are meaningless for interpretation. This is dangerous if you're handing weights to a compliance officer or using them for feature selection.
+
+![Feature correlation heatmap — all 8 California Housing features](img/ch03-correlation-heatmap.png)
+
+The heatmap visualises the full 8×8 inter-feature correlation matrix. Two off-diagonal hot-spots confirm the multicollinearity diagnosis:
+
+1. **AveRooms ↔ AveBedrms** (inter-feature Pearson ρ = +0.85) — both measure dwelling size; the model must split the same signal between them, producing unstable individual weights.
+2. **Latitude ↔ Longitude** (inter-feature Pearson ρ = −0.92) — both encode geography; neither is informative *alone* but together they place every district on the California map.
+
+The target column (`MedHouseVal`) shows that only MedInc has substantial direct feature-target Pearson correlation (ρ = +0.69). Everything else is in the 0.02–0.14 range.
 
 ### Variance Inflation Factor (VIF)
 
@@ -702,7 +737,7 @@ flowchart TD
     JOINT -->|No| PROXY["⚠️ Proxy rider\nApparent importance borrowed\nfrom a correlated partner\nCheck which partner it mirrors"]
 ```
 
-**The high-VIF case — AveRooms in California Housing.** When we regress AveRooms on all 7 other features in the full 20,640-sample dataset, the auxiliary R² is approximately 0.86 (driven mainly by the ρ = 0.85 correlation with AveBedrms). That gives:
+**The high-VIF case — AveRooms in California Housing.** When we regress AveRooms on all 7 other features in the full 20,640-sample dataset, the auxiliary R² is approximately 0.86 (driven mainly by the inter-feature Pearson ρ = 0.85 with AveBedrms). That gives:
 
 $$\text{VIF}_{\text{AveRooms}} = \frac{1}{1 - 0.86} = \frac{1}{0.14} \approx 7.1$$
 
@@ -810,7 +845,7 @@ Checking all $\binom{p}{2}$ pairs for joint permutation importance is $O(p^2)$ �
 
 1. **M1/M3 divergence**: if a feature has low Univariate R² but high Permutation importance (Lat: 0.02 → 0.165), something in the full model is enabling it. The enabling partner is usually findable by checking correlation with the high-M3 feature.
 
-2. **Feature correlation check**: features that are moderately correlated with *each other* (0.3 < |ρ| < 0.8) but both weakly correlated with the *target* individually are prime candidates for joint testing. Lat/Long have ρ ≈ −0.90 with *each other* in California Housing — strong spatial coupling — but individually explain only 2% and 0% of target variance.
+2. **Feature correlation check**: features that are moderately correlated with *each other* (0.3 < |ρ| < 0.8) but both weakly correlated with the *target* individually are prime candidates for joint testing. Lat/Long have inter-feature Pearson ρ ≈ −0.90 in California Housing — strong spatial coupling — but individually explain only 2% and 0% of target variance.
 
 ---
 
@@ -842,7 +877,7 @@ Checking all $\binom{p}{2}$ pairs for joint permutation importance is $O(p^2)$ �
 
 3. Plot full correlation heatmap (features × features + target)
    └─ Look for feature-feature blocks (not just feature-target)
-   └─ AveRooms/AveBedrms block at ρ = 0.85 will be visible
+   └─ AveRooms/AveBedrms inter-feature Pearson block at ρ = 0.85 will be visible
 
 4. Compute VIF for every feature
    └─ from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -925,51 +960,6 @@ Population        ·             ·                     genuinely useless
 ÷ = Where ranking RISES from alone→joint: Lat/Lon (jointly irreplaceable)
 ÷ = Where ranking FALLS from alone→joint: AveRooms (signal shared with AveBedrms)
 ```
-
-### Feature Correlation Heatmap
-
-![Feature correlation heatmap — all 8 California Housing features](img/ch03-correlation-heatmap.png)
-
-The heatmap visualises the full 8×8 correlation matrix. Two off-diagonal hot-spots confirm the multicollinearity diagnosis:
-
-1. **AveRooms ↔ AveBedrms** (ρ = +0.85) — both measure dwelling size; the model must split the same signal between them, producing unstable individual weights.
-2. **Latitude ↔ Longitude** (ρ = −0.92) — both encode geography; neither is informative *alone* but together they place every district on the California map.
-
-The target column (`MedHouseVal`) shows that only MedInc has substantial direct correlation (ρ = +0.69). Everything else is in the 0.02–0.14 range.
-
----
-
-### Importance Comparison — Univariate R² vs Permutation (Top 6)
-
-![Univariate R² and permutation importance side-by-side bar chart for top-6 features](img/ch03-importance-comparison.png)
-
-The side-by-side bar chart makes the ranking reversal concrete:
-
-| Feature | Univariate R² | Permutation importance | Movement |
-|---------|--------------|----------------------|----------|
-| MedInc | 0.473 | 0.334 | Stays #1 under both criteria |
-| Latitude | 0.021 | 0.165 | ↑ Low alone → high in joint model |
-| Longitude | 0.002 | 0.133 | ↑ ~0 alone → high in joint model |
-| AveOccup | 0.001 | 0.058 | ↑ Tiny alone → modest in joint model |
-| HouseAge | 0.001 | 0.029 | Small but present in both |
-| AveRooms | 0.023 | 0.016 | ↓ Has standalone signal → absorbed by AveBedrms jointly |
-
-**The visual story:** MedInc's bar shrinks in the right panel (its univariate dominance partly reflects correlation with other variables). Latitude and Longitude bars grow dramatically (their joint geographic segmentation only appears when both are in the model simultaneously).
-
----
-
-### Permutation Importance — The Shuffle Loop
-
-![Permutation importance: conceptual diagram of the shuffle loop](img/ch03-permutation-loop.png)
-
-The diagram shows four frames:
-
-1. **Step 0 — Baseline**: test set, model predictions, MAE = \$55k.
-2. **Step 1 — Shuffle one feature** (e.g., MedInc column scrambled): model predictions change.
-3. **Step 2 — Recompute MAE**: rises to \$73k. Δ MAE = +\$18k → permutation importance = 0.334.
-4. **Step 3 — Repeat for each feature, average over 30 shuffles**: final ranking.
-
-Key annotation: *"The model is never retrained. Only the test-set column is shuffled. This measures how badly the model's existing weights rely on that feature."*
 
 ## 6 · Hyperparameter Dial
 

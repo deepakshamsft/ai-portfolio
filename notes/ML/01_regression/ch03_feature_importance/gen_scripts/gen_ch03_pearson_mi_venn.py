@@ -61,9 +61,9 @@ def make_animation():
     ax.set_title("Pearson vs Mutual Information — The Venn Intuition",
                  color=TEXT_CLR, fontsize=12, fontweight="bold", pad=12)
 
-    # Starting positions (far apart) and final positions (overlapping)
-    cx1_start, cx1_end = 0.22, 0.38
-    cx2_start, cx2_end = 0.78, 0.62
+    # Starting positions (partially overlapping) and final positions (more overlap)
+    cx1_start, cx1_end = 0.30, 0.38
+    cx2_start, cx2_end = 0.70, 0.62
 
     # Draw circles (will update center in animation)
     circ_x = Circle((cx1_start, Y_POS), RADIUS, color=CLR_X, alpha=0.35,

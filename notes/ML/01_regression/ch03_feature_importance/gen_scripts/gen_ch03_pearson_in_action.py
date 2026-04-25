@@ -67,8 +67,7 @@ def make_animation():
         ax.spines["right"].set_visible(False)
         ax.tick_params(colors=TEXT_CLR, labelsize=8)
         ax.set_xlabel(xlabel, color=TEXT_CLR, fontsize=9)
-        ax.set_ylabel("House Value (×$100k)" if feat == "MedInc" else "",
-                      color=TEXT_CLR, fontsize=9)
+        ax.set_ylabel("House Value (×$100k)", color=TEXT_CLR, fontsize=9)
 
         x_data = df[feat]
         y_data = df[target]
