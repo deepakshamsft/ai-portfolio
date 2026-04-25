@@ -148,7 +148,7 @@ When a feature has a heavy right tail (long positive skew), standardisation alon
 
 $$x' = \log(x + 1)$$
 
-(The `+1` guards against `log(0)` when values can be zero.)
+(The `+1` guards against `log(0)` when values can be zero. This transformation is often called **log1p** — numpy's `np.log1p(x)` implements exactly this formula and is numerically more stable than computing `log(x + 1)` directly.)
 
 **Box-Cox generalises this:**
 
