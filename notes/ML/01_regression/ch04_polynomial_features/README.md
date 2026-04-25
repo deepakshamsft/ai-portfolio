@@ -648,19 +648,17 @@ The marginal return on adding more interaction terms beyond the two domain-infor
 **MAE progression — all chapters:**
 
 ```mermaid
-block-beta
-  columns 5
-  block:CH1["Ch.1\n$70k MAE\n(1 feature)"]:1
-  block:CH2["Ch.2\n$55k MAE\n(8 features)"]:1
-  block:CH3["Ch.3\n$55k MAE\n(feature audit)"]:1
-  block:CH4["Ch.4\n$48k MAE\n← HERE"]:1
-  block:CH5["Ch.5\n$38k ✅\n(regularized)"]:1
+flowchart LR
+    CH1["Ch.1\n$70k MAE\n1 feature"] -->|"+7 features"| CH2["Ch.2\n$55k MAE\n8 features"]
+    CH2 -->|"+feature audit"| CH3["Ch.3\n$55k MAE\n✅ Interpretability"]
+    CH3 -->|"+MedInc² + Lat×Inc"| CH4["Ch.4\n$48k MAE\n← HERE"]
+    CH4 -->|"+regularization"| CH5["Ch.5\n$38k ✅\nGoal achieved"]
 
-  style CH1 fill:#b91c1c,color:#ffffff,stroke:#e2e8f0
-  style CH2 fill:#b45309,color:#ffffff,stroke:#e2e8f0
-  style CH3 fill:#b45309,color:#ffffff,stroke:#e2e8f0
-  style CH4 fill:#1e3a8a,color:#ffffff,stroke:#e2e8f0
-  style CH5 fill:#15803d,color:#ffffff,stroke:#e2e8f0
+    style CH1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH4 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH5 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
 > ⚡ **Constraint #1 status:** $48k — only $8k from the $40k target. Ch.5 regularization closes the final gap by suppressing the noisy polynomial features, leaving only the signal-carrying ones.

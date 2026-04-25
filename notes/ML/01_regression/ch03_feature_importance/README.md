@@ -85,17 +85,28 @@ Three questions, three tools. Each method answers a different version of "how im
 | **Standardised weights** | Given all other features are in the model, how much does this feature still add? | Contributes unique signal *above and beyond* everything else |
 | **Permutation importance** | If we scramble this feature's values (killing its signal), how badly does accuracy drop? | The model *relies* on this feature and can't compensate with others |
 
-The three methods often give different rankings for the same dataset. That divergence — not the numbers themselves — is the diagnostic story. A feature that ranks high on all three is unambiguously important. A feature that is high on Method 1 but low on Method 3 is sharing signal with correlated features. A feature low on Method 1 but high on Methods 2 and 3 is only irreplaceable in combination with something else.
+The three methods often give different rankings for the same dataset. That divergence — not the numbers themselves — is the diagnostic story. **Use this convergence table to interpret any feature:**
+
+| Univariate R² | Methods 2+3 (Joint) | Interpretation | California Housing Example |
+|---|---|---|---|
+| **High** | **High** | ✅ Strong, independent, irreplaceable | MedInc — dominates alone *and* in joint model |
+| **High** | **Low** | ⚠️ Signal shared with correlated features | AveRooms — standalone power absorbed by AveBedrms |
+| **Low** | **High** | 🔵 Jointly irreplaceable — only works in combination | Lat/Lon — useless alone, critical together for geography |
+| **Low** | **Low** | ❌ Genuinely uninformative | Population — contributes ~$0 regardless of method |
+
+Armed with this framework, let's walk through each method:
 
 ### Feature Scaling
 
 Before any importance ranking is possible, all features must be on a common scale. Raw weights from an unstandardized model are not comparable — a weight of 200 for `Population` (range 3–35,682) looks enormous next to a weight of 0.4 for `MedInc` (range 0.5–15), but that gap reflects the input scale, not the feature's importance.
 
+Think of this like comparing heights measured in millimeters vs kilometers — a 1.8m person becomes 1,800 mm but 0.0018 km. The number changes dramatically, but the person stays exactly the same height. Similarly, a feature's raw weight depends entirely on what units you happened to choose for measurement. StandardScaler fixes this by converting every feature to the same unit: **"one typical swing in that feature across the dataset."** After standardization, a coefficient of 0.8 on income and 0.1 on population means income has genuinely 8× the effect per standard deviation of change — a fair comparison.
+
 **Standardization (Z-score normalization):**
 
 $$x_j^{\text{std}} = \frac{x_j - \mu_j}{\sigma_j}$$
 
-After standardization every feature has mean = 0 and std = 1, so weight magnitudes can be compared directly.
+where $x_j^{\text{std}}$ is the standardized feature value, $x_j$ is the original feature value, $\mu_j$ is the mean of feature $j$ across all samples, and $\sigma_j$ is the standard deviation of feature $j$. After standardization every feature has mean = 0 and std = 1, so weight magnitudes can be compared directly.
 
 ```
 BEFORE scaling:              AFTER scaling:
@@ -114,17 +125,40 @@ Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
 
 > ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
 
+#### Understanding Positive Skew — Why Some Features Need Log Transform
+
+**What is skew?** Skew measures distributional asymmetry. In a symmetric distribution (like a normal curve), the mean equals the median. **Positive skew** means a long right tail — most values cluster near the low end, but a few extreme values stretch far to the right, pulling the mean above the median.
+
+```
+Symmetric distribution:       Positively skewed distribution:
+    ●●●●●●●                        ●●●●●●
+  ●●●●●●●●●                      ●●●●●●●●
+●●●●●●●●●●●                    ●●●●●●●●●●              ●●
+   ↑                              ↑       ↑           ↑
+ mean = median                   median  mean    long right tail
+```
+
+**Why skew breaks StandardScaler:** When you standardize a heavily skewed feature, the few extreme values inflate the standard deviation (σ), compressing 95% of the data into a narrow band near zero while placing outlier districts at +8σ or +12σ. This creates an unbalanced feature where most gradient updates are driven by a handful of extreme cases. 
+
+**Example:** `Population` ranges from 3 to 35,682. After standardization, a typical district (Population = 1,500) becomes −0.1σ, while the extreme district (Population = 35,682) becomes +12σ. The model's weight updates are dominated by that one extreme case, even though it's not representative.
+
 #### Log Transform & Box-Cox
 
 When a feature has a heavy right tail (long positive skew), standardisation alone may not help — the largest values still dominate. Log-transforming first compresses the tail:
 
 $$x' = \log(x + 1)$$
 
-(The `+1` guards against `log(0)` when values can be zero.)
+(The `+1` guards against `log(0)` when values can be zero. This transformation is often called **log1p** — numpy's `np.log1p(x)` implements exactly this formula and is numerically more stable than computing `log(x + 1)` directly.)
 
-**Box-Cox generalises this:**
+**Box-Cox generalises this** with a piecewise transformation:
 
 $$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \\ \log x & \lambda = 0 \end{cases}$$
+
+This formula has **two branches** depending on the value of λ:
+- **When λ ≠ 0**: use the formula $(x^\lambda - 1) / \lambda$
+- **When λ = 0**: use $\log x$ (because dividing by zero is undefined)
+
+where $x'(\lambda)$ is the transformed feature value, $x$ is the original feature value, and $\lambda$ is a transformation parameter that controls the strength of the transformation. When $\lambda = 1$ (no transformation needed), $x'(\lambda) = x - 1$. When $\lambda = 0$, it reduces to the log transform. When $\lambda = 0.5$, it's a square root transform.
 
 `sklearn.preprocessing.PowerTransformer(method='box-cox')` finds the optimal λ by maximum likelihood.
 
@@ -156,7 +190,7 @@ Filter methods rank features by their statistical relationship to the target —
 
 $$\rho(x_j, y) = \frac{\sum(x_{ij}-\bar{x}_j)(y_i - \bar{y})}{\sqrt{\sum(x_{ij}-\bar{x}_j)^2 \cdot \sum(y_i-\bar{y})^2}}$$
 
-Range: [−1, 1]. Rule of thumb: |ρ| < 0.05 → likely noise; |ρ| > 0.3 → worth including; |ρ| > 0.7 → strong predictor.
+where $\rho$ (rho) is the correlation coefficient, $x_{ij}$ is the value of feature $j$ for sample $i$, $\bar{x}_j$ is the mean of feature $j$, $y_i$ is the target value for sample $i$, and $\bar{y}$ is the mean of the target. Range: [−1, 1]. Rule of thumb: |ρ| < 0.05 → likely noise; |ρ| > 0.3 → worth including; |ρ| > 0.7 → strong predictor.
 
 > ⚠️ **Pearson only captures linear associations.** A U-shaped relationship (e.g., performance vs experience — improves then plateaus) can have ρ ≈ 0 even when x is highly informative.
 
@@ -178,7 +212,7 @@ Ranks both x and y, then computes Pearson on the ranks. Captures non-linear but 
 
 $$\rho_s = 1 - \frac{6\,\sum d_i^2}{n(n^2-1)}$$
 
-where $d_i$ is the rank difference between $x_i$ and $y_i$.
+where $\rho_s$ is the Spearman correlation coefficient, $d_i$ is the rank difference between $x_i$ and $y_i$ (if $x_i$ is the 3rd largest value and $y_i$ is the 5th largest, then $d_i = 3 - 5 = -2$), and $n$ is the number of samples.
 
 > ⚠️ **Use Spearman when the scatter plot shows a curve rather than a line** — e.g., `MedInc` vs `MedHouseVal` is roughly linear (Pearson fine), but `Population` vs price is non-linear (Spearman safer). Both are available via `scipy.stats.spearmanr`.
 
@@ -187,6 +221,8 @@ where $d_i$ is the rank difference between $x_i$ and $y_i$.
 Mutual information measures *any* statistical dependence, not just linear:
 
 $$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)\,p(y)}$$
+
+where $I(X; Y)$ is the mutual information between features $X$ and target $Y$, $p(x,y)$ is the joint probability of observing values $x$ and $y$ together, $p(x)$ is the marginal probability of $x$, and $p(y)$ is the marginal probability of $y$. Higher values indicate stronger dependence between the feature and target.
 
 > 📖 For the full information-theoretic derivation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
 
@@ -203,9 +239,13 @@ Fit each feature against the target in isolation:
 
 $$\hat{y} = w_j x_j + b, \quad R^2_j = 1 - \frac{\sum(\hat{y}_i - y_i)^2}{\sum(\bar{y} - y_i)^2}$$
 
+where $\hat{y}$ is the predicted target value, $w_j$ is the weight for feature $j$, $b$ is the intercept, $R^2_j$ is the coefficient of determination for feature $j$ alone, $y_i$ is the actual target value for sample $i$, and $\bar{y}$ is the mean of all target values. The numerator is the sum of squared residuals (prediction errors); the denominator is the total variance in the target.
+
 **The shortcut.** For linear regression, this reduces to the Pearson correlation squared:
 
 $$R^2_j = \rho(x_j,\, y)^2 = \left(\frac{\text{Cov}(x_j, y)}{\sigma_{x_j} \sigma_y}\right)^2$$
+
+where $\text{Cov}(x_j, y)$ is the covariance between feature $j$ and target $y$, $\sigma_{x_j}$ is the standard deviation of feature $j$, and $\sigma_y$ is the standard deviation of the target.
 
 #### What high vs low R² looks like — signal in one glance
 
@@ -361,11 +401,16 @@ The lesson:
 
 ### Method 3 — Permutation Importance
 
-The most reliable and model-agnostic method: after fitting, **randomly shuffle one feature's values** across all test samples (breaking its relationship with the target), make predictions, and measure how much test MAE rises.
+The most reliable and model-agnostic method: after fitting, **randomly shuffle one feature's values** across all test samples (breaking its relationship with the target), make predictions, and measure how much test MAE rises. Crucially, the model is never retrained — you're measuring how badly the model's existing weights are handicapped when a feature's signal is destroyed. This makes it a pure test of the model's *reliance* on each feature.
 
-$$\pi_j = \text{MAE}_{\text{shuffled } x_j} - \text{MAE}_{\text{original}}$$
+$$\pi_j = \text{MAE}_\text{perm} - \text{MAE}_\text{orig}$$
 
-A large rise → the feature was carrying real signal. Near-zero rise → the model barely used it (or another feature duplicated it).
+where:
+- $\pi_j$ is the permutation importance of feature $j$
+- $\text{MAE}_\text{perm}$ is the mean absolute error after randomly reordering (permuting) the values of feature $j$ across all test samples while keeping all other features unchanged
+- $\text{MAE}_\text{orig}$ is the baseline error with all features intact
+
+A large positive value → the feature was carrying real signal. Near-zero → the model barely used it (or another feature duplicated it).
 
 **California Housing results:**
 
@@ -438,11 +483,11 @@ Population       ·  0.00                 ·   0.01                 ·         $
 
 ### Variance Threshold — Dropping Near-Constant Features
 
-Before testing for multicollinearity, drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
+A feature that barely changes gives the model nothing to latch onto — it's like trying to predict house prices using a column that says "2.00" for every district. Before testing for multicollinearity, drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
 
 $$\text{Var}(x_j) = \frac{1}{n}\sum_{i=1}^{n}(x_{ij} - \bar{x}_j)^2$$
 
-Set a threshold τ (e.g., 0.01 after standardisation); drop any feature with Var < τ.
+where $\text{Var}(x_j)$ is the variance of feature $j$, $n$ is the number of samples, $x_{ij}$ is the value of feature $j$ for sample $i$, and $\bar{x}_j$ is the mean of feature $j$ across all samples. Set a threshold τ (tau, e.g., 0.01 after standardisation); drop any feature with Var < τ.
 
 `sklearn.feature_selection.VarianceThreshold(threshold=0.01)`
 
@@ -487,7 +532,7 @@ VIF measures how much a feature's weight blows up due to correlation with other 
 
 $$\text{VIF}_j = \frac{1}{1 - R^2_j}$$
 
-where $R^2_j$ is the R² from regressing feature $j$ on all the *other* features (not the target).
+where $\text{VIF}_j$ is the Variance Inflation Factor for feature $j$, and $R^2_j$ is the coefficient of determination obtained by regressing feature $j$ (as the target) on all the *other* features (as predictors) — **not** the original target $y$. This auxiliary R² measures how well feature $j$ can be predicted from the other features: high $R^2_j$ means strong collinearity.
 
 - $\text{VIF} = 1$: feature $j$ is uncorrelated with all other features — weight is perfectly stable
 - $\text{VIF} = 5$: standard error of $w_j$ is $\sqrt{5} \approx 2.2\times$ larger than it would be without collinearity
