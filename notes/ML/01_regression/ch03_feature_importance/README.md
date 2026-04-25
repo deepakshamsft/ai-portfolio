@@ -1,4 +1,4 @@
-﻿# Ch.3 — Feature Importance, Scaling & Multicollinearity
+# Ch.3 — Feature Importance, Scaling & Multicollinearity
 
 > **The story.** In **1885** Francis Galton measured the heights of 928 parents and children and asked a question that no one before him had properly quantified: "Which part of a parent's height actually predicts the child's height, and which part is just noise?" His answer — correlation — was the first formal tool for ranking how much a single variable contributes to an outcome. Pearson formalised it in **1895**. Sixty years later, Hoerl and Kennard (1970) rediscovered what happens when two predictors are *too* correlated: the weights blow up and become uninterpretable, even when predictions stay fine. Their fix — Ridge regression — lives in Ch.5. This chapter is where you learn to *see* the problem before you reach for the fix.
 >
@@ -100,11 +100,15 @@ Some features in our dataset measure overlapping things. `AveRooms` and `AveBedr
 
 This is the core reason the rankings diverge. The full diagnostic tool for measuring how severe this overlap is — the Variance Inflation Factor (VIF) — is covered after all three methods, once you have concrete numbers to reason about.
 
-Let’s walk through each method:
+---
 
-### Feature-Target Correlation — Linear vs Non-Linear
+### Filter Methods — Feature-Target Relationship Assessment
 
-Before fitting any model, it helps to understand *how* each feature relates to the target. Two complementary tools cover the space: **Pearson correlation** for straight-line relationships, and **Mutual Information** for any shape. Together they give you a reliable signal-vs-noise ranking before a single model is trained.
+Before diving into the three model-dependent methods (Methods 1-3), let's establish the foundation. **Filter methods** assess features using only their statistical relationship with the target — no model is trained. Two complementary tools cover the space: **Pearson correlation** for straight-line relationships, and **Mutual Information** for any shape.
+
+These metrics are the building blocks for Method 1 (Univariate R²) and provide the "first pass" signal check that guides all subsequent feature selection decisions.
+
+> 🔍 **Scope note:** This section covers **relationship filters** — metrics that measure feature→target association. **Quality filters** like Variance Threshold (which drop degenerate features regardless of their relationship to the target) are covered later alongside multicollinearity diagnostics, since both address feature quality and redundancy rather than predictive signal.
 
 #### Pearson Correlation — The Ruler
 
@@ -188,7 +192,7 @@ MI sums these deviations across the entire surface — so any shape of relations
 
 *The animation above shows the MI calculation as a weighted sum over the scatter plot. Each cell is shaded by its log-ratio $\log(p(x,y) / (p(x)p(y)))$ — blue where the relationship concentrates, grey where it matches independence. The final MI score is the volume under this signed surface, weighted by the actual joint density.*
 
-### Building the MI Formula — A Toy Worked Example
+#### Building the MI Formula — A Toy Worked Example
 
 Like Pearson's wind-speed example, let's make MI concrete with a small dataset. Suppose you're predicting house prices ($y$) based on neighbourhood walkability score ($x$), and you observe 8 districts:
 
@@ -207,11 +211,13 @@ For simplicity, bin the features into two bins each: Low (≤ 5) and High (> 5) 
 
 **Step 1 — Count occurrences in each cell:**
 
-|  | Price Low | Price High | Total (marginal $p(x)$) |
+|  | Price Low | Price High | Row Total |
 |---|---|---|---|
 | **Walk Low** | 4 | 0 | 4 |
 | **Walk High** | 0 | 4 | 4 |
-| **Total (marginal $p(y)$)** | 4 | 4 | 8 |
+| **Column Total** | 4 | 4 | 8 |
+
+*(Row totals give the marginal p(x); column totals give the marginal p(y))*
 
 **Step 2 — Compute probabilities:**
 
@@ -360,8 +366,8 @@ The key rows are Latitude and Longitude: ρ² ≈ 0 and ρ² ≈ 0 (they explain
 The toy example above used discrete bins to make the calculation transparent. For continuous features, sklearn's `mutual_info_regression` uses a **k-nearest-neighbors density estimator**:
 
 1. For each point $(x_i, y_i)$, find its $k$ nearest neighbors in the 2-D $(x, y)$ space
-2. Measure the distance $\epsilon_i$ to the $k$-th neighbor — this estimates the local density $p(x_i, y_i)$
-3. Repeat for the marginal spaces: find the $k$-th neighbor distance in the $x$-only space (estimates $p(x_i)$) and $y$-only space (estimates $p(y_i)$)
+2. Measure the distance $\epsilon_i$ to the $k$-th neighbor — this estimates the local density at that point
+3. Repeat for the marginal spaces: find the $k$-th neighbor distance in the $x$-only space and $y$-only space separately
 4. Compute the log-ratio $\log(p(x_i, y_i) / (p(x_i) p(y_i)))$ using the ratio of distances
 5. Average over all points
 
@@ -404,13 +410,7 @@ mi_scores = mutual_info_regression(X_train_s, y_train,
 
 > 📖 For the information-theoretic foundation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
 
----
-
-### Filter Methods — Pre-Training Feature Selection
-
-Filter methods rank features by their statistical relationship to the target — no model is trained. Use them to prune large feature sets before applying a model. Pearson and MI are the two complementary signals: Pearson for straight-line relationships, MI for anything else.
-
-#### Decision Rule — Pearson vs MI
+#### When to Use Which: Decision Framework
 
 | Situation | Use |
 |---|---|
@@ -423,15 +423,19 @@ Filter methods rank features by their statistical relationship to the target —
 
 For California Housing: run both. Where they agree, the ranking is reliable. Where MI is substantially higher than ρ², the feature has non-linear signal that a linear model will underuse — a cue to engineer a transformation or switch to a tree-based model.
 
-> 📖 **Embedded selection (bridge to Ch.5):** When you are unsure which features to drop, Lasso is the principled alternative to filter methods — selection happens *during* training, not before it. The L1 penalty drives weak-signal coefficients exactly to zero. Full treatment in [Ch.5 — Regularization](../ch05_regularization).
+**Summary — Filter Methods in Context:**
 
 > 💡 **Connection to Method 1:** Pearson correlation is the direct mathematical input to Univariate R². For single-feature OLS, $R^2_j = \rho(x_j, y)^2$ exactly. Filter methods give you the raw scores; Method 1 reframes them as fraction of target variance explained.
+
+> 📖 **Embedded selection (bridge to Ch.5):** When you are unsure which features to drop, Lasso is the principled alternative to filter methods — selection happens *during* training, not before it. The L1 penalty drives weak-signal coefficients exactly to zero. Full treatment in [Ch.5 — Regularization](../ch05_regularization).
 
 ---
 
 ### Method 1 — Univariate R²
 
 > **How ŷ is determined here:** A **separate, single-feature model** is fitted from scratch for each feature — 8 features means 8 independent mini-models, each with only one predictor. The ŷ from a MedInc model has never seen Latitude; the ŷ from a Latitude model has never seen MedInc. This is what makes the R² "univariate" — every score is measured in pure isolation.
+
+As we established in **Filter Methods** above, Pearson ρ² equals Univariate R² for single-feature linear regression. This is not a coincidence — they measure the same thing through different lenses.
 
 Fit each feature against the target in isolation:
 
@@ -766,6 +770,8 @@ The side-by-side bar chart makes the ranking reversal concrete:
 ---
 
 ### Variance Threshold — Dropping Near-Constant Features
+
+> ⚙️ **Why this comes after Methods 1-3:** Unlike Pearson/MI (which measure feature→target relationships), Variance Threshold is a **quality filter** — it checks whether a feature varies at all, independent of the target. Group it with multicollinearity diagnostics because both address feature quality and redundancy rather than predictive signal.
 
 A feature that barely changes gives the model nothing to latch onto — it's like trying to predict house prices using a column that says "2.00" for every district. Before testing for multicollinearity, drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
 
