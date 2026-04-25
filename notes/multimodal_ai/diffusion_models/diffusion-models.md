@@ -209,7 +209,7 @@ for i, img in enumerate(results.images):
 
 ---
 
-## 5 · The Key Diagrams
+## 6 · The Key Diagrams
 
 ### Forward and Reverse Processes
 
@@ -257,7 +257,7 @@ Input: (x_t, t) ← noisy image + timestep embedding
 
 ---
 
-## 6 · What Changes at Scale
+## 7 · What Changes at Scale
 
 | Aspect | MNIST DDPM (this chapter) | Production (Stable Diffusion) |
 |--------|--------------------------|-------------------------------|
@@ -273,7 +273,7 @@ Input: (x_t, t) ← noisy image + timestep embedding
 
 ---
 
-## 7 · Common Misconceptions
+## 8 · Common Misconceptions
 
 **"The U-Net predicts the clean image $x_0$"**
 It predicts the noise $\boldsymbol{\epsilon}$. You can reparameterise to predict $x_0$ (x-prediction parameterisation), but the standard DDPM paper and most implementations use noise prediction. The two are mathematically equivalent given $x_t$, but noise prediction tends to train more stably.
@@ -289,7 +289,7 @@ GANs are faster at inference but harder to train (mode collapse, training instab
 
 ---
 
-## 8 · Interview Checklist
+## 9 · Interview Checklist
 
 ### Must Know
 - What does the U-Net predict in DDPM — the image or the noise?
@@ -311,7 +311,7 @@ GANs are faster at inference but harder to train (mode collapse, training instab
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 10 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #1 (Quality)**: ❌ Cannot generate images
@@ -341,7 +341,7 @@ GANs are faster at inference but harder to train (mode collapse, training instab
 
 ---
 
-## 9 · What's Next
+## 11 · What's Next
 
 → **[GuidanceConditioning.md](../guidance_conditioning/guidance-conditioning.md)** — PixelSmith v3 generates unconditional MNIST images. PixelSmith v4 will generate images from text prompts. The bridge is **guidance**: conditioning the denoising process on an additional signal (a text embedding from CLIP) so that the final image reflects your prompt. This requires classifier-free guidance (CFG) — the mechanism that makes "guidance scale 7.5" produce sharper, more prompt-aligned images than "guidance scale 1.0".
 

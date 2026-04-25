@@ -80,7 +80,7 @@ flowchart LR
 
 ---
 
-## · The Metrics Journey — How Our Numbers Evolved
+## 1 · The Metrics Journey — How Our Numbers Evolved
 
 > This is the story the numbers alone don't tell. Follow SmartVal AI from Ch.1 to Ch.6 and watch how every metric moved — not just MAE.
 
@@ -124,7 +124,7 @@ flowchart LR
 
 ---
 
-## 1 · Core Idea — Error-Based Metrics
+## 2 · Core Idea — Error-Based Metrics
 
 Each metric answers a different question. No single metric tells the full story.
 
@@ -235,7 +235,7 @@ flowchart TD
 
 ---
 
-## 2 · Goodness-of-Fit: R², Adjusted R², AIC/BIC
+## 3 · Goodness-of-Fit: R², Adjusted R², AIC/BIC
 
 ### When R² Lies
 
@@ -259,7 +259,7 @@ $$\text{BIC} = n \cdot \ln(\text{MSE}) + p \cdot \ln(n)$$
 
 Both penalize complexity. BIC penalizes more strongly (prefers simpler models). **Lower is better.**
 
-### 2.1 · AIC in Practice: Ridge vs Polynomial — The Penalty in Numbers
+### 3.1 · AIC in Practice: Ridge vs Polynomial — The Penalty in Numbers
 
 Use AIC and BIC to compare the two best models built so far:
 
@@ -323,7 +323,7 @@ overfitting.
 
 ---
 
-## 3 · Residual Diagnostics
+## 4 · Residual Diagnostics
 
 Residuals $e_i = y_i - \hat{y}_i$ are the fingerprints of model failure. Plotting them reveals patterns that aggregate metrics hide.
 
@@ -376,7 +376,7 @@ Points with Cook's distance > $4/n$ are influential outliers. Removing them migh
 
 ---
 
-## 4 · Learning Curves
+## 5 · Learning Curves
 
 Plot train and validation MAE as a function of **training set size**:
 
@@ -413,7 +413,7 @@ MAE
 
 ---
 
-## 5 · Cross-Validation for Regression
+## 6 · Cross-Validation for Regression
 
 A single train-test split is unreliable. **K-fold cross-validation** uses every sample for both training and testing:
 
@@ -441,7 +441,7 @@ print(f"CV MAE: ${cv_maes.mean():,.0f} ± ${cv_maes.std():,.0f}")
 
 **Key point:** `scoring='neg_mean_absolute_error'` (negative because sklearn maximizes by convention).
 
-### 5.1 · A Hand-Worked 4-Fold Example
+### 6.1 · A Hand-Worked 4-Fold Example
 
 Before trusting the sklearn output, work through the mechanics by hand on a California Housing dataset.
 
@@ -575,7 +575,7 @@ $$\sigma_{\text{MAE}} = \sqrt{\frac{(32-22)^2+(22-22)^2+(20-22)^2+(15-22)^2}{4}}
 
 **The California Housing equivalent** (from sklearn cross\_val\_score on the full Ridge pipeline):
 ```python
-# Actual output from 5-fold CV — §9 Code Skeleton
+# Actual output from 5-fold CV — §10 Code Skeleton
 CV MAE: $38,214 ± $1,843
   Fold 1: $37,012
   Fold 2: $40,118
@@ -591,7 +591,7 @@ $K = n$ — each sample gets its own fold. Gives the lowest bias but highest var
 
 ---
 
-## 6 · When Metrics Disagree
+## 7 · When Metrics Disagree
 
 MAE says Model A wins. RMSE says Model B wins. Who's right?
 
@@ -619,7 +619,7 @@ flowchart TD
 
 ---
 
-## 7 · Prediction Intervals and Confidence Bands
+## 8 · Prediction Intervals and Confidence Bands
 
 A point prediction of "$380k" is incomplete. Stakeholders need: **"$380k ± $45k with 95% confidence."**
 
@@ -650,7 +650,7 @@ For 95% confidence: $z_{0.975} = 1.96$, so interval = $\hat{y} \pm 1.96 \times \
 
 **California Housing:** RMSE ≈ $50k → 95% interval ≈ ±$98k (wide! Reflects model uncertainty on extreme values).
 
-### 7.1 · Three SmartVal Districts — What the Interval Means
+### 8.1 · Three SmartVal Districts — What the Interval Means
 
 The Ridge model (Ch.5, RMSE = \$52k) is live. SmartVal's CTO wants a confidence
 number to display beneath every automated valuation. Here are three real districts, using the
@@ -667,7 +667,7 @@ $$\hat{y} \pm 1.96 \times \$52\text{k} = \hat{y} \pm \$102\text{k} \quad \text{(
 > **Why is the width always \$204k?** The formula $\hat{y} \pm 1.96 \cdot \text{RMSE}$ adds
 > a **fixed** uncertainty of ±\$102k regardless of the prediction. This is the critical
 > weakness of the residual-based interval: it assumes errors are homoscedastic (uniform across
-> the prediction range). In practice, the Q-Q plot (§3, `img/ch06-qq-plot.png`) shows that
+> the prediction range). In practice, the Q-Q plot (§4, `img/ch06-qq-plot.png`) shows that
 > our Ridge model's errors are **not** uniform — cheap homes have tighter errors and expensive
 > homes have wider ones. The \$204k band is too wide for District 3 (conservative, safe to
 > publish) and too narrow for District 2 (the interval may not actually contain the true value
@@ -696,7 +696,7 @@ range on the validation set."*
 
 ---
 
-## 8 · What Can Go Wrong
+## 9 · What Can Go Wrong
 
 - **Reporting only MAE without residual analysis.** $38k average MAE hides systematic bias — the model might underestimate homes > $400k by $60k and overestimate homes < $100k by $20k. The average is fine but the model is structurally wrong. **Fix:** Always plot residuals vs predicted values.
 
@@ -726,7 +726,7 @@ flowchart TD
 
 ---
 
-## 9 · Code Skeleton
+## 10 · Code Skeleton
 
 ```python
 import numpy as np
@@ -917,20 +917,20 @@ print(f"\nBootstrap 95% PI for test district 0: [${lower:,.0f}, ${upper:,.0f}]")
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 11 · Progress Check — What We Can Solve Now
 
 **Unlocked with this chapter:**
 
 | Capability | What you can do | New this chapter |
 |------------|----------------|-----------------|
-| **Multiple metrics** | Report MAE, RMSE, MAPE, R², Adj.R² from one pipeline | §1 |
-| **AIC / BIC** | Formally compare Ridge vs Polynomial; compute the 72-unit AIC complexity penalty | §2.1 (new) |
-| **Residual diagnostics** | Detect systematic bias vs ŷ; check normality with Q-Q plot; flag influential points | §3 + `img/ch06-residuals-vs-predicted.png`, `img/ch06-qq-plot.png` |
-| **Learning curves** | Diagnose high-bias vs high-variance; confirm regularization converged | §4 + `img/ch06-learning-curve.png` |
-| **Hand-worked CV** | Trace exactly how each fold retrains and what its MAE is | §5.1 (new) |
-| **Cross-validation** | Report \$38k ± \$2k instead of one lucky \$38k | §5 |
-| **Prediction intervals** | Quote "\$320k ± \$102k (95%)" for any valuation; use bootstrap for luxury tier | §7, §7.1 (new), §9 code |
-| **Metrics evolution** | Read the SmartVal story Ch.1→Ch.6 in one chart | §· + `img/ch06-metrics-journey.png` |
+| **Multiple metrics** | Report MAE, RMSE, MAPE, R², Adj.R² from one pipeline | §2 |
+| **AIC / BIC** | Formally compare Ridge vs Polynomial; compute the 72-unit AIC complexity penalty | §3.1 (new) |
+| **Residual diagnostics** | Detect systematic bias vs ŷ; check normality with Q-Q plot; flag influential points | §4 + `img/ch06-residuals-vs-predicted.png`, `img/ch06-qq-plot.png` |
+| **Learning curves** | Diagnose high-bias vs high-variance; confirm regularization converged | §5 + `img/ch06-learning-curve.png` |
+| **Hand-worked CV** | Trace exactly how each fold retrains and what its MAE is | §6.1 (new) |
+| **Cross-validation** | Report \$38k ± \$2k instead of one lucky \$38k | §6 |
+| **Prediction intervals** | Quote "\$320k ± \$102k (95%)" for any valuation; use bootstrap for luxury tier | §8, §8.1 (new), §10 code |
+| **Metrics evolution** | Read the SmartVal story Ch.1→Ch.6 in one chart | §1 + `img/ch06-metrics-journey.png` |
 
 **Progress toward SmartVal constraints:**
 
@@ -967,7 +967,7 @@ flowchart LR
 
 ---
 
-## 11 · Bridge to Chapter 7
+## 12 · Bridge to Chapter 7
 
 Ch.6 built the complete evaluation framework SmartVal needs to trust its model. The \$38k MAE
 is real (5-fold CV std ≈ ±\$2k), the residuals show a known structural blind spot (homes
@@ -976,7 +976,7 @@ prediction interval. But one question remains open: *are the hyperparameters opt
 
 Ridge uses $\alpha = 1.0$ (chosen by intuition in Ch.5) and the polynomial degree was set to 2.
 We don't know whether $\alpha = 0.1$ or $\alpha = 10$ would push the CV MAE below \$36k — and
-the AIC calculation from §2.1 tells us that a genuine RMSE improvement of even \$4k is worth
+the AIC calculation from §3.1 tells us that a genuine RMSE improvement of even \$4k is worth
 the complexity cost. Ch.7 introduces **systematic hyperparameter tuning** — Grid Search,
 Random Search, and Bayesian optimization via Optuna — to find the combination of
 regularization strength, polynomial degree, and model type that minimises cross-validated MAE

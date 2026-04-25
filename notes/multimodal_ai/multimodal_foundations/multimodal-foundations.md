@@ -244,7 +244,7 @@ Mel spectrograms resemble images: 2-D, spatial patterns, smooth gradients. Many 
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 9 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #6 (Versatility)**: ❌ No way to process image/audio/video files
@@ -272,7 +272,7 @@ Mel spectrograms resemble images: 2-D, spatial patterns, smooth gradients. Many 
 
 ---
 
-## 9 · What's Next
+## 10 · What's Next
 
 → **[VisionTransformers.md](../vision_transformers/vision-transformers.md)** — now that you have a `(3, H, W)` image tensor, the next question is: how does the model process it? A ViT splits the image into patches and applies self-attention over the patch sequence. This is the foundational architecture behind CLIP's image encoder, Stable Diffusion's U-Net, and every multimodal LLM's visual frontend.
 

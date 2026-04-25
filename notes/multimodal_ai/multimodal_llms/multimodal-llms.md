@@ -186,7 +186,7 @@ print(result)
 
 ---
 
-## 5 · The Key Diagrams
+## 6 · The Key Diagrams
 
 ```
 LLaVA Architecture:
@@ -225,7 +225,7 @@ BLIP-2 Architecture:
  text response
 ```
 
-## 6 · What Changes at Scale
+## 7 · What Changes at Scale
 
 | Model | Vision encoder | Connector | LLM backbone | Open? |
 |-------|---------------|-----------|-------------|-------|
@@ -240,7 +240,7 @@ BLIP-2 Architecture:
 
 Key trend: higher resolution vision encoders (336px → 448px → variable), larger LLMs, and more diverse training data (charts, OCR, medical images).
 
-## 7 · Common Misconceptions
+## 8 · Common Misconceptions
 
 | Misconception | Reality |
 |---------------|---------|
@@ -250,7 +250,7 @@ Key trend: higher resolution vision encoders (336px → 448px → variable), lar
 | "More visual tokens = always better" | Longer context → slower generation, higher memory; there's a quality/cost trade-off |
 | "Multimodal models can read small text in images" | OCR capability varies widely; models trained on document datasets (DocVQA) are much better at this |
 
-## 8 · Interview Checklist
+## 9 · Interview Checklist
 
 ### Must Know
 - General MLLM recipe: vision encoder → alignment layer → LLM
@@ -267,7 +267,7 @@ Key trend: higher resolution vision encoders (336px → 448px → variable), lar
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 10 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #5 (Throughput)**: ⚡ ~85 images/day, bottlenecked by 100% manual QA
@@ -297,7 +297,7 @@ Key trend: higher resolution vision encoders (336px → 448px → variable), lar
 
 ---
 
-## 9 · What's Next
+## 11 · What's Next
 
 [GenerativeEvaluation.md](../generative_evaluation/generative-evaluation.md) — how do you measure the quality of generated images and video? FID, IS, CLIP Score, and human preference models.
 

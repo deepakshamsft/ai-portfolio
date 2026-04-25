@@ -354,7 +354,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ⚡ **Unlocked capabilities:**
 - **Learning-based detector!** No distribution assumptions needed
@@ -379,6 +379,6 @@ flowchart TD
 
 ---
 
-## 11 · Bridge to Chapter 3
+## 10 · Bridge to Chapter 3
 
 Isolation Forest improved recall from 45% to 72% by learning data structure instead of assuming distributions. But it still treats anomaly detection as a geometric problem — separating points with random cuts. Ch.3 (Autoencoders) takes a fundamentally different approach: **learn to reconstruct normal transactions**, then flag those with high reconstruction error as anomalies. By compressing transactions through a bottleneck, the autoencoder learns a compact representation of "normal" — and anything that doesn't compress well is suspicious. Recall jumps to ~78%.

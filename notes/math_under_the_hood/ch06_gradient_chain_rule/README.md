@@ -99,7 +99,7 @@ Throughout this chapter we'll build the tools to compute $\nabla_{\boldsymbol{\t
 
 ---
 
-## 2.1 · Why Steepest Descent Is $-\nabla f$
+### 2.1 · Why Steepest Descent Is $-\nabla f$
 
 A first-order Taylor expansion around $\boldsymbol{\theta}$ in a direction $\mathbf{u}$ with $\|\mathbf{u}\|=1$ and step $t > 0$:
 
@@ -109,7 +109,7 @@ The inner product $\mathbf{u}^\top \nabla f$ is minimised (most negative) when $
 
 ---
 
-## 2.5 · Why the Gradient Isn't Enough — The Neural Network Problem
+### 2.2 · Why the Gradient Isn't Enough — The Neural Network Problem
 
 > 🧩 **The gap we're about to fill:** The gradient $\nabla f$ works great when you have **one function**: loss = $f(\text{parameters})$. But neural networks aren't one function — they're a **stack of many functions**. Input → Layer1 → Layer2 → Layer3 → ... → Loss. We need a tool that handles "function inside function inside function."
 
@@ -217,7 +217,7 @@ $$\underbrace{\nabla_\mathbf{h} L}_{m} \xrightarrow[\text{mul by } J_\sigma]{} \
 
 (The Jacobian of an elementwise activation $\sigma$ is the diagonal matrix $\mathrm{diag}(\sigma'(\mathbf{u}))$, so multiplying by it collapses to **elementwise product** $\odot$ — multiply each gradient entry by the corresponding derivative: $[\nabla_\mathbf{h} L]_i \cdot [\sigma'(\mathbf{u})]_i$. This is a huge speed-up: diagonal matrix-vector multiplication is $O(m)$ instead of $O(m^2)$.)
 
-> 🔗 **Recall Ch.3 §4.2.2 (ReLU's Kink):** For ReLU, $\sigma'(u) = \begin{cases} 0 & \text{if } u < 0 \\ 1 & \text{if } u > 0 \end{cases}$, with the derivative technically undefined at $u=0$. In practice, we use a subgradient convention (typically $\sigma'(0) := 0$) and the chain rule proceeds normally. This is why PyTorch's `.backward()` doesn't crash when backpropagating through ReLU — we're using the one-sided derivative discussed in Ch.3.
+> 🔗 **Recall Ch.3 §3.2.3 (ReLU's Kink):** For ReLU, $\sigma'(u) = \begin{cases} 0 & \text{if } u < 0 \\ 1 & \text{if } u > 0 \end{cases}$, with the derivative technically undefined at $u=0$. In practice, we use a subgradient convention (typically $\sigma'(0) := 0$) and the chain rule proceeds normally. This is why PyTorch's `.backward()` doesn't crash when backpropagating through ReLU — we're using the one-sided derivative discussed in Ch.3.
 
 For the weight gradient, another one-line chain rule:
 
@@ -329,7 +329,7 @@ The middle panel of the hero image uses a Hessian with eigenvalues $\{0.7, 3.3\}
 
 ---
 
-## 8.5 · Code Skeleton
+## 9 · Code Skeleton
 
 ```python
 # Educational: backpropagation through a 2-layer network from scratch
@@ -384,7 +384,7 @@ optimizer.step()  # θ ← θ - η∇L
 
 ---
 
-## 9 · Where This Reappears
+## 10 · Where This Reappears
 
 - **ML Ch.5 Backprop & Optimisers.** The layer-by-layer derivation above, scaled up to arbitrary architectures.
 - **ML Ch.4 Neural Networks.** Every training step is forward + backward = two tours of the computation graph.
@@ -394,7 +394,7 @@ optimizer.step()  # θ ← θ - η∇L
 
 ---
 
-## 10 · References
+## 11 · References
 
 ### Papers & Books
 - Nocedal & Wright, *Numerical Optimization*, Ch. 2.
@@ -419,7 +419,7 @@ optimizer.step()  # θ ← θ - η∇L
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 12 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR

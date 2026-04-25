@@ -238,7 +238,7 @@ PIXELSMITH v6 — FULL ARCHITECTURE
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 9 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #2 (Speed)**: ✅ ~18s per image (comfortable but not optimized)
@@ -276,7 +276,7 @@ PIXELSMITH v6 — FULL ARCHITECTURE
 
 ---
 
-## 9 · What's Next
+## 10 · What's Next
 
 You've completed the **12-chapter Multimodal AI** track. Suggested next steps:
 

@@ -224,7 +224,7 @@ image.save("vf_product_45deg.png")
 
 ---
 
-## 5 · The Key Diagrams
+## 6 · The Key Diagrams
 
 ```
 img2img vs. text-to-image vs. inpainting:
@@ -248,14 +248,14 @@ Strength dial in img2img:
  s=1.0 ██████████ (100% noise, identical to text-to-image)
 ```
 
-## 6 · What Changes at Scale
+## 7 · What Changes at Scale
 
 - **SDXL** separates prompt into `prompt` (coarse, for base model) and `prompt_2` (fine, for refiner model), allowing two-stage generation at full resolution
 - **IP-Adapter** extends the idea of ControlNet to use a reference *image* as the conditioning signal instead of a structural map — enables style or identity transfer
 - **LoRA** (Low-Rank Adaptation): fine-tune SD on 5–20 subject images by adding tiny rank-decomposition matrices to U-Net attention layers. Captures person/object identity without full fine-tuning cost
 - **Textual Inversion**: optimise a new token embedding vector (not the weights) to represent a novel concept. Simpler but less capable than LoRA
 
-## 7 · Common Misconceptions
+## 8 · Common Misconceptions
 
 | Misconception | Reality |
 |---------------|---------|
@@ -265,7 +265,7 @@ Strength dial in img2img:
 | "Prompt length doesn't matter" | 77 token limit is real — SD truncates silently at 77 bpe tokens |
 | "Inpainting always generates seamless results" | Hard edges in the mask cause seam artefacts; soft/feathered masks help; latent-space inpainting is smoother than pixel-space |
 
-## 8 · Interview Checklist
+## 9 · Interview Checklist
 
 ### Must Know
 - img2img = add partial noise then denoise; strength parameter controls how much of the original is preserved
@@ -282,7 +282,7 @@ Strength dial in img2img:
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 10 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #4 (Control)**: ⚡ <15% unusable, text alone cannot guarantee composition
@@ -312,7 +312,7 @@ Strength dial in img2img:
 
 ---
 
-## 9 · What's Next
+## 11 · What's Next
 
 [TextToVideo.md](../text_to_video/text-to-video.md) — add a temporal dimension. Generating consistent motion is the key unsolved challenge in T2V.
 

@@ -114,7 +114,7 @@ LoRA fine-tuning:  freeze W, train ΔW = A·B  (0.1–1% of params, ~16–24 GB 
 
 ---
 
-## 1.5 · RAG vs Fine-Tuning — What Each Approach Actually Changes
+## 2 · RAG vs Fine-Tuning — What Each Approach Actually Changes
 
 > **The common confusion.** Building a RAG pipeline does not teach the model anything — its weights remain completely frozen. RAG and fine-tuning fix different failure modes. Reaching for the wrong tool wastes weeks of engineering time and GPU budget.
 
@@ -177,13 +177,13 @@ RAG and fine-tuning are not mutually exclusive. Production systems often layer t
 - **RAG** handles today's menu prices, allergen data, delivery zones — facts that change week to week
 - **Fine-tuning** handles Mamma Rosa's warm Italian voice and storytelling phrases — behaviour that cannot be reliably achieved by prompting alone, no matter how many menu documents are retrieved
 
-> See [§2 Decision Tree](#2--should-you-fine-tune--decision-tree) for the full decision framework, and the figure below for a visual comparison of all three patterns.
+> See [§3 Decision Tree](#3--should-you-fine-tune--decision-tree) for the full decision framework, and the figure below for a visual comparison of all three patterns.
 
 ![RAG vs Fine-Tuning — architecture flows, failure-mode table, combined pattern](img/RAG-vs-FT.png)
 
 ---
 
-## 2 · Should You Fine-Tune? — Decision Tree
+## 3 · Should You Fine-Tune? — Decision Tree
 
 ```
 Is the model failing to follow the correct output format?
@@ -217,7 +217,7 @@ Is the task so specialised that no amount of prompting helps?
 
 ---
 
-## 3 · Math — LoRA
+## 4 · Math — LoRA
 
 **The key insight:** model adaptation doesn't require changing all weights. Most of the task-relevant adaptation projects into a low-rank subspace of the weight matrix.
 
@@ -252,7 +252,7 @@ LoRA     :   16  × (4096 + 4096) = 131,072 params  →  0.78% of original
 
 ---
 
-## 4 · QLoRA — Quantisation + LoRA
+## 5 · QLoRA — Quantisation + LoRA
 
 **QLoRA** combines LoRA with 4-bit quantisation of the frozen base model weights, enabling fine-tuning of large models on a single consumer GPU.
 
@@ -266,7 +266,7 @@ The quantisation introduces a small accuracy trade-off compared to full fp16 LoR
 
 ---
 
-## 5 · Step by Step — Fine-Tuning with LoRA
+## 6 · Step by Step — Fine-Tuning with LoRA
 
 ```
 1. Choose a base model
@@ -303,7 +303,7 @@ The quantisation introduces a small accuracy trade-off compared to full fp16 LoR
 
 ---
 
-## 6 · Code Skeleton
+## 7 · Code Skeleton
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
@@ -367,7 +367,7 @@ trainer.train()
 
 ---
 
-## 7 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 - **Catastrophic forgetting.** If the fine-tuning dataset is narrow, the model may lose general capabilities. Mitigation: include a small sample (~5%) of general-purpose examples mixed into the training data ("data mixing").
 - **Overfitting to format, not behaviour.** The model learns to produce the right-looking output for training examples but fails to generalise the underlying reasoning. Sign: near-zero training loss but poor eval task metric. Fix: more diverse examples or higher dropout.
@@ -377,7 +377,7 @@ trainer.train()
 
 ---
 
-## 8 · PizzaBot Connection
+## 9 · PizzaBot Connection
 
 > See [AIPrimer.md](../ai-primer.md) for the full system definition.
 
@@ -394,7 +394,7 @@ The PizzaBot decision tree applied:
 
 ---
 
-## 9 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 🎉 **BRAND VOICE ACHIEVED**: Conversion uplift through personalization!
 
@@ -566,7 +566,7 @@ Payback period: $300,000 / $16,629 = **18 months** (down from 19.5 months)
 
 ---
 
-## 10 · Bridge
+## 11 · Bridge
 
 Fine-Tuning showed how to adapt model behaviour when prompting and RAG aren't enough. `SafetyAndHallucination.md` covers the reliability risks that all three approaches — prompting, RAG, and fine-tuning — must mitigate before a system can be trusted in production.
 

@@ -333,7 +333,7 @@ Per order: (1390 × 0.00000015) + (150 × 0.00000060) ≈ $0.00021 + $0.00009 = 
 
 ---
 
-## 9 · Bridge
+## 10 · Bridge
 
 Cost & Latency completed the operational layer. You are now equipped with the full AI engineering stack: model fundamentals → prompting → reasoning → retrieval → vector storage → agent orchestration → evaluation → safety → operational costs. The consolidated [`InterviewGuides/`](../../interview_guides) is your synthesis resource — it covers all of these in the rapid-fire format interviewers use.
 
@@ -341,7 +341,7 @@ Cost & Latency completed the operational layer. You are now equipped with the fu
 
 ---
 
-## 12 · Progress Check — What We Can Solve Now
+## 11 · Progress Check — What We Can Solve Now
 
 🎉 **FINAL MILESTONE**: All 6 constraints exceeded! Ready for production!
 

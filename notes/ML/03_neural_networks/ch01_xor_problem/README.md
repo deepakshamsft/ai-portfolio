@@ -1,12 +1,3 @@
-## 9 · Where This Reappears
-
-The XOR example's core lesson (need for hidden layers and non-linearity) reappears in many chapters:
-
-- Neural network architecture choices in Ch.2 and later ML chapters.
-- Practical experiments in project notebooks and exercises.
-- Foundations for representation learning used across the curriculum.
-
-Expand these cross-links during editorial review if you want chapter-specific references.
 # Ch.1 — The XOR Problem
 
 > **The story.** In **1969** **Marvin Minsky** and **Seymour Papert** published *Perceptrons*, a meticulous mathematical takedown of **Frank Rosenblatt's** 1958 perceptron model. The headline result: a single-layer perceptron cannot learn XOR — the simplest non-linearly-separable function imaginable. The book was correct, devastating, and read by everyone with a research budget. Funding evaporated, neural-network research collapsed into the **first AI winter**, and the field stayed frozen for nearly two decades. The thaw began only when Rumelhart, Hinton, and Williams (1986) showed that *one extra hidden layer* plus backpropagation could learn XOR — and could, in principle, learn anything. The **Universal Approximation Theorem** (Cybenko 1989, Hornik 1991) made it official. This chapter re-runs the 1969 experiment, watches the linear model fail, and watches one hidden layer fix it — the exact moment that justified deep learning.
@@ -286,7 +277,7 @@ print("Labels: ", y_xor)
 
 ---
 
-## 8.5 · Why Not Use Neural Networks for Everything?
+## 9 · Why Not Use Neural Networks for Everything?
 
 The Universal Approximation Theorem says a neural network *can* represent any function. That sounds like an argument to use NNs everywhere. It isn't — because *can represent* is very different from *will learn well, cheaply, and reliably*.
 
@@ -366,7 +357,7 @@ For UnifiedAI, the honest answer right now is: **two out of four**. We use the N
 
 ---
 
-## 9 · Progress Check — What We Can (and CAN'T) Solve Now
+## 10 · Progress Check — What We Can (and CAN'T) Solve Now
 
 ❌ **NO constraints unlocked in this chapter.**
 
@@ -433,7 +424,7 @@ We've diagnosed the problem (linear models fail on non-linear boundaries) and sk
 
 ---
 
-## 10 · Bridge to Chapter 2
+## 11 · Bridge to Chapter 2
 
 Ch.1 established that hidden layers with non-linear activations can represent any function, but only sketched the architecture. Ch.2 (Neural Networks) builds that architecture properly — multiple hidden layers, the full catalogue of activation functions, weight initialisation strategies, and why the choices at each step matter for both performance and trainability.
 

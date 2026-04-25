@@ -276,7 +276,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check
+## 9 · Progress Check
 
 | # | Constraint | Status | Evidence |
 |---|-----------|--------|----------|
@@ -288,7 +288,7 @@ flowchart TD
 
 ---
 
-## 11 · Bridge to Chapter 2
+## 10 · Bridge to Chapter 2
 
 Random Forest reduces **variance** by averaging decorrelated trees — but it doesn't directly address **bias**. A shallow Random Forest of stumps still underfits. Chapter 2 introduces **boosting**: instead of training trees in parallel on random subsets, train them *sequentially*, with each tree correcting the previous ensemble's errors. AdaBoost reweights misclassified samples; Gradient Boosting fits the *residuals*. The strategy shifts from "average out the noise" to "focus on what's still wrong."
 
@@ -708,7 +708,7 @@ for name, (preds, _) in models.items():
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ⚡ **MAJOR MILESTONE**: ✅ **Constraint #4 (INTERPRETABILITY) ACHIEVED!**
 
@@ -837,7 +837,7 @@ We've mastered **supervised learning** (Constraints #1, #2, #4 achieved!). But a
 
 ---
 
-## Bridge to Chapter 12
+## 10 · Bridge to Chapter 12
 
 Ch.11 completed the supervised learning toolkit — we can now classify and regress with neural networks, trees, ensembles, and SVMs. Ch.12 — **Clustering** — shifts to unsupervised learning: no labels, no target variable. The goal is to discover natural structure in the data. The real estate platform's districts will cluster into neighbourhood types nobody defined in advance.
 

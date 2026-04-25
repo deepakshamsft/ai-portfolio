@@ -406,7 +406,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ⚡ **Unlocked capabilities:**
 - **Ensemble anomaly detection!** Four complementary detectors fused into one system
@@ -428,7 +428,7 @@ flowchart TD
 
 ---
 
-## 11 · Bridge to Chapter 6
+## 10 · Bridge to Chapter 6
 
 Ch.5 achieved 83% recall by combining four detectors — the detection constraint is met. But a production fraud system needs more than accuracy. Ch.6 (Production & Real-Time Inference) addresses the remaining gaps: **concept drift detection** (fraudsters adapt → model must too), **latency optimization** (reduce the 50ms ensemble inference), **monitoring dashboards** (track model health), and **explainability** (generate human-readable reasons for each flag). This final chapter transforms FraudShield from a research prototype into a production-ready system that satisfies all 5 constraints.
 

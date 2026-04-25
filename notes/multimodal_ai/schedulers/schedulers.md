@@ -180,7 +180,7 @@ benchmark_scheduler(DPMSolverMultistepScheduler, {"algorithm_type": "dpmsolver++
 
 ---
 
-## 5 · The Key Diagrams
+## 6 · The Key Diagrams
 
 ```
 Noise schedule visualised — bar_alpha per timestep:
@@ -201,14 +201,14 @@ Timestep sub-sequences:
  DPM (15) ██ ██ █ █ █ █ █ (clustered near endpoints)
 ```
 
-## 6 · What Changes at Scale
+## 7 · What Changes at Scale
 
 - **SD 1.x / SDXL** ship with PNDM scheduler by default but accept any compatible scheduler via the `diffusers` `Scheduler` API.
 - **SDXL-Turbo / SD-Turbo** are specifically distilled for 1–4 step schedules (ADD distillation). Using a standard 50-step DDIM on them wastes compute.
 - **Consistency Models (CM)** and **LCM** require fine-tuning but unlock real-time inference on consumer hardware.
 - **Flux (2024)** uses a rectified flow scheduler — a straight-line path from noise to data instead of the cosine/linear variance schedule.
 
-## 7 · Common Misconceptions
+## 8 · Common Misconceptions
 
 | Misconception | Reality |
 |---------------|---------|
@@ -218,7 +218,7 @@ Timestep sub-sequences:
 | "DDPM noise schedule β_t is fixed" | You can redesign it: cosine schedule (improved DDPM) gives more uniform SNR across timesteps |
 | "CFG doubles compute; so does DDIM" | DDIM halves step count; net effect is a large speedup even with CFG |
 
-## 8 · Interview Checklist
+## 9 · Interview Checklist
 
 ### Must Know
 - Why DDPM needs 1 000 steps at inference: each step is a Gaussian approximation that only holds for small β — larger strides violate the Markov assumption
@@ -235,7 +235,7 @@ Timestep sub-sequences:
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 10 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #2 (Speed)**: ❌ **5 minutes per image** (1000 DDPM steps)
@@ -263,7 +263,7 @@ Timestep sub-sequences:
 
 ---
 
-## 9 · What's Next
+## 11 · What's Next
 
 [LatentDiffusion.md](../latent_diffusion/latent-diffusion.md) — the 512×512 pixel image is too expensive to diffuse directly. SD compresses it 8× into a latent space first: that's what makes real-time generation possible.
 

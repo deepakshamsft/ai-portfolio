@@ -215,7 +215,7 @@ $$\text{MAE} = \frac{|0| + |20{,}000| + |200{,}000|}{3} = \$73{,}333$$
 
 MAE is a fair judge, but fairness isn't always what you need.
 
-Gradient descent compatibility: **MAE** has a kink at $e=0$ — the derivative is undefined there, which complicates gradient-based training. The full story is in §6.6; for now: prefer MSE when training with gradient descent.
+Gradient descent compatibility: **MAE** has a kink at $e=0$ — the derivative is undefined there, which complicates gradient-based training. The full story is in §6.7; for now: prefer MSE when training with gradient descent.
 
 ---
 
@@ -253,7 +253,7 @@ That's it. You still *train* with MSE gradients; you just *report* RMSE because 
 
 Rule of thumb: **optimise with MSE, report to humans with RMSE.**
 
-Gradient descent compatibility: **RMSE** has the same kink at $e=0$ as MAE — don't use it as a training loss. The full analysis is in §6.6; rule: optimise with MSE, report with RMSE.
+Gradient descent compatibility: **RMSE** has the same kink at $e=0$ as MAE — don't use it as a training loss. The full analysis is in §6.7; rule: optimise with MSE, report with RMSE.
 
 ---
 
@@ -510,7 +510,7 @@ $$b_2 = 1.333 - 0.1 \times 0.533 = \mathbf{1.280}$$
 | $\partial L / \partial w$ | **−8.000** (large, negative) | **+0.799** (small, positive) | 0 |
 | Error signs | all negative (underfit) | mixed (minor overfit) | — |
 
-*The gradient magnitude numbers here — 8.000 at epoch 1 dropping to 0.799 at epoch 2 — are the self-braking property in action. §6.5 shows what happens when the loss function lacks this property.*
+*The gradient magnitude numbers here — 8.000 at epoch 1 dropping to 0.799 at epoch 2 — are the self-braking property in action. §6.6 shows what happens when the loss function lacks this property.*
 
 **Epoch loop in pseudocode:**
 
@@ -549,7 +549,7 @@ The loop-back edge label **"same N rows, updated W and b"** is the epoch story i
 
 ---
 
-### 6.4a · Stopping Criteria — When Have We Reached the Minimum?
+### 6.5 · Stopping Criteria — When Have We Reached the Minimum?
 
 The flowchart above has two exit conditions: `Δloss < ε` and `max epochs reached`. Both deserve a concrete explanation.
 
@@ -645,7 +645,7 @@ The figure below shows the full MSE parabola as a two-panel view: left panel plo
 
 ---
 
-### 6.5 · MAE vs MSE — Why Gradient Shape Determines Convergence
+### 6.6 · MAE vs MSE — Why Gradient Shape Determines Convergence
 
 **The core difference is in what the gradient actually measures.**
 
@@ -733,7 +733,7 @@ The animation shows four panels: (1) scatter + both regression lines updating li
 
 ---
 
-### 6.6 · The Gradient Descent Lens
+### 6.7 · The Gradient Descent Lens
 
 Gradient descent moves weights in the direction of the negative gradient:
 
@@ -856,7 +856,7 @@ This table reveals the full picture: MSE is proportional but hijackable; MAE is 
 
 ---
 
-### 6.7 · Feature Engineering — Scaling and Importance
+### 6.8 · Feature Engineering — Scaling and Importance
 
 #### Why feature scale breaks gradient descent
 

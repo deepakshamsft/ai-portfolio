@@ -250,7 +250,7 @@ print(f"Stack: RMSE = {rmse_stack:.4f}")
 
 ---
 
-## 10 · Progress Check
+## 9 · Progress Check
 
 | # | Constraint | Status | Evidence |
 |---|-----------|--------|----------|
@@ -262,7 +262,7 @@ print(f"Stack: RMSE = {rmse_stack:.4f}")
 
 ---
 
-## 11 · Bridge to Chapter 6
+## 10 · Bridge to Chapter 6
 
 Stacking gives the best possible accuracy on tabular data — but at what cost? $K$ base models means $K\times$ inference latency, $K\times$ memory, and $K\times$ deployment complexity. Chapter 6 tackles the **production reality**: when ensembles are worth the overhead, how to prune weak members, latency budgets, A/B testing ensemble vs single model, and the decision framework for "ensemble or not?"
 

@@ -200,26 +200,26 @@ The additional gain: the compliance team added a logging proxy MCP server that s
 ---
 
 
-## 4 · How It Works
+## 3 · How It Works
 
 > Step-by-step walkthrough of the mechanism.
 
 
-## 5 · Key Diagrams
+## 4 · Key Diagrams
 
 > Add 2–3 diagrams showing the key data flows here.
 
 
-## 6 · Hyperparameter Dial
+## 5 · Hyperparameter Dial
 
 > List the key knobs and their effect on behaviour.
 
 
-## 8 · What Can Go Wrong
+## 6 · What Can Go Wrong
 
 > 3–5 common failure modes and mitigations.
 
-## 11 · Progress Check — What We Achieved
+## 7 · Progress Check — What We Achieved
 
 ```mermaid
 graph LR
@@ -270,7 +270,7 @@ graph LR
 
 ---
 
-## 3 · The Math
+## 8 · The Math
 
 ### The N×M Integration Problem
 

@@ -784,7 +784,7 @@ You can now train the network and watch the loss decrease. But if you let it run
 
 ![Gradient descent optimisers — SGD, momentum, and Adam loss-surface trajectories](img/ch5-optimizers.png)
 
-## 9 · Where This Reappears
+## 11 · Where This Reappears
 
 Backpropagation and optimiser guidance reappear throughout ML and AI application notes:
 

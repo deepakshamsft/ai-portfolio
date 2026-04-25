@@ -467,7 +467,7 @@ Please refine these cross-links if you want chapter-specific references.
 
 ---
 
-## 9 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 **Unlocked capabilities:**
 - ✅ **Recurrent hidden state**: $h_t$ summarizes all past inputs $x_1, ..., x_t$ → temporal memory
@@ -538,7 +538,7 @@ We've built models (dense, CNN, RNN) achieving <$50k MAE. But we've been measuri
 
 ---
 
-## 10 · Bridge to Chapter 9
+## 11 · Bridge to Chapter 9
 
 Ch.8 showed how to train recurrent models and get predictions. But predictions alone are not enough — a model that's 80% accurate on a balanced test set and a model that's 80% accurate on an imbalanced test set are telling you very different things. Ch.9 — **Metrics Deep Dive** — closes the loop: it takes the classifier from Ch.2, the regressor from Ch.1, and examines every angle through which a model can look good or bad on paper while failing in production.
 

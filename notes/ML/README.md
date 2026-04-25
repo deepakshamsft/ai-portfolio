@@ -133,8 +133,8 @@ graph TD
 ### Intermediate Path (18 weeks)
 **Goal**: Add deep learning and ensemble methods
 
-4. **Neural Networks** (6 weeks) → See how deep learning unifies regression + classification
-5. **Ensemble Methods** (2 weeks) → Learn production-grade modeling (XGBoost, stacking)
+1. **Neural Networks** (6 weeks) → See how deep learning unifies regression + classification
+2. **Ensemble Methods** (2 weeks) → Learn production-grade modeling (XGBoost, stacking)
 
 **Outcome**: Can deploy neural networks and ensemble pipelines
 

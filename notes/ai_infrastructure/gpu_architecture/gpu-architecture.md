@@ -395,7 +395,7 @@ TFLOP/s
 
 ---
 
-## 8 · What Can Go Wrong
+## 11 · What Can Go Wrong
 
 - **Buying for TFLOP/s when you need VRAM** — a GPU with 2× the compute but half the VRAM won't run your model at all; always size for VRAM first, then check bandwidth.
 - **Ignoring memory bandwidth for inference** — LLM decode is bandwidth-limited; the A10G (24 GB, 0.6 TB/s) is significantly slower than the RTX 4090 (24 GB, 1.0 TB/s) for LLM inference despite similar VRAM.
@@ -518,7 +518,7 @@ def check_model_fits(model_name: str, quantization: str = "none") -> dict:
 
 ---
 
-## 11.5 · Progress Check — What We've Accomplished
+## 12 · Progress Check — What We've Accomplished
 
 🎉 **GPU HARDWARE SELECTION COMPLETE! Target identified: RTX 4090**
 
@@ -650,18 +650,18 @@ Result: ✅ CEO has confidence in the plan!
 ---
 
 
-## 5 · Key Diagrams
+## 13 · Key Diagrams
 
 > Add 2–3 diagrams showing the key data flows or architectural boundaries here.
 
 
-## 6 · The Hyperparameter Dial
+## 14 · The Hyperparameter Dial
 
 > List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
 > effect on the latency/throughput/memory triangle.
 
 
-## 7 · Code Skeleton
+## 15 · Code Skeleton
 
 ### Educational
 
@@ -677,7 +677,7 @@ pass
 pass
 ```
 
-## 12 · Interview Checklist
+## 16 · Interview Checklist
 
 | Must know | Likely asked | Trap to avoid |
 |-----------|-------------|---------------|

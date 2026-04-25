@@ -217,7 +217,7 @@ print(f"Mean CLIP Score: {sum(clip_scores)/len(clip_scores):.3f} (target >0.25)"
 
 ---
 
-## 5 · The Key Diagrams
+## 6 · The Key Diagrams
 
 ```
  GENERATIVE EVALUATION LANDSCAPE
@@ -260,7 +260,7 @@ True FID attained only at large N; small N inflates FID.
 
 ---
 
-## 6 · What Changes at Scale
+## 7 · What Changes at Scale
 
 | Scale | What matters |
 |-------|-------------|
@@ -274,7 +274,7 @@ Human preference models (HPSv2, ImageReward, PickScore) train a reward model on 
 
 ---
 
-## 7 · Common Misconceptions
+## 8 · Common Misconceptions
 
 | Misconception | Reality |
 |---------------|---------|
@@ -287,7 +287,7 @@ Human preference models (HPSv2, ImageReward, PickScore) train a reward model on 
 
 ---
 
-## 8 · Interview Checklist
+## 9 · Interview Checklist
 
 ### Must Know
 - FID formula: Fréchet distance between Gaussians fitted to Inception features
@@ -313,7 +313,7 @@ Human preference models (HPSv2, ImageReward, PickScore) train a reward model on 
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 10 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #1 (Quality)**: ⚡ ~3.9/5.0 via slow/expensive client surveys
@@ -341,7 +341,7 @@ Human preference models (HPSv2, ImageReward, PickScore) train a reward model on 
 
 ---
 
-## 9 · What's Next
+## 11 · What's Next
 
 → [LocalDiffusionLab.md](../local_diffusion_lab/local-diffusion-lab.md) — Capstone: combine everything you've built across all 12 chapters into a single local diffusion lab.
 

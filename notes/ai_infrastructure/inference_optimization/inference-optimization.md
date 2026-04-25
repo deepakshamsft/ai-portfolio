@@ -373,7 +373,7 @@ Improvement: 2.5× lower tail latency! ✅
 
 ---
 
-## 8 · What Can Go Wrong
+## 11 · What Can Go Wrong
 
 - **Implementing continuous batching from scratch** — extremely complex (attention mask management, KV cache indexing); use vLLM/TGI instead
 - **Assuming speculative decoding always helps** — if draft model acceptance rate <50%, overhead dominates → measure on your workload first
@@ -499,7 +499,7 @@ async def generate(prompt: str, max_tokens: int = 256) -> str:
 
 ---
 
-## 11.5 · Progress Check — What We've Accomplished
+## 12 · Progress Check — What We've Accomplished
 
 🎉 **PRODUCTION-READY INFERENCE! Handles spiky traffic patterns within latency targets ✅**
 
@@ -594,7 +594,7 @@ Result: ✅ Comfortable latency margin for production observability!
 
 ---
 
-## 12 · Bridge to Chapter 6
+## 13 · Bridge to Chapter 6
 
 Ch.5 validated that continuous batching, PagedAttention, and speculative decoding can hit throughput and latency targets. But implementing these from scratch requires months of CUDA kernel engineering. Ch.6 (Serving Frameworks) evaluates production-ready frameworks that bundle these optimizations: **vLLM** (easiest deployment, PagedAttention built-in), **TensorRT-LLM** (fastest, but complex setup), **TGI** (Hugging Face, good Python integration), and **llama.cpp** (CPU/edge inference). The question: which framework best fits InferenceBase's needs?
 
@@ -603,18 +603,18 @@ Ch.5 validated that continuous batching, PagedAttention, and speculative decodin
 ![Inference optimization — Continuous batching timeline, PagedAttention memory savings, speculative decoding acceleration](img/Inference%20Optimization.png)
 
 
-## 5 · Key Diagrams
+## 14 · Key Diagrams
 
 > Add 2–3 diagrams showing the key data flows or architectural boundaries here.
 
 
-## 6 · The Hyperparameter Dial
+## 15 · The Hyperparameter Dial
 
 > List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
 > effect on the latency/throughput/memory triangle.
 
 
-## 7 · Code Skeleton
+## 16 · Code Skeleton
 
 ### Educational
 

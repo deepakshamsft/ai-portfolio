@@ -327,11 +327,11 @@ async def delegate_negotiation(po_id: str, supplier_id: str) -> dict:
 > List the key knobs and their effect on behaviour.
 
 
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 > 3–5 common failure modes and mitigations.
 
-## 11 · Progress Check — What We Achieved
+## 8 · Progress Check — What We Achieved
 
 ```mermaid
 graph LR

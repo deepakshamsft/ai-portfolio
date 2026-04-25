@@ -200,7 +200,7 @@ for scale in [1.0, 7.5, 12.0]:
 
 ---
 
-## 5 · The Key Diagrams
+## 6 · The Key Diagrams
 
 ### CFG Geometry in Noise Space
 
@@ -242,7 +242,7 @@ Each image region (row in Q) learns which text tokens to attend to.
 
 ---
 
-## 6 · What Changes at Scale
+## 7 · What Changes at Scale
 
 | Parameter | Effect | Typical values |
 |-----------|--------|---------------|
@@ -255,7 +255,7 @@ Each image region (row in Q) learns which text tokens to attend to.
 
 ---
 
-## 7 · Common Misconceptions
+## 8 · Common Misconceptions
 
 **"Higher guidance scale = always better"**
 High guidance scales (>15) cause **oversaturation**: vivid, unnatural colours and textures. The optimal range depends on the model and the prompt. Most production pipelines use 5–12.
@@ -271,7 +271,7 @@ In most implementations, the null embedding is the encoded representation of an 
 
 ---
 
-## 8 · Interview Checklist
+## 9 · Interview Checklist
 
 ### Must Know
 - Write the CFG equation. What are the two model calls?
@@ -293,7 +293,7 @@ In most implementations, the null embedding is the encoded representation of an 
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 10 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #1 (Quality)**: ⚡ ~3.5/5.0, text prompts work but outputs unpredictable
@@ -324,7 +324,7 @@ In most implementations, the null embedding is the encoded representation of an 
 
 ---
 
-## 9 · What's Next
+## 11 · What's Next
 
 → **[Schedulers.md](../schedulers/schedulers.md)** — CFG doubles inference compute. With 1000 DDPM steps and 2 U-Net calls per step, generating one image requires 2000 forward passes. DDIM and DPM-Solver reduce this to 20–50 steps without retraining, cutting generation time from minutes to seconds. Understanding how they achieve this requires understanding the geometry of the diffusion trajectory.
 

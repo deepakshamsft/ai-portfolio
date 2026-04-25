@@ -84,7 +84,7 @@ notes/MultimodalAI/<Chapter>/
 
 ## Rollout Phases
 
--### Phase 1 - Infrastructure + Path Fixes
+### Phase 1 - Infrastructure + Path Fixes
 
 - move script entrypoints to `gen_scripts/`
 - normalize all outputs to local `img/`

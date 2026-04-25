@@ -340,7 +340,7 @@ Quantization trade-off:
 
 ---
 
-## 8 · What Can Go Wrong
+## 11 · What Can Go Wrong
 
 - **Quantizing without calibration data** — random quantization can drop accuracy by 10%+; always use representative samples
 - **Using CPU-based quantization (GGUF) for cloud deployment** — slow and unnecessary when you have a GPU; use GPTQ/AWQ
@@ -460,7 +460,7 @@ def quantize_model(model_id: str, output_dir: str, bits: int = 4,
 
 ---
 
-## 11.5 · Progress Check — What We've Accomplished
+## 12 · Progress Check — What We've Accomplished
 
 🎉 **QUANTIZATION VALIDATED! INT4 enables batch=4 → 12,000 req/day throughput ✅**
 
@@ -572,7 +572,7 @@ Result: ✅ Acceptable trade-off for 4× throughput gain!
 
 ---
 
-## 12 · Bridge to Chapter 4
+## 13 · Bridge to Chapter 4
 
 Ch.3 solved inference throughput with INT4 quantization. But what about **training**? Ch.2 showed full fine-tuning needs 104 GB VRAM (optimizer states dominate). Can we fine-tune on RTX 4090 (24 GB) instead of expensive A100s? Ch.4 (Parallelism & Distributed Training) introduces **LoRA** (Low-Rank Adaptation) — freeze base model, only train small adapter weights → 18 GB total (fits on RTX 4090!). Plus **ZeRO optimizer sharding** for full fine-tuning across 4× RTX 4090s.
 
@@ -581,18 +581,18 @@ Ch.3 solved inference throughput with INT4 quantization. But what about **traini
 ![Quantization — Model compression FP16 → INT4, VRAM savings, batch size gains, quality validation](img/Quantization.png)
 
 
-## 5 · Key Diagrams
+## 14 · Key Diagrams
 
 > Add 2–3 diagrams showing the key data flows or architectural boundaries here.
 
 
-## 6 · The Hyperparameter Dial
+## 15 · The Hyperparameter Dial
 
 > List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
 > effect on the latency/throughput/memory triangle.
 
 
-## 7 · Code Skeleton
+## 16 · Code Skeleton
 
 ### Educational
 

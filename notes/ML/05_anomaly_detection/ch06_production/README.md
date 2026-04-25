@@ -473,7 +473,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ⚡ **ALL CONSTRAINTS SATISFIED:**
 
@@ -500,7 +500,7 @@ flowchart TD
 
 ---
 
-## 11 · What Comes Next
+## 10 · What Comes Next
 
 The Anomaly Detection track is complete. FraudShield satisfies all five constraints with an ensemble of four complementary detectors, drift monitoring, and explainability.
 

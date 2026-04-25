@@ -383,7 +383,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ⚡ **Unlocked capabilities:**
 - **First working detector!** Can flag transactions with extreme feature values
@@ -411,7 +411,7 @@ flowchart TD
 
 ---
 
-## 11 · Bridge to Chapter 2
+## 10 · Bridge to Chapter 2
 
 Ch.1 established the scoring paradigm — compute a deviation measure, threshold it, flag anomalies — but statistical methods assume fraud lives in distribution tails. Ch.2 (Isolation Forest) flips the idea: instead of measuring *distance from normal*, it measures *how easy a point is to isolate*. The key insight is that anomalies, being rare and different, require fewer random splits to separate from the rest. No distribution assumptions needed — just recursive partitioning. Recall jumps from 45% to ~72%.
 

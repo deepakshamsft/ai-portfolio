@@ -234,7 +234,7 @@ shap.plots.scatter(shap_values[:, "MedInc"])
 
 ---
 
-## 10 · Progress Check
+## 9 · Progress Check
 
 | # | Constraint | Status | Evidence |
 |---|-----------|--------|----------|
@@ -248,7 +248,7 @@ shap.plots.scatter(shap_values[:, "MedInc"])
 
 ---
 
-## 11 · Bridge to Chapter 5
+## 10 · Bridge to Chapter 5
 
 SHAP explains *individual* ensemble models. But what if we could *combine* different types of models — a Random Forest, an XGBoost, and a linear model — into a super-ensemble? Chapter 5 introduces **stacking and blending**: train a *meta-learner* on the outputs of diverse base models. The meta-learner learns which base model to trust in which region of feature space. SHAP can then explain the meta-learner too.
 

@@ -723,7 +723,7 @@ A well-tuned chunking strategy can improve retrieval accuracy by **40%** compare
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 18 · Progress Check — What We Can Solve Now
 
 🎉 **MAJOR BREAKTHROUGH**: Menu fact hallucinations eliminated!
 

@@ -297,7 +297,7 @@ That mapping is the single most useful mental model in supervised learning.
 
 ---
 
-## 8.5 · Code Skeleton
+## 9 · Code Skeleton
 
 ```python
 # Educational: Maximum Likelihood Estimation from scratch (Gaussian)
@@ -338,7 +338,7 @@ print(f"P(distance > 16.5m) = {p_clear:.3f}")
 
 ---
 
-## 9 · Where This Reappears
+## 10 · Where This Reappears
 
 - **ML Ch.1 Linear Regression.** MSE loss is MLE under Gaussian noise — the derivation in §7 *is* Ch.1's theoretical backbone.
 - **ML Ch.2 Logistic Regression.** Cross-entropy loss is MLE under a Bernoulli likelihood on the labels.
@@ -349,7 +349,8 @@ print(f"P(distance > 16.5m) = {p_clear:.3f}")
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 11 · Progress Check — What We Can Solve Now
+
 
 ```mermaid
 graph LR
@@ -405,7 +406,7 @@ graph LR
 
 ---
 
-## 11 · References
+## 12 · References
 
 - Wasserman, *All of Statistics* — the single densest statistics reference for ML practitioners.
 - Bishop, *Pattern Recognition and Machine Learning*, Ch. 1–2.

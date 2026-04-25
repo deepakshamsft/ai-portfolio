@@ -321,7 +321,7 @@ Post-launch monitoring:
 
 ---
 
-## 8 · Bridge
+## 9 · Bridge
 
 Safety & Hallucination Mitigation completed the reliability layer. `CostAndLatency.md` covers the operational costs of running all the mitigation techniques — NLI classifiers, self-consistency sampling, and strong judge models all have real token and compute costs that constrain what you can afford in production.
 

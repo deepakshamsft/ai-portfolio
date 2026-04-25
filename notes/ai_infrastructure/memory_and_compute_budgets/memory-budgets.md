@@ -281,7 +281,7 @@ RTX 4090 24GB      │                             │
 
 ---
 
-## 8 · What Can Go Wrong
+## 11 · What Can Go Wrong
 
 - **Forgetting KV cache** — it is not part of the model file, but grows during inference and can OOM unexpectedly on long sequences
 - **Ignoring batch size scaling** — doubling batch size does NOT double total VRAM; KV cache scales linearly, but params stay constant
@@ -403,7 +403,7 @@ def preflight_vram_check(required_gb: float, safety_margin_gb: float = 2.0) -> b
 
 ---
 
-## 11.5 · Progress Check — What We've Accomplished
+## 12 · Progress Check — What We've Accomplished
 
 🎉 **VRAM BUDGET CONFIRMED! Llama-3-8B fits in RTX 4090 at FP16**
 
@@ -511,7 +511,7 @@ Result: ✅ Realistic throughput expectations set!
 
 ---
 
-## 12 · Bridge to Chapter 3
+## 13 · Bridge to Chapter 3
 
 Ch.2 confirmed the model fits — but revealed a critical bottleneck: **batch=1 limits throughput to 3,000 req/day** (30% of target). The 2 GB of free VRAM is not enough to batch multiple requests. Ch.3 (Quantization & Precision) attacks this problem directly: by shrinking the model from 16 GB to 4 GB via INT4 quantization, we free 12 GB for KV cache, enabling batch=4 and 4× throughput. The question: **does INT4 quantization destroy quality?** That is what Ch.3 answers.
 
@@ -520,18 +520,18 @@ Ch.2 confirmed the model fits — but revealed a critical bottleneck: **batch=1 
 ![Memory budgets — VRAM breakdown for inference vs training, KV cache scaling, batch size limits](img/Memory%20Budgets.png)
 
 
-## 5 · Key Diagrams
+## 14 · Key Diagrams
 
 > Add 2–3 diagrams showing the key data flows or architectural boundaries here.
 
 
-## 6 · The Hyperparameter Dial
+## 15 · The Hyperparameter Dial
 
 > List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
 > effect on the latency/throughput/memory triangle.
 
 
-## 7 · Code Skeleton
+## 16 · Code Skeleton
 
 ### Educational
 

@@ -73,7 +73,7 @@ flowchart LR
 
 ---
 
-## · The Regularization Discovery Arc
+## The Regularization Discovery Arc
 
 > Same SmartVal AI. Same California Housing data. Same team. Three evenings of experiments that finally broke through the $40k wall.
 
@@ -222,7 +222,7 @@ This is regularization doing its job: it makes the model less *perfectly* fitted
 
 ## 3 · Math
 
-### Ridge Regression (L2 Penalty)
+### 3.1 · Ridge Regression (L2 Penalty)
 
 $$L_\text{Ridge} = \frac{1}{n}\sum_{i=1}^{n}(\hat{y}_i - y_i)^2 + \lambda \sum_{j=1}^{d} w_j^2$$
 
@@ -236,7 +236,7 @@ Compare to OLS: $\mathbf{w}^*_\text{OLS} = (\mathbf{X}^\top\mathbf{X})^{-1}\math
 
 The $+\lambda\mathbf{I}$ term **fixes the matrix inversion** when features are collinear (the matrix $\mathbf{X}^\top\mathbf{X}$ is nearly singular → adding $\lambda\mathbf{I}$ makes it invertible).
 
-### 3.4 · Deriving the Ridge Closed Form — Step by Step
+### 3.2 · Deriving the Ridge Closed Form — Step by Step
 
 > **Why bother?** The OLS derivation set $\nabla L_\text{MSE} = 0$ and solved. Ridge adds one term — the penalty. The resulting closed form tells you *exactly* why multicollinearity is fixed: the $+\lambda\mathbf{I}$ term inflates every eigenvalue of $\mathbf{X}^\top\mathbf{X}$, making the matrix safely invertible.
 
@@ -305,7 +305,7 @@ $$\mathbf{w}^*_\text{Ridge} = \frac{1}{11.25}\begin{pmatrix}3.5 & -1.0\\-1.0 & 3
 
 **Why it works for multicollinearity:** When `AveRooms` and `AveBedrms` are correlated, $\mathbf{X}^\top\mathbf{X}$ has near-zero eigenvalues. Adding $\lambda\mathbf{I}$ lifts those eigenvalues away from zero, stabilizing the inversion and the resulting weights.
 
-### Lasso Regression (L1 Penalty)
+### 3.3 · Lasso Regression (L1 Penalty)
 
 $$L_\text{Lasso} = \frac{1}{n}\sum_{i=1}^{n}(\hat{y}_i - y_i)^2 + \lambda \sum_{j=1}^{d} |w_j|$$
 
@@ -313,7 +313,7 @@ The L1 penalty has a **corner at zero** — this is geometrically why Lasso sets
 
 **No closed-form solution** — requires iterative methods (coordinate descent).
 
-### 3.5 · Why L1 Creates Exact Zeros — The KKT Argument
+### 3.4 · Why L1 Creates Exact Zeros — The KKT Argument
 
 > **The claim:** "Lasso sets some weights to exactly zero." This sounds magical. The next three subsections prove it mathematically (KKT condition), geometrically (the diamond), and numerically (a 2D example).
 
@@ -396,7 +396,7 @@ This is the geometric essence of Lasso: the L1 ball's **corners sit on the coord
 
 **Feature selection:** Lasso with $\lambda$ large enough will zero out features that contribute less than $\lambda$ to the MSE reduction. This is **automatic feature selection** — you don't need to manually decide which polynomial features to keep.
 
-### 3.6 · Lasso Mechanics — One Coordinate Descent Step, By Hand
+### 3.5 · Lasso Mechanics — One Coordinate Descent Step, By Hand
 
 Because Lasso has no closed form, it must be solved iteratively. The standard algorithm is **coordinate descent**: cycle through features one at a time, optimizing each while holding the rest fixed, until convergence. Here is one complete sweep.
 
@@ -416,7 +416,7 @@ where the **soft-threshold operator** $S$ is:
 
 $$S(\rho,\,\lambda) = \text{sign}(\rho)\cdot\max(|\rho| - \lambda,\;0)$$
 
-If $|\rho_j| \leq \lambda$: the soft-threshold returns 0 — feature $j$ is not important enough to overcome the penalty, so it is zeroed. This is coordinate descent's concrete realisation of the KKT condition from §3.5.
+If $|\rho_j| \leq \lambda$: the soft-threshold returns 0 — feature $j$ is not important enough to overcome the penalty, so it is zeroed. This is coordinate descent's concrete realisation of the KKT condition from §3.4.
 
 #### California Housing dataset
 
@@ -492,7 +492,7 @@ Feature 2 is eliminated because $|\rho_2| = 0.900 < \lambda = 1.5$.
 
 > Convergence: repeat sweeps (update all $w_j$ in order) until weights stop changing. Each sweep is guaranteed not to increase the loss. Convergence to the global optimum is guaranteed because the Lasso objective is convex.
 
-### Elastic Net (Combined L1 + L2)
+### 3.6 · Elastic Net (Combined L1 + L2)
 
 $$L_\text{EN} = \frac{1}{n}\sum_{i=1}^{n}(\hat{y}_i - y_i)^2 + \lambda\left[\rho \sum_{j=1}^{d} |w_j| + (1-\rho) \sum_{j=1}^{d} w_j^2\right]$$
 
@@ -794,7 +794,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ⚡ **MILESTONE: $40k MAE TARGET ACHIEVED!**
 
@@ -837,6 +837,6 @@ flowchart LR
 
 ---
 
-## 11 · Bridge to Chapter 6
+## 10 · Bridge to Chapter 6
 
 Ch.5 achieved the $38k MAE target — but how confident are we in this number? Is it stable across different data splits? Is the model systematically wrong in certain regions (expensive homes, rural districts)? Ch.6 introduces **regression evaluation metrics** — cross-validation, residual diagnostics, learning curves, and confidence intervals — that turn a single MAE number into a full diagnostic picture. This is what separates “I built a model” from “I understand my model.”

@@ -386,7 +386,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ⚡ **Unlocked capabilities:**
 - **Representation learning for anomaly detection!** Autoencoder learns normal transaction manifold
@@ -411,6 +411,6 @@ flowchart TD
 
 ---
 
-## 11 · Bridge to Chapter 4
+## 10 · Bridge to Chapter 4
 
 The autoencoder brought us to 78% by learning *what normal looks like* and flagging deviations. But it's a neural network — computationally heavier and harder to interpret than classical methods. Ch.4 (One-Class SVM) offers a kernel-based alternative: draw a **tight boundary** around normal data in a high-dimensional kernel space. It's mathematically principled (maximum-margin), requires no neural network training, and achieves ~75% recall. More importantly, it captures a different signal than the autoencoder — making it a valuable component for the ensemble in Ch.5.

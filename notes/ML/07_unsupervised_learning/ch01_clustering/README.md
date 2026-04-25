@@ -177,7 +177,7 @@ HDBSCAN:
 
 ## 5 · Key Diagrams
 
-### K-Means: assignment and update steps
+### 5.1 K-Means: assignment and update steps
 
 ```
 Step 0 (init):        Step 1 (assign):      Step 2 (update):      Converged:
@@ -188,7 +188,7 @@ Step 0 (init):        Step 1 (assign):      Step 2 (update):      Converged:
 centroids ★ placed → assign each customer → recompute centroids → stable
 ```
 
-### K-Means vs DBSCAN decision
+### 5.2 K-Means vs DBSCAN decision
 
 ```mermaid
 flowchart LR
@@ -205,7 +205,7 @@ flowchart LR
 
 ## 6 · Hyperparameter Dial
 
-### K-Means
+### 6.1 K-Means
 
 | Dial | Too low | Sweet spot | Too high |
 |------|---------|------------|----------|
@@ -213,14 +213,14 @@ flowchart LR
 | **n_init** | Single bad local minimum | 10 (sklearn default) | Diminishing returns |
 | **max_iter** | Didn't converge | 300 | Rarely needed above 300 |
 
-### DBSCAN
+### 6.2 DBSCAN
 
 | Dial | Too low | Sweet spot | Too high |
 |------|---------|------------|----------|
 | **ε** | Everything is noise | Use k-NN distance plot knee | One giant cluster |
 | **min_samples** | Every customer is a core point | $2 \times d$ (d = features) = 12 | Only densest cores survive |
 
-### HDBSCAN
+### 6.3 HDBSCAN
 
 | Dial | Too low | Sweet spot | Too high |
 |------|---------|------------|----------|

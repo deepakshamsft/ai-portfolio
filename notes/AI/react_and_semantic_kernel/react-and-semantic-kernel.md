@@ -148,11 +148,11 @@ A plain LLM chatbot is a detective answering entirely from memory — fast but p
 
 The detective (LLM) never leaves the desk. It never directly calls an API or runs a line of code. It only ever does one thing: **read the current state of the notebook and write the next thought or action**. The agent application's job is to take whatever the detective writes, execute it against the real world, and hand the notebook back.
 
-This is the ReAct loop in plain language. The rest of this document traces how it was formalized as an academic pattern (Section 1–2), grounded in a concrete running example (Section 3), and turned into production-ready software by LangChain (Section 7) and Semantic Kernel (Section 8). Section 5 goes deeper into precisely how text prediction becomes planning — the mechanism behind why the detective metaphor actually works at the token level.
+This is the ReAct loop in plain language. The rest of this document traces how it was formalized as an academic pattern (Section 2–3), grounded in a concrete running example (Section 4), and turned into production-ready software by LangChain (Section 8) and Semantic Kernel (Section 9). Section 6 goes deeper into precisely how text prediction becomes planning — the mechanism behind why the detective metaphor actually works at the token level.
 
 ***
 
-## 1. From Chain-of-Thought to ReAct: How LLMs Started "Thinking and Doing"
+## 2. From Chain-of-Thought to ReAct: How LLMs Started "Thinking and Doing"
 
 **Large language models (LLMs)** generate text by predicting the next token, but early LLMs struggled with multi-step problems because they tried to answer in one pass — sometimes making up facts (hallucinating) or losing track of intermediate logic.
 
@@ -179,7 +179,7 @@ These gains were achieved while being prompted with **only one or two in-context
 
 ***
 
-## 2. How ReAct Works: The Interleaved Reason–Act–Observe Loop
+## 3. How ReAct Works: The Interleaved Reason–Act–Observe Loop
 
 At the heart of ReAct is a **loop** where the LLM and its tools take turns. Each iteration has three components:
 
@@ -202,7 +202,7 @@ The term **"interleaved"** is central to ReAct. It means reasoning and acting ar
 
 ***
 
-## 3. Running Example: Mamma Rosa's PizzaBot Order
+## 4. Running Example: Mamma Rosa's PizzaBot Order
 
 To make the ReAct pattern concrete, this document uses the PizzaBot order-placement scenario from [AIPrimer.md](../ai-primer.md).
 
@@ -222,7 +222,7 @@ Context **grows monotonically**. Once the agent has confirmed the store and item
 
 ***
 
-## 4. Implementing a ReAct Loop: Pseudocode and Best Practices
+## 5. Implementing a ReAct Loop: Pseudocode and Best Practices
 
 Without a framework, a developer would implement the ReAct loop as follows:
 
@@ -293,7 +293,7 @@ class ReActAgent:
 
 ***
 
-## 5. The Critical Missing Bridge: How Token Prediction Becomes Planning
+## 6. The Critical Missing Bridge: How Token Prediction Becomes Planning
 
 A fundamental conceptual question arises: **if an LLM is "just" next-token prediction, how does predicting tokens translate into "deciding to call a tool" or "formulating a plan"?**
 
@@ -316,7 +316,7 @@ A fundamental conceptual question arises: **if an LLM is "just" next-token predi
 
 ***
 
-## 6. Planning vs. Execution: Two Modes of Agent Operation
+## 7. Planning vs. Execution: Two Modes of Agent Operation
 
 Both ReAct and framework-powered agents alternate between two distinct operational modes:
 
@@ -328,7 +328,7 @@ Both ReAct and framework-powered agents alternate between two distinct operation
 
 ***
 
-## 7. LangChain: The Open-Source Framework for LLM Applications
+## 8. LangChain: The Open-Source Framework for LLM Applications
 
 ### Overview and Origin
 
@@ -422,7 +422,7 @@ Based on an internal Microsoft competitive analysis, LangChain's key strengths i
 
 ***
 
-## 8. Semantic Kernel: Orchestrating AI for the Enterprise
+## 9. Semantic Kernel: Orchestrating AI for the Enterprise
 
 ### Overview and Origin
 
@@ -497,7 +497,7 @@ SK has been positioned at the center of the **Copilot stack**. It serves as the 
 
 ***
 
-## 9. How ReAct Influenced Both Frameworks
+## 10. How ReAct Influenced Both Frameworks
 
 ReAct is not a competing framework — it is the **foundational reasoning pattern** that both LangChain and Semantic Kernel implement and extend.
 
@@ -509,7 +509,7 @@ ReAct is not a competing framework — it is the **foundational reasoning patter
 
 ***
 
-## 10. Comparing LangChain and Semantic Kernel: A Comprehensive Analysis
+## 11. Comparing LangChain and Semantic Kernel: A Comprehensive Analysis
 
 | **Dimension**             | **LangChain**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | **Semantic Kernel**                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -538,7 +538,7 @@ Neither is universally "better" — the right choice depends on your context, as
 
 ***
 
-## 11. When to Use Which: Decision Guidance
+## 12. When to Use Which: Decision Guidance
 ### Guidance by Team Profile
 
 **Solo developers and rapid prototyping:** LangChain is typically the faster path. Its Python-first design, extensive examples, and large community make it easy to get started. For Azure OpenAI + Python + database agents, LangChain is described as "the natural fit".
@@ -551,7 +551,7 @@ Neither is universally "better" — the right choice depends on your context, as
 
 ***
 
-## 12. Concept Mapping: ReAct → LangChain → Semantic Kernel
+## 13. Concept Mapping: ReAct → LangChain → Semantic Kernel
 
 | ReAct Concept                 | LangChain Equivalent                                       | Semantic Kernel Equivalent                                   |
 | ----------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
@@ -565,7 +565,7 @@ Neither is universally "better" — the right choice depends on your context, as
 
 ***
 
-## 13. Modern Variants and Extensions of ReAct
+## 14. Modern Variants and Extensions of ReAct
 
 The basic ReAct idea has inspired several extensions that address different limitations:
 
@@ -594,7 +594,7 @@ The basic ReAct idea has inspired several extensions that address different limi
 
 ***
 
-## 14. From Traditional Dev Thinking to Agentic Thinking
+## 15. From Traditional Dev Thinking to Agentic Thinking
 
 Understanding the bridging logic between token prediction and agent planning has a direct impact on how to architect agentic systems:
 
@@ -618,7 +618,7 @@ This is why SK's plugin system requires each function to have a **semantic descr
 
 ***
 
-## 15. Key Nuances and Caveats
+## 16. Key Nuances and Caveats
 
 ### CoT and ReAct Reasoning Is Not Guaranteed to Be Faithful
 
@@ -646,7 +646,7 @@ An internal Microsoft wiki on orchestrators captures the positioning succinctly:
 
 ***
 
-## 16. Summary: The Complete Mental Model
+## 17. Summary: The Complete Mental Model
 
 **ReAct** (published February 2023, ICLR notable top 5%) established the foundational pattern: an LLM alternates between generating **reasoning traces** and executing **task-specific actions** in an interleaved loop, creating a synergy where reasoning guides action selection and observations from actions refine subsequent reasoning. It is a **pattern**, not a framework — and both LangChain and Semantic Kernel implement and extend it.
 
@@ -662,7 +662,7 @@ An internal Microsoft wiki on orchestrators captures the positioning succinctly:
 
 ---
 
-## 17 · Progress Check — What We Can Solve Now
+## 18 · Progress Check — What We Can Solve Now
 
 🎉 **BREAKTHROUGH!** Conversion beats phone baseline, AOV target hit!
 

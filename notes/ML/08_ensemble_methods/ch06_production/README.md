@@ -264,7 +264,7 @@ print("\nFind the 'knee': where adding more trees stops helping.")
 
 ---
 
-## 10 · Progress Check
+## 9 · Progress Check
 
 | # | Constraint | Status | Evidence |
 |---|-----------|--------|----------|
@@ -278,7 +278,7 @@ print("\nFind the 'knee': where adding more trees stops helping.")
 
 ---
 
-## 11 · Track Summary
+## 10 · Track Summary
 
 The Ensemble Methods track is complete. Here's what you've learned:
 

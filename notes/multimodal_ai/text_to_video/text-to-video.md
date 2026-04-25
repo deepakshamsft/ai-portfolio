@@ -208,7 +208,7 @@ DiT (Diffusion Transformer) has replaced U-Net as the dominant architecture abov
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 9 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #6 (Versatility)**: ⚡ Text→Image production-ready, no video capability
@@ -237,7 +237,7 @@ DiT (Diffusion Transformer) has replaced U-Net as the dominant architecture abov
 
 ---
 
-## 9 · What's Next
+## 10 · What's Next
 
 [MultimodalLLMs.md](../multimodal_llms/multimodal-llms.md) — combine a vision encoder with a language model to enable image understanding, visual question answering, and chart comprehension.
 

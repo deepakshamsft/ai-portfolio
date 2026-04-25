@@ -367,7 +367,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ⚡ **Unlocked capabilities:**
 - **Boundary-based anomaly detection!** Kernel method draws tight boundary around normal data
@@ -400,7 +400,7 @@ flowchart TD
 
 ---
 
-## 11 · Bridge to Chapter 5
+## 10 · Bridge to Chapter 5
 
 Ch.4 gave us our fourth detector — each with a different inductive bias and different failure modes. The critical insight: the fraud that Isolation Forest misses, the autoencoder might catch, and vice versa. Ch.5 (Ensemble Anomaly Detection) fuses all four detectors into a single system. By averaging normalized scores, voting on anomaly labels, or stacking with a meta-learner, the ensemble achieves **83% recall** — exceeding our 80% target. The ensemble is greater than the sum of its parts because complementary errors cancel out.
 

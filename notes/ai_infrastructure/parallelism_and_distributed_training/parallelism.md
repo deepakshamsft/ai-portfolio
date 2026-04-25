@@ -395,7 +395,7 @@ Memory savings: 104GB → 18GB (83% reduction!)
 
 ---
 
-## 8 · What Can Go Wrong
+## 11 · What Can Go Wrong
 
 - **LoRA rank too low (r=4)** — under-parameterized, cannot capture task complexity → poor quality
 - **LoRA rank too high (r=128)** — defeats the purpose, memory approaches full fine-tuning
@@ -517,7 +517,7 @@ def finetune_with_lora(base_model_id: str, dataset, output_dir: str,
 
 ---
 
-## 11.5 · Progress Check — What We've Accomplished
+## 12 · Progress Check — What We've Accomplished
 
 🎉 **COST-EFFICIENT FINE-TUNING ENABLED! LoRA trains on RTX 4090 budget ✅**
 
@@ -613,7 +613,7 @@ Result: ✅ 10× faster iteration for quality improvements!
 
 ---
 
-## 12 · Bridge to Chapter 5
+## 13 · Bridge to Chapter 5
 
 Ch.4 enabled cost-efficient fine-tuning, but didn't address production inference bottlenecks. Ch.5 (Inference Optimization) returns to the inference path: continuous batching (eliminate queue wait spikes), PagedAttention (double batch size via better memory management), and speculative decoding (30% faster generation). These optimizations push throughput from 12k → 22k req/day and reduce tail latency under spiky traffic from 8.7s → 1.8s.
 
@@ -622,18 +622,18 @@ Ch.4 enabled cost-efficient fine-tuning, but didn't address production inference
 ![Parallelism — Data parallelism (DDP), ZeRO optimizer sharding, LoRA adapter architecture, memory comparison](img/Parallelism.png)
 
 
-## 5 · Key Diagrams
+## 14 · Key Diagrams
 
 > Add 2–3 diagrams showing the key data flows or architectural boundaries here.
 
 
-## 6 · The Hyperparameter Dial
+## 15 · The Hyperparameter Dial
 
 > List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
 > effect on the latency/throughput/memory triangle.
 
 
-## 7 · Code Skeleton
+## 16 · Code Skeleton
 
 ### Educational
 

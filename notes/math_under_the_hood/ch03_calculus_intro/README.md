@@ -107,7 +107,7 @@ $$h'(t) = v_{0y} - g t$$
 
 This is the **instantaneous rate of change** $h'(t)$ — how fast height is changing at time $t$. The peak is where $h'(t) = 0$ (curve stops rising), which happens at $t_\star = v_{0y}/g$. For $v_{0y} = 6.5$, $t_\star \approx 0.663$ s.
 
-### 4.2 · Derivative rules you will actually use
+### 3.2 · Derivative rules you will actually use
 
 Memorise five and you cover 90% of cases in the ML book:
 
@@ -129,7 +129,7 @@ Plus three combination rules:
 
 The chain rule is the star of the show — we'll spend an entire Ch.6 on it because that's what backpropagation *is*.
 
-### 4.2.1 · Worked Example — The Trajectory by the Numbers
+### 3.2.1 · Worked Example — The Trajectory by the Numbers
 
 Let's trace the **free-kick parabola** $h(t) = 6.5t - 4.905t^2$ and its derivative $h'(t) = 6.5 - 9.81t$ with actual values. Using the **power rule** from §4.2:
 - $h(t) = 6.5t^1 - 4.905t^2$
@@ -151,13 +151,13 @@ Now compute at five times during flight:
 > - **Derivative $h'(t)$** starts at +6.5, drops to +4.54, +3.25, reaches 0 at the peak, then goes negative (-3.31).  
 > - **At $t = 0.663$s:** $h' = 0$ tells us the curve has stopped rising — that's the **peak**. We found it by solving $6.5 - 9.81t = 0 \Rightarrow t = 6.5/9.81 \approx 0.663$s.
 
-**Connect to the animation (§4.4 below):** When you watch the ball fly, the green tangent line has slope $h'(t)$. At launch, slope = +6.5 (steep upward). At the peak, slope = 0 (horizontal). While falling, slope is negative (points down). The animation shows these exact numbers changing in real-time.
+**Connect to the animation (§3.4 below):** When you watch the ball fly, the green tangent line has slope $h'(t)$. At launch, slope = +6.5 (steep upward). At the peak, slope = 0 (horizontal). While falling, slope is negative (points down). The animation shows these exact numbers changing in real-time.
 
 **Why this matters for ML:** Gradient descent (Ch.4) uses the derivative to find the minimum of a loss curve. It checks "is the slope positive or negative?" then steps in the opposite direction. That's exactly what we just did to find the peak: solve for where $h'(t) = 0$.
 
 ---
 
-### 4.2.2 · What the Slope's Sign and Size Actually Tell You
+### 3.2.2 · What the Slope's Sign and Size Actually Tell You
 
 The numbers in the table above ($h'(t) = +6.5,\ +4.54,\ 0,\ -3.31$) are easy to read off a formula. But what does each one *mean* when you are standing on the pitch watching the ball?
 
@@ -244,7 +244,7 @@ That's it. The optimizer never "looks ahead" at the whole curve. It only reads t
 
 ---
 
-### 4.2.3 · When the Derivative Doesn't Exist — Corners, Kinks, and the ReLU Problem
+### 3.2.3 · When the Derivative Doesn't Exist — Corners, Kinks, and the ReLU Problem
 
 > 🚨 **Critical for ML:** This section explains why ReLU activation functions (ML Ch.4) technically have undefined derivatives at $x=0$, and how we handle it in practice. Skip this and you'll be confused when PyTorch computes gradients through "non-differentiable" functions.
 
@@ -365,13 +365,13 @@ These are all extensions of "the derivative doesn't exist at the edge, so we han
 
 The key insight: **calculus doesn't require differentiability everywhere, just almost everywhere**. Neural networks with billions of parameters hitting exactly $x=0$ on a single ReLU? Measure-zero event. We define a convention, move on, and the optimizer works.
 
-### 4.3 · Higher derivatives — the second-order story
+### 3.3 · Higher derivatives — the second-order story
 
 Differentiate again: $h''(t) = -g$. A constant. This says "the rate of change itself changes at a constant rate." For our parabola, $h'(t)$ is linear in $t$, so its derivative is constant.
 
 **In ML.** The second derivative of the loss tells you about **curvature** — how the slope itself is changing. Small second derivative: gentle bowl, easy to optimise. Large: steep walls, small learning rates required. The **Hessian** (matrix of second derivatives) is central to Newton's method and its approximations.
 
-### 4.4 · Watch it happen — the derivative in slow motion
+### 3.4 · Watch it happen — the derivative in slow motion
 
 ![Free-kick derivative animation: ball travels along parabolic path with green tangent line tracking it. The tangent rotates continuously as the ball moves. Top-left shows time counter, top-right shows h'(t) value updating in real-time. Red X marks the apex where h'(t) = 0.](img/ch03-freekick-derivative-animation.gif)
 
@@ -381,7 +381,7 @@ Differentiate again: $h''(t) = -g$. A constant. This says "the rate of change it
 
 ## 4 · The Integral — Area Under a Curve
 
-### 5.1 · Riemann sum to integral
+### 4.1 · Riemann sum to integral
 
 Turn the question around: we know the rate of change $h'(t) = v_{0y} - g t$. How do we recover the total height change $h(T) - h(0)$?
 
@@ -397,7 +397,7 @@ That integral *is* the total rise $h(T) - h(0)$. For our knuckleball free kick w
 
 $$\int_0^{v_{0y}/g} (v_{0y} - g t) dt = \left[v_{0y} t - \tfrac{1}{2}g t^2\right]_0^{v_{0y}/g} = \frac{v_{0y}^2}{2g} \approx 2.15\text{ m}$$
 
-### 5.2 · Fundamental Theorem of Calculus (FTC)
+### 4.2 · Fundamental Theorem of Calculus (FTC)
 
 Two statements, one theorem:
 

@@ -298,7 +298,7 @@ print(f"CatBoost — RMSE: {rmse_cat:.4f}  Time: {t_cat:.2f}s  Rounds: {cat.best
 
 ---
 
-## 10 · Progress Check
+## 9 · Progress Check
 
 | # | Constraint | Status | Evidence |
 |---|-----------|--------|----------|
@@ -310,7 +310,7 @@ print(f"CatBoost — RMSE: {rmse_cat:.4f}  Time: {t_cat:.2f}s  Rounds: {cat.best
 
 ---
 
-## 11 · Bridge to Chapter 4
+## 10 · Bridge to Chapter 4
 
 We now have accurate, fast, regularized ensemble models — but we can only explain them at the *global* level (which features matter overall). Stakeholders want *per-prediction* explanations: "Why did the model predict $350k for *this specific* district?" Chapter 4 introduces **SHAP** (SHapley Additive exPlanations) — a theoretically grounded framework from game theory that decomposes any model's prediction into feature contributions.
 

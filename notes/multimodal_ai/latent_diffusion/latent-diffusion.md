@@ -191,7 +191,7 @@ for i, prompt in enumerate(lifestyle_prompts):
 
 ---
 
-## 5 · The Key Diagrams
+## 6 · The Key Diagrams
 
 ```
 SD Architecture — Dimensions at Each Stage:
@@ -216,7 +216,7 @@ VAE compression ratio: 786 432 / 16 384 = 48×
  (8× spatial × 3 channels → 4 channels = ×48 net)
 ```
 
-## 6 · What Changes at Scale
+## 7 · What Changes at Scale
 
 | Model | VAE latent dim | U-Net params | Text encoder | Steps (typical) |
 |-------|---------------|-------------|-------------|----------------|
@@ -229,7 +229,7 @@ VAE compression ratio: 786 432 / 16 384 = 48×
 
 The trend is: larger latent channels (4→16), larger U-Net or switch to Diffusion Transformer (DiT), stronger text encoder (CLIP→T5).
 
-## 7 · Common Misconceptions
+## 8 · Common Misconceptions
 
 | Misconception | Reality |
 |---------------|---------|
@@ -239,7 +239,7 @@ The trend is: larger latent channels (4→16), larger U-Net or switch to Diffusi
 | "Latent diffusion is only about speed" | Also about quality: pixel-space models struggle at high resolution; latent models can condition cross-attention on spatial features more efficiently |
 | "The scaling factor 0.18215 is arbitrary" | It is empirically determined so the latent variance ≈ 1.0 under a unit-Gaussian prior, matching the DDPM assumption |
 
-## 8 · Interview Checklist
+## 9 · Interview Checklist
 
 ### Must Know
 - The three components of Stable Diffusion: **VAE** (compress/decompress), **U-Net** (diffuse in latent), **CLIP** (condition on text)
@@ -256,7 +256,7 @@ The trend is: larger latent channels (4→16), larger U-Net or switch to Diffusi
 
 ---
 
-## 8.5 · Progress Check — What Have We Unlocked?
+## 10 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #2 (Speed)**: ⚡ DDIM at pixel-scale (28×28 educational proxy) was 30-60s; 512×512 in pixel space is too slow
@@ -288,7 +288,7 @@ The trend is: larger latent channels (4→16), larger U-Net or switch to Diffusi
 
 ---
 
-## 9 · What's Next
+## 11 · What's Next
 
 [TextToImage.md](../text_to_image/text-to-image.md) — beyond basic text-to-image: prompt engineering, img2img, inpainting, and ControlNet for spatially guided generation.
 

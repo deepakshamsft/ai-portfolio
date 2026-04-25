@@ -4,7 +4,7 @@
 >
 > **Where you are in the curriculum.** Ch.1 proved that a single feature (MedInc) is not enough — $70k MAE. This chapter adds the remaining 7 California Housing features and teaches you how to handle the new complexity: feature matrices, vectorised predictions, correlated inputs, and the gap between "good fit" and "good model." The core training loop is identical — but the dimensions expand.
 >
-> **Notation in this chapter.** $\mathbf{X}$ — feature matrix ($n \times d$); $\mathbf{w}$ — weight vector ($d \times 1$); $b$ — bias (scalar); $\hat{\mathbf{y}} = \mathbf{X}\mathbf{w} + b$ — vectorised predictions; $d$ — number of features (8 for California Housing); VIF — Variance Inflation Factor; $R^2$ — coefficient of determination; $\bar{R}^2$ — Adjusted R² (both introduced in §1.5).
+> **Notation in this chapter.** $\mathbf{X}$ — feature matrix ($n \times d$); $\mathbf{w}$ — weight vector ($d \times 1$); $b$ — bias (scalar); $\hat{\mathbf{y}} = \mathbf{X}\mathbf{w} + b$ — vectorised predictions; $d$ — number of features (8 for California Housing); VIF — Variance Inflation Factor; $R^2$ — coefficient of determination; $\bar{R}^2$ — Adjusted R² (both introduced in §2).
 
 ---
 
@@ -77,7 +77,7 @@ Each weight $w_j$ captures the effect of feature $j$ *holding all other features
 
 ---
 
-## 1.5 · How Will We Know If More Features Help? — Introducing R²
+## 2 · How Will We Know If More Features Help? — Introducing R²
 
 Ch.1 measured model quality with MAE and RMSE — the average error size in dollars. Those metrics answer: *how far off are the predictions?* But there is a complementary question that becomes important the moment you have two models to compare: *how much of the total variation in house prices did the model actually explain?*
 
@@ -131,7 +131,7 @@ Note: R² and Adjusted R² are **evaluation metrics**, not training losses — t
 
 ---
 
-## 2 · Running Example
+## 3 · Running Example
 
 Same dataset, same target, but now using **all 8 features**:
 
@@ -150,9 +150,9 @@ Same dataset, same target, but now using **all 8 features**:
 
 ---
 
-## 3 · Math
+## 4 · Math
 
-### 3.1 · From Scalar to Vector
+### 4.1 · From Scalar to Vector
 
 Ch.1 (single feature):
 
@@ -168,7 +168,7 @@ $$\hat{\mathbf{y}} = \mathbf{X}\mathbf{w} + b$$
 
 where $\mathbf{X}$ is $n \times d$, $\mathbf{w}$ is $d \times 1$, and $\hat{\mathbf{y}}$ is $n \times 1$.
 
-### 3.2 · The Normal Equation (Closed-Form Solution)
+### 4.2 · The Normal Equation (Closed-Form Solution)
 
 For linear regression, there's an exact solution — no gradient descent needed:
 
@@ -186,7 +186,7 @@ $$\mathbf{w}^* = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{y}$$
 
 **So why learn gradient descent at all for this dataset?** Two reasons. First, once you add polynomial features in Ch.4 or work with high-dimensional text inputs, $d$ grows past the point where matrix inversion is tractable. Second — and more importantly — neural networks have no closed-form solution; the only training algorithm available to them is gradient descent. Understanding how it generalises from the scalar case ($w \leftarrow w - \alpha \frac{\partial L}{\partial w}$) to the vector case ($\mathbf{w} \leftarrow \mathbf{w} - \alpha \nabla_{\mathbf{w}} L$) makes every neural network chapter feel like a natural continuation rather than a new subject.
 
-### 3.3 · Gradient Descent (Vectorized)
+### 4.3 · Gradient Descent (Vectorized)
 
 The MSE loss and its gradients generalize naturally:
 
@@ -279,7 +279,7 @@ Xᵀ · e                                            (2×3) · (3×1) → (2×1)
 
 So far the story is clean: more features, same update rule, better predictions. But using 8 features instead of 1 introduces a new problem that simply *couldn't exist* with a single feature — what if two features are measuring nearly the same thing? When that happens, gradient descent (and the normal equation) still finds a solution, but the individual weights it finds become unreliable. That is the problem of **multicollinearity**.
 
-### 3.4 · Watching the Vectors Move — Two Epochs by Hand
+### 4.4 · Watching the Vectors Move — Two Epochs by Hand
 
 The best way to understand vectorized gradient descent is to watch the matrix arithmetic produce real numbers. Below is a complete walkthrough of two full training epochs on the California Housing dataset — same format as Ch.1 §6.3, extended to 2 features.
 
@@ -392,7 +392,7 @@ The **self-braking property scales to every weight simultaneously**: each gradie
 
 > ⚡ **Constraint #1 check (ACCURACY):** After two epochs our toy-dataset MSE dropped from 8.167 → 1.233. On the full 8-feature California Housing run (~300 epochs), this same loop delivers ~$55k MAE — a 21% improvement over the Ch.1 single-feature baseline, but still $15k short of the <$40k target.
 
-### 3.5 · The Loss Surface in 2D — Why Scaling Matters
+### 4.5 · The Loss Surface in 2D — Why Scaling Matters
 
 Ch.1 §4.3 showed that MSE over a single-weight model gives a **parabola** — a convex bowl in one dimension, with a single global minimum. With $d$ weights, the bowl extends to $d$ dimensions. The shape of that bowl determines how fast gradient descent converges.
 
@@ -450,7 +450,7 @@ Eigenvalues: $\lambda_1 \approx 2.39$, $\lambda_2 \approx 0.28$ → ratio ≈ 8.
 
 ![Gradient descent path on scaled vs unscaled loss surface — convergence speed comparison](img/scaled_vs_unscaled_path.gif)
 
-### 3.6 · Multicollinearity
+### 4.6 · Multicollinearity
 
 #### Why correlated features break weight estimation
 
@@ -554,7 +554,7 @@ Multicollinearity is exactly why you cannot read raw weights as a trustworthy ra
 
 ---
 
-### 3.7 · Residuals
+### 4.7 · Residuals
 
 A **residual** is the signed difference between each sample's actual value and the model's prediction:
 
@@ -635,7 +635,7 @@ plt.savefig('img/ch02_residual_plots.png')
 
 ---
 
-## 4 · Step by Step
+## 5 · Step by Step
 
 ```
 1. Load all 8 features → X ∈ ℝ^(20640 × 8)
@@ -693,7 +693,7 @@ flowchart TD
 
 ---
 
-## 5 · Key Diagrams
+## 6 · Key Diagrams
 
 ### Feature Correlation Heatmap
 
@@ -759,7 +759,7 @@ flowchart LR
 
 ---
 
-## 6 · Hyperparameter Dial
+## 7 · Hyperparameter Dial
 
 | Dial | Too Low | Sweet Spot | Too High |
 |------|---------|------------|----------|
@@ -772,7 +772,7 @@ Ch.1 used 1 feature. Ch.2 uses 8. But what if some features are noise? Adding ga
 
 ---
 
-## 7 · Code Skeleton
+## 8 · Code Skeleton
 
 ```python
 import numpy as np
@@ -858,7 +858,7 @@ for epoch in range(300):
 
 ---
 
-## 8 · What Can Go Wrong
+## 9 · What Can Go Wrong
 
 - **Forgetting to standardize** — Without scaling, gradient descent takes enormous steps for high-range features (Population: 3–35,682) and tiny steps for low-range features (MedInc: 0.5–15). The optimizer oscillates along the Population axis while barely moving along MedInc. **Fix:** Always `StandardScaler()` before gradient-based training. Not needed for `sklearn.LinearRegression` (uses Normal Equation internally), but critical for manual GD and all neural networks later.
 
@@ -868,7 +868,7 @@ for epoch in range(300):
 
 - **Adding features blindly** — More features always improve train-set R² (more parameters = better fit). But test-set R² can decrease if the new features are noise. **Fix:** Use Adjusted R² (which penalizes feature count) and cross-validation (Ch.5).
 
-- **Residual patterns reveal misspecification** — See §3.7 for the full residual analysis framework. The key patterns: U-shaped residuals vs fitted → add polynomial features (Ch.4); funnel shape (variance grows with ŷ) → log-transform the target. **Fix:** `residuals = y_test - model.predict(X_test_s)` then plot against fitted values.
+- **Residual patterns reveal misspecification** — See §4.7 for the full residual analysis framework. The key patterns: U-shaped residuals vs fitted → add polynomial features (Ch.4); funnel shape (variance grows with ŷ) → log-transform the target. **Fix:** `residuals = y_test - model.predict(X_test_s)` then plot against fitted values.
 
 ```mermaid
 flowchart TD

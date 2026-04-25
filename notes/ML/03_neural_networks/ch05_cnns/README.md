@@ -393,7 +393,7 @@ CNNs exploit spatial locality. But what if your data is a **sequence** — house
 
 ![Convolutional filters — sliding kernel feature extraction from input images](img/ch7-cnn-filters.png)
 
-## 9 · Where This Reappears
+## 11 · Where This Reappears
 
 Convolutional concepts reappear in vision and multimodal chapters, and in practical model engineering notes:
 
