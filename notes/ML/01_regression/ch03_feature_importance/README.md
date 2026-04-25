@@ -128,11 +128,15 @@ where $\rho$ (rho) is the correlation coefficient, $x_{ij}$ is the value of feat
 >
 > **When to reach for it:** Use MI as a general "first pass" when working with tree-based models (Random Forest, XGBoost) or when you suspect non-linear patterns. It finds hidden relationships that Pearson would miss entirely — the model architecture then determines whether those relationships get exploited.
 
+> 📖 **Want the full information-theoretic foundation?** [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) covers covariance and Pearson for linear relationships. Mutual Information extends the same "how do two things relate?" question to *any* shape. Both are measuring association — Pearson with a straight ruler, MI with a magnifying glass.
+
 Mutual information measures *any* statistical dependence, not just linear:
 
 $$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)\,p(y)}$$
 
 where $I(X; Y)$ is the mutual information between feature $X$ and target $Y$; $p(x,y)$ is the **joint probability density** — a 2-D map of where the scatter plot concentrates (not *whether* $x$ and $y$ co-occur — every sample has both — but *how densely* each $(x, y)$ region is populated); and $p(x)$, $p(y)$ are the **marginal densities** (the two independent 1-D histograms). Range: $[0, \infty)$ — zero means completely independent; larger values mean stronger dependence of any shape.
+
+**The key difference from Pearson in one line:** Pearson measures whether $x$ and $y$ move proportionally along a straight line. MI measures whether knowing $x$ tells you *anything at all* about where $y$ will land — regardless of whether that relationship is linear, curved, stepped, or clustered.
 
 **The Intuition — Reduction in Uncertainty**
 
@@ -143,6 +147,24 @@ Formally, MI is the gap between your uncertainty about $y$ before and after seei
 $$I(X; Y) = H(Y) - H(Y \mid X)$$
 
 where $H(Y)$ is the entropy of $y$ (how unpredictable it is on its own) and $H(Y \mid X)$ is the conditional entropy (how unpredictable $y$ remains after $x$ is known). If knowing $x$ cuts your uncertainty in half, $I(X; Y) = 0.5 \cdot H(Y)$. If $x$ tells you nothing, $H(Y \mid X) = H(Y)$ and $I = 0$.
+
+**Entropy as Unpredictability — A Concrete Example**
+
+Think of entropy as "how surprised would I be on average if I had to guess $y$ repeatedly?" For a binary outcome (e.g., house price is High or Low):
+
+- **Maximum entropy (1 bit):** Equal split — 50% High, 50% Low. You're maximally uncertain; each guess is a coin flip.
+- **Medium entropy (0.72 bits):** Imbalanced — 70% High, 30% Low. You'd guess "High" most of the time and be right 70% of the time, but surprises still happen.
+- **Minimum entropy (0 bits):** Certainty — 100% High. No guessing needed; you know the answer before you look.
+
+The formula: $H(Y) = -\sum_y p(y) \log p(y)$.
+
+For the 50/50 case: $H(Y) = -0.5 \log(0.5) - 0.5 \log(0.5) = 1$ bit.
+
+When you learn $x$ (walkability score in our toy example), some of that uncertainty disappears. If walkability perfectly predicts price category, then $H(Y \mid X) = 0$ — once you know $x$, you have zero uncertainty about $y$. The mutual information $I(X; Y) = 1 - 0 = 1$ bit — all the entropy was explained.
+
+![Entropy reduction diagram: left bar shows H(Y) as full uncertainty before knowing X; middle bar shows H(Y|X) as residual uncertainty after knowing X; right bar shows the gap I(X;Y) as information gained](img/ch03-mi-entropy-bars.png)
+
+*The diagram above shows three bars: $H(Y)$ is your initial uncertainty (full bar), $H(Y \mid X)$ is what remains after learning $x$ (shaded residual), and the white gap between them is $I(X; Y)$ — the information $x$ provided about $y$.*
 
 > **Why this matters:** Pearson is zero for a U-shaped or threshold relationship even though knowing $x$ dramatically reduces uncertainty about $y$. MI is not. This is the key difference in one sentence.
 
@@ -162,17 +184,108 @@ MI sums these deviations across the entire surface — so any shape of relations
 
 ![Joint density vs independence: left panel shows actual p(x,y) as a narrow diagonal band, middle shows the independent baseline p(x)p(y) as a spread blob, right shows the log-ratio heatmap revealing where the relationship lives](img/ch03-mi-joint-density.png)
 
+![Mutual information accumulation: animation showing how MI builds up from the joint density surface — each region contributes based on its log-ratio weight, with the final sum representing total information shared between X and Y](img/ch03-mi-accumulation.gif)
+
+*The animation above shows the MI calculation as a weighted sum over the scatter plot. Each cell is shaded by its log-ratio $\log(p(x,y) / (p(x)p(y)))$ — blue where the relationship concentrates, grey where it matches independence. The final MI score is the volume under this signed surface, weighted by the actual joint density.*
+
+### Building the MI Formula — A Toy Worked Example
+
+Like Pearson's wind-speed example, let's make MI concrete with a small dataset. Suppose you're predicting house prices ($y$) based on neighbourhood walkability score ($x$), and you observe 8 districts:
+
+| District | Walkability $x$ | Price $y$ (\$100k) | Bin assignment |
+|----------|----------------|-------------------|----------------|
+| 1 | 2 | 1.2 | Low walk, Low price |
+| 2 | 3 | 1.5 | Low walk, Low price |
+| 3 | 7 | 2.8 | High walk, High price |
+| 4 | 8 | 3.1 | High walk, High price |
+| 5 | 2 | 1.0 | Low walk, Low price |
+| 6 | 8 | 2.9 | High walk, High price |
+| 7 | 3 | 1.4 | Low walk, Low price |
+| 8 | 7 | 3.0 | High walk, High price |
+
+For simplicity, bin the features into two bins each: Low (≤ 5) and High (> 5) for walkability; Low (< 2.0) and High (≥ 2.0) for price.
+
+**Step 1 — Count occurrences in each cell:**
+
+|  | Price Low | Price High | Total (marginal $p(x)$) |
+|---|---|---|---|
+| **Walk Low** | 4 | 0 | 4 |
+| **Walk High** | 0 | 4 | 4 |
+| **Total (marginal $p(y)$)** | 4 | 4 | 8 |
+
+**Step 2 — Compute probabilities:**
+
+Joint probabilities $p(x, y)$:
+- $p(\text{Low walk, Low price}) = 4/8 = 0.50$
+- $p(\text{Low walk, High price}) = 0/8 = 0.00$
+- $p(\text{High walk, Low price}) = 0/8 = 0.00$
+- $p(\text{High walk, High price}) = 4/8 = 0.50$
+
+Marginal probabilities:
+- $p(\text{Low walk}) = 4/8 = 0.50$
+- $p(\text{High walk}) = 4/8 = 0.50$
+- $p(\text{Low price}) = 4/8 = 0.50$
+- $p(\text{High price}) = 4/8 = 0.50$
+
+**Step 3 — Compute the independence baseline $p(x) \cdot p(y)$:**
+
+If walkability told you nothing about price, each cell would have probability = (row total) × (column total):
+- $p(\text{Low walk}) \times p(\text{Low price}) = 0.50 \times 0.50 = 0.25$
+- $p(\text{Low walk}) \times p(\text{High price}) = 0.50 \times 0.50 = 0.25$
+- $p(\text{High walk}) \times p(\text{Low price}) = 0.50 \times 0.50 = 0.25$
+- $p(\text{High walk}) \times p(\text{High price}) = 0.50 \times 0.50 = 0.25$
+
+**Step 4 — Compute the log ratio for each cell:**
+
+|  | Price Low | Price High |
+|---|---|---|
+| **Walk Low** | $\log(0.50/0.25) = \log(2) \approx 0.693$ | $\log(0.00/0.25) = -\infty$ (skip—undefined) |
+| **Walk High** | $\log(0.00/0.25) = -\infty$ (skip—undefined) | $\log(0.50/0.25) = \log(2) \approx 0.693$ |
+
+When $p(x,y) = 0$, that cell contributes nothing to the sum (the product $p(x,y) \log(\cdot)$ becomes $0 \times (-\infty) = 0$ by convention).
+
+**Step 5 — Weight each log ratio by its joint probability and sum:**
+
+$$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)p(y)}$$
+
+$$= 0.50 \times 0.693 + 0.00 \times (\text{skip}) + 0.00 \times (\text{skip}) + 0.50 \times 0.693$$
+
+$$= 0.3465 + 0.3465 = \mathbf{0.693} \text{ bits}$$
+
+**What does 0.693 bits mean?** In this toy example, knowing walkability score completely determines price category — it's a perfect step function. The MI of 0.693 bits = $\log(2)$ is the maximum MI you can get between two binary variables: knowing $x$ eliminates all uncertainty about $y$ (reduces your guessing entropy from 1 bit to 0 bits). For comparison:
+
+| MI score | What it signals | Example |
+|---|---|---|
+| 0.00 bits | No relationship — knowing $x$ tells you nothing about $y$ | Random scatter |
+| 0.10 bits | Weak relationship — knowing $x$ slightly narrows $y$ | Very noisy correlation |
+| 0.35 bits | Moderate relationship — knowing $x$ substantially constrains $y$ | Pearson ρ ≈ 0.5 linear case |
+| 0.693 bits | Strong relationship — for binary features, near-perfect association | Perfect step function (our example) |
+
+> 💡 **Connection to entropy:** The maximum MI between two binary variables is $\log(2) \approx 0.693$ bits, which equals the entropy $H(Y)$ of a fair coin flip. When MI = $H(Y)$, knowing $X$ removes *all* uncertainty about $Y$ — they're functionally dependent.
+
+**Why this toy example matters:** Notice that Pearson correlation on this same dataset would be ρ ≈ +0.95 (nearly perfect linear). Both Pearson and MI flag the strong relationship, so where's the advantage? The advantage shows up when the relationship is *non-linear* but still perfectly predictive — see the parabola case below.
+
 **When Pearson Fails — Two Cases Where MI Catches Signal**
+
+The real power of MI shows up when the relationship is strong but non-linear. Pearson's formula $\sum (x-\bar{x})(y-\bar{y})$ is a sum of signed products — positive when both are above or both below their means, negative when they go opposite directions. **When deviations cancel symmetrically, Pearson reads zero even though the relationship is perfect.** MI doesn't cancel — it accumulates information regardless of direction.
 
 **Case 1 — U-shaped relationship (e.g., optimal dose):**  
 A drug at low dose does nothing; at the optimal dose it works; at high dose it becomes toxic. Price vs HouseAge in some sub-markets follows a similar arc — very new and very old houses both command a premium over mid-age stock.
 
 ![U-shaped relationship: Pearson ρ ≈ 0 because symmetric deviations cancel, but MI > 0 because knowing x still predicts y strongly](img/ch03-mi-case1-ushape.png)
 
+**Why Pearson fails here:** For $x < x_\text{opt}$, $(x - \bar{x})$ is negative and $(y - \bar{y})$ is negative (both below average) → positive product. For $x > x_\text{opt}$, $(x - \bar{x})$ is positive but $(y - \bar{y})$ is *also* negative (y drops back down) → negative product. The two sides cancel, giving $\rho \approx 0$.
+
+**Why MI succeeds:** At every $x$ value, the distribution of $y$ is tightly concentrated — you don't see $y = 0.5$ when $x = 2$, and you don't see $y = 3.0$ when $x = 5$. The joint density $p(x,y)$ is a narrow arc; the independent baseline $p(x) \cdot p(y)$ would be a spread blob. The log-ratio $\log(p(x,y) / p(x)p(y))$ is high everywhere along the arc, so MI accumulates strongly.
+
 **Case 2 — Threshold / step relationship (e.g., income cliff):**  
-House prices in California are relatively flat below a neighbourhood income of ~$3k/month, then jump sharply above it. The relationship exists but is not proportional — a linear model misses the jump entirely.
+House prices in California are relatively flat below a neighbourhood income of ~\$3k/month, then jump sharply above it. The relationship exists but is not proportional — a linear model misses the jump entirely.
 
 ![Threshold relationship: Pearson ρ is moderate because it only captures a partial slope, but MI is high because it captures the full step jump](img/ch03-mi-case2-threshold.png)
+
+**Why Pearson underestimates:** Pearson sees the *average* upward trend but it's diluted across the full range. The correlation $\rho \approx +0.3$ reflects "some tendency for high $x$ to have high $y$," but it treats the flat region and the cliff equally. The slope is shallow when averaged over all points.
+
+**Why MI captures it fully:** Below the threshold, $p(y \mid x)$ is narrow — all $y$ values cluster near $y = 1.5$. Above the threshold, $p(y \mid x)$ is also narrow but shifted to $y = 3.5$. The conditional entropy $H(Y \mid X)$ is low (little uncertainty within each region), so the MI $I(X; Y) = H(Y) - H(Y \mid X)$ is high. MI says "once you tell me which side of the threshold $x$ is on, I know exactly where $y$ will be."
 
 **The "Broken Ruler" — The Aha! Moment:**
 
@@ -193,9 +306,27 @@ print(f"Pearson ρ : {r:.3f}")   # → 0.000  ← ruler says "no relationship"
 print(f"MI score  : {mi:.3f}")  # → 0.95+  ← detective says "strong link"
 ```
 
+**Breaking down the parabola case:**
+
+| $x$ | $y = x^2$ | $(x - \bar{x})$ | $(y - \bar{y})$ | Product |
+|-----|----------|----------------|----------------|---------|
+| −3 | 9 | −3 | +6 | −18 |
+| −2 | 4 | −2 | +1 | −2 |
+| −1 | 1 | −1 | −2 | +2 |
+| 0 | 0 | 0 | −3 | 0 |
+| +1 | 1 | +1 | −2 | −2 |
+| +2 | 4 | +2 | +1 | +2 |
+| +3 | 9 | +3 | +6 | +18 |
+
+**Sum of products ≈ 0** (the negatives cancel the positives) → Pearson ρ ≈ 0.
+
+But every $x$ maps to a *unique* $y$ — there's zero residual uncertainty. The joint density is a one-dimensional curve embedded in a 2-D plane. The entropy $H(Y \mid X) = 0$ (once you know $x$, you know $y$ exactly), so $I(X; Y) = H(Y) - 0 = H(Y)$ — all the entropy is explained. MI reads 0.95+ bits (near maximum for continuous data).
+
 ![Parabola y = x²: left and right deviations from the mean cancel so Pearson reads 0.000, but every x maps to a unique y — MI reads 0.95+, confirming the strong relationship](img/ch03-broken-ruler-parabola.png)
 
 ![Mutual information in action: as the scatter morphs from a diagonal line into a U-shape, Pearson ρ falls to zero while the MI score stays high — proving MI catches what Pearson misses](img/ch03-mi-in-action.gif)
+
+*The animation above shows a scatter plot transitioning from a straight line (ρ = 0.95, MI = 0.95) to a U-shape (ρ → 0, MI stays ≈ 0.90). Watch how Pearson's score collapses as the symmetry forms, while MI barely drops — it doesn't care about the shape, only whether knowing $x$ reduces uncertainty about $y$.*
 
 #### Pearson vs MI in the California Housing Dataset
 
@@ -213,6 +344,50 @@ print(f"MI score  : {mi:.3f}")  # → 0.95+  ← detective says "strong link"
 The key rows are Latitude and Longitude: ρ² ≈ 0 and ρ² ≈ 0 (they explain nothing *linearly* of the target in isolation), yet MI scores are 0.18 and 0.15 — among the highest in the dataset. There is real information, but it is non-linear (geographic clustering). Method 1's Univariate R² misses this entirely; MI flags it.
 
 > ⚠️ **MI scores are not on a standard scale.** You cannot say "MI = 0.18 means 18% of variance explained." They are relative rankings. To compare Pearson and MI side by side, normalise: divide each MI score by the maximum MI score in the feature set, giving a [0, 1] relative importance.
+
+#### Summary — When to Use Pearson vs MI
+
+**Three things to take away:**
+
+1. **Pearson correlation (ρ)** = how tightly data cluster around a straight line. Units = dimensionless, range = [−1, +1]. Positive = both rise together; negative = one falls as other rises; zero = no linear trend. **Use for:** linear regression feature screening, quick correlation checks, when you need to compare to R².
+
+2. **Mutual Information (MI)** = how much knowing $x$ reduces your uncertainty about $y$, for any shape of relationship. Units = bits (or nats if using natural log), range = $[0, \infty)$. Zero = independent; high = strong dependence. **Use for:** tree-based models, when you suspect non-linearity, when Pearson gives unexpectedly low scores despite visible patterns.
+
+3. **When they agree (both high or both low)**, the relationship is likely linear or absent. **When MI is much higher than ρ²**, you've found a non-linear signal — engineer a transformation (log, polynomial, binning) for linear models, or switch to a tree-based model that will exploit it automatically.
+
+#### Computing MI in Practice — sklearn's Implementation
+
+The toy example above used discrete bins to make the calculation transparent. For continuous features, sklearn's `mutual_info_regression` uses a **k-nearest-neighbors density estimator**:
+
+1. For each point $(x_i, y_i)$, find its $k$ nearest neighbors in the 2-D $(x, y)$ space
+2. Measure the distance $\epsilon_i$ to the $k$-th neighbor — this estimates the local density $p(x_i, y_i)$
+3. Repeat for the marginal spaces: find the $k$-th neighbor distance in the $x$-only space (estimates $p(x_i)$) and $y$-only space (estimates $p(y_i)$)
+4. Compute the log-ratio $\log(p(x_i, y_i) / (p(x_i) p(y_i)))$ using the ratio of distances
+5. Average over all points
+
+**Key parameters:**
+- `n_neighbors=3` (default) — controls the density estimation resolution. Higher $k$ = smoother estimates but may miss fine structure. Lower $k$ = more sensitive to local patterns but noisier.
+- `random_state=42` — MI estimation uses random subsampling for efficiency; set a seed for reproducibility.
+
+```python
+from sklearn.feature_selection import mutual_info_regression
+
+# X_train_s is your standardized feature matrix (n_samples × n_features)
+# y_train is your target vector
+mi_scores = mutual_info_regression(X_train_s, y_train, 
+                                    n_neighbors=3, 
+                                    random_state=42)
+
+# Returns array of MI scores, one per feature
+# Units: nats (natural log). Multiply by 1.443 to convert to bits.
+```
+
+**When MI can be misleading:**
+- **Small datasets (< 200 samples):** The k-NN estimator is noisy with few neighbors. Pearson is more stable.
+- **Very high-dimensional $x$:** The "curse of dimensionality" makes distance-based density estimation unreliable. Use Pearson as a fallback, or compute MI feature-by-feature (univariate).
+- **Discrete features mixed with continuous:** Use `mutual_info_classif` if the *target* is categorical. For mixed-type features, bin continuous features first or use specialized estimators.
+
+> 📖 For the estimator theory, see *Kraskov, Stögbauer & Grassberger, "Estimating Mutual Information," Physical Review E, 2004.*
 
 #### Pearson vs MI — Quick-Reference Cheat Sheet
 
@@ -667,6 +842,13 @@ The threshold table above gives the VIF verdict per feature. What it doesn't sho
 
 #### Feature Candidacy Decision Flow
 
+![Feature candidacy decision flow animation: watch MedInc, Latitude/Longitude, AveRooms, and Population flow through the diagnostic tree, each taking a different path based on their M1/M2/M3/VIF/Δ_interact scores](img/ch03-feature-candidacy-flow.gif)
+
+*The animation above shows four California Housing features flowing through the decision tree in slow motion. Watch how each feature's diagnostic profile (M1, M2, M3, VIF, joint uplift) determines its verdict: MedInc → Strong independent predictor (all three lenses agree); Latitude+Longitude → Jointly irreplaceable (low M1, high M2/M3, positive interaction); AveRooms → Collinear signal (high VIF with AveBedrms); Population → Drop candidate (near-zero on all metrics).*
+
+<details>
+<summary>📊 Click to expand: Static flowchart reference</summary>
+
 ```mermaid
 flowchart TD
     START(["Feature j — compute all five signals:\nM1 · M2 · M3 · VIF · Δ_interact"])
@@ -694,6 +876,8 @@ flowchart TD
     JOINT -->|Yes| IRREPLACEABLE["✅ Jointly irreplaceable\nEngineer composite or interaction\nfeature before a linear model\n― Latitude + Longitude ―"]
     JOINT -->|No| PROXY["⚠️ Proxy rider\nApparent importance borrowed\nfrom a correlated partner\nCheck which partner it mirrors"]
 ```
+
+</details>
 
 **The high-VIF case — AveRooms in California Housing.** When we regress AveRooms on all 7 other features in the full 20,640-sample dataset, the auxiliary R² is approximately 0.86 (driven mainly by the inter-feature Pearson ρ = 0.85 with AveBedrms). That gives:
 
