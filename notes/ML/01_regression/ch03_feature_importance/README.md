@@ -154,6 +154,8 @@ $$x' = \log(x + 1)$$
 
 $$x'(\lambda) = \begin{cases} \frac{x^\lambda - 1}{\lambda} & \lambda \neq 0 \\ \log x & \lambda = 0 \end{cases}$$
 
+where $x'(\lambda)$ is the transformed feature value, $x$ is the original feature value, and $\lambda$ is a transformation parameter that controls the strength of the transformation. When $\lambda = 1$ (no transformation needed), $x'(\lambda) = x - 1$. When $\lambda = 0$, it reduces to the log transform. When $\lambda = 0.5$, it's a square root transform.
+
 `sklearn.preprocessing.PowerTransformer(method='box-cox')` finds the optimal λ by maximum likelihood.
 
 **When to log-transform vs standardise:** If a feature's histogram has a long right tail (e.g., `AveRooms` has a few districts with 20+ rooms), apply log1p *before* StandardScaler. If the feature is roughly symmetric, skip log and standardise directly.
