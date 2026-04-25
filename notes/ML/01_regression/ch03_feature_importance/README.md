@@ -144,11 +144,103 @@ Mutual information measures *any* statistical dependence, not just linear:
 
 $$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)\,p(y)}$$
 
-where $I(X; Y)$ is the mutual information between features $X$ and target $Y$, $p(x,y)$ is the joint probability of observing values $x$ and $y$ together, $p(x)$ is the marginal probability of $x$, and $p(y)$ is the marginal probability of $y$. Higher values indicate stronger dependence between the feature and target.
+where $I(X; Y)$ is the mutual information between feature $X$ and target $Y$, $p(x,y)$ is the joint probability density of observing $x$ and $y$ together, and $p(x)$, $p(y)$ are the marginal densities. Range: $[0, \infty)$ — zero means completely independent; larger values mean stronger dependence of any shape.
 
-> 📖 For the full information-theoretic derivation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
+#### The Intuition — Reduction in Uncertainty
 
-`sklearn.feature_selection.mutual_info_regression` uses a k-nearest-neighbour estimator for continuous variables.
+Pearson asks: "when $x$ increases, does $y$ tend to increase too?" MI asks a more fundamental question: **"knowing $x$, how much does my uncertainty about $y$ shrink?"**
+
+Formally, MI is the gap between your uncertainty about $y$ before and after seeing $x$:
+
+$$I(X; Y) = H(Y) - H(Y \mid X)$$
+
+where $H(Y)$ is the entropy of $y$ (how unpredictable it is on its own) and $H(Y \mid X)$ is the conditional entropy (how unpredictable $y$ remains after $x$ is known). If knowing $x$ cuts your uncertainty in half, $I(X; Y) = 0.5 \cdot H(Y)$. If $x$ tells you nothing, $H(Y \mid X) = H(Y)$ and $I = 0$.
+
+> **Why this matters:** Pearson is zero for a U-shaped or threshold relationship even though knowing $x$ dramatically reduces uncertainty about $y$. MI is not. This is the key difference in one sentence.
+
+#### When Pearson Fails — Two Cases Where MI Catches Signal
+
+**Case 1 — U-shaped relationship (e.g., optimal dose):**  
+A drug at low dose does nothing; at the optimal dose it works; at high dose it becomes toxic. Price vs HouseAge in some sub-markets follows a similar arc — very new and very old houses both command a premium over mid-age stock.
+
+```
+y  ↑
+   |       ●
+   |     ●   ●
+   |   ●       ●
+   | ●           ●
+   └─────────────── x
+
+Pearson ρ ≈ 0  (symmetric, deviations cancel)
+MI         > 0  (knowing x strongly predicts y)
+```
+
+**Case 2 — Threshold / step relationship (e.g., income cliff):**  
+House prices in California are relatively flat below a neighbourhood income of ~$3k/month, then jump sharply above it. The relationship exists but is not proportional — a linear model misses the jump entirely.
+
+```
+y  ↑
+   |               ●●●
+   |           ●●●
+   |●●●●●●●●
+   └─────────────── x
+           threshold
+
+Pearson ρ  moderate (captures partial signal)
+MI         high      (captures the full jump)
+```
+
+For California Housing's 8 features, most relationships are roughly monotonic (Pearson and MI rank them similarly). MI becomes decisive when you suspect non-linear effects — e.g., `HouseAge` may have a non-linear relationship with price (new builds and historic homes both premium).
+
+#### How MI Is Estimated for Continuous Variables
+
+The formula above is written as a sum over discrete $(x, y)$ pairs. For continuous features, you cannot enumerate all values — you need an estimator.
+
+`sklearn.feature_selection.mutual_info_regression` uses the **Kraskov k-NN estimator**: for each sample point, it measures the distance to its $k$-th nearest neighbour in joint $(x, y)$ space vs in the marginal $x$ and $y$ spaces separately. The ratio of those distances is related to the log density ratio in the MI integral — no binning, no histogram choice, no smoothing parameter.
+
+Key properties of the estimator:
+- **$k$ controls bias-variance**: small $k$ (default: $k=3$) is lower bias but noisier; larger $k$ is smoother but may underestimate MI for complex shapes.
+- **`random_state` matters**: the estimator adds a tiny random perturbation to break ties; set `random_state` for reproducibility.
+- **Scale-invariant**: unlike Pearson, MI does not change if you log-transform or standardise a feature (the rank structure is preserved, and the density estimator adapts).
+
+```python
+from sklearn.feature_selection import mutual_info_regression
+
+mi_scores = mutual_info_regression(X_train, y_train, random_state=42)
+# Returns one score per feature. Not normalised — compare relative magnitude.
+```
+
+#### Pearson vs MI in the California Housing Dataset
+
+| Feature | \|ρ\| with target | ρ² (linear R²) | MI score | Gap story |
+|---|---|---|---|---|
+| MedInc | 0.688 | 0.473 | 0.52 | Near-linear — both agree |
+| AveRooms | 0.151 | 0.023 | 0.09 | Weak either way |
+| HouseAge | 0.036 | 0.001 | 0.07 | **MI higher** — non-linear premium for new/old |
+| Latitude | 0.144 | 0.021 | 0.18 | **MI much higher** — price varies non-linearly by region |
+| Longitude | 0.046 | 0.002 | 0.15 | **MI much higher** — same geographic non-linearity |
+| AveBedrms | 0.047 | 0.002 | 0.02 | Both near-zero |
+| Population | 0.025 | 0.001 | 0.01 | Both near-zero |
+| AveOccup | 0.020 | 0.000 | 0.04 | MI slightly higher — crowding has threshold effect |
+
+The key rows are Latitude and Longitude: ρ² ≈ 0 and ρ² ≈ 0 (they explain nothing *linearly* of the target in isolation), yet MI scores are 0.18 and 0.15 — among the highest in the dataset. There is real information, but it is non-linear (geographic clustering). Method 1's Univariate R² misses this entirely; MI flags it.
+
+> ⚠️ **MI scores are not on a standard scale.** You cannot say "MI = 0.18 means 18% of variance explained." They are relative rankings. To compare Pearson and MI side by side, normalise: divide each MI score by the maximum MI score in the feature set, giving a [0, 1] relative importance.
+
+#### Decision Rule — When to Use Which Filter
+
+| Situation | Use |
+|---|---|
+| You expect monotonic relationships; interpretability needed | Pearson (or Spearman if skewed) |
+| You suspect non-linearity (U-shapes, thresholds, clusters) | MI |
+| You have categorical features mixed with continuous | MI (`mutual_info_classif` for discrete target) |
+| You need a number you can directly compare to R² | Pearson² |
+| You need a model-agnostic signal check before tree models | MI — trees find non-linear patterns anyway, MI tells you the signal is there |
+| Dataset is small (< 200 samples) | Pearson — MI estimator is noisy with few neighbours |
+
+For California Housing: run both. Where they agree, the ranking is reliable. Where MI is substantially higher than ρ², the feature has non-linear signal that a linear model will underuse — a cue to engineer a transformation or switch to a tree-based model.
+
+> 📖 For the information-theoretic foundation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
 
 > 📖 **Embedded selection (bridge to Ch.5):** When you are unsure which features to drop, Lasso is the principled alternative to filter methods — selection happens *during* training, not before it. The L1 penalty drives weak-signal coefficients exactly to zero. Full treatment in [Ch.5 — Regularization](../ch05_regularization).
 
@@ -854,19 +946,6 @@ The side-by-side bar chart makes the ranking reversal concrete:
 
 ---
 
-### VIF Instability Scatter
-
-![Weight instability for correlated features across train split A vs B](img/ch03-vif-instability.png)
-
-The scatter shows fitted weights for all 8 features across 50 bootstrap resamples of the California Housing training set. Each point is one resample; the x-axis is the weight from split A (odd resamples) and the y-axis from split B (even resamples).
-
-- **MedInc, Latitude, Longitude**: points cluster tightly on the diagonal — stable weights regardless of which samples are drawn.
-- **AveRooms, AveBedrms**: points scatter broadly and asymmetrically. A resample that assigns `+0.3` to AveRooms might assign `−0.1` to AveBedrms, while another assigns `−0.1` to AveRooms and `+0.4` to AveBedrms. Both configurations give nearly identical predictions; neither weight is trustworthy alone.
-
-> This is the VIF story made visual: high-VIF features have diffuse weight clouds; low-VIF features have tight diagonal clusters.
-
----
-
 ### Permutation Importance — The Shuffle Loop
 
 ![Permutation importance: conceptual diagram of the shuffle loop](img/ch03-permutation-loop.png)
@@ -889,6 +968,14 @@ Key annotation: *"The model is never retrained. Only the test-set column is shuf
 ### Pearson vs Mutual Information — Linear and Non-Linear Relationships
 
 ![Pearson vs Mutual Information on linear vs U-shaped data](img/ch03-pearson-vs-mi.png)
+
+Three panels, left to right:
+
+- **Panel 1 — Linear relationship** (MedInc vs MedHouseVal): Pearson ρ = 0.69, MI = 0.52. Both are high; Pearson's R² maps directly to Model 1 Univariate R².
+- **Panel 2 — U-shaped relationship** (simulated HouseAge premium): Pearson ρ ≈ 0, MI = 0.38. The symmetric arch cancels all linear correlation but MI detects the strong dependence. Pearson would silently drop this feature.
+- **Panel 3 — Lat/Long scatter** coloured by target decile: the price gradient is spatial (clusters), not a straight line. ρ is near-zero per coordinate; MI per coordinate is 0.15–0.18, reflecting the geographic information that only emerges once both coordinates are considered.
+
+The takeaway from the diagram: a feature with Pearson ≈ 0 and MI > 0.10 is flagged for non-linear investigation before discarding.
 
 ### Lasso Coefficient Path
 
