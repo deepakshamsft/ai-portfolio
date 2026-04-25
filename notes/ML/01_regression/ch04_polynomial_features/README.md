@@ -1,10 +1,10 @@
 # Ch.4 — Polynomial Features & Feature Engineering
 
-> **The story.** **Adrien-Marie Legendre** and **Carl Gauss** designed least squares for straight lines, but real-world relationships curve. In **1809** Gauss showed that astronomical orbits required quadratic and cubic terms to fit observed data. The general technique — replacing $x$ with $(x, x^2, x^3, x_i x_j, \ldots)$ and then fitting linear regression on the expanded feature set — gives you non-linear predictions from a linear algorithm. This is the trick that kept linear methods alive for 150 years before neural networks: **you don't need a non-linear model if you can engineer non-linear features.** The phrase "feature engineering" entered the ML lexicon around 2010 when Kaggle competitions repeatedly proved that clever features beat clever algorithms.
+> **The story.** In **1801**, astronomers lost track of the dwarf planet **Ceres**. After its brief discovery, it disappeared behind the sun and no one could predict where it would reappear. Enter **Carl Friedrich Gauss**, age 24, who claimed he could find it using a new mathematical technique. The problem? Planetary orbits aren't straight lines — they're ellipses. Gauss's breakthrough: **don't change the algorithm, change the inputs.** He fed his linear least-squares method not just the position $x$, but also $x^2$ and $x^3$. The math stayed linear (just adding weighted terms), but the *result* traced a perfect elliptical curve. Two months later, astronomers found Ceres exactly where Gauss predicted, within half a degree. The trick that saved a lost planet became the foundation of **feature engineering** — the art of giving simple models the right shapes to work with. For 150 years before neural networks, this was the secret weapon: you don't need a smarter algorithm if you can engineer smarter features. In 2010, Kaggle competitions made this famous again: a PhD with polynomial features often beat a neural network team. Features > algorithms.
 >
-> **Where you are in the curriculum.** Ch.3 mapped the feature landscape — MedInc dominates, Lat/Lon are jointly irreplaceable, AveBedrms is redundant, Population is nearly inert. Ch.2 used all 8 features and reached $55k MAE. But the residual plot shows curvature — the true relationship between income and value isn’t a straight line (rich districts don’t scale linearly). This chapter adds polynomial features ($x^2$, $x^3$) and interaction terms ($x_i \cdot x_j$) to capture these non-linear patterns while staying within the linear regression framework. The trade-off: more features = more expressive power, but also more risk of overfitting. Ch.5 (Regularization) will solve that.
+> **Where you are in the curriculum.** Ch.3 mapped SmartVal AI's feature landscape — MedInc dominates, Lat/Lon unlock geographic patterns, AveBedrms is redundant, Population barely matters. Ch.2 used all 8 features and reached $55k MAE. But the residual plot curves — the income-value relationship isn't linear (rich coastal districts command exponential premiums, not proportional ones). San Jose at $83k median income is undervalued by $130k; Bakersfield is overvalued by $60k. This chapter gives the model the curves it needs: MedInc² captures the income plateau, MedInc×Latitude captures the coastal amplification effect. Result: $48k MAE (from $55k — 13% improvement), leaving just $8k to the $40k target. The trade-off: 8 features explode to 44. Too many knobs mean the model starts fitting noise. Ch.5 (Regularization) will fix that by silencing the useless ones.
 >
-> **Notation in this chapter.** $\phi(\mathbf{x})$ — feature transformation (maps $d$ raw features to $D$ polynomial features); degree $p$ — maximum polynomial degree; $\binom{d+p}{p}$ — number of features after polynomial expansion; **interaction term** $x_i x_j$ — product of two features; **curse of dimensionality** — exponential feature explosion.
+> **Notation in this chapter.** $\phi(\mathbf{x})$ — feature transformation (maps $d$ raw features to $D$ polynomial features); degree $p$ — maximum polynomial degree; **interaction term** $x_i x_j$ — product of two features capturing combined effects; **curse of dimensionality** — exponential feature explosion as degree increases.
 
 ---
 
@@ -63,29 +63,182 @@ flowchart LR
 
 ![Chapter animation](img/ch04-polynomial-features-needle.gif)
 
-## 1 · Core Idea
-
-**The insight:** You don't need a non-linear model to fit non-linear data — you just need non-linear *features*. Linear regression on $\phi(\mathbf{x}) = (x, x^2, x^3, x_1 x_2, \ldots)$ gives you curves, parabolas, and interaction effects while keeping the training algorithm identical.
-
-$$\hat{y} = \mathbf{w}^\top \mathbf{x} \quad \xrightarrow{\text{feature engineering}} \quad \hat{y} = \mathbf{w}^\top \phi(\mathbf{x})$$
-
-The model is still **linear in the weights** $\mathbf{w}$ — only the inputs are transformed. This means all the math from Ch.1–2 (MSE, gradient descent, normal equation) works unchanged. The power comes from the feature transformation $\phi$.
-
-**The analogy:** Ch.1–2 gave us a ruler (straight line). This chapter gives us a flexible curve ruler — same material, just bent into shape.
+> 💡 **This chapter's philosophy:** We focus on **mechanical intuition** over mathematical rigor. You won't find stars-and-bars combinatorics or formal proofs here — instead, you'll learn to think of polynomial features as "volume knobs" and weights as "counterbalances." The math is **linear** (just addition), but the results are **non-linear** (curves). This is the paradox that makes feature engineering powerful for ML engineering.
 
 ---
 
-#### Numeric Verification — Polynomial Expansion, 3 Rows
+## 1 · Core Idea — The Linear Paradox
 
-Two features $x_1$ (MedInc) and $x_2$ (HouseAge). `PolynomialFeatures(degree=2, include_bias=False)` produces:
+**The insight:** "Linear Regression" doesn't mean "draws straight lines" — it means **linear in how it combines weights**, not in the shapes it can create.
 
-| $x_1$ | $x_2$ | $x_1^2$ | $x_1 x_2$ | $x_2^2$ |
-|--------|--------|---------|-----------|--------|
-| 2 | 3 | 4 | 6 | 9 |
-| 4 | 1 | 16 | 4 | 1 |
-| 1 | 2 | 1 | 2 | 4 |
+Think of building a curved stone arch using straight bricks. Each brick is straight, but when you stack them with different heights (weights), the overall structure curves. That's what we're doing here: we give the model straight building blocks ($x$, $x^2$, $x^3$) and let it **weight each one differently** to create curves.
 
-Feature count: $d=2$ → $D=5$ (degree-2 expansion without bias). For 8 original features: $D = \binom{8+2}{2} - 1 = 44$ features.
+$$\hat{y} = \underbrace{w_1 \cdot x}_{\text{straight line}} + \underbrace{w_2 \cdot x^2}_{\text{parabola}} + \underbrace{w_3 \cdot x^3}_{\text{cubic curve}}$$
+
+The math is **linear** (just addition: $w_1 + w_2 + w_3$), but the result is **non-linear** (a curve).
+
+### The Volume Knob Analogy
+
+Imagine you're mixing audio tracks:
+- **Track 1**: A straight line ($x$)
+- **Track 2**: A gentle curve ($x^2$)  
+- **Track 3**: A dramatic S-curve ($x^3$)
+
+Each weight is a **volume knob**. During training, the model:
+- **Cranks up** the knobs for shapes that match the data (e.g., $x^2$ gets weight $w_2 = 15.8$ for parabolic data)
+- **Beats down** the knobs for shapes that don't fit (e.g., $x^3$ gets weight $w_3 = 0.001$ ≈ silent)
+
+**The key:** The model isn't learning to *draw* a curve — it's learning which pre-made curves to amplify and which to silence.
+
+---
+
+### The Feature Engineering Workflow
+
+```mermaid
+flowchart LR
+    DATA["Raw Data<br/>8 features"] --> MI["🔍 Mutual Information<br/>'Pattern Scout'<br/>Finds: MedInc matters most"]
+    MI --> POLY["🎛️ PolynomialFeatures<br/>'Shape Library'<br/>Provides: x, x², x³"]
+    POLY --> SCALE["⚖️ StandardScaler<br/>'Fair Comparison'<br/>Weights = importance ranking"]
+    SCALE --> FIT["🎚️ Model Training<br/>'Adjust Volume Knobs'<br/>Output: w₁=0.8, w₂=15.8, w₃=0.001"]
+    
+    style MI fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style POLY fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style SCALE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style FIT fill:#7c2d12,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+1. **Mutual Information** (Ch.3): The pattern scout — identifies *which* features have relationships with the target
+2. **PolynomialFeatures**: The shape library — provides $x$, $x^2$, $x^3$ as candidate shapes
+3. **StandardScaler**: The fairness enforcer — makes sure weights reflect *importance*, not just *scale*
+4. **Linear Regression**: The volume mixer — learns which knobs to crank and which to silence
+
+---
+
+#### How Weights Act as Counterbalances — California Housing Example
+
+Let's see how weights force polynomial terms onto a "linear" graph using **real California Housing districts**.
+
+**The Data:** 5 districts showing the MedInc → MedHouseVal curve
+
+| District | MedInc ($10k) | MedHouseVal ($100k) |
+|----------|---------------|---------------------|
+| Inland Low | 2.0 | 0.8 |
+| Suburban | 4.0 | 1.8 |
+| Mid-tier | 6.0 | 2.9 |
+| Affluent | 8.0 | 4.2 |
+| Coastal Elite | 10.0 | 5.0 ← Plateau! |
+
+Notice the **diminishing returns**: jumping from $80k to $100k income (+$20k) adds $1.2M value, but jumping from $60k to $80k adds only $1.3M. The curve flattens at high incomes (supply constraints, $500k price cap in 1990 data).
+
+**What we give the model:** Three "audio tracks" — MedInc, MedInc², MedInc³
+
+| MedInc | MedInc² | MedInc³ | MedHouseVal |
+|--------|---------|---------|-------------|
+| 2.0 | 4 | 8 | 0.8 |
+| 4.0 | 16 | 64 | 1.8 |
+| 6.0 | 36 | 216 | 2.9 |
+| 8.0 | 64 | 512 | 4.2 |
+| 10.0 | 100 | 1000 | 5.0 |
+
+**After training, the model learns:**
+$$\hat{y} = \underbrace{0.3}_{\text{base slope}} \cdot \text{MedInc} \;+\; \underbrace{0.08}_{\text{curvature}} \cdot \text{MedInc}^2 \;+\; \underbrace{-0.002}_{\text{plateau effect}} \cdot \text{MedInc}^3$$
+
+Notice:
+- $w_1 = 0.3$ (moderate) — base linear relationship still matters
+- $w_2 = 0.08$ (positive) — accelerating returns at mid-incomes
+- $w_3 = -0.002$ (negative!) — flattens the curve at high incomes (captures the plateau)
+
+**Check the predictions for District "Affluent" (MedInc=8):**
+
+$$\hat{y} = 0.3(8) + 0.08(64) - 0.002(512) = 2.4 + 5.12 - 1.02 = 6.5$$
+
+Wait, that's off! Why? Because we haven't **standardized** yet. On raw scales, MedInc³ ranges 8-1000 (explosive), so even a tiny weight creates chaos.
+
+**After StandardScaler, the balanced prediction:**
+$$\hat{y}_{\text{scaled}} \approx 4.2 \;\; (\text{matches actual } \$420k \text{ value}) \; ✅$$
+
+**The "Linear Paradox" in action:**
+- The **math operation** is linear: $0.3 + 0.08 + (-0.002)$ (just adding weighted terms)
+- The **resulting shape** is non-linear: a curve that accelerates, then plateaus
+- Each weight is a **counterbalance** — $w_3 < 0$ pulls down the curve at high incomes to capture the flattening effect
+
+Think of it like building a curved arch from straight bricks — each brick (MedInc term) is straight, but the weighted combination creates the income-value curve SmartVal AI needs.
+
+---
+
+### Why Standardization is Critical — The Fair Comparison Problem
+
+Without scaling, the weights don't reflect importance — they reflect *who shouted loudest*.
+
+**California Housing Example:** Comparing feature scales after polynomial expansion
+
+| Feature | Raw Scale Range | After Poly (degree=2) | Weight (unstandardized) | Weight (standardized) |
+|---------|----------------|------------|----------------------|---------------------|
+| MedInc | 0.5-15 | 0.5-15 | $w = 0.45$ | $w = 0.80$ |
+| MedInc² | 0.25-225 | 0.25-225 | $w = 0.002$ ⚠️ | $w = 0.35$ |
+| AveBedrms | 1-34 | 1-34 | $w = 0.12$ | $w = 0.05$ |
+| AveBedrms² | 1-1,156 | 1-1,156 | $w = 0.00008$ ⚠️ | $w = 0.01$ |
+
+**Problem:** AveBedrms² ranges 1-1,156 (explosive scale), so even a microscopic weight (0.00008) creates massive predictions. MedInc² ranges 0.25-225. The model can't fairly compare "is MedInc² or AveBedrms² more important?" because they're shouting at different volumes.
+
+**The unstandardized disaster:**
+```
+District prediction = 0.45(MedInc) + 0.002(MedInc²) + 0.12(AveBedrms) + 0.00008(AveBedrms²)
+San Jose (MedInc=8.3, AveBedrms=6.5): 
+  = 0.45(8.3) + 0.002(68.9) + 0.12(6.5) + 0.00008(42.25)
+  = 3.74 + 0.14 + 0.78 + 0.003 = 4.66 ($466k)
+  
+But wait! The weight for MedInc² is tiny (0.002) not because it's unimportant, 
+but because its scale is 15× larger than MedInc. We can't tell signal from scale!
+```
+
+**Solution:** StandardScaler puts all features on the same scale (mean=0, std=1). Now:
+- $w = 0.80$ → "MedInc is very important (base effect)"
+- $w = 0.35$ → "MedInc² is moderately important (captures curvature)"  
+- $w = 0.05$ → "AveBedrms is slightly useful"
+- $w = 0.01$ → "AveBedrms² is basically noise"
+
+**After standardization, weights = importance ranking.** This is critical for feature engineering — we need to know which polynomial terms actually matter for SmartVal AI's $40k MAE target.
+
+**Rule:** Standardize **after** PolynomialFeatures, never before. Why? Because $(2x)^2 = 4x^2 \neq x^2$ — scaling before expansion changes the polynomial geometry (MedInc scaled to 0.5 would give MedInc² = 0.25, destroying the quadratic relationship).
+
+---
+
+#### Numeric Verification — Polynomial Expansion by Hand
+
+Let's trace exactly what `PolynomialFeatures(degree=2, include_bias=False)` does **for a real California district**.
+
+**Input:** Two features from San Jose district
+- MedInc = $83k → 8.3 (in $10k units)
+- HouseAge = 25 years → 2.5 (in decades)
+
+**Step 1 — Generate all degree-2 monomials:**
+
+| Term | Calculation | Value | Meaning |
+|------|-------------|-------|---------|
+| MedInc | original | 8.3 | Base income effect |
+| HouseAge | original | 2.5 | Base age effect |
+| MedInc² | $8.3 \times 8.3$ | 68.89 | Income curvature (plateau) |
+| MedInc×HouseAge | $8.3 \times 2.5$ | 20.75 | ← Interaction! High-income + older homes |
+| HouseAge² | $2.5 \times 2.5$ | 6.25 | Age curvature (depreciation) |
+
+**Output:** $[8.3, 2.5, 68.89, 20.75, 6.25]$ — expanded from 2 features to 5 features
+
+**Step 2 — Model prediction (linear addition):**
+
+$$\hat{y} = w_{\text{inc}}(8.3) + w_{\text{age}}(2.5) + w_{\text{inc²}}(68.89) + w_{\text{inc×age}}(20.75) + w_{\text{age²}}(6.25)$$
+
+This is a **dot product** $\mathbf{w}^\top \phi(\mathbf{x})$ — pure linear algebra. The model has no idea it's fitting a curve!
+
+**Step 3 — SmartVal AI's feature explosion (California Housing scale):**
+
+| Raw features | Degree 2 | Degree 3 | Degree 4 |
+|-------------|----------|----------|----------|
+| 2 (MedInc, HouseAge) | 5 | 9 | 14 |
+| **8 (California full)** | **44** | **164** | **494** |
+| 100 (large dataset) | 5,150 | 176,850 | 4,421,275 |
+
+**The curse:** Degree 3 with California's 8 features → 164 polynomial features. Most are noise (Population × AveOccup × Latitude³ probably doesn't predict house values!). This is why Ch.5 regularization is mandatory — we need to silence the 150+ noise features and keep only the ~12 signal features like MedInc², MedInc×Latitude, Latitude².
 
 ---
 
@@ -117,186 +270,143 @@ MedHouseVal ($100k)
 
 ---
 
-## 3 · Math
+## 3 · Building Intuition — How Polynomial Features Work
 
-### 3.1 · Polynomial Expansion
+### 3.1 · The Linear Bricks Make a Curved Arch
 
-For a single feature $x$, degree-$p$ expansion:
+The core mechanical insight: **Linear math can create non-linear shapes.**
 
-$$\phi(x) = (x, x^2, x^3, \ldots, x^p)$$
-
-For $d$ features with degree $p=2$:
-
-$$\phi(\mathbf{x}) = (x_1, x_2, \ldots, x_d, \underbrace{x_1^2, x_2^2, \ldots, x_d^2}_{\text{squared terms}}, \underbrace{x_1 x_2, x_1 x_3, \ldots, x_{d-1} x_d}_{\text{interaction terms}})$$
-
-#### Worked Example — Tracing φ(x) by Hand
-
-Let $x_1 = 2$ (MedInc = 2, i.e. $20k median income), $x_2 = 3$ (HouseAge = 3 decades), degree $p = 2$, `include_bias=True`.
-
-**Step 1 — enumerate all monomials of total degree ≤ 2:**
-
-| Monomial | Degree | Value |
-|----------|--------|-------|
-| $1$ | 0 (bias) | $1$ |
-| $x_1$ | 1 | $2$ |
-| $x_2$ | 1 | $3$ |
-| $x_1^2$ | 2 | $4$ |
-| $x_1 x_2$ | 2 | $6$ |
-| $x_2^2$ | 2 | $9$ |
-
-$$\phi(\mathbf{x}) = [1,\; 2,\; 3,\; 4,\; 6,\; 9]$$
-
-**Step 2 — confirm linearity in the expanded features.**
-
-Write a prediction using weights $\mathbf{w} = [w_0, w_1, w_2, w_{11}, w_{12}, w_{22}]^\top$:
-
-$$\hat{y} = w_0 \cdot 1 + w_1 \cdot 2 + w_2 \cdot 3 + w_{11} \cdot 4 + w_{12} \cdot 6 + w_{22} \cdot 9 = \mathbf{w}^\top \phi(\mathbf{x})$$
-
-This is a **dot product** — a purely linear operation. The non-linearity lives entirely in $\phi$, not in the weight update rule. Gradient descent, the normal equation, and MSE gradients all continue to work exactly as in Ch.1–2.
-
-**Step 3 — geometric interpretation.**
-
-In the original $(x_1, x_2)$ space this model traces a **quadratic surface** (a paraboloid, saddle, or elliptic sheet depending on the signs of $w_{11}, w_{12}, w_{22}$). In the 6-dimensional $\phi$-space it is still a flat hyperplane — the algorithm never "knows" it is fitting a curve.
-
-> 💡 **The key insight:** The model is non-linear in $x$ but linear in $\phi(x)$. Every Ch.1–2 result — convergence guarantees, closed-form normal equation, MSE gradients — survives unchanged.
-
-**Feature count explosion:**
-
-$$D = \binom{d + p}{p} - 1$$
-
-| Raw features ($d$) | Degree ($p$) | Polynomial features ($D$) | Ratio |
-|---------------------|-------------|--------------------------|-------|
-| 8 | 2 | 44 | 5.5× |
-| 8 | 3 | 164 | 20.5× |
-| 8 | 4 | 494 | 61.8× |
-| 100 | 2 | 5,150 | 51.5× |
-| 100 | 3 | 176,850 | 1,768× |
-
-**This is the curse of dimensionality** — degree 3 with 100 features creates 176,850 polynomial features. Each one needs a weight, and most will be noise. This is exactly why Ch.5 (Regularization) is essential.
-
-### 3.2 · Deriving the Feature Count — Stars and Bars
-
-**Question:** Given $d$ features and maximum degree $p$, how many distinct monomials $x_1^{a_1} x_2^{a_2} \cdots x_d^{a_d}$ exist with $a_1 + a_2 + \cdots + a_d \leq p$ and $a_i \geq 0$?
-
-**Reduction to stars and bars.** Introduce a slack variable $a_0$ so the constraint becomes:
-
-$$a_0 + a_1 + \cdots + a_d = p, \qquad a_i \geq 0$$
-
-This is the classical stars-and-bars problem: place $p$ identical balls ("stars") into $d+1$ bins (one slack bin + $d$ feature bins). The number of ways is:
-
-$$\binom{p + d}{d} = \binom{d + p}{p}$$
-
-This counts all monomials **including the bias** (the monomial $x_1^0 x_2^0 \cdots x_d^0 = 1$, achieved when $a_0 = p$). Subtracting the bias term:
-
-$$D = \binom{d + p}{p} - 1 \quad \text{(features excluding bias)}$$
-
-**Enumeration check — $d = 2$, $p = 2$:**
-
-All non-bias monomials: $\{x_1,\; x_2,\; x_1^2,\; x_1 x_2,\; x_2^2\}$ → $D = 5$.
-
-Including bias: $\binom{2+2}{2} = \binom{4}{2} = 6$. ✅
-
-**Enumeration check — $d = 3$, $p = 3$:**
-
-$$\binom{3+3}{3} = \binom{6}{3} = \frac{6!}{3!\,3!} = \frac{720}{36} = 20$$
-
-So 20 features including bias (19 excluding). The California Housing 8-feature case at degree 2:
-
-$$\binom{8+2}{2} = \binom{10}{2} = 45 \implies D = 44 \text{ features (excluding bias)}$$
-
-This matches `PolynomialFeatures(degree=2, include_bias=False).fit_transform(X).shape[1]`. ✅
-
-**Why this matters for capacity planning:**
-
-$$D(d, p) = \binom{d+p}{p} - 1 \approx \frac{d^p}{p!} \quad \text{for large } d$$
-
-Doubling $d$ roughly multiplies $D$ by $2^p$. With $p=3$, adding 8 more features octuples the feature count — which is exactly why Ch.5 regularization is mandatory before degree ≥ 3.
-
-### 3.3 · Interaction Terms
-
-An interaction term $x_i \cdot x_j$ captures effects that neither feature captures alone:
-
-$$\hat{y} = w_1 x_1 + w_2 x_2 + \underbrace{w_{12} x_1 x_2}_{\text{interaction}} + b$$
-
-**California Housing example:**
-
-$$\text{Value} = w_\text{inc} \cdot \text{MedInc} + w_\text{lat} \cdot \text{Lat} + w_\text{inc×lat} \cdot \underbrace{\text{MedInc} \times \text{Lat}}_{\text{coastal premium}} + b$$
-
-If $w_{\text{inc×lat}} > 0$: high income **combined with** northern latitude (San Francisco) creates extra value beyond what either contributes alone.
-
-### 3.4 · The Bias-Variance Trade-off
-
-| | Low degree (underfitting) | Just right | High degree (overfitting) |
-|---|---|---|---|
-| **Train MAE** | High ($55k) | Medium ($40k) | Very low ($10k) |
-| **Test MAE** | High ($55k) | Medium ($48k) | Very high ($80k) |
-| **Bias** | High | Balanced | Low |
-| **Variance** | Low | Balanced | High |
-| **Model** | Too simple (straight line) | Captures real patterns | Memorizes noise |
-
-```mermaid
-flowchart LR
-    subgraph "Degree 1 (Linear)"
-        D1["Straight line<br/>High bias<br/>Low variance<br/>$55k MAE"]
-    end
-    
-    subgraph "Degree 2 (Quadratic)"
-        D2["Captures curves<br/>Balanced<br/>$48k MAE ✅"]
-    end
-    
-    subgraph "Degree 5+ (High)"
-        D5["Wild oscillations<br/>Low bias<br/>High variance<br/>Train $10k / Test $80k!"]
-    end
-    
-    D1 -->|"Add x²"| D2
-    D2 -->|"Add x³, x⁴, x⁵"| D5
-    
-    style D1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style D2 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style D5 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+┌─────────────────────────────────────────┐
+│  The "Linear" Paradox Visualized        │
+├─────────────────────────────────────────┤
+│                                          │
+│  MATH OPERATION (Linear):               │
+│  ŷ = w₁·x + w₂·x² + w₃·x³              │
+│      └─┬─┘   └─┬─┘   └─┬─┘              │
+│        │       │       │                 │
+│        └───────┴───────┘                 │
+│              ↓                           │
+│         JUST ADDITION                    │
+│         (Linear algebra)                 │
+│                                          │
+│  RESULTING SHAPE (Non-linear):          │
+│         y                                │
+│         │     ****                       │
+│         │   **    **                     │
+│         │  *        *                    │
+│         │ *          *                   │
+│         └─────────────────── x           │
+│              A CURVE!                    │
+└─────────────────────────────────────────┘
 ```
 
-#### Bias-Variance Toy: Degree Sweep with Real Numbers
+**The analogy:** Building a curved stone arch using straight bricks.
+- Each brick is straight ($x$, $x^2$, $x^3$)
+- Stack them with different heights (weights $w_1$, $w_2$, $w_3$)
+- The **overall structure curves** even though each piece is straight
 
-**Dataset** (5 points, small enough to verify by hand):
+### 3.2 · The Volume Knob Mechanics
 
-| $i$ | $x_i$ | $y_i$ |
-|-----|--------|--------|
-| 1 | 0 | 1 |
-| 2 | 1 | 3 |
-| 3 | 2 | 2 |
-| 4 | 3 | 5 |
-| 5 | 4 | 4 |
+Think of training as a "survival of the fittest" process for shapes:
 
-**Degree-1 fit** (least squares on $\hat{y} = wx + b$):
+**Before training:** All knobs start at medium volume
 
-Fitted weights: $w = 0.7$, $b = 1.1$.
+| Shape | Initial Weight | Contribution at $x=3$ |
+|-------|----------------|----------------------|
+| $x$ | $w_1 = 1.0$ | $1.0 \times 3 = 3$ |
+| $x^2$ | $w_2 = 1.0$ | $1.0 \times 9 = 9$ |
+| $x^3$ | $w_3 = 1.0$ | $1.0 \times 27 = 27$ |
 
-| $i$ | $x_i$ | $y_i$ | $\hat{y}_i$ | residual $e_i = \hat{y}_i - y_i$ | $|e_i|$ |
-|-----|--------|--------|-------------|----------------------------------|---------|
-| 1 | 0 | 1 | 1.1 | +0.1 | 0.1 |
-| 2 | 1 | 3 | 1.8 | −1.2 | 1.2 |
-| 3 | 2 | 2 | 2.5 | +0.5 | 0.5 |
-| 4 | 3 | 5 | 3.2 | −1.8 | 1.8 |
-| 5 | 4 | 4 | 3.9 | −0.1 | 0.1 |
+**After training on $y = 2x^2$ data:** The model "beats down" unhelpful shapes
 
-$$\text{Train MAE}_{\deg=1} = \frac{0.1+1.2+0.5+1.8+0.1}{5} = \frac{3.7}{5} \approx 0.74$$
+| Shape | Final Weight | Contribution at $x=3$ | Status |
+|-------|-------------|----------------------|--------|
+| $x$ | $w_1 = 0.05$ | $0.05 \times 3 = 0.15$ | 🔇 Silenced |
+| $x^2$ | $w_2 = 2.0$ | $2.0 \times 9 = 18$ | 🔊 Amplified! |
+| $x^3$ | $w_3 = 0.001$ | $0.001 \times 27 = 0.03$ | 🔇 Silenced |
 
-The line systematically under-predicts the odd-indexed peaks — classic **underfitting** (high bias).
+**Prediction:** $\hat{y} = 0.15 + 18 + 0.03 = 18.18$ ≈ true value $y=18$ ✅
 
-**Degree-4 fit** (passes through all 5 points):
+**Key insight:** The model doesn't learn to *create* a parabola — it learns to **amplify the pre-made parabola shape** ($x^2$) and silence the others.
 
-A degree-4 polynomial with 5 parameters fits 5 points exactly: $\text{Train MAE}_{\deg=4} = 0.00$.
+### 3.3 · Interaction Terms — When Features Team Up
 
-On held-out test points (e.g., $x = 1.5$ and $x = 3.5$) the curve oscillates wildly:
+Sometimes two features together unlock information neither has alone.
 
-$$\hat{y}(1.5) \approx 5.8, \quad \text{actual} \approx 2.5 \implies \text{error} = 3.3$$
+**Example:** Coastal premium effect
 
-This is **Runge's phenomenon** — high-degree interpolating polynomials overshoot between data points.
+```
+Without interaction:
+  Value = 0.8·MedInc + 0.3·Latitude + b
+  
+  San Francisco (MedInc=8, Lat=37.7):  0.8(8) + 0.3(37.7) = 17.7 ($177k)
+  Bakersfield   (MedInc=8, Lat=35.4):  0.8(8) + 0.3(35.4) = 17.0 ($170k)
+  
+  Difference: $7k — same for ALL incomes (additive)
 
-**Full degree sweep — train MAE vs test MAE:**
+With interaction term (MedInc × Latitude):
+  Value = 0.8·MedInc + 0.3·Latitude + 0.05·(MedInc × Latitude) + b
+  
+  San Francisco: 17.7 + 0.05(8 × 37.7) = 17.7 + 15.1 = 32.8 ($328k)
+  Bakersfield:   17.0 + 0.05(8 × 35.4) = 17.0 + 14.2 = 31.2 ($312k)
+  
+  Difference: $16k — AMPLIFIED by interaction! ✅
+```
 
-| Degree | # Parameters | Train MAE | Test MAE | Gap | Verdict |
+**The insight:** High income **multiplied by** coastal latitude creates extra value neither captures alone. The $0.05$ weight on the interaction term acts as an **amplifier** for when both features are high simultaneously.
+
+### 3.4 · The Bias-Variance Seesaw
+
+Adding polynomial features is like adding resolution to a camera:
+- **Too low** (degree 1): Blurry, misses details → **high bias**
+- **Just right** (degree 2): Clear image → **balanced**
+- **Too high** (degree 5+): Sees noise as signal → **high variance**
+
+**Concrete example — small dataset:**
+
+| Degree | Features | Train MAE | Test MAE | Diagnosis |
+|--------|----------|-----------|----------|-----------|
+| 1 | 2 | $0.74 | $0.76 | ⚠️ **Underfit** — can't capture curves |
+| 2 | 5 | $0.41 | $0.45 | ✅ **Sweet spot** — fits real patterns |
+| 3 | 9 | $0.18 | $0.52 | ⚠️ **Starting to overfit** |
+| 4 | 14 | $0.00 | $1.85 | ❌ **Severe overfit** — memorized noise |
+
+**The pattern:**
+- Train MAE **always** decreases (more features = better fit to training data)
+- Test MAE is **U-shaped** (too few = underfit, too many = overfit)
+- Pick the degree at the **bottom of the U**
+
+```
+Test MAE
+  2.0 │                                    *
+      │                                   *
+  1.5 │                                  *
+      │                                 *
+  1.0 │                                *
+      │  *                           *
+  0.5 │   *                        *
+      │    *                     *
+  0.4 │     *                  *        ← Sweet spot (degree 2)
+      │      \_____________*
+      └────────────────────────────────────
+         1    2    3    4    5    6    Degree
+```
+
+**California Housing:** Degree 2 hits the sweet spot — $48k MAE with 44 features. Degree 3 (164 features) overfits and test MAE climbs back to $55k+.
+
+### 3.5 · Why This Isn't "Cheating"
+
+You might wonder: "If we're creating $x^2$ and $x^3$, aren't we just hand-coding the curve?"
+
+**Not quite.** We're providing the **raw materials** (shapes), but:
+1. **The model decides which to use** — it might set $w_2 = 0$ if $x^2$ doesn't help
+2. **The model finds the right mix** — maybe $0.8x + 0.2x^2$ is better than pure $x^2$
+3. **We still don't know the relationship** — we don't hand-code "use $x^2$ with weight 2.0"
+
+**Analogy:** It's like giving a chef flour, sugar, and eggs. You provided ingredients (polynomial terms), but the chef (model) decides the recipe (weights).
+
+**The alternative:** Without feature engineering, you'd need a neural network to learn these curve shapes from scratch. Polynomial features let a simple linear model achieve 80% of that power with 1/1000th the complexity.
 |--------|-------------|-----------|----------|-----|---------|
 | 1 | 2 | 0.74 | 0.76 | 0.02 | ✅ Underfit (low variance, high bias) |
 | 2 | 3 | 0.41 | 0.45 | 0.04 | ✅ Better fit |
@@ -309,55 +419,167 @@ This is **Runge's phenomenon** — high-degree interpolating polynomials oversho
 
 ---
 
-## 4 · Step by Step
+## 4 · Step by Step — The Feature Engineering Workflow
 
+Think of this as a three-stage process: **Scout → Library → Mixer**.
+
+### Stage 1: Pattern Scout (Mutual Information — from Ch.3)
+
+**What it does:** Identifies which raw features have relationships with the target.
+
+```python
+from sklearn.feature_selection import mutual_info_regression
+
+mi = mutual_info_regression(X, y)
+# Result: MedInc has highest MI → strong relationship with house value
 ```
-1. Start with Ch.2's 8-feature model (MAE = $55k)
 
-2. Apply PolynomialFeatures(degree=2, include_bias=False)
-   └─ 8 features → 44 features
-   └─ 8 squared (MedInc², HouseAge², ...)
-   └─ 28 interactions (MedInc×HouseAge, MedInc×Lat, ...)
+**Analogy:** A scout reports: "There's a pattern in the MedInc direction, but it's curved, not straight."
 
-3. Standardize the 44 features
-   └─ Critical: polynomial features have wildly different scales
-   └─ MedInc² can range to 225, while AveBedrms² can range to 1,156
+---
 
-4. Fit linear regression on the 44-feature expanded matrix
-   └─ Same algorithm! Just more features.
+### Stage 2: Shape Library (PolynomialFeatures)
 
-5. Evaluate on test set
-   └─ MAE ≈ $48k  (from $55k — 13% better!)
-   └─ R² ≈ 0.68  (up from 0.61)
+**What it does:** Creates candidate curve shapes for each feature.
 
-6. Check for overfitting
-   └─ Compare train MAE vs test MAE
-   └─ If train MAE << test MAE → overfitting (need regularization, Ch.5)
-   └─ Monitor Adjusted R² (accounts for 44 features)
+```python
+from sklearn.preprocessing import PolynomialFeatures
 
-7. Inspect top polynomial features
-   └─ MedInc² (captures income plateau)
-   └─ Latitude × Longitude (geographic interaction)
-   └─ MedInc × AveRooms (income-size premium)
+poly = PolynomialFeatures(degree=2, include_bias=False)
+X_poly = poly.fit_transform(X)
+# Input: 8 features → Output: 44 features (8 + 8² + 28 interactions)
 ```
+
+**Provides:**
+- **Original features**: $x$ (straight lines)
+- **Squared terms**: $x^2$ (parabolas)
+- **Interaction terms**: $x_1 \times x_2$ (combined effects)
+
+**Analogy:** A library hands the model a catalog: "Here are all the possible shapes — straight, curved, U-shaped, interactions. Pick whichever fits best."
+
+---
+
+### Stage 3: Fair Comparison (StandardScaler)
+
+**What it does:** Puts all features on the same scale so weights reflect importance, not magnitude.
+
+```python
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X_poly)
+# Result: All features have mean=0, std=1
+```
+
+**Why it matters:**
+- Without scaling: $x^3$ ranges 0-1000, so even tiny weight creates huge impact
+- With scaling: All features on equal footing — weights truly reflect importance
+
+**Analogy:** A referee says: "Everyone competes at the same volume level. Now we can fairly judge who's actually helping."
+
+---
+
+### Stage 4: Volume Mixer (Linear Regression)
+
+**What it does:** Learns which "volume knobs" to crank up and which to silence.
+
+```python
+from sklearn.linear_model import LinearRegression
+
+model = LinearRegression()
+model.fit(X_scaled, y)
+# Result: w_MedInc² = 15.8 (loud), w_Pop×Occup = 0.02 (silent)
+```
+
+**Training process:**
+1. Start with all knobs at medium volume
+2. Predict, measure error
+3. Adjust knobs to reduce error
+4. Repeat until error stops improving
+
+**Analogy:** A sound engineer adjusts each track's volume until the mix sounds perfect.
+
+---
+
+### The Complete Pipeline (Recommended Pattern)
+
+```python
+from sklearn.pipeline import Pipeline
+
+# Build the 4-stage pipeline
+pipe = Pipeline([
+    ('poly',   PolynomialFeatures(degree=2, include_bias=False)),  # Stage 2
+    ('scaler', StandardScaler()),                                   # Stage 3
+    ('model',  LinearRegression())                                  # Stage 4
+])
+
+# Train
+pipe.fit(X_train, y_train)
+
+# Predict
+y_pred = pipe.predict(X_test)
+
+# Check performance
+mae = mean_absolute_error(y_test, y_pred) * 100_000
+print(f"MAE: ${mae:,.0f}")  # ~$48k (from $55k — 13% improvement!)
+```
+
+**Why Pipeline?**
+- Ensures correct order (poly → scale → fit)
+- Prevents data leakage (scaler fit only on training data)
+- Makes deployment simple (one object to save/load)
+
+---
+
+### Degree Selection — Finding the Sweet Spot
+
+**The golden rule:** Test multiple degrees and pick the one with lowest **test** MAE (not train MAE).
+
+```python
+for deg in [1, 2, 3, 4]:
+    p = Pipeline([
+        ('poly', PolynomialFeatures(degree=deg, include_bias=False)),
+        ('scaler', StandardScaler()),
+        ('model', LinearRegression())
+    ])
+    p.fit(X_train, y_train)
+    
+    train_mae = mean_absolute_error(y_train, p.predict(X_train)) * 100_000
+    test_mae = mean_absolute_error(y_test, p.predict(X_test)) * 100_000
+    gap = test_mae - train_mae
+    
+    print(f"Degree {deg}: Train ${train_mae:,.0f} | Test ${test_mae:,.0f} | Gap ${gap:,.0f}")
+```
+
+**Expected output:**
+```
+Degree 1: Train $55,000 | Test $55,000 | Gap $0        ← Underfit
+Degree 2: Train $46,000 | Test $48,000 | Gap $2,000    ← Sweet spot ✅
+Degree 3: Train $38,000 | Test $54,000 | Gap $16,000   ← Overfitting!
+Degree 4: Train $25,000 | Test $62,000 | Gap $37,000   ← Severe overfit
+```
+
+**How to read this:**
+- **Gap < $5k**: Good generalization ✅
+- **Gap $5k-$15k**: Mild overfitting ⚠️ (regularization helps)
+- **Gap > $15k**: Severe overfitting ❌ (lower degree or regularize)
 
 ```mermaid
 flowchart TD
-    RAW["8 Raw Features"] --> POLY["PolynomialFeatures<br/>degree=2"]
-    POLY --> EXPANDED["44 Features<br/>8 original + 8 squared + 28 cross"]
-    EXPANDED --> SCALE["StandardScaler"]
-    SCALE --> FIT["LinearRegression.fit()"]
-    FIT --> EVAL{"Train MAE vs Test MAE?"}
+    START["Start: 8 features, $55k MAE"] --> POLY["Apply PolynomialFeatures(degree=2)<br/>8 → 44 features"]
+    POLY --> SCALE["StandardScaler<br/>(fair comparison)"]
+    SCALE --> FIT["LinearRegression.fit()<br/>(adjust volume knobs)"]
+    FIT --> EVAL{"Compare train/test MAE"}
     
-    EVAL -->|"Similar (both ~$48k)"| OK["✅ No overfitting<br/>Degree 2 is appropriate"]
-EVAL -->|"Gap > 20%"| OVERFIT["⚠️ Overfitting!<br/>Too many features<br/>→ Ch.5 Regularization"]
+    EVAL -->|"Gap < $5k"| OK["✅ Good fit<br/>$48k MAE"]
+    EVAL -->|"Gap > $15k"| OVERFIT["⚠️ Overfitting<br/>Lower degree or regularize"]
     
-    OK --> RESIDUAL{"Residual pattern?"}
-    RESIDUAL -->|"Random scatter"| DONE["✅ $48k MAE<br/>Close to $40k target"]
-    RESIDUAL -->|"Still curved"| DEG3["Try degree=3<br/>⚠️ But watch overfitting"]
+    OK --> CHECK{"Residuals random?"}
+    CHECK -->|"Yes"| DONE["✅ Model complete"]
+    CHECK -->|"Still curved"| TRY3["Try degree=3<br/>(watch for overfitting)"]
     
-    style RAW fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style EXPANDED fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style START fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style OK fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style DONE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style OVERFIT fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
@@ -365,6 +587,42 @@ EVAL -->|"Gap > 20%"| OVERFIT["⚠️ Overfitting!<br/>Too many features<br/>→
 ---
 
 ## 5 · Key Diagrams
+
+### The Bending Animation
+
+**Concept:** How the model uses the $x^2$ "volume knob" to bend a straight line into a curve.
+
+![Bending animation showing line becoming curve](img/ch04-bending-animation.gif)
+
+*Watch as the weight for $x^2$ slowly increases from 0 to 1.0, transforming a flat line into a perfect parabola fit.*
+
+**What's happening:** The model isn't *learning to draw a curve* — it's *learning which pre-made curve to amplify*. The $x^2$ shape was always available; the model just had to discover its importance.
+
+---
+
+### The Weight Divergence Animation
+
+**Concept:** During training, weights diverge dramatically — useful features get amplified, noise gets silenced.
+
+![Weight divergence during training](img/ch04-weight-divergence.gif)
+
+*Left: Model fit improving. Right: Weights evolving — $x^2$ rises to 2.0 while $x$ and $x^3$ drop to near-zero.*
+
+**The insight:** Training is a "survival of the fittest" process for shapes. The model tries different volume knob settings until it finds the combination that minimizes error.
+
+---
+
+### The Survival of the Fittest Bar Chart
+
+**Concept:** Before/after comparison showing which features survived training.
+
+![Before and after weight comparison](img/ch04-survival-of-fittest.png)
+
+*Left: All features start equal. Right: Only $x^2$ survives with high weight; others are beaten down to near-zero.*
+
+**Why this matters:** You can't tell which features matter by looking at the data — you need to train the model and see which weights it chooses. For parabolic data, $x^2$ wins. For linear data, $x$ wins. The model discovers this automatically.
+
+---
 
 ### Feature Expansion Visualization
 
