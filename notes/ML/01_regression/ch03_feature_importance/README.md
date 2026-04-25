@@ -403,9 +403,14 @@ The lesson:
 
 The most reliable and model-agnostic method: after fitting, **randomly shuffle one feature's values** across all test samples (breaking its relationship with the target), make predictions, and measure how much test MAE rises. Crucially, the model is never retrained — you're measuring how badly the model's existing weights are handicapped when a feature's signal is destroyed. This makes it a pure test of the model's *reliance* on each feature.
 
-$$\pi_j = \text{MAE}_{\text{shuffled } x_j} - \text{MAE}_{\text{original}}$$
+$$\pi_j = \text{MAE}_\text{perm} - \text{MAE}_\text{orig}$$
 
-where $\pi_j$ is the permutation importance of feature $j$, $\text{MAE}_{\text{shuffled } x_j}$ is the mean absolute error computed after randomly reordering (permuting) the values of feature $j$ across all samples while keeping all other features unchanged, and $\text{MAE}_{\text{original}}$ is the baseline error with all features intact. A large positive value → the feature was carrying real signal. Near-zero → the model barely used it (or another feature duplicated it).
+where:
+- $\pi_j$ is the permutation importance of feature $j$
+- $\text{MAE}_\text{perm}$ is the mean absolute error after randomly reordering (permuting) the values of feature $j$ across all test samples while keeping all other features unchanged
+- $\text{MAE}_\text{orig}$ is the baseline error with all features intact
+
+A large positive value → the feature was carrying real signal. Near-zero → the model barely used it (or another feature duplicated it).
 
 **California Housing results:**
 
