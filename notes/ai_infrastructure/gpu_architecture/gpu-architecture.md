@@ -399,6 +399,119 @@ TFLOP/s
 
 ---
 
+## The Hyperparameter Dial
+
+Every GPU decision has three independent dials. Understanding how they interact is the difference between "we have a GPU" and "our GPU is configured correctly for this workload."
+
+### Dial 1 — Precision Tier
+
+| Precision | VRAM per param | BF16 TFLOP/s multiplier | Accuracy impact | Recommended for |
+|-----------|---------------|------------------------|-----------------|-----------------|
+| FP32 | 4 bytes | 0.5× (FP32 is half-rate on tensor cores) | Baseline | Training validation only |
+| BF16 | 2 bytes | 1.0× (baseline) | Negligible | LLM pretraining, fine-tuning |
+| INT8 | 1 byte | ~1.5× throughput (quantized matmul) | <1% on most benchmarks | Inference serving |
+| FP8 | 1 byte | ~2× throughput (H100+) | ~1–2% on sensitive tasks | H100 inference at scale |
+| INT4 | 0.5 bytes | 2–3× throughput (GPTQ/AWQ) | 2–4% on reasoning benchmarks | Edge / cost-optimised inference |
+
+> 💡 The RTX 4090's sweet spot is BF16 or INT8 — both fit within 24 GB for Llama-3-8B. FP8 and INT4 are covered in Ch.3 (Quantization).
+
+### Dial 2 — Batch Size
+
+Batch size is the throughput multiplier. For inference, it trades latency for throughput:
+
+| Batch size | VRAM delta | Tokens/sec (approx.) | p95 latency | Best for |
+|------------|-----------|----------------------|-------------|----------|
+| 1 | +0 GB (KV cache only) | ~40 tok/s | <200 ms | Interactive / low-traffic |
+| 4 | +~2 GB KV cache | ~130 tok/s | ~500 ms | Mixed interactive/batch |
+| 8 | +~4 GB KV cache | ~220 tok/s | ~900 ms | Throughput-optimised serving |
+| 16 | +~8 GB KV cache | ~350 tok/s | ~1.8 s | Batch processing / offline |
+
+> ⚠️ At batch=16, you'll hit the KV cache VRAM ceiling (8 GB) before hitting the compute ceiling — covered in Ch.2.
+
+### Dial 3 — Tile Size (SM Occupancy)
+
+The GPU compiler (CUDA/triton) partitions matrix multiply into tiles processed per SM. Tile size affects occupancy:
+
+- **Larger tiles** (256×256): fewer tile steps, higher arithmetic intensity per step, better L1 cache reuse — optimal for large batches.
+- **Smaller tiles** (64×64): more SM parallelism, lower register pressure, better for small batch / latency-sensitive paths.
+
+In practice: use the defaults from cuBLAS or Triton-Flash (they autotune). The dial you actually turn is batch size and precision — tile size is mostly a compiler knob.
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: GPU spec comparison and roofline check from scratch
+import math
+
+def roofline_check(peak_bandwidth_tbs, peak_compute_tflops, flops_per_byte):
+    """
+    Determine if a workload is compute-bound or memory-bound.
+    
+    Args:
+        peak_bandwidth_tbs: GPU memory bandwidth in TB/s (e.g. 1.0 for RTX 4090)
+        peak_compute_tflops: Peak BF16 TFLOP/s (e.g. 165 for RTX 4090)
+        flops_per_byte: Arithmetic intensity of the workload
+    
+    Returns:
+        dict with ridge_point, performance_ceiling, bound
+    """
+    ridge_point = (peak_compute_tflops * 1e12) / (peak_bandwidth_tbs * 1e12)
+    if flops_per_byte < ridge_point:
+        # Memory-bound: throughput = bandwidth * intensity
+        ceiling_tflops = peak_bandwidth_tbs * flops_per_byte
+        bound = "memory-bound"
+    else:
+        # Compute-bound: throughput = peak compute
+        ceiling_tflops = peak_compute_tflops
+        bound = "compute-bound"
+    return {"ridge_point": round(ridge_point, 1), "ceiling_tflops": round(ceiling_tflops, 1), "bound": bound}
+
+# LLM decode phase: ~2 FLOPs per parameter per token, 1 byte per param (INT8)
+llm_intensity = 2  # FLOPs/byte for INT8 decode
+rtx4090 = roofline_check(peak_bandwidth_tbs=1.0, peak_compute_tflops=165, flops_per_byte=llm_intensity)
+print(rtx4090)
+# → {'ridge_point': 165.0, 'ceiling_tflops': 2.0, 'bound': 'memory-bound'}
+# LLM decode uses only 2/165 = 1.2% of peak compute — bandwidth is the bottleneck
+```
+
+```python
+# Production: vLLM GPU selection helper
+from vllm import LLM, SamplingParams
+
+def check_model_fits(model_name: str, quantization: str = "none") -> dict:
+    """
+    Attempt to load model with given quantization and report VRAM usage.
+    Production pattern: run this before cluster provisioning.
+    """
+    try:
+        llm = LLM(model=model_name, quantization=quantization if quantization != "none" else None,
+                  max_model_len=4096, enforce_eager=True)
+        import torch
+        vram_used_gb = torch.cuda.memory_allocated() / 1e9
+        vram_total_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+        return {"fits": True, "vram_used_gb": round(vram_used_gb, 1),
+                "vram_total_gb": round(vram_total_gb, 1),
+                "headroom_pct": round((1 - vram_used_gb / vram_total_gb) * 100, 1)}
+    except RuntimeError as e:
+        return {"fits": False, "error": str(e)}
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How this chapter's concepts appear |
+|---------|-----------------------------------|
+| **Ch.2 — Memory & Compute Budgets** | VRAM arithmetic uses $B$ (bandwidth) and $N$ (parameter count) directly from the roofline model here |
+| **Ch.3 — Quantization** | Precision dial (INT8/INT4/FP8) reduces bytes-per-param $P$; the VRAM/bandwidth trade-off is the same roofline model |
+| **Ch.5 — Inference Optimization** | PagedAttention's memory model builds on the KV cache sizing established in Ch.2, which extends the roofline intuition from here |
+| **Ch.6 — vLLM & Serving** | vLLM's GPU selection logic (picking tensor_parallel_size, KV cache budget) is a production implementation of the roofline analysis developed here |
+| **AI track — Cost & Latency** | Cost-per-token calculations reference GPU hourly rate × throughput, where throughput is derived from bandwidth-limited roofline ceiling |
+
+---
+
 ## 11.5 · Progress Check — What We've Accomplished
 
 🎉 **GPU HARDWARE SELECTION COMPLETE! Target identified: RTX 4090**

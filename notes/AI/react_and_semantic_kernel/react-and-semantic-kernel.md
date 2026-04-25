@@ -3,6 +3,8 @@
 > **The story.** **ReAct** ("Reason + Act") was published by **Shunyu Yao** and colleagues from Princeton + Google at **ICLR 2023** (the paper appeared on arXiv in October 2022) and was a top-5% paper at that conference. The insight was simple: interleave chain-of-thought reasoning with tool actions in a tight Thought → Action → Observation loop, and the LLM stops hallucinating tool outputs because it can *actually call* the tool. ReAct beat imitation-learning baselines by 34% on ALFWorld. The frameworks followed almost immediately: **Harrison Chase** open-sourced **LangChain** in **October 2022** and it became the default agent library by 2023; **Microsoft's Semantic Kernel** (open-sourced May 2023) brought the same idea to .NET with a stronger emphasis on plugins and telemetry; **LangGraph** (LangChain Inc., 2024) added explicit state machines for production-grade agent loops. Every "agent" you will deploy in 2026 — hosted Foundry agent, OpenAI Assistants, Anthropic Computer Use — is a ReAct-shaped loop in some configuration.
 >
 > **Where you are in the curriculum.** [CoTReasoning](../cot_reasoning) gave you the reasoning half. This document gives you the *acting* half — how the LLM's structured output becomes a tool call, how the tool's response becomes the next observation, and how frameworks like LangChain and Semantic Kernel automate the loop. After this chapter you can build the kind of agent that powers the [PizzaBot](../ai-primer.md), and you have the conceptual scaffolding for the entire [Multi-Agent track](../../multi_agent_ai), where these single-agent loops compose into protocols.
+>
+> **Notation.** $t$ — reasoning step index; $\text{Thought}_t$ — natural-language reasoning at step $t$; $\text{Action}_t$ — structured tool call; $\text{Obs}_t$ — tool response (observation); $T_\text{max}$ — maximum iterations before forced termination.
 
 ***
 
@@ -114,7 +116,7 @@ This is the **breakthrough chapter** — finally beats phone baseline on convers
 
 ***
 
-## The Core Intuition: The LLM as Brain, the App as Body
+## 1 · Core Idea: The LLM as Brain, the App as Body
 
 Before diving into ReAct, LangChain, or Semantic Kernel, it helps to anchor everything around a single mental model: **what an agent application actually is**.
 
@@ -777,6 +779,10 @@ Result: ✅ Order completed in 3 turns (vs. 7 before)
 | **Semantic Kernel** model: a `Kernel` is the DI container that holds model connectors, plugins, and memory; plugins are classes with methods decorated `@kernel_function` (Python) or `[KernelFunction]` (C#); the kernel's planner calls the model and routes to the correct plugin method automatically — equivalent to LangChain tools but with stronger type contracts and enterprise filters | "How does Semantic Kernel's plugin model compare to LangChain tools?" | Describing SK plugins as just Python functions — the decorator, return type annotation, and kernel registration are required for auto-invocation |
 | **Multi-agent patterns:** (1) **Orchestrator-worker** — one planner LLM decomposes tasks, spawns worker agents for subtasks, collects results; (2) **Peer-to-peer** — agents communicate via a shared message bus with no central coordinator; (3) **Hierarchical** — recursive layers of orchestrators, each managing a pool of specialists. Choice depends on task complexity and required fault isolation | "Name and explain at least two multi-agent architectures" | Saying "multi-agent just means running multiple LLMs" without describing the coordination model |
 | **Trap:** "more tools = smarter agent" — adding many tools inflates the system prompt, dilutes the model's attention over tool schemas, and sharply increases the rate of hallucinated or misrouted tool calls; best practice is to keep tool count ≤ 10 per agent and use hierarchical agents or tool routing for larger tool sets | "What's a common mistake when designing an agentic system?" | |
+
+## Bridge to Next Chapter
+
+ReAct + Semantic Kernel gives the PizzaBot a working action loop — it can call tools and make decisions. But how do you know it's working well? "Conversion rate increased" is a lagging signal; by the time you notice it dropped, thousands of customers already had bad experiences. **Evaluating AI Systems (Ch.7)** adds the instrumentation: RAGAS metrics measuring faithfulness and context precision, A/B test scaffolding to compare prompt variants, and the conversion-tracking pipeline that turns every conversation into a business-KPI data point.
 
 ## Illustrations
 

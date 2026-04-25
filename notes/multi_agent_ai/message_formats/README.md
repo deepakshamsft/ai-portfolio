@@ -216,9 +216,118 @@ Each agent sees only what it needs (structured payload from previous agent). No 
 
 ---
 
-## Interview Questions
+## 3 · The Math
 
-**Q: What fields are in an OpenAI tool call message and why do they matter for multi-agent tracing?**
+### Context Budget Allocation
+
+Let $C$ be the total context window (tokens), $n$ the number of agents in a pipeline, and $h_i$ the per-agent history budget. Safe operation requires:
+
+$$\sum_{i=1}^{n} h_i + |\text{task payload}| \leq C$$
+
+For the **structured-handoff** strategy, each agent $i$ receives only a bounded payload $p_i$. Total token cost across the chain:
+
+$$T_\text{structured} = \sum_{i=1}^{n} \bigl(|s_i| + |p_i| + |r_i|\bigr)$$
+
+For the **full-history** strategy, each agent receives all prior history:
+
+$$T_\text{full-history} = \sum_{i=1}^{n} \sum_{j=1}^{i} \bigl(|s_j| + |p_j| + |r_j|\bigr)$$
+
+The full-history cost grows $O(n^2)$ with chain depth; structured-handoff grows $O(n)$.
+
+### Token Trimming Policy
+
+When history accumulates beyond budget $B$, preserve system message $m_0$ and the most recent $k$ turns:
+
+$$\text{keep} = \{m_0\} \cup \{m_{|H|-k}, \ldots, m_{|H|-1}\}$$
+
+where $k$ is chosen such that $\sum_{i \in \text{keep}} |m_i| \leq B$.
+
+| Symbol | Meaning |
+|--------|---------|
+| $C$ | Total context window (tokens) |
+| $n$ | Number of agents in the pipeline |
+| $p_i$ | Input payload size for agent $i$ |
+| $r_i$ | Response size from agent $i$ |
+| $B$ | Trimming budget threshold |
+| $k$ | Number of recent turns preserved after trimming |
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: message handoff strategies from scratch
+from typing import Literal
+import json
+
+def build_structured_handoff(agent_name: str, result: dict) -> list:
+    """
+    Strategy 2 — Structured Handoff Payload.
+    Returns a minimal 2-message list for the downstream agent.
+    """
+    return [
+        {"role": "system", "content": f"You are the {agent_name}. Process the following result."},
+        {"role": "user", "content": json.dumps(result)}
+    ]
+
+def count_tokens(messages: list) -> int:
+    """Rough estimate: 4 chars ≈ 1 token."""
+    return sum(len(json.dumps(m)) // 4 for m in messages)
+
+def trim_history(messages: list, budget: int) -> list:
+    """Keep system + trim oldest non-system messages until within budget."""
+    system = [m for m in messages if m["role"] == "system"]
+    rest = [m for m in messages if m["role"] != "system"]
+    while count_tokens(system + rest) > budget and len(rest) > 1:
+        rest.pop(0)
+    return system + rest
+```
+
+```python
+# Production: typed agent context with Pydantic + OpenAI format compliance
+from pydantic import BaseModel
+from typing import Optional, List, Literal
+from openai import OpenAI
+
+class Message(BaseModel):
+    role: Literal["system", "user", "assistant", "tool"]
+    content: Optional[str] = None
+    tool_calls: Optional[list] = None
+    tool_call_id: Optional[str] = None
+    name: Optional[str] = None  # agent identifier for distributed tracing
+
+class AgentContext(BaseModel):
+    agent_id: str
+    messages: List[Message]
+    token_budget: int = 8000
+
+    def add(self, msg: Message) -> None:
+        self.messages.append(msg)
+        serialised = [m.model_dump(exclude_none=True) for m in self.messages]
+        if count_tokens(serialised) > self.token_budget:
+            trimmed = trim_history(serialised, self.token_budget)
+            self.messages = [Message(**m) for m in trimmed]
+
+    def to_openai(self) -> list:
+        return [m.model_dump(exclude_none=True) for m in self.messages]
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How message format concepts appear |
+|---------|------------------------------------|
+| **Ch.2 — MCP** | Every MCP tool call is a structured message over stdio/HTTP transport — same `role/content/tool_calls` envelope |
+| **Ch.3 — A2A** | A2A wraps structured handoff payloads in an `AgentCard` envelope; the inner payload uses this same format |
+| **Ch.4 — Event-Driven Agents** | Async messages carry the same structured payload schema; correlation IDs enable multi-turn conversation across async boundaries |
+| **Ch.5 — Shared Memory** | The blackboard stores structured payloads by correlation ID; agents read shared context instead of receiving it in messages |
+| **Ch.7 — Agent Frameworks** | LangGraph state wraps the message list; LangSmith traces individual messages per step |
+| **AI track — ReAct** | The single-agent ReAct loop is the same message envelope (Thought/Action = `assistant`, Observation = `tool`); multi-agent is multiple such loops with structured handoffs |
+
+---
+
+## Interview Questions
 `tool_calls` is present on `role: assistant` messages and contains `id`, `type`, `function.name`, and `function.arguments`. The `id` (e.g. `"tc_01"`) is echoed in the subsequent `role: tool` message as `tool_call_id`. In a multi-agent trace, this pairing is what lets you reconstruct which tool response corresponds to which invocation — essential for debugging non-deterministic agent behaviour.
 
 **Q: When would you prefer a structured handoff payload over passing full conversation history?**

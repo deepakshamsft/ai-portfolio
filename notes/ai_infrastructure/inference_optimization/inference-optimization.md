@@ -377,6 +377,122 @@ Improvement: 2.5× lower tail latency! ✅
 
 ---
 
+## The Hyperparameter Dial
+
+Three knobs govern the throughput-latency-memory trade-off in inference optimization.
+
+### Dial 1 — Max Batch Size
+
+| Max batch | KV cache VRAM | Throughput (tok/s) | p95 Latency | Notes |
+|-----------|--------------|---------------------|-------------|-------|
+| 4 | ~4 GB | ~130 tok/s | ~600 ms | Low-traffic baseline |
+| 8 | ~8 GB | ~220 tok/s | ~900 ms | InferenceBase target (12k req/day) |
+| 16 | ~16 GB | ~350 tok/s | ~1.8 s | Requires INT4; approaching OOM at BF16 |
+| 32 | ~32 GB ❌ | — | — | OOM on single RTX 4090 |
+
+> 💡 Use Little's Law: $L = \lambda W$. If arrival rate $\lambda = 10$ req/s and service time $W = 0.8$ s, queue depth $L = 8$. Match max_batch_size to expected $L$ under peak traffic.
+
+### Dial 2 — PagedAttention Block Size
+
+PagedAttention divides KV cache into fixed-size pages. Block size controls the granularity:
+
+| Block size (tokens) | Fragmentation | Overhead | Best for |
+|--------------------|--------------|----------|----------|
+| 16 | Low (fine-grained) | High (many page table entries) | Short/variable requests |
+| 32 | Medium | Medium | General-purpose (vLLM default) |
+| 64 | Higher | Low | Long-context serving ($S > 2048$) |
+| 128 | Highest | Lowest | Offline batch jobs, max throughput |
+
+> ⚠️ High fragmentation (block=16) wastes memory even though pages are small — each pre-allocated block can be half-empty on short requests. Block=32 is the empirically validated sweet spot.
+
+### Dial 3 — Speculative Decoding Draft Depth
+
+| Draft depth (tokens ahead) | Acceptance rate (typical) | Speedup | Memory overhead |
+|---------------------------|--------------------------|---------|-----------------|
+| 1 | ~85% | ~1.1× | +draft model VRAM |
+| 2 | ~75% | ~1.2× | +draft model VRAM |
+| 3 | ~65% | ~1.25× | +draft model VRAM |
+| 4 | ~55% | ~1.2× (plateaus) | +draft model VRAM |
+| 5+ | <50% | <1.1× (overhead dominates) | Diminishing returns |
+
+> ⚠️ Draft depth must be tuned on your workload. On code generation, acceptance rate is ~75% at depth=3 (code is predictable). On open-ended chat, it drops to ~55% at depth=2.
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: simplified continuous batching queue simulation
+from collections import deque
+import time
+
+class SimpleBatchQueue:
+    """
+    Demonstrates the core logic of continuous batching:
+    process requests in dynamic batches without waiting for full batch.
+    """
+    def __init__(self, max_batch_size: int = 8):
+        self.queue = deque()
+        self.max_batch_size = max_batch_size
+
+    def add_request(self, request_id: str, tokens: int):
+        self.queue.append({"id": request_id, "tokens": tokens, "arrived": time.time()})
+
+    def get_next_batch(self) -> list:
+        """Return up to max_batch_size ready requests."""
+        batch, total_tokens = [], 0
+        while self.queue and len(batch) < self.max_batch_size:
+            req = self.queue.popleft()
+            if total_tokens + req["tokens"] <= 2048 * self.max_batch_size:
+                batch.append(req)
+                total_tokens += req["tokens"]
+            else:
+                self.queue.appendleft(req)  # put it back
+                break
+        return batch
+```
+
+```python
+# Production: vLLM AsyncLLMEngine with continuous batching and PagedAttention
+from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams
+import asyncio
+
+engine_args = AsyncEngineArgs(
+    model="meta-llama/Meta-Llama-3-8B-Instruct",
+    quantization="gptq",                    # INT4 from Ch.3
+    max_model_len=4096,
+    max_num_seqs=8,                         # max concurrent requests (Dial 1)
+    block_size=32,                          # PagedAttention block size (Dial 2)
+    speculative_model="meta-llama/Meta-Llama-3-1B",  # draft model (Dial 3)
+    num_speculative_tokens=3,               # draft depth
+    gpu_memory_utilization=0.90,            # 90% VRAM, 10% headroom
+    tensor_parallel_size=1,                 # single RTX 4090
+)
+
+engine = AsyncLLMEngine.from_engine_args(engine_args)
+
+async def generate(prompt: str, max_tokens: int = 256) -> str:
+    sampling = SamplingParams(temperature=0.7, max_tokens=max_tokens)
+    request_id = f"req-{id(prompt)}"
+    async for output in engine.generate(prompt, sampling, request_id):
+        if output.finished:
+            return output.outputs[0].text
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How inference optimization concepts appear |
+|---------|--------------------------------------------|
+| **Ch.2 — Memory Budgets** | PagedAttention page pool size is calculated from the VRAM budget formulas in Ch.2; pages must fit within remaining KV cache headroom |
+| **Ch.6 — vLLM & Serving** | vLLM is the production implementation of continuous batching + PagedAttention + speculative decoding — all concepts from this chapter |
+| **AI track — Cost & Latency** | Throughput (req/s) under continuous batching directly sets the cost-per-request; the relationship is cost = hourly_rate / throughput |
+| **Multi-agent AI track** | Agentic multi-turn conversations consume many KV cache tokens per session; the PagedAttention block reclamation pattern here applies to session memory management |
+| **AI Infrastructure Ch.1** | GPU bandwidth (TB/s) from Ch.1 determines the ceiling for single-token generation latency regardless of batching strategy |
+
+---
+
 ## 11.5 · Progress Check — What We've Accomplished
 
 🎉 **PRODUCTION-READY INFERENCE! Handles spiky traffic patterns within latency targets ✅**

@@ -196,6 +196,117 @@ The fix: the negotiation agent wrote its state to the blackboard after every exc
 
 ---
 
+## 3 · The Math
+
+### Blackboard Read/Write Consistency
+
+The blackboard is a key-value store where each key $k$ maps to a versioned value $v_t$ at time $t$. With optimistic concurrency, an agent reads version $v_t$ and writes back only if the current version is still $v_t$ (compare-and-swap):
+
+$$\text{write}(k, v_{t+1}) \iff \text{current version}(k) = t$$
+
+This prevents concurrent agent writes from silently overwriting each other. The conflict rate $P_{\text{conflict}}$ for $n$ concurrent agents writing the same key within window $\delta t$:
+
+$$P_{\text{conflict}} \approx 1 - \left(1 - \frac{\delta t}{T_{\text{lock}}}\right)^{n-1}$$
+
+For OrderFlow: $n = 4$ agents, $T_{\text{lock}} = 500$ ms, $\delta t = 50$ ms $\Rightarrow P_{\text{conflict}} \approx 0.27$. At this rate, use Redis `WATCH`/`MULTI`/`EXEC` (optimistic) or `SETNX`+TTL (pessimistic).
+
+### Memory Scope Sizes
+
+Four scopes with different TTL and access patterns:
+
+| Scope | Key pattern | TTL | Access pattern |
+|-------|-------------|-----|----------------|
+| Per-task | `task:{id}:*` | 24 hr | Write once, read many |
+| Per-entity | `entity:{supplier_id}:*` | 90 days | Read-modify-write |
+| Per-user | `user:{user_id}:*` | Session | Read heavy |
+| Global | `global:*` | Permanent | Catalog/config data |
+
+| Symbol | Meaning |
+|--------|---------|
+| $v_t$ | Blackboard value at version $t$ |
+| $n$ | Number of concurrent writers |
+| $\delta t$ | Time window for concurrent writes |
+| $T_{\text{lock}}$ | Lock/CAS timeout |
+| $P_{\text{conflict}}$ | Probability of write conflict |
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: blackboard pattern from scratch (in-memory)
+from dataclasses import dataclass, field
+from typing import Any, Optional
+import threading
+
+@dataclass
+class BlackboardEntry:
+    value: Any
+    version: int = 0
+    written_by: str = ""
+
+class Blackboard:
+    """Thread-safe in-memory blackboard for agent state sharing."""
+    def __init__(self):
+        self._store: dict[str, BlackboardEntry] = {}
+        self._lock = threading.Lock()
+
+    def write(self, key: str, value: Any, agent_id: str, expected_version: Optional[int] = None) -> int:
+        with self._lock:
+            entry = self._store.get(key)
+            if expected_version is not None and (entry is None or entry.version != expected_version):
+                raise ValueError(f"Version conflict on key '{key}'")
+            new_version = (entry.version + 1) if entry else 0
+            self._store[key] = BlackboardEntry(value, new_version, agent_id)
+            return new_version
+
+    def read(self, key: str) -> Optional[BlackboardEntry]:
+        return self._store.get(key)
+```
+
+```python
+# Production: Redis-backed blackboard with TTL and distributed locking
+import redis.asyncio as aioredis
+import json
+from contextlib import asynccontextmanager
+
+client = aioredis.from_url("redis://redis-svc:6379")
+
+async def blackboard_write(key: str, value: dict, ttl_seconds: int = 86400) -> None:
+    """Write to blackboard with TTL. Key format: 'task:{id}:{section}'"""
+    await client.setex(key, ttl_seconds, json.dumps(value))
+
+async def blackboard_read(key: str) -> dict | None:
+    raw = await client.get(key)
+    return json.loads(raw) if raw else None
+
+@asynccontextmanager
+async def blackboard_lock(key: str, timeout_ms: int = 5000):
+    """Distributed lock using Redis SET NX for safe read-modify-write."""
+    lock_key = f"lock:{key}"
+    acquired = await client.set(lock_key, "1", nx=True, px=timeout_ms)
+    if not acquired:
+        raise RuntimeError(f"Could not acquire lock for {key}")
+    try:
+        yield
+    finally:
+        await client.delete(lock_key)
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How shared memory concepts appear |
+|---------|---------------------------------|
+| **Ch.1 — Message Formats** | Blackboard is Strategy 3 (shared-context handoff) from Ch.1; agents write structured payloads and read by correlation ID instead of passing messages |
+| **Ch.4 — Event-Driven Agents** | Events trigger blackboard writes; event consumers read the blackboard state written by producers |
+| **Ch.6 — Trust & Sandboxing** | Agents must have explicit read/write permissions per blackboard scope; the trust model from Ch.6 governs blackboard access control |
+| **Ch.7 — Agent Frameworks** | LangGraph's `state` object is a per-graph-run blackboard; Redis-backed persistence extends it to cross-run shared state |
+| **AI track — Evaluating AI Systems** | Multi-turn conversation memory is a user-scoped blackboard; evaluation harnesses read conversation state to measure recall and coherence |
+
+---
+
 ## § 11.5 · Progress Check — What We Achieved
 
 ### Constraint Status After Ch.5

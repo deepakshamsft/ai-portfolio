@@ -234,6 +234,112 @@ The additional gain: the compliance team added a logging proxy MCP server that s
 
 ---
 
+## 3 · The Math
+
+### The N×M Integration Problem
+
+Without a standard protocol, $N$ agents connecting to $M$ data sources require $N \times M$ bespoke integrations. MCP changes this to $N + M$ (each agent and server implements the standard once):
+
+$$\text{Without MCP:} \quad \text{integrations} = N \times M$$
+$$\text{With MCP:} \quad \text{integrations} = N + M$$
+
+For OrderFlow: 8 agents × 20 tools = **160 custom integrations** without MCP → **28 implementations** with MCP (8 client adapters + 20 server adapters).
+
+### Tool Schema as a Type Contract
+
+Each MCP tool has a JSON Schema input specification. The agent sends:
+
+$$\text{call} = \bigl\{\text{name}: t, \ \text{arguments}: \mathbf{a}\bigr\}$$
+
+where $t$ is the tool name and $\mathbf{a}$ is a JSON object validated against the tool's schema $\mathcal{S}_t$. Validation passes iff $\mathbf{a} \models \mathcal{S}_t$.
+
+The server returns a result object $r_t(\mathbf{a})$. The MCP protocol guarantees that the shape of $r_t$ is declared in the server's capability manifest, making the contract machine-verifiable.
+
+| Symbol | Meaning |
+|--------|---------|
+| $N$ | Number of MCP clients (agents) |
+| $M$ | Number of MCP servers (tool providers) |
+| $t$ | Tool name |
+| $\mathbf{a}$ | Tool arguments (JSON object) |
+| $\mathcal{S}_t$ | Tool's JSON Schema contract |
+| $r_t(\mathbf{a})$ | Tool result for arguments $\mathbf{a}$ |
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: minimal MCP client from scratch (stdio transport)
+import json, subprocess
+from typing import Any
+
+class MCPClient:
+    """
+    Minimal MCP stdio client — illustrates the JSON-RPC 2.0 message exchange.
+    Production: use the official `mcp` Python library instead.
+    """
+    def __init__(self, command: list[str]):
+        self.proc = subprocess.Popen(command, stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE, text=True)
+        self._request_id = 0
+
+    def _call(self, method: str, params: dict) -> Any:
+        self._request_id += 1
+        msg = {"jsonrpc": "2.0", "id": self._request_id, "method": method, "params": params}
+        self.proc.stdin.write(json.dumps(msg) + "\n")
+        self.proc.stdin.flush()
+        response = json.loads(self.proc.stdout.readline())
+        if "error" in response:
+            raise RuntimeError(f"MCP error: {response['error']}")
+        return response["result"]
+
+    def list_tools(self) -> list:
+        return self._call("tools/list", {})["tools"]
+
+    def call_tool(self, name: str, arguments: dict) -> Any:
+        return self._call("tools/call", {"name": name, "arguments": arguments})
+```
+
+```python
+# Production: MCP client with the official SDK + LangChain integration
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langgraph.prebuilt import create_react_agent
+from langchain_openai import ChatOpenAI
+
+async def build_orderflow_mcp_agent():
+    """
+    Connect OrderFlow agents to all 20 tool servers via MCP.
+    Each agent gets its own subset of tools (least-privilege).
+    """
+    server_params = StdioServerParameters(
+        command="uvx", args=["mcp-server-orderflow"]  # OrderFlow MCP server
+    )
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            tools = await load_mcp_tools(session)
+            # Filter to only tools this agent needs (least-privilege)
+            pricing_tools = [t for t in tools if t.name in ("get_quote", "compare_suppliers")]
+            agent = create_react_agent(ChatOpenAI(model="gpt-4o"), pricing_tools)
+            return agent
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How MCP concepts appear |
+|---------|------------------------|
+| **Ch.1 — Message Formats** | MCP tool calls use the same `tool_calls`/`tool` role message format from Ch.1; MCP is the standardised envelope around function calling |
+| **Ch.3 — A2A** | A2A agents can advertise their tools as MCP Resources; the two protocols are complementary — MCP for tool access, A2A for agent-to-agent task delegation |
+| **Ch.7 — Agent Frameworks** | LangChain's `load_mcp_tools`, LangGraph's node-level tool access, and Semantic Kernel's plugin model all support MCP as the underlying tool discovery mechanism |
+| **AI track — ReAct** | The ReAct Thought→Action→Observation loop calls MCP tools in the Action step; MCP is the production protocol that replaces hardcoded function schemas |
+| **AI Infrastructure — Inference Optimization** | MCP servers can be deployed behind vLLM inference endpoints; the MCP client routes tool calls to the serving layer |
+
+---
+
 ## Interview Questions
 
 **Q: What are the three MCP primitive types and how do you decide which to use?**

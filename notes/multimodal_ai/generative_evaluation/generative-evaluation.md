@@ -65,10 +65,13 @@ No single metric captures all three. Use at least two.
 
 ## 2 · Running Example
 
-**PixelSmith evaluation suite.** At the end of Chapter 4 (DDPM) training, we want to know:
-- Is our DDPM generating digits that look like MNIST? → FID
-- Are all 10 digit classes represented? → class recall
-- (If we add text conditioning) Does "handwritten seven" produce a 7? → CLIP Score
+**VisualForge campaign evaluation suite.** After generating a batch of 100 spring-collection product images, how do you know if they're good enough to send to the creative director?
+
+- Do the generated product shots look like real studio photographs? → **FID** against the reference product corpus
+- Are all VisualForge campaign types represented (product-on-white, lifestyle, brand-pattern)? → **class recall per brief type**
+- Does "Mango leather crossbody bag, white background" produce a bag on white, not a lifestyle shot? → **CLIP Score** (text-image alignment)
+
+> 📖 **Educational proxy:** FID math is illustrated using MNIST digit generation (reference = real digits, generated = DDPM output) because it's compact and verifiable. The VisualForge production evaluation (§5) applies the same metrics to campaign image batches.
 
 ---
 
@@ -154,6 +157,63 @@ $$
 2. Encode the generated image with `CLIPImageEncoder` → $\mathbf{v} \in \mathbb{R}^{512}$.
 3. Normalise both to unit length.
 4. Score = $2.5 \cdot \max(0, \mathbf{t} \cdot \mathbf{v})$.
+
+---
+
+## 5 · Production Example — VisualForge in Action
+
+**Automated quality gate for spring-collection batch (100 product images)**
+
+```python
+# Production: FID + CLIP Score evaluation for VisualForge campaign batch
+from torchmetrics.image.fid import FrechetInceptionDistance
+from transformers import CLIPProcessor, CLIPModel
+import torch
+from PIL import Image
+import glob
+
+# --- FID: compare generated batch to reference product corpus ---
+fid = FrechetInceptionDistance(feature=2048, normalize=True)
+
+# Reference: 500 approved product images from previous campaigns
+ref_images = [Image.open(f).resize((299, 299)) for f in glob.glob("vf_reference/*.png")[:500]]
+gen_images = [Image.open(f).resize((299, 299)) for f in glob.glob("vf_generated/*.png")]
+
+def to_tensor_batch(images: list, batch_size=50):
+    import torchvision.transforms.functional as TF
+    return torch.stack([TF.to_tensor(img) for img in images])
+
+fid.update(to_tensor_batch(ref_images), real=True)
+fid.update(to_tensor_batch(gen_images), real=False)
+fid_score = fid.compute().item()
+print(f"FID: {fid_score:.1f} (target <50 for campaign quality)")
+
+# --- CLIP Score: brief compliance check ---
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").eval()
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+brief_prompt = "product on white background, studio lighting, e-commerce photography"
+clip_scores = []
+for img_path in glob.glob("vf_generated/*.png")[:20]:  # spot-check 20
+    img = Image.open(img_path)
+    inputs = processor(text=[brief_prompt], images=[img], return_tensors="pt", padding=True)
+    with torch.no_grad():
+        outputs = model(**inputs)
+    score = outputs.logits_per_image.item() / 100  # normalised to 0–1
+    clip_scores.append(score)
+print(f"Mean CLIP Score: {sum(clip_scores)/len(clip_scores):.3f} (target >0.25)")
+```
+
+**VisualForge evaluation scorecard (spring-collection batch):**
+
+| Metric | Target | Result | Interpretation |
+|--------|--------|--------|----------------|
+| FID vs. reference corpus | <50 | 42.3 ✅ | Generated images statistically similar to approved products |
+| CLIP Score (brief match) | >0.25 | 0.31 ✅ | Images correctly depict brief prompt |
+| Class recall (brief types) | ≥0.9 per type | 0.93 product-on-white, 0.87 lifestyle ✅ | All campaign types represented |
+| Manual QA pass rate | >80% | 84% ✅ | Creative director sign-off rate |
+
+> ✅ **Gate decision**: FID 42.3 < 50 threshold and CLIP 0.31 > 0.25 threshold — batch approved for creative review. This automated gate saves ~2 hours of manual review per 100-image batch.
 
 ---
 

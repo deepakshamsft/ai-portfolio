@@ -3,6 +3,8 @@
 > **The story.** **Word2vec** (**Tomas Mikolov** and colleagues, Google, **2013**) was the moment text became vectors you could do arithmetic on — famously, *king − man + woman ≈ queen*. **GloVe** (Pennington, Socher, Manning, Stanford 2014) and **fastText** (Bojanowski et al., Facebook 2016) refined the recipe. **Sentence-BERT** (Reimers & Gurevych, 2019) lifted embeddings from words to whole sentences using a siamese transformer trained with contrastive loss — the foundation of every modern embedding model. **Retrieval-Augmented Generation** itself was named in a **2020** paper by **Patrick Lewis et al. at Facebook AI** — the architecture that staples a vector retriever in front of a generative LLM, letting the model cite documents instead of hallucinating from parametric memory. By 2023, **OpenAI's `text-embedding-ada-002`**, **Cohere's embed-v3**, and open-source models like **BGE** had made embedding-based retrieval the default architecture for any LLM application that touches private data.
 >
 > **Where you are in the curriculum.** This is the chapter where you learn what *exactly* gets stored in a vector index, how an embedding model decides two pieces of text are similar, and how a query is matched against millions of chunks. The next chapter — [VectorDBs](../vector_dbs) — takes the index itself apart (HNSW, IVF, DiskANN). Together they are the foundation for everything else: agents that retrieve before they answer, evaluation pipelines that check grounding, and the entire RAG project under [`projects/ai/rag-pipeline`](../../../projects/ai/rag_pipeline).
+>
+> **Notation.** $\mathbf{e} \in \mathbb{R}^d$ — embedding vector of dimension $d$; $\text{sim}(\mathbf{q}, \mathbf{k}) = \frac{\mathbf{q} \cdot \mathbf{k}}{\|\mathbf{q}\|\|\mathbf{k}\|}$ — cosine similarity between query and chunk; $k$ — number of retrieved chunks (top-$k$); $c$ — chunk size in tokens.
 
 ***
 
@@ -905,6 +907,10 @@ RAG fixes                           Fine-tuning fixes
 [6] https://zilliz.com/ai-models/text-embedding-ada-002
 [7] https://milvus.io/ai-quick-reference/what-is-the-vector-size-of-textembeddingada002
 [8] https://apxml.com/courses/optimizing-rag-for-production/chapter-2-advanced-retrieval-optimization/advanced-document-representations-rag
+
+## Bridge to Next Chapter
+
+RAG grounds the PizzaBot's answers in real menu data — but retrieval at prototype scale is brute-force: every query does a linear scan over all chunks. **Vector DBs (Ch.5)** replaces that with HNSW and IVF indexes that return approximate nearest neighbours in sub-millisecond time, scaling from 500 menu chunks to millions without hitting the latency constraint (<3 s p95).
 
 ## Illustrations
 

@@ -64,7 +64,7 @@ Almost every machine-learning loss function is the negative-log-likelihood of a 
 
 ---
 
-## 2 · Probability Foundations
+## 2 · Running Example — Probability Foundations
 
 ### 2.1 · The basics
 
@@ -289,6 +289,47 @@ That mapping is the single most useful mental model in supervised learning.
 4. **MLE can overfit small samples.** With $N$ tiny, the MLE sticks to every quirk in the data. This is why we add a prior (Bayesian / MAP) or a regulariser (Ch.6 / ML Ch.6).
 5. **Variance of a sample mean is $\sigma^2/n$, not $\sigma/\sqrt{n}$.** The standard *error* is $\sigma/\sqrt{n}$. Two different quantities.
 6. **Correlation is not causation** and **independence implies zero correlation but not vice versa.** Classic traps.
+
+---
+
+## 8.5 · Code Skeleton
+
+```python
+# Educational: Maximum Likelihood Estimation from scratch (Gaussian)
+import numpy as np
+
+def gaussian_mle(samples: np.ndarray) -> tuple[float, float]:
+    """
+    MLE for a Gaussian distribution.
+    Returns (mu_hat, sigma2_hat) — the parameters that maximise log-likelihood.
+    """
+    n = len(samples)
+    mu_hat = samples.mean()                     # d/d_mu log L = 0 => mu = sample mean
+    sigma2_hat = ((samples - mu_hat) ** 2).mean()  # biased MLE estimator
+    return mu_hat, sigma2_hat
+
+# Simulate 500 noisy free-kick distances
+rng = np.random.default_rng(42)
+true_mu, true_sigma = 18.5, 0.8              # metres from goal
+distances = rng.normal(true_mu, true_sigma, size=500)
+
+mu_hat, sigma2_hat = gaussian_mle(distances)
+print(f"MLE estimate: μ̂={mu_hat:.2f}m, σ̂²={sigma2_hat:.4f}m² (true: μ={true_mu}, σ²={true_sigma**2})")
+```
+
+```python
+# Production: MLE fitting via scipy.stats (equivalent to above)
+from scipy.stats import norm
+import numpy as np
+
+distances = np.random.default_rng(42).normal(18.5, 0.8, size=500)
+mu_hat, sigma_hat = norm.fit(distances)       # MLE by default
+print(f"scipy MLE: μ̂={mu_hat:.2f}, σ̂={sigma_hat:.4f}")
+
+# Confidence interval: P(kick clears 1.8m wall, travelling >16.5m)
+p_clear = 1 - norm.cdf(16.5, loc=mu_hat, scale=sigma_hat)
+print(f"P(distance > 16.5m) = {p_clear:.3f}")
+```
 
 ---
 

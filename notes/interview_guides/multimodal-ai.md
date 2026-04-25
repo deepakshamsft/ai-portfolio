@@ -4,7 +4,25 @@ This guide consolidates interview preparation material from all chapters in the 
 
 ---
 
-## Ch.1 — Multimodal Foundations
+## 1 · Concept Map — The 10 Questions That Matter
+
+| # | Cluster | What the interviewer is testing |
+|---|---------|----------------------------------|
+| 1 | **Multimodal Foundations & Patch Tokenization** | Can you explain how images become token sequences for a transformer? |
+| 2 | **Vision Transformers (ViT)** | Do you know CLS token pooling, patch size tradeoffs, and why ViT beats CNNs at scale? |
+| 3 | **CLIP & InfoNCE Loss** | Can you derive the contrastive objective? Know batch size's role in negative mining? |
+| 4 | **Forward/Reverse Diffusion** | Can you describe the noise schedule and the denoising score matching objective? |
+| 5 | **Schedulers (DDPM/DDIM/DPM-Solver)** | Do you know the speed/quality tradeoff? Can you explain DDIM's deterministic sampling? |
+| 6 | **Latent Diffusion & VAE** | Do you know why Stable Diffusion runs in latent space, not pixel space? |
+| 7 | **Guidance & CFG** | Can you derive classifier-free guidance and explain what happens above CFG≈7? |
+| 8 | **U-Net Architecture** | Do you know skip connections, cross-attention injection, and their roles in conditioning? |
+| 9 | **Evaluation Metrics (FID/CLIP Score)** | Can you explain both metrics, their correlation, and what each misses? |
+| 10 | **Production Latency & LoRA Fine-Tuning** | Do you know batch size, step count, and precision tradeoffs for real-time generation? |
+
+---
+
+## 2 · Section-by-Section Deep Dives
+
 
 ### Must Know
 - What shape is a colour image tensor in PyTorch? `(N, C, H, W)` — batch, channels, height, width
@@ -260,4 +278,90 @@ This guide consolidates interview preparation material from all chapters in the 
 
 ---
 
-**End of Multimodal AI Interview Guide**
+## 3 · The Rapid-Fire Round
+
+> 20 Q&A pairs. Each answer: ≤ 3 sentences.
+
+**1. How does a ViT turn an image into tokens?**
+Divide the image into fixed-size patches (e.g. 16×16 pixels). Flatten each patch, project it to a d-dimensional embedding, and prepend a learnable CLS token. Add 2D positional embeddings and feed the sequence to a standard transformer.
+
+**2. What does the CLS token do in ViT?**
+It is a learnable token prepended to the patch sequence. After all transformer layers, its output embedding is used as the global image representation for classification. It aggregates information from all patches via attention.
+
+**3. What is the InfoNCE loss in CLIP?**
+A contrastive objective that treats each (image, text) pair in a batch as a positive and all other combinations as negatives. It maximizes cosine similarity for matching pairs and minimizes it for non-matching. Large batch size is critical because more negatives = harder negatives = better representations.
+
+**4. Can you use CLIP embeddings for retrieval directly?**
+Yes — CLIP produces a shared embedding space where L2 distance or cosine similarity measures image-text semantic alignment. Normalize embeddings first; then use FAISS or HNSW for approximate nearest neighbor search.
+
+**5. What happens during the forward diffusion process?**
+Gaussian noise is progressively added to the image over T timesteps according to a variance schedule. After T steps the image becomes pure Gaussian noise. This process is fixed and has no learnable parameters.
+
+**6. What does the U-Net learn in a diffusion model?**
+To predict the noise ε that was added at each timestep t, given the noisy image $x_t$ and the timestep $t$. The training objective is to minimize $\|\epsilon - \epsilon_\theta(x_t, t)\|^2$. During sampling, the predicted noise is subtracted to recover the clean image.
+
+**7. DDPM vs. DDIM — key difference?**
+DDPM is stochastic (adds Gaussian noise at each reverse step). DDIM is deterministic — it skips timesteps by choosing a non-Markovian reverse process. DDIM can generate in 20–50 steps vs DDPM's 1000, at comparable quality.
+
+**8. What is classifier-free guidance?**
+Train the same U-Net with and without the text conditioning (randomly drop the text during training). At inference, blend the conditional and unconditional predictions: $\epsilon_\text{guided} = \epsilon_\text{uncond} + w(\epsilon_\text{cond} - \epsilon_\text{uncond})$. Higher $w$ increases adherence to the prompt but reduces diversity.
+
+**9. What does the VAE do in Stable Diffusion?**
+Compresses a 512×512 pixel image into a 64×64×4 latent representation. The diffusion process runs in this latent space, making it ~64× cheaper computationally. The VAE decoder reconstructs the pixel image from the denoised latent.
+
+**10. Why does Stable Diffusion run in latent space and not pixel space?**
+The latent space is 8× smaller in each spatial dimension. Running 1000 denoising steps on 64×64 tensors vs 512×512 pixels reduces compute by ~64×. Quality is preserved because the VAE is trained to reconstruct faithfully.
+
+**11. What is a cross-attention layer and what does it add to diffusion?**
+Cross-attention allows the U-Net to attend to text token embeddings at every layer. Query comes from the image features; key and value come from the text embeddings. This is what makes diffusion models steerable by language.
+
+**12. What is ControlNet?**
+A trainable copy of the U-Net encoder that accepts additional spatial conditioning (edges, depth, pose). It injects conditioning via zero-convolutions (initialized to zero so they don't disturb the base model). Enables precise spatial control beyond what text prompts provide.
+
+**13. What is FID and what does it measure?**
+Fréchet Inception Distance measures the distance between the distributions of real and generated images in Inception feature space. Lower is better. Sensitive to both quality and diversity; doesn't capture individual image quality.
+
+**14. What does CLIP Score measure?**
+The cosine similarity between a generated image's CLIP embedding and the prompt's CLIP embedding. Measures prompt alignment, not image quality. High CLIP Score can coexist with artifacts; low FID can have poor prompt adherence.
+
+**15. What is textual inversion?**
+A fine-tuning method that learns a new token embedding $S^*$ representing a concept (e.g. a specific product or style). Only the embedding is trained; the model weights are frozen. Much cheaper than full fine-tuning but less expressive.
+
+**16. LoRA vs. textual inversion for product fine-tuning?**
+LoRA trains low-rank weight updates in the U-Net's attention layers — captures style and composition changes, not just appearance. Textual inversion only captures embedding-level appearance. Use LoRA when the output structure needs to change, textual inversion for simpler appearance adaptation.
+
+**17. CFG scale: what happens above 12?**
+The guidance becomes oversaturated — colors become neon, textures oversharp, and artifacts appear. The model is pulled too strongly toward the conditional score. Typical production range: 6–12 for image generation, 3–6 for video.
+
+**18. What is DPM-Solver++?**
+A high-order ODE solver for diffusion reverse process. Achieves near-DDPM quality in 10–20 steps by using high-order Taylor approximations. Now the default scheduler in many production pipelines.
+
+**19. Batch size tradeoff for real-time diffusion?**
+Batch=1 per request minimizes latency but underutilizes the GPU. Batch=4–8 amortizes memory loads but increases TTFT for any single request. For interactive generation, use batch=1 with SDXL-Turbo (1–4 step).
+
+**20. When would you choose SDXL over SD 1.5?**
+When image quality and prompt adherence matter more than speed. SDXL requires ~6 GB more VRAM for base+refiner, runs 2–3× slower, but produces significantly better text rendering, composition, and photorealism. Use SD 1.5 for high-throughput or resource-constrained deployments.
+
+---
+
+## 4 · Signal Words That Distinguish Answers
+
+**✅ Say this:**
+- "denoising trajectory" (not "generation process")
+- "guidance scale saturates above 12" (shows you know the tradeoff curve)
+- "latent space compression ratio" (8× spatial, 64× compute)
+- "cross-attention injection" (how text controls the U-Net)
+- "classifier-free guidance" (not just "guidance")
+- "InfoNCE loss with large batch" (not just "contrastive loss")
+- "FID measures distribution distance, CLIP Score measures prompt alignment" (separate metrics, separate concerns)
+- "zero-convolution initialization" (ControlNet's critical training trick)
+- "denoising score matching" (the actual training objective name)
+- "skip connections carry spatial information" (U-Net architecture)
+
+**❌ Don't say this:**
+- "it generates from noise randomly" (DDIM is deterministic; even DDPM is structured)
+- "just increase steps for quality" (DDIM quality plateaus around 50 steps; DPM-Solver++ at 20)
+- "Stable Diffusion is pixel-based" (it runs in latent space)
+- "CLIP just finds similar images" (it's a zero-shot reasoning model across modalities)
+- "fine-tuning means retraining the whole model" (LoRA/textual inversion are parameter-efficient)
+

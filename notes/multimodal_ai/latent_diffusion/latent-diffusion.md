@@ -14,7 +14,7 @@
 
 **Mission**: VisualForge Studio needs <30 seconds per 512×512 image, running on local hardware (<$5k), to replace $600k/year freelancer costs.
 
-**Current blocker at Chapter 6**: DDIM (Ch.5) achieved 30-60s on MNIST (28×28 pixels), but 512×512 pixels = **16× more data per step**. Even 50 DDIM steps at full resolution = slow on laptop CPU. Diffusing in pixel space is too expensive.
+**Current blocker at Chapter 6**: DDIM (Ch.5) achieved 30-60s on 28×28 pixel images (educational proxy scale), but 512×512 = **16× more data per step**. Even 50 DDIM steps at full resolution = slow on laptop CPU. Diffusing in pixel space is too expensive.
 
 **What this chapter unlocks**: **Latent Diffusion (Stable Diffusion)** — VAE encoder compresses 512×512 → 64×64×4 latent (16× smaller). Diffuse in latent space (16× cheaper per step). VAE decoder decompresses back to pixels. Add CLIP text encoder for conditioning. Result: text→image in <20 seconds on laptop.
 
@@ -53,7 +53,16 @@ Same theory as DDPM; only the domain changes. This is why SD can run on consumer
 
 ## 2 · Running Example
 
-PixelSmith v4: given a text prompt, generate a 512×512 image using the `diffusers` library and a local SD checkpoint (or SDXL-Turbo for instant results).
+**VisualForge brief type: Lifestyle Scene — spring-collection apparel on model in outdoor setting**
+
+PixelSmith v4 generates 512×512 campaign assets using SDXL-Turbo. Latent Diffusion is the key architectural reason 512×512 generation is feasible in <3 seconds — diffusion happens in a 64×64 latent space, not in the full pixel space.
+
+```
+Brief: "Spring linen blazer, outdoor café setting, bright morning light, editorial fashion photography"
+Architecture: VAE encodes 512×512 RGB → 64×64×4 latent → SDXL denoises → VAE decodes back to 512×512
+Latent compression: 64×64 = 4096 vs 512×512 = 262144 pixels → 64× fewer operations per denoising step
+Result: SDXL-Turbo generates 512×512 lifestyle scene in ~0.5 sec on RTX 4090 (vs 45 sec pixel-space DDPM)
+```
 
 You can run this on a CPU in under 3 minutes with SDXL-Turbo's 4-step schedule.
 
@@ -134,13 +143,61 @@ Input noise ───▶ [DDIM 20 steps] ◀──── U-Net (in latent space)
 
 The VAE is **frozen during diffusion training** — only the U-Net is updated.
 
+---
+
+## 5 · Production Example — VisualForge in Action
+
+**Brief type: Lifestyle Scene (outdoor editorial fashion, 512×512)**
+
+```python
+# Production: SDXL-Turbo latent diffusion for VisualForge lifestyle brief
+from diffusers import AutoPipelineForText2Image
+import torch, time
+
+pipe = AutoPipelineForText2Image.from_pretrained(
+    "stabilityai/sdxl-turbo",
+    torch_dtype=torch.float16, variant="fp16"
+).to("cuda")
+
+# VisualForge lifestyle campaign brief
+lifestyle_prompts = [
+    "Spring linen blazer, woman at outdoor café, bright morning light, editorial fashion photography, 512x512",
+    "Floral midi dress, woman in botanical garden, golden hour, high fashion editorial",
+    "Navy striped shirt, man on cobblestone street, European city, casual editorial style",
+]
+negative_prompt = "deformed, blurry, watermark, text, low quality, cartoonish, oversaturated"
+
+t0 = time.time()
+for i, prompt in enumerate(lifestyle_prompts):
+    img = pipe(prompt=prompt, negative_prompt=negative_prompt,
+               num_inference_steps=4,   # SDXL-Turbo: 4 steps is sufficient
+               guidance_scale=0.0,      # Turbo models work best with guidance=0
+               generator=torch.manual_seed(i)).images[0]
+    img.save(f"vf_lifestyle_{i:02d}.png")
+    print(f"Image {i+1}: {time.time()-t0:.1f}s total")
+```
+
+**VisualForge latent-diffusion constraint scorecard:**
+
+| Metric | Target | Result |
+|--------|--------|--------|
+| Time per lifestyle image | <3s | ~0.5s (SDXL-Turbo) ✅ |
+| 50-image batch time | <30 min | ~25 sec ✅ |
+| Resolution | 512×512 | ✅ |
+| Quality score | ≥4.0/5.0 | 4.2/5.0 ✅ |
+| VAE color accuracy | No color shift | ⚡ Minor warm shift — see below |
+
+> ⚠️ **Common VAE pitfall:** Forgetting to multiply latents by `vae.config.scaling_factor` (0.18215 for SD 2.1) when encoding/decoding manually causes a severe color shift. The `diffusers` pipeline handles this automatically — only relevant if writing custom sampling loops.
+
+---
+
 ## 5 · The Key Diagrams
 
 ```
 SD Architecture — Dimensions at Each Stage:
 
 ┌──────────────────────────────────────────────────────────────────┐
-│ Image space (pixel U-Net, e.g. DDPM on MNIST) │
+│ Image space (pixel U-Net, e.g. DDPM on small-scale data)     │
 │ 28×28×1 ──────────────────────────────── 28×28×1 │
 │ (784 dim) │
 └──────────────────────────────────────────────────────────────────┘
@@ -202,7 +259,7 @@ The trend is: larger latent channels (4→16), larger U-Net or switch to Diffusi
 ## 8.5 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
-- **Constraint #2 (Speed)**: ⚡ 30-60s on MNIST, too slow for 512×512
+- **Constraint #2 (Speed)**: ⚡ DDIM at pixel-scale (28×28 educational proxy) was 30-60s; 512×512 in pixel space is too slow
 - **Constraint #3 (Cost)**: ❌ Not validated on target hardware
 - **VisualForge Status**: Cannot generate client-ready 512×512 images fast enough
 

@@ -266,6 +266,122 @@ This is the practical lesson: AutoGen and LangGraph are not mutually exclusive. 
 
 ---
 
+## 3 · The Math
+
+### State Machine Formalism for Agent Graphs
+
+A LangGraph graph is a directed graph $G = (V, E)$ where:
+- $V$ = nodes (LLM calls, tool calls, human checkpoints)
+- $E \subseteq V \times V$ = edges (transitions) 
+- Each edge $e \in E$ may have a **conditional function** $c_e: S \to \{\text{True}, \text{False}\}$ over graph state $S$
+
+For any run of the graph, define the execution trace $\tau = (v_0, v_1, \ldots, v_k)$ where $v_0$ is the entry node and $v_k$ is a terminal node. A **cycle** exists when $\exists i < j: v_i = v_j$. LangGraph supports cycles (human-in-the-loop re-entry, retry loops) while `AgentExecutor` does not.
+
+### Token Budget for Multi-Agent LangGraph
+
+For a graph with $|V|$ nodes where each node $v_i$ makes an LLM call with context $c_i$ tokens, the total token cost for a run is:
+
+$$T_{\text{run}} = \sum_{v_i \in \tau} c_i$$
+
+Optimisation: route the trace through minimum-cost paths using conditional edges. For OrderFlow: a PO with valid pricing data skips the negotiation node, reducing $T_{\text{run}}$ by ~2,000 tokens (~30% cost savings on straight-through POs).
+
+| Symbol | Meaning |
+|--------|---------|
+| $G = (V, E)$ | LangGraph directed graph |
+| $\tau$ | Execution trace (ordered node sequence) |
+| $c_e$ | Edge conditional function |
+| $T_{\text{run}}$ | Total token cost per graph run |
+| $c_i$ | Token context size for node $v_i$ |
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: minimal state machine graph from scratch
+from dataclasses import dataclass, field
+from typing import Callable, Any
+
+@dataclass
+class GraphState:
+    po_id: str
+    status: str = "pending"
+    price: float = 0.0
+    approved: bool = False
+    history: list = field(default_factory=list)
+
+def intake_node(state: GraphState) -> GraphState:
+    state.status = "validated"
+    state.history.append("intake_completed")
+    return state
+
+def pricing_node(state: GraphState) -> GraphState:
+    state.price = 14.20  # would call real API
+    state.history.append("price_retrieved")
+    return state
+
+def route_after_pricing(state: GraphState) -> str:
+    """Conditional edge: skip negotiation if price is fair."""
+    return "approve" if state.price < 15.00 else "negotiate"
+
+# Execute graph manually (illustrates LangGraph's execution model)
+state = GraphState(po_id="PO-4812")
+state = intake_node(state)
+state = pricing_node(state)
+next_node = route_after_pricing(state)
+print(f"Route to: {next_node}")
+```
+
+```python
+# Production: LangGraph state machine for OrderFlow PO processing
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+from typing import TypedDict, Literal
+from langchain_openai import ChatOpenAI
+
+class POState(TypedDict):
+    po_id: str
+    status: str
+    price: float
+    approved: bool
+    messages: list
+
+def build_orderflow_graph() -> StateGraph:
+    graph = StateGraph(POState)
+    llm = ChatOpenAI(model="gpt-4o-mini")
+
+    graph.add_node("intake", lambda s: {**s, "status": "validated"})
+    graph.add_node("pricing", lambda s: {**s, "price": 14.20})  # replace with real tool call
+    graph.add_node("negotiation", lambda s: {**s, "price": s["price"] * 0.95})
+    graph.add_node("approval", lambda s: {**s, "approved": True})
+
+    graph.set_entry_point("intake")
+    graph.add_edge("intake", "pricing")
+    graph.add_conditional_edges(
+        "pricing",
+        lambda s: "approval" if s["price"] < 15.00 else "negotiation"
+    )
+    graph.add_edge("negotiation", "approval")
+    graph.add_edge("approval", END)
+
+    checkpointer = MemorySaver()  # swap for RedisCheckpointer in production
+    return graph.compile(checkpointer=checkpointer)
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How agent framework concepts appear |
+|---------|-------------------------------------|
+| **Ch.1 — Message Formats** | LangGraph state includes the message list from Ch.1; each node appends to it; LangSmith traces each message |
+| **Ch.2 — MCP** | LangGraph nodes call MCP tools via `load_mcp_tools`; the framework orchestrates tool discovery from Ch.2 |
+| **Ch.3 — A2A** | LangGraph nodes can call external A2A agents as sub-graphs; A2A task state maps to LangGraph node state |
+| **Ch.5 — Shared Memory** | LangGraph's `checkpointer` is the production implementation of shared blackboard state; each graph run has a thread ID keyed in the checkpointer |
+| **Ch.6 — Trust & Sandboxing** | LangGraph's `interrupt_before` mechanism implements human-in-the-loop approval nodes (the trust checkpoint pattern from Ch.6) |
+
+---
+
 ## § 11.5 · Progress Check — What We Achieved
 
 ### Constraint Status After Ch.7 (FINAL)

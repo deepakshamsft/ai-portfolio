@@ -4,7 +4,26 @@ This guide consolidates interview preparation material from all chapters in the 
 
 ---
 
-## Ch.1 — Message Formats & Shared Context
+## 1 · Concept Map — The 10 Questions That Matter
+
+Every multi-agent interview revolves around 10 core question clusters. Senior answers demonstrate end-to-end systems thinking — not just protocol names, but tradeoffs, failure modes, and production integration.
+
+| # | Cluster | What the interviewer is testing |
+|---|---------|----------------------------------|
+| 1 | **Message Formats & Handoff** | Do you know the three handoff strategies? Can you explain why blackboard scales and full-history doesn't? |
+| 2 | **MCP N×M Reduction** | Can you explain why MCP solves the integration problem? Know Resources vs. Tools vs. Prompts? |
+| 3 | **A2A Task Lifecycle** | Do you know the 5 task states and SSE streaming? Can you contrast agent calls vs. tool calls architecturally? |
+| 4 | **Async Pub/Sub Messaging** | Can you apply Little's Law to size a queue? Know fan-out/fan-in patterns and DLQ? |
+| 5 | **Blackboard Architecture** | Do you know namespace isolation, scope hierarchy, and failure recovery via the blackboard? |
+| 6 | **Trust & Prompt Injection** | Can you explain prompt injection propagation? Know HMAC timing attack defence and sandbox requirements? |
+| 7 | **Framework Tradeoffs** | Can you distinguish AutoGen from LangGraph from Semantic Kernel and recommend the right one? |
+| 8 | **Idempotency & Reliability** | Do you know why at-least-once delivery requires idempotent agents and how to implement deduplication? |
+| 9 | **Auth & Credential Management** | Can you describe the managed identity pattern for agent-to-agent auth in cloud deployments? |
+| 10 | **Protocol Composition** | Do you know how MCP + A2A + event bus compose into a complete production architecture? |
+
+---
+
+## 2 · Section-by-Section Deep Dives
 
 **Q: What is the difference between "reduce to shared context" and "pass full history" message handoff strategies?**
 
@@ -162,4 +181,90 @@ In all three, MCP tools appear as callables that the agent framework can invoke.
 
 ---
 
-**End of Multi-Agent AI Interview Guide**
+## 3 · The Rapid-Fire Round
+
+> 20 Q&A pairs. Each answer: ≤ 3 sentences.
+
+**1. What are the three message handoff strategies?**
+Full history (pass all messages), system-prompt specialisation (inject summary into sub-agent's system prompt), and blackboard (shared store). Full history is simplest but costs grow quadratically. Blackboard is the only one that scales to 10+ agents.
+
+**2. What problem does MCP solve?**
+The N×M integration problem: without MCP, N agents each need custom code to call M tools (N×M connections). MCP gives servers a self-describing protocol, so any agent discovers any server at connection time (N+M connections).
+
+**3. What are the three MCP primitive types?**
+Resource (read-only data, like a catalogue), Tool (action/mutation, like sending an email), and Prompt (server-side reusable instruction templates). Use the type that matches the intent — mixing them undermines intent-clarity.
+
+**4. How is an agent call different from a tool call?**
+Tools are stateless and synchronous — milliseconds, no state. Agent calls initiate a reasoning loop that can take minutes, involve multiple tools, and fail at intermediate steps. A2A formalises the lifecycle (submitted → working → completed/failed).
+
+**5. What is an Agent Card?**
+A JSON document served at `/.well-known/agent.json` describing the agent's skills, input/output types, transport capabilities, and authentication schemes. Enables discovery without prior configuration.
+
+**6. What is Little's Law and how does it size an agent queue?**
+L = λW: the mean number of in-flight messages equals arrival rate times mean processing time. For 14 negotiations/hr at 0.5 hr each → 7 concurrent; set max_concurrent_agents = 8 (20% headroom).
+
+**7. What is a dead-letter queue?**
+A queue that receives messages after the maximum retry count. Without a DLQ, failed messages are silently discarded. The DLQ is where you detect that a model change caused a class of tasks to fail permanently.
+
+**8. Why must agents be idempotent in at-least-once delivery?**
+A message may be processed twice (consumer crash after processing but before ack). Non-idempotent actions (send email, charge payment) must be guarded by a deduplication store checked before execution.
+
+**9. What is the blackboard pattern?**
+All inter-agent communication goes through a shared store. Agents read and write; they never call each other directly. Required for 10+ agents or async pipelines where direct coupling becomes combinatorial.
+
+**10. Why is namespace isolation critical in a blackboard?**
+Without it, agents overwrite each other's keys. Each agent owns one namespace section; other agents' sections are read-only. Violating this causes silent data corruption.
+
+**11. What is the biggest security risk in multi-agent systems?**
+Prompt injection propagating through the chain. External content retrieved by agent A passes to agent B as a trusted message, where injected instructions execute with agent B's authority.
+
+**12. Why use `hmac.compare_digest` instead of `==` for signature verification?**
+String `==` short-circuits on the first mismatch — timing varies with match position, enabling a timing attack to guess the signature. `compare_digest` always takes constant time.
+
+**13. Where should external content be injected in a message?**
+Always in the `user` role, never `system`. The `system` role conveys high-authority instructions; injecting external content there gives any embedded attacker instructions system-level authority.
+
+**14. AutoGen vs. LangGraph — when to use each?**
+AutoGen for open-ended/emergent workflows where the number of agent turns is not known (debate, research). LangGraph for deterministic control flow with explicit conditional branching and compliance requirements.
+
+**15. Can AutoGen and LangGraph be combined?**
+Yes. An AutoGen conversation can be a node inside a LangGraph graph. LangGraph controls the outer deterministic pipeline; AutoGen handles inner emergent sub-tasks.
+
+**16. What does Semantic Kernel add over LangGraph?**
+Production hooks: filter pipeline for audit/PII, OpenTelemetry telemetry, `TerminationStrategy` and `SelectionStrategy` as testable code objects, and native MCP plugin integration. Designed for enterprise auditability.
+
+**17. How does MCP compose with A2A?**
+MCP governs agent-to-tool access; A2A governs agent-to-agent delegation. A typical architecture: orchestrator uses A2A to delegate to specialist agents; each specialist uses MCP to access its tools internally.
+
+**18. What is the recommended auth pattern for agent-to-agent calls in cloud?**
+Managed identity. Each agent service exchanges its managed identity for short-lived bearer tokens. No static credentials; tokens rotate automatically; access is scoped to exact needed resources.
+
+**19. How do you implement fan-in from parallel agents?**
+Each parallel agent publishes its result with the same `correlation_id`. An aggregator accumulates results in a shared store; when the expected count arrives, it publishes a single downstream event.
+
+**20. MCP stdio vs. HTTP+SSE — when to use each?**
+Stdio is fastest and suitable for local trusted tools but supports only one client. HTTP+SSE supports multiple concurrent clients and can be scaled independently — required for production remote services.
+
+---
+
+## 4 · Signal Words That Distinguish Answers
+
+**✅ Say this:**
+- \"N×M becomes N+M\" (MCP's architectural value)
+- \"task lifecycle\" (not \"agent call\")
+- \"namespace isolation\" (blackboard safety)
+- \"prompt injection propagation\" (not just \"prompt injection\")
+- \"managed identity\" (not \"API key\")
+- \"dead-letter queue\" (not \"error handling\")
+- \"idempotency guard\" (not \"retry logic\")
+- \"correlation ID\" (linking fan-out results)
+- \"at-least-once delivery\" (naming the delivery guarantee)
+- \"trust boundary\" (where external content enters)
+
+**❌ Don't say this:**
+- \"agents call each other\" (ignores the protocol layer)
+- \"just add more agents\" (shows no understanding of coordination cost)
+- \"it retries automatically\" (ignores idempotency requirement)
+- \"put it in the system prompt\" (insecure for external content)
+- \"store the API key in config\" (should be managed identity)
+

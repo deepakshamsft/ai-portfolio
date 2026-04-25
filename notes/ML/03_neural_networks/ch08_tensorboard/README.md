@@ -18,8 +18,12 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1-8 (Ch.8: TensorBoard): Achieved Constraints #1-4, understand loss functions from first principles
-- ✅ Can train accurate, generalizable, interpretable models
+- ✅ Ch.1–7: Achieved Constraints #1 ($48k MAE) and #2 (generalization via regularisation)
+- ✅ Ch.5: CNNs for spatial data (partial #3 multi-task)
+- ✅ Ch.6: RNNs/LSTMs for sequences (partial #5 production-ready)
+- ✅ Ch.7: MLE framework — understand why we use each loss
+- ✔ Constraint #3 (MULTI-TASK): partial — CNNs handle images; full value+segment multi-task comes later
+- ❌ Constraint #4 (INTERPRETABILITY): deferred to Ensemble track (SHAP explanations)
 - ❌ **But training is still a black box!**
 
 **What's blocking us:**

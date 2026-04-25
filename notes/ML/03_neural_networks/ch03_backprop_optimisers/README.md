@@ -14,28 +14,29 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- Ch.1: Linear regression baseline ($70k MAE)
-- Ch.2: Logistic regression (binary classification)
-- Ch.1: XOR problem (diagnosed linear model limits)
-- Ch.2: Neural network architecture (3 layers, ReLU, He init) → **$55k MAE**
+- [Regression track](../../01_regression/ch01_linear_regression): Linear regression baseline ($70k MAE)
+- [Classification track](../../02_classification/ch01_logistic_regression): Logistic regression for binary targets
+- NN Ch.1: XOR problem (diagnosed linear model limits, proved UAT)
+- NN Ch.2: Neural network architecture (3 layers, ReLU, He init) → **$55k MAE**
 - Can compute forward pass through the network
 - **But we can't train it yet!**
 
 **What's blocking us:**
-⚠️ **We're SO CLOSE to Constraint #1 (<$40k MAE), but we're stuck!**
+⚠️ **We're SO CLOSE to the <$50k intermediate NN milestone, but we're stuck!**
 
-Ch.4 gave us a neural network that can predict house values with $55k MAE (down from $70k). That's **$15k away from our target**. But:
+NN Ch.2 gave us a neural network that can predict house values with $55k MAE (down from $70k). That's **$5k above the <$50k intermediate target**, and $27k above the final $28k NN track target. But:
 - **No training algorithm**: We have the architecture, but no efficient way to compute gradients through 3 layers
 - **Slow convergence**: Even if we had gradients, vanilla SGD takes 10,000+ epochs to converge
 - **Manual tuning hell**: Learning rate is a nightmare to tune (too high = diverge, too low = stuck)
 
 **The immediate problem:**
-Product team needs **Constraint #1 (ACCURACY)** achieved:
-- Current: $55k MAE (Ch.4 neural network)
-- Target: <$40k MAE
-- Gap: **$15k improvement needed**
+Product team needs **Constraint #1 (ACCURACY)** progress:
+- Current: $55k MAE (NN Ch.2 neural network architecture)
+- NN-track intermediate milestone: <$50k MAE
+- Final NN-track target: $28k MAE + 95% accuracy (UnifiedAI)
+- Gap to intermediate: **$5k MAE reduction needed**
 
-We know the architecture can represent the solution (Ch.3 proved neural networks are universal function approximators), but we need:
+We know the architecture can represent the solution (NN Ch.1 proved neural networks are universal function approximators), but we need:
 1. **Efficient gradient computation**: Compute $\nabla_W \mathcal{L}$ for all layers without manual calculus
 2. **Better optimization**: Converge 5-10× faster than vanilla SGD
 3. **Adaptive learning rates**: Per-parameter step sizes that automatically adjust
@@ -47,9 +48,9 @@ We know the architecture can represent the solution (Ch.3 proved neural networks
 3. **Learning rate schedules**: Warm restarts, cosine annealing for fine-tuning
 4. **Gradient clipping**: Prevent exploding gradients in deep networks
 
-💡 **Expected outcome**: **<$40k MAE** → ✅ **Constraint #1 ACHIEVED!**
+⚡ **Expected outcome**: ~**$48k MAE** — breaking through the <$50k intermediate target
 
-Adam's adaptive learning rates will push us from $55k → **$38k MAE** by:
+Adam's adaptive learning rates will push us from $55k → **$48k MAE** by:
 - Larger steps for slow-moving parameters (e.g., early-layer weights)
 - Smaller steps for high-variance parameters (e.g., output layer with large gradients)
 - Momentum to accelerate through shallow regions of the loss surface
@@ -77,7 +78,7 @@ The gradient tells you the direction of steepest ascent in loss-space. The optim
 
 ## 2 · Running Example
 
-Same two-hidden-layer network from Ch.4:
+Same two-hidden-layer network from NN Ch.2:
 
 ```
 8 inputs → [128 ReLU] → [64 ReLU] → 1 output (linear)

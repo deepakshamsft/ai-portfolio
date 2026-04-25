@@ -195,6 +195,121 @@ The compliance team added a new requirement mid-project: all delegated tasks mus
 
 ---
 
+## 3 · The Math
+
+### Task Lifecycle State Machine
+
+A2A models each delegated task as a finite state machine over states $\mathcal{Q} = \{\text{submitted}, \text{working}, \text{input-required}, \text{completed}, \text{failed}, \text{canceled}\}$:
+
+$$\text{submitted} \xrightarrow{\text{agent accepts}} \text{working} \xrightarrow{\text{finish}} \text{completed}$$
+$$\text{working} \xrightarrow{\text{needs clarification}} \text{input-required} \xrightarrow{\text{user responds}} \text{working}$$
+$$\text{working} \xrightarrow{\text{error}} \text{failed}$$
+
+The orchestrator tracks state $q_t \in \mathcal{Q}$ for each active task $t$. SLA compliance requires:
+
+$$\mathbb{P}\bigl[q_t = \text{completed} \mid t_{\text{elapsed}} \leq T_{\text{SLA}}\bigr] \geq 1 - \epsilon$$
+
+where $T_{\text{SLA}} = 4\text{ hr}$ and $\epsilon = 0.001$ (99.9\% on-time completion).
+
+| Symbol | Meaning |
+|--------|---------|
+| $\mathcal{Q}$ | Set of valid task states |
+| $q_t$ | Current state of task $t$ |
+| $T_{\text{SLA}}$ | Maximum time-to-completion (4 hr for OrderFlow) |
+| $\epsilon$ | Acceptable SLA breach rate |
+| $\text{correlation\_id}$ | UUID linking delegated task to parent PO |
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: A2A task submission and polling from scratch
+import uuid, time
+from enum import Enum
+from dataclasses import dataclass
+from typing import Optional
+
+class TaskState(Enum):
+    SUBMITTED = "submitted"
+    WORKING = "working"
+    INPUT_REQUIRED = "input-required"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+@dataclass
+class Task:
+    task_id: str
+    state: TaskState
+    result: Optional[dict] = None
+    error: Optional[str] = None
+
+class A2AClientSimple:
+    """Educational A2A client illustrating the task lifecycle."""
+    def __init__(self, agent_url: str):
+        self.agent_url = agent_url
+        self._tasks: dict[str, Task] = {}
+
+    def submit_task(self, message: str, correlation_id: str) -> str:
+        task_id = str(uuid.uuid4())
+        self._tasks[task_id] = Task(task_id=task_id, state=TaskState.SUBMITTED)
+        # In real A2A: POST /tasks/send with JSON body
+        return task_id
+
+    def poll_task(self, task_id: str) -> Task:
+        # In real A2A: GET /tasks/{task_id} or SSE stream
+        return self._tasks[task_id]
+
+    def wait_for_completion(self, task_id: str, timeout_sec: float = 3600) -> Task:
+        deadline = time.time() + timeout_sec
+        while time.time() < deadline:
+            task = self.poll_task(task_id)
+            if task.state in (TaskState.COMPLETED, TaskState.FAILED):
+                return task
+            time.sleep(5)
+        raise TimeoutError(f"Task {task_id} not completed within {timeout_sec}s")
+```
+
+```python
+# Production: A2A using the official SDK with SSE streaming
+from a2a.client import A2AClient
+from a2a.types import Message, TextPart, TaskState
+from httpx import AsyncClient
+import asyncio, uuid
+
+async def delegate_negotiation(po_id: str, supplier_id: str) -> dict:
+    """Delegate PO negotiation to the negotiation agent via A2A."""
+    async with AsyncClient() as http:
+        client = A2AClient(httpx_client=http,
+                           url="http://negotiation-agent-svc:8080")
+        correlation_id = f"po-{po_id}"
+        message = Message(
+            role="user",
+            parts=[TextPart(text=f"Negotiate terms for PO {po_id} with supplier {supplier_id}")],
+            metadata={"correlation_id": correlation_id}
+        )
+        # Stream task updates via SSE
+        async for event in client.send_message_streaming(message=message):
+            if event.result.status.state == TaskState.completed:
+                return event.result.artifacts[0].parts[0].text
+            elif event.result.status.state == TaskState.failed:
+                raise RuntimeError(f"Negotiation failed: {event.result.status.message}")
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How A2A concepts appear |
+|---------|--------------------------|
+| **Ch.1 — Message Formats** | A2A task messages wrap the same `role/content` envelope from Ch.1; the `message` field in A2A is an OpenAI-compatible message object |
+| **Ch.2 — MCP** | MCP and A2A are complementary: MCP for agent-to-tool calls, A2A for agent-to-agent task delegation |
+| **Ch.4 — Event-Driven Agents** | A2A's streaming (SSE) connects to the event bus pattern; long-running A2A tasks publish completion events to the bus |
+| **Ch.7 — Agent Frameworks** | LangGraph nodes can call A2A agents as external services; the task lifecycle maps cleanly to graph node state |
+| **Multi-Agent AI — Trust & Sandboxing** | A2A's AgentCard includes a trust level declaration; Ch.6 validates these claims before accepting delegated tasks |
+
+---
+
 ## § 11.5 · Progress Check — What We Achieved
 
 ### Constraint Status After Ch.3

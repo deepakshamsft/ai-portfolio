@@ -399,6 +399,118 @@ Memory savings: 104GB → 18GB (83% reduction!)
 
 ---
 
+## The Hyperparameter Dial
+
+LoRA has three independent dials. Getting them wrong either wastes memory or degrades quality.
+
+### Dial 1 — LoRA Rank $r$
+
+| Rank $r$ | Adapter params (Llama-3-8B) | Extra VRAM | Accuracy (typical) | Notes |
+|---------|----------------------------|------------|--------------------|-------|
+| 4 | ~21M | +0.1 GB | ~92% | Too low for complex tasks |
+| 8 | ~42M | +0.2 GB | ~95% | Good for simple classification |
+| 16 | ~84M | +0.3 GB | ~97% | **Sweet spot for most tasks** |
+| 32 | ~168M | +0.6 GB | ~98% | Only marginal gain over 16 |
+| 64 | ~336M | +1.3 GB | ~98.5% | Approaching full fine-tuning cost |
+
+> 💡 Start with r=16 and evaluate. Moving from 16→32 rarely justifies the memory cost; 16→8 is a safe fallback when VRAM is tight.
+
+### Dial 2 — ZeRO Stage
+
+ZeRO (Zero Redundancy Optimizer) shards different optimizer components across GPUs:
+
+| ZeRO Stage | What is sharded | Memory per GPU | Communication overhead | Use when |
+|------------|-----------------|----------------|------------------------|----------|
+| 0 (none) | Nothing | Full copy | None | Single GPU |
+| 1 | Optimizer states | ~0.5× | Low | 2–4 GPUs, bandwidth-heavy |
+| 2 | Gradients + optimizer | ~0.25× | Medium | 4–8 GPUs |
+| 3 | Params + grads + optimizer | ~0.12× | High | 8+ GPUs; requires NVLink |
+
+> ⚠️ ZeRO-3 over PCIe (no NVLink) often runs slower than ZeRO-2 with gradient checkpointing — the all-gather communication dominates.
+
+### Dial 3 — Gradient Accumulation Steps
+
+Effective batch size = `per_device_batch` × `gradient_accumulation_steps`. On RTX 4090 (24 GB):
+
+| Config | Memory/step | Effective batch | Quality |
+|--------|-------------|-----------------|---------|
+| per_batch=4, accum=1 | 18 GB | 4 | Underfit |
+| per_batch=4, accum=8 | 18 GB | 32 | Good |
+| per_batch=4, accum=16 | 18 GB | 64 | Near-full training quality |
+| per_batch=8, accum=8 | ~22 GB | 64 | Risk of OOM |
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: minimal LoRA from scratch
+import torch
+import torch.nn as nn
+
+class LoRALayer(nn.Module):
+    """
+    Low-rank adaptation of a linear layer.
+    Adds trainable A (down-project) and B (up-project) matrices while freezing W.
+    """
+    def __init__(self, in_features: int, out_features: int, rank: int = 16, alpha: float = 32):
+        super().__init__()
+        self.rank = rank
+        self.scale = alpha / rank  # LoRA scaling factor
+        self.A = nn.Linear(in_features, rank, bias=False)  # down-project
+        self.B = nn.Linear(rank, out_features, bias=False)  # up-project
+        nn.init.kaiming_uniform_(self.A.weight)
+        nn.init.zeros_(self.B.weight)  # B starts at 0 so ΔW = 0 at init
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.B(self.A(x)) * self.scale  # ΔW·x = B·A·x · (α/r)
+```
+
+```python
+# Production: LoRA fine-tuning with HuggingFace PEFT
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
+from peft import LoraConfig, get_peft_model, TaskType
+from trl import SFTTrainer
+
+def finetune_with_lora(base_model_id: str, dataset, output_dir: str,
+                        rank: int = 16, alpha: float = 32) -> str:
+    model = AutoModelForCausalLM.from_pretrained(base_model_id, torch_dtype="bfloat16",
+                                                  device_map="auto")
+    lora_config = LoraConfig(
+        r=rank, lora_alpha=alpha,
+        target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],  # attention layers
+        task_type=TaskType.CAUSAL_LM,
+        lora_dropout=0.05, bias="none"
+    )
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()  # ~0.5% of total
+
+    training_args = TrainingArguments(
+        output_dir=output_dir, per_device_train_batch_size=4,
+        gradient_accumulation_steps=8,   # effective batch = 32
+        num_train_epochs=3, learning_rate=2e-4,
+        bf16=True, logging_steps=10, save_strategy="epoch"
+    )
+    trainer = SFTTrainer(model=model, train_dataset=dataset, args=training_args)
+    trainer.train()
+    model.save_pretrained(output_dir)
+    return output_dir
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How LoRA / parallelism concepts appear |
+|---------|----------------------------------------|
+| **Ch.2 — Memory Budgets** | LoRA training VRAM formula (params + gradients + optimizer states) builds on the parameter memory model from Ch.2 |
+| **Ch.5 — Inference Optimization** | Adapter serving at inference time: LoRA adapters from this chapter are loaded into the base model at request time |
+| **Ch.6 — vLLM & Serving** | vLLM supports LoRA hot-swap: multiple adapters loaded simultaneously, base model shared — enabled by the adapter architecture here |
+| **Multi-agent AI track** | Specialized agents (code agent, retrieval agent) can use task-specific LoRA adapters — adapter routing uses the hot-swap pattern from Ch.6 |
+| **Fine-tuning (AI track)** | QLoRA = LoRA over INT4-quantized base model; combines Ch.3 quantization with this chapter's LoRA pattern |
+
+---
+
 ## 11.5 · Progress Check — What We've Accomplished
 
 🎉 **COST-EFFICIENT FINE-TUNING ENABLED! LoRA trains on RTX 4090 budget ✅**

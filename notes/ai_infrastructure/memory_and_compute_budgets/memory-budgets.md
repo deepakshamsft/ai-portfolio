@@ -285,6 +285,118 @@ RTX 4090 24GB      │                             │
 
 ---
 
+## The Hyperparameter Dial
+
+Three knobs control VRAM. Each can be turned independently, but they interact through the total budget constraint.
+
+### Dial 1 — Batch Size
+
+$$\text{VRAM}_\text{KV} = 2 \times L \times H \times S \times B \times P$$
+
+| Batch size $B$ | KV cache VRAM (Llama-3-8B, $S=2048$, BF16) | Total inference VRAM | Throughput (tok/s est.) |
+|----------------|---------------------------------------------|----------------------|-------------------------|
+| 1 | ~0.9 GB | ~17 GB | ~40 tok/s |
+| 2 | ~1.8 GB | ~18 GB | ~75 tok/s |
+| 4 | ~3.5 GB | ~19.5 GB | ~130 tok/s |
+| 8 | ~7.0 GB | ~23 GB | ~200 tok/s |
+| 16 | ~14 GB | ~30 GB ❌ OOM on 24 GB | — |
+
+> ⚠️ Never push batch=16 on a 24 GB GPU with Llama-3-8B at BF16. Use INT8/INT4 quantization (Ch.3) to free ~8 GB first.
+
+### Dial 2 — Sequence Length
+
+Sequence length $S$ scales KV cache linearly. Halving sequence length halves KV cache:
+
+| Sequence length | KV cache (batch=4, BF16) | Notes |
+|-----------------|--------------------------|-------|
+| 512 tokens | ~0.9 GB | Customer support queries |
+| 2,048 tokens | ~3.5 GB | Standard context window |
+| 8,192 tokens | ~14 GB | Near-OOM at batch=4; need INT8 |
+| 32,768 tokens | ~56 GB ❌ | Multi-GPU only |
+
+### Dial 3 — Precision
+
+Precision affects parameter memory and KV cache simultaneously:
+
+| Precision | Bytes per param $P$ | Llama-3-8B params | KV cache per unit | Total VRAM (batch=4, $S=2048$) |
+|-----------|--------------------|--------------------|-------------------|-------------------------------|
+| FP32 | 4 | 32 GB | 4 bytes | ~50 GB ❌ |
+| BF16 | 2 | 16 GB | 2 bytes | ~19.5 GB ✅ |
+| INT8 | 1 | 8 GB | 1 byte | ~9.8 GB ✅✅ |
+| INT4 | 0.5 | 4 GB | 0.5 byte | ~5 GB — headroom for batch=16 |
+
+> 💡 KV cache grows with batch × seq_len. Parameters are **fixed** at load time. Quantization shrinks both; smaller batch reduces only the KV cache.
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: VRAM budget calculator from scratch
+def vram_budget_inference(
+    n_params: int,           # total model parameters (e.g., 8_000_000_000)
+    bytes_per_param: float,  # precision: FP32=4, BF16=2, INT8=1, INT4=0.5
+    n_layers: int,           # transformer layers (e.g., 32 for Llama-3-8B)
+    n_heads: int,            # attention heads (e.g., 32)
+    seq_len: int,            # max sequence length (e.g., 2048)
+    batch_size: int,         # concurrent requests
+    activation_overhead_gb: float = 2.0,  # typical activation memory
+) -> dict:
+    """Calculate inference VRAM breakdown in GB."""
+    params_gb = (n_params * bytes_per_param) / 1e9
+    head_dim = 128  # typical; hidden_dim / n_heads
+    kv_cache_gb = (2 * n_layers * n_heads * head_dim * seq_len * batch_size * bytes_per_param) / 1e9
+    total_gb = params_gb + kv_cache_gb + activation_overhead_gb
+    return {
+        "params_gb": round(params_gb, 2),
+        "kv_cache_gb": round(kv_cache_gb, 2),
+        "activations_gb": activation_overhead_gb,
+        "total_gb": round(total_gb, 2),
+        "fits_rtx4090": total_gb <= 22.0,  # leave 2 GB headroom
+    }
+
+# Llama-3-8B, BF16, batch=4
+print(vram_budget_inference(8_000_000_000, 2.0, 32, 32, 2048, 4))
+# → {'params_gb': 16.0, 'kv_cache_gb': 3.44, 'activations_gb': 2.0, 'total_gb': 21.44, 'fits_rtx4090': True}
+```
+
+```python
+# Production: pre-flight VRAM check before model load
+import subprocess, json
+
+def check_gpu_vram_available() -> float:
+    """Return available VRAM in GB using nvidia-smi."""
+    result = subprocess.run(
+        ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+        capture_output=True, text=True
+    )
+    return int(result.stdout.strip()) / 1024  # MiB → GB
+
+def preflight_vram_check(required_gb: float, safety_margin_gb: float = 2.0) -> bool:
+    """Abort if not enough VRAM. Call before loading model."""
+    available = check_gpu_vram_available()
+    if available < required_gb + safety_margin_gb:
+        raise RuntimeError(
+            f"Insufficient VRAM: {available:.1f} GB available, "
+            f"{required_gb + safety_margin_gb:.1f} GB needed (incl. {safety_margin_gb} GB margin)"
+        )
+    return True
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How memory budget concepts appear |
+|---------|------------------------------------|
+| **Ch.3 — Quantization** | INT8/INT4 reduces bytes-per-param $P$ in the VRAM formula; the same formulas here predict post-quantization savings |
+| **Ch.5 — Inference Optimization** | PagedAttention manages KV cache pages dynamically — the same KV cache VRAM formula here determines page pool size |
+| **Ch.6 — vLLM & Serving** | vLLM's `gpu_memory_utilization` parameter is directly the `1 - headroom` fraction from the VRAM budget |
+| **AI Infrastructure Ch.4** | LoRA fine-tuning needs parameter + optimizer + gradient memory; the optimizer state formula (8× for Adam) comes from the training budget section here |
+| **Cost & Latency (AI track)** | Cost-per-token = (hourly rate) / (tokens/sec); tokens/sec depends on batch size, which is capped by VRAM budget derived here |
+
+---
+
 ## 11.5 · Progress Check — What We've Accomplished
 
 🎉 **VRAM BUDGET CONFIRMED! Llama-3-8B fits in RTX 4090 at FP16**

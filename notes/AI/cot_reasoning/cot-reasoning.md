@@ -3,6 +3,8 @@
 > **The story.** In **January 2022**, **Jason Wei** and colleagues at Google published *"Chain-of-Thought Prompting Elicits Reasoning in Large Language Models."* The trick was almost embarrassingly simple: ask the model to *show its work* before giving the final answer, and accuracy on multi-step arithmetic and commonsense reasoning jumped by 10–40 points — but only on models above ~62 B parameters, where the ability seemed to *emerge*. **Self-Consistency** (Wang et al., Google, **March 2022**) sampled multiple chains and took the majority vote, squeezing out more accuracy. **Tree of Thoughts** (Yao et al., Princeton + DeepMind, **May 2023**) generalised the chain to a search tree. The big jump came in **September 2024** with OpenAI's **o1** model: instead of prompting CoT, OpenAI *trained* the model with reinforcement learning to produce long internal reasoning traces before answering — "reasoning tokens" that the user never sees. **DeepSeek-R1** (Jan 2025) replicated the recipe openly. Every "reasoning" model from 2024 onwards is a CoT descendant.
 >
 > **Where you are in the curriculum.** This document is the foundation for [ReAct](../react_and_semantic_kernel) and every agent in the [Multi-Agent track](../../multi_agent_ai). The action language an agent uses is just CoT plus tool calls; the failure modes (unfaithful reasoning, hallucinated observations, sycophancy) are CoT failure modes. Read this before any agent doc.
+>
+> **Notation.** $K$ — number of independent CoT chains sampled in self-consistency; $\hat{a}$ — majority-vote final answer; $d$ — draft depth in speculative decoding; $\alpha$ — acceptance rate of speculative tokens; $C_K = K \cdot \bar{t}$ — total token cost of self-consistency ($\bar{t}$ = mean tokens per chain).
 
 ## Running Example: Mamma Rosa's PizzaBot
 
@@ -549,14 +551,11 @@ Result: ✅ Correct! Complex query solved with multi-step reasoning!
 
 **Next chapter**: [RAG & Embeddings](../rag_and_embeddings) connects the reasoning chain to real menu retrieval. CoT currently says "Action: retrieve_from_rag()" but doesn't execute it. Ch.4 makes that tool call real, grounding all answers in actual menu data → **<5% error rate, 18% conversion**.
 
-**Key interview concepts from this chapter:**
+---
 
-| Must know | Likely asked | Trap to avoid |
-|---|---|---|
-| Chain-of-thought prompting adds explicit intermediate reasoning steps to the model's output; this works because it forces a left-to-right decomposition that the model can condition on, rather than jumping from prompt to answer in one step | "Why does CoT improve performance on arithmetic or multi-step tasks?" (Answer: each generated step is visible context for the next prediction, making the problem compositionally easier) | Saying CoT works because the model "thinks harder" — it works because each step is usable context, not because there is a separate reasoning system |
-| Zero-shot CoT: appending "Let's think step by step" (Kojima et al. 2022) elicits reasoning without any worked examples; Wei et al. 2022 showed few-shot CoT examples outperform simple answer examples, but zero-shot CoT is a cheap approximation | "What is the difference between zero-shot and few-shot CoT?" | Confusing zero-shot CoT (prompt trick) with zero-shot learning (no training examples at all) |
-| Self-consistency sampling: generate K independent CoT chains with temperature > 0, then take the majority-vote final answer; improves accuracy on reasoning benchmarks, especially when individual chains are noisy | "How does self-consistency work and when does it help?" (Answer: diversity of chains + voting reduces individual-chain errors; works best when the answer is categorical or short) | Thinking self-consistency is free — it multiplies inference cost by K and brings diminishing returns on tasks where all chains agree by step 2 |
-| Reasoning tokens / scratchpad decoding in o1-class models: the model generates hidden chain-of-thought tokens (not shown to the user) before outputting the final answer; this is still next-token prediction, tool execution still requires a structured action token in the visible stream | "How do o1-style hidden reasoning tokens differ from normal CoT?" | Assuming hidden reasoning tokens bypass the tool-execution bridge — tools still need a visible action-format token that the host program can parse |
+## Bridge to Next Chapter
+
+CoT gives the model a structured way to reason through multi-step problems — but it's still reasoning from parametric memory. When a customer asks "Is the Margherita gluten-free today?", CoT can plan the retrieval but cannot actually look it up. **RAG & Embeddings (Ch.4)** adds the retrieval layer: a semantic search over Mamma Rosa's menu corpus that fetches the actual answer before the model reasons about it. CoT + RAG together reduce error rate from 10% to <5% and push conversion from 15% to 18%.
 
 ---
 

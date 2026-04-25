@@ -87,7 +87,7 @@ The video pipeline (Ch. 9) adds a temporal attention layer at the denoising loop
 | 1 · MultimodalFoundations | v0 | Architecture overview; file ingestion (CLIP, DDPM, ViT) |
 | 2 · VisionTransformers | v1 | Vision-Transformer image encoder replaces CNN |
 | 3 · CLIP | v2 | Text–image alignment; zero-shot retrieval |
-| 4 · DiffusionModels | v3 | Unconditional DDPM generation |
+| 4 · DiffusionModels | v3 | Unconditional DDPM generation (educational proxy: MNIST; production: product-on-white briefs) |
 | 5 · GuidanceConditioning | v3.5 | Class-conditional CFG; guidance scale knob |
 | 6 · Schedulers | v3.5+ | DDIM sampler → 10× speed-up; deterministic mode |
 | 7 · LatentDiffusion | v4 | Latent-space diffusion; VAE compression |

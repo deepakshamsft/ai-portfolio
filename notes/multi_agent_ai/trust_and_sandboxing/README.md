@@ -231,6 +231,108 @@ No prompt injection has succeeded in testing since the remediation.
 
 ---
 
+## 3 · The Math
+
+### HMAC Message Signing
+
+Each inter-agent message is signed with HMAC-SHA256 using a shared secret $k$ known only to trusted agents in the same security domain:
+
+$$\text{HMAC}(k, m) = H\bigl((k \oplus \text{opad}) \Vert H((k \oplus \text{ipad}) \Vert m)\bigr)$$
+
+where $H$ is SHA-256, $\text{opad} = \texttt{0x5c...}$, and $\text{ipad} = \texttt{0x36...}$. The receiving agent verifies:
+
+$$\text{valid} = \bigl[\text{HMAC}(k, m) == \text{signature\_in\_header}\bigr]$$
+
+Using `hmac.compare_digest` (constant-time comparison) prevents timing attacks. Collisions are computationally infeasible for SHA-256 (pre-image resistance $2^{256}$).
+
+### Structured Output Validation
+
+Every agent output $y$ must conform to a JSON Schema $\mathcal{S}$:
+
+$$\text{valid\_output}(y) = \mathbf{1}\bigl[y \models \mathcal{S}\bigr]$$
+
+Reject rate $r = P[y \not\models \mathcal{S}]$. For a well-prompted GPT-4o with structured output mode, $r < 0.01$. For open-source models without tool calling, $r \approx 0.05$–0.15$ — requiring retry logic.
+
+| Symbol | Meaning |
+|--------|---------|
+| $k$ | HMAC shared secret |
+| $m$ | Message payload (bytes) |
+| $H$ | SHA-256 hash function |
+| $y$ | Agent output (JSON) |
+| $\mathcal{S}$ | JSON Schema for valid output |
+| $r$ | Output rejection rate |
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: HMAC message signing + structured output validation from scratch
+import hmac, hashlib, json
+from typing import Any
+
+def sign_message(payload: dict, secret: str) -> str:
+    """Sign an agent message payload. Returns hex HMAC-SHA256 signature."""
+    message_bytes = json.dumps(payload, sort_keys=True).encode()
+    sig = hmac.new(secret.encode(), message_bytes, hashlib.sha256)
+    return sig.hexdigest()
+
+def verify_message(payload: dict, signature: str, secret: str) -> bool:
+    """Verify message signature. Uses constant-time comparison to prevent timing attacks."""
+    expected = sign_message(payload, secret)
+    return hmac.compare_digest(expected, signature)
+
+def validate_output(output: Any, schema: dict) -> bool:
+    """Validate agent output against JSON Schema. Returns True if valid."""
+    from jsonschema import validate, ValidationError
+    try:
+        validate(instance=output, schema=schema)
+        return True
+    except ValidationError:
+        return False
+```
+
+```python
+# Production: trust middleware for FastAPI agent endpoint
+from fastapi import FastAPI, HTTPException, Request, Header
+from pydantic import BaseModel
+from typing import Optional
+import os
+
+app = FastAPI()
+AGENT_SECRET = os.environ["AGENT_HMAC_SECRET"]
+
+class AgentMessage(BaseModel):
+    payload: dict
+    signature: str
+    agent_id: str
+    trust_level: int  # 1=internal, 2=partner, 3=external
+
+@app.post("/agent/receive")
+async def receive_agent_message(msg: AgentMessage):
+    # Verify signature before processing
+    if not verify_message(msg.payload, msg.signature, AGENT_SECRET):
+        raise HTTPException(status_code=401, detail="Invalid message signature")
+    # Check trust level for the requested operation
+    if msg.trust_level > 1 and msg.payload.get("amount_usd", 0) > 100_000:
+        raise HTTPException(status_code=403, detail="High-value actions require internal trust level")
+    return {"status": "accepted", "agent_id": msg.agent_id}
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How trust and sandboxing concepts appear |
+|---------|------------------------------------------|
+| **Ch.1 — Message Formats** | Trust levels are encoded in message metadata; structured output validation is enforced on every handoff payload |
+| **Ch.2 — MCP** | MCP servers enforce tool-level access control; the same trust model here applies to which tools each agent may call |
+| **Ch.3 — A2A** | A2A's `AgentCard` declares the trust level of the publishing agent; receiving agents validate cards before accepting delegated tasks |
+| **AI track — Safety & Hallucination** | Prompt injection defenses from this chapter extend the hallucination mitigation stack; HMAC signing prevents adversarial message forgery |
+| **OWASP LLM Top 10** | Ch.6 defenses directly address OWASP LLM-01 (prompt injection), LLM-07 (insecure plugin design), and LLM-09 (overreliance) |
+
+---
+
 ## § 11.5 · Progress Check — What We Achieved
 
 ### Constraint Status After Ch.6

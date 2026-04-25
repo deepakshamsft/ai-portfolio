@@ -203,6 +203,102 @@ When a negotiation agent crashed mid-task, the message was automatically re-deli
 
 ---
 
+## 3 · The Math
+
+### Little's Law for Agent Queues
+
+For a stable message queue (arrival rate equals throughput), **Little's Law** relates the number of in-flight messages $L$, the arrival rate $\lambda$, and the mean service time $W$:
+
+$$L = \lambda W$$
+
+For OrderFlow's negotiation queue: $\lambda = 14$ negotiations/hr (1000 POs/day ÷ 72-hr mean PO lifetime), $W = 0.5$ hr/negotiation $\Rightarrow L = 7$ concurrent negotiations. Set `max_concurrent_agents = 8` (20% headroom).
+
+### Fan-Out Merge Cost
+
+When one orchestrator fans out to $k$ parallel agents and waits for all (fan-in), the merge latency is:
+
+$$T_{\text{fanout}} = \max_{i=1}^{k} T_i + T_{\text{merge}}$$
+
+For supplier quote collection (fan-out $k=4$ suppliers): $T_{\text{fanout}} = \max(T_1, T_2, T_3, T_4) + T_{\text{merge}}$. Async pub/sub eliminates the sequential blocking that would give $\sum_i T_i$ in a synchronous design.
+
+| Symbol | Meaning |
+|--------|---------|
+| $L$ | Mean number of in-flight messages |
+| $\lambda$ | Message arrival rate (messages/hr) |
+| $W$ | Mean processing time per message (hr) |
+| $k$ | Fan-out width (number of parallel agents) |
+| $T_{\text{merge}}$ | Time to aggregate $k$ responses |
+
+---
+
+## Code Skeleton
+
+```python
+# Educational: minimal async pub/sub from scratch
+import asyncio
+from collections import defaultdict
+from typing import Callable, Any
+
+class SimpleEventBus:
+    """In-process event bus for illustrating pub/sub agent coordination."""
+    def __init__(self):
+        self._subscribers: dict[str, list[Callable]] = defaultdict(list)
+
+    def subscribe(self, topic: str, handler: Callable) -> None:
+        self._subscribers[topic].append(handler)
+
+    async def publish(self, topic: str, message: Any) -> None:
+        for handler in self._subscribers[topic]:
+            await handler(message)
+
+bus = SimpleEventBus()
+
+# Fan-out: publish to 4 supplier agents in parallel
+async def request_quotes(po_id: str, suppliers: list[str]):
+    tasks = [bus.publish(f"quote.request.{s}", {"po_id": po_id, "supplier": s})
+             for s in suppliers]
+    await asyncio.gather(*tasks)  # fire all simultaneously
+```
+
+```python
+# Production: Redis Streams with consumer groups for OrderFlow
+import redis.asyncio as aioredis
+import json, uuid
+
+client = aioredis.from_url("redis://redis-svc:6379")
+
+async def publish_event(stream: str, event: dict) -> str:
+    event_id = await client.xadd(stream, {"data": json.dumps(event)})
+    return event_id
+
+async def consume_events(stream: str, group: str, consumer: str, handler):
+    try:
+        await client.xgroup_create(stream, group, id="0", mkstream=True)
+    except Exception:
+        pass  # group already exists
+    while True:
+        msgs = await client.xreadgroup(group, consumer, {stream: ">"}, count=10, block=5000)
+        for _, entries in (msgs or []):
+            for msg_id, fields in entries:
+                event = json.loads(fields[b"data"])
+                await handler(event)
+                await client.xack(stream, group, msg_id)  # mark processed
+```
+
+---
+
+## Where This Reappears
+
+| Chapter | How event-driven patterns appear |
+|---------|----------------------------------|
+| **Ch.1 — Message Formats** | Async event messages carry the same structured payload format from Ch.1; correlation IDs link events to parent tasks |
+| **Ch.3 — A2A** | A2A's SSE streaming is an event-driven delivery mechanism; long-running A2A tasks publish state changes as events |
+| **Ch.5 — Shared Memory** | The Redis-backed blackboard in Ch.5 is the shared state that event-driven agents write to and read from asynchronously |
+| **Ch.7 — Agent Frameworks** | LangGraph's graph state can receive external events via message channels; event-driven patterns enable human-in-the-loop pauses |
+| **Multi-Agent AI — Trust** | Dead-Letter Queues capture failed messages for forensic analysis; trust violations can be detected by monitoring DLQ patterns |
+
+---
+
 ## § 11.5 · Progress Check — What We Achieved
 
 ### Constraint Status After Ch.4

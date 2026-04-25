@@ -56,7 +56,17 @@ Training a DDPM takes 1 000 noisy steps. But *inference doesn't have to*. A **sc
 
 ## 2 · Running Example
 
-PixelSmith v4 (coming in Ch.7) will use SD-Turbo or SDXL-Turbo with a **DPM-Solver++ 4-step** schedule. Right now we illustrate scheduling by replaying stored noise trajectories from our Ch.4 DDPM to show what happens when you take coarser strides.
+**VisualForge spring-collection brief** — the creative team needs 50 hero images in under 30 minutes. DDPM's 1000-step schedule takes ~45 sec per image (too slow). This chapter swaps in DDIM and DPM-Solver to hit the 30-minute target.
+
+> 📖 **Educational proxy:** Timing comparisons below show noise-trajectory replays to illustrate scheduler math. The VisualForge brief uses SD-Turbo with DPM-Solver++ (§5) in production.
+
+```
+Scheduler comparison on: "Mango leather bag, studio white background"
+DDPM  1000 steps → ~45 sec/image (750 min for 50 images ❌ too slow)
+DDIM    50 steps → ~8 sec/image  (~ 7 min for 50 images ✅)
+DPM++   20 steps → ~3 sec/image  (~ 3 min for 50 images ✅✅)
+SD-Turbo 4 steps → ~0.5 sec/image (~ 30 sec for 50 images ⚡)
+```
 
 ## 3 · The Math
 
@@ -125,6 +135,50 @@ The non-uniform spacing in DPM-Solver concentrates steps where the noise schedul
 
 - **Stochastic (DDPM):** Add noise at every step. Same seed → different image. Good for diversity.
 - **Deterministic (DDIM, DPM-Solver):** No added noise. Same seed + same scheduler → same image every time. Enables interpolation in latent space by interpolating the seed $x_T$.
+
+## 5 · Production Example — VisualForge in Action
+
+**Brief type: Spring-Collection Hero Shot (50 images, <30 min batch)**
+
+```python
+# Production: DDIM vs DPM-Solver comparison for VisualForge spring brief
+from diffusers import StableDiffusionPipeline, DDIMScheduler, DPMSolverMultistepScheduler
+import torch, time
+
+model_id = "stabilityai/stable-diffusion-2-1"
+prompt = "Mango leather crossbody bag, center frame, white background, studio lighting, sharp focus"
+negative_prompt = "blur, shadow, background texture, people, logo, text"
+
+def benchmark_scheduler(scheduler_class, scheduler_kwargs, num_steps, label):
+    pipe = StableDiffusionPipeline.from_pretrained(
+        model_id, scheduler=scheduler_class.from_pretrained(model_id, subfolder="scheduler", **scheduler_kwargs),
+        torch_dtype=torch.float16
+    ).to("cuda")
+    t0 = time.time()
+    img = pipe(prompt, negative_prompt=negative_prompt, num_inference_steps=num_steps,
+               guidance_scale=7.5, generator=torch.manual_seed(42)).images[0]
+    elapsed = time.time() - t0
+    img.save(f"vf_spring_{label}.png")
+    print(f"{label}: {elapsed:.1f}s — 50-image batch: {elapsed*50/60:.1f} min")
+    return elapsed
+
+# DDIM 50 steps — deterministic, reproducible seeds for A/B review
+benchmark_scheduler(DDIMScheduler, {"clip_sample": False, "set_alpha_to_one": False}, 50, "ddim_50")
+
+# DPM-Solver++ 20 steps — VisualForge production choice
+benchmark_scheduler(DPMSolverMultistepScheduler, {"algorithm_type": "dpmsolver++"}, 20, "dpm_20")
+```
+
+**Scheduler decision table for VisualForge:**
+
+| Scheduler | Steps | Time/image | 50-image batch | Quality | Best for |
+|-----------|-------|------------|----------------|---------|----------|
+| DDPM | 1000 | ~45s | ~37 min ❌ | Baseline | Training only |
+| DDIM | 50 | ~8s | ~7 min ✅ | ≈DDPM | Reproducibility (same seed = same image) |
+| DPM-Solver++ | 20 | ~3s | ~2.5 min ✅✅ | ≈DDIM | **VisualForge default** |
+| SD-Turbo (4-step) | 4 | ~0.5s | ~25s ⚡ | Slightly lower | Real-time preview |
+
+---
 
 ## 5 · The Key Diagrams
 

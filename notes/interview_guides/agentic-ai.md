@@ -4,7 +4,27 @@
 
 ---
 
-## SECTION 1 — Chain-of-Thought & Reasoning
+## 1 · Concept Map — The 10 Questions That Matter
+
+Every agentic AI interview revolves around 10 core question clusters. A senior answer demonstrates systems thinking — not just "what" but "when, why, and what breaks."
+
+| # | Cluster | What the interviewer is testing |
+|---|---------|----------------------------------|
+| 1 | **Chain-of-Thought & Reasoning** | Can you distinguish faithful from decorative reasoning? Know PRM vs ORM? |
+| 2 | **ReAct & Agent Architecture** | Do you understand the Thought–Action–Observation loop and its failure modes? |
+| 3 | **Orchestration Frameworks (LangChain / SK)** | Can you choose the right tool and critique its abstractions? |
+| 4 | **Embeddings** | Do you know pooling strategies, normalization, and why you can't mix models? |
+| 5 | **RAG Pipelines** | Can you diagnose retrieval failures vs. generation failures? |
+| 6 | **Vector Databases & ANN Indexing** | Do you know the recall/latency/memory triangle? HNSW vs. IVF tradeoffs? |
+| 7 | **Multi-Agent Systems** | Can you explain orchestration patterns and trust isolation? |
+| 8 | **Cost & Latency Optimization** | Do you know KV cache, batching, token budgets, and when streaming matters? |
+| 9 | **Safety & Hallucination Mitigation** | Can you distinguish prompt injection from jailbreaks? Know RAGAS metrics? |
+| 10 | **Quick-Fire Distinctions** | Do you know the one-line crisp answers to common trap questions? |
+
+---
+
+## 2 · Section-by-Section Deep Dives
+
 
 ### What is Chain-of-Thought prompting?
 Instructing the model to produce intermediate reasoning steps before the final answer. Improves accuracy on multi-step problems by decomposing them into verifiable sub-steps. Two forms: **visible CoT** (steps in output) and **hidden reasoning tokens** (internal scratchpad, output only shows final answer).
@@ -381,10 +401,95 @@ The model tells the user what they want to hear rather than what is correct. Cau
 | What is the lost-in-the-middle problem? | LLMs under-attend to middle content in long contexts. Fix: place key chunks first and last. |
 | What is PRM? | Process Reward Model — rewards each reasoning step individually, not just the final answer. Produces more reliably correct reasoning chains. |
 
-## Illustrations
-
 ![AI interview primer — CoT, ReAct, LangChain vs SK, embeddings, RAG pipeline, vector DB tradeoff triangle](img/AI%20Interview%20Primer.png)
 
-## Illustrations
+---
 
-![AI interview primer — CoT, ReAct, LangChain vs SK, embeddings, RAG pipeline, vector DB tradeoff triangle](img/AI%20Interview%20Primer.png)
+## 3 · The Rapid-Fire Round
+
+> 20 Q&A pairs. Each answer: ≤ 3 sentences. Cover every cluster from the Concept Map.
+
+**1. What is CoT prompting?**
+Instructing the model to produce intermediate reasoning steps before the final answer. Improves accuracy on multi-step tasks by grounding the model in explicit logic. Two forms: visible CoT and hidden reasoning tokens.
+
+**2. CoT vs. Self-Consistency?**
+CoT is a single reasoning path. Self-Consistency samples N paths and takes majority vote — use for high-stakes decisions where 5–20× token cost is acceptable.
+
+**3. What does ReAct add over CoT?**
+Real tool calls and real observations. CoT alone hallucinates external facts; ReAct grounds reasoning in actual tool outputs.
+
+**4. PRM vs. ORM?**
+Process Reward Models reward each reasoning step; Outcome Reward Models reward only the final answer. PRM produces more reliably correct chains on novel problems.
+
+**5. What is unfaithful reasoning?**
+When the visible chain of thought is post-hoc rationalization — the answer was pre-decided and the reasoning is decorative. Dangerous because it looks correct.
+
+**6. LangChain Action Agent vs. Plan-and-Execute?**
+Action Agent decides one step at a time. Plan-and-Execute generates a full plan upfront, then executes sequentially. Use Plan-and-Execute for long, predictable workflows.
+
+**7. Semantic Kernel vs. LangChain?**
+Semantic Kernel uses a plugin/skill model with first-class .NET/Java support; LangChain is Python-native with a large ecosystem. SK is preferred in enterprise Microsoft stacks.
+
+**8. CLS pooling vs. mean pooling?**
+CLS uses a single special token's state. Mean pooling averages all token states — usually better because it incorporates every position's semantics.
+
+**9. Why normalize embeddings before storage?**
+Makes dot product equal cosine similarity, enabling the fastest metric (dot product) without accuracy loss.
+
+**10. Can you mix embedding models in one index?**
+No. Each model defines an independent vector space. Cross-model cosine similarity is numerically meaningless.
+
+**11. Sentence-level vs. full-document chunking?**
+Sentence-level chunks improve precision for factual Q&A. Full-document is cheaper and sufficient for summarization. Hybrid: paragraph chunks with sentence overlap.
+
+**12. What is HyDE?**
+Hypothetical Document Embeddings — embed a generated hypothetical answer instead of the raw query, closing the semantic gap between question and document style.
+
+**13. HNSW vs. IVF for streaming inserts?**
+HNSW supports real-time inserts without rebuild. IVF requires periodic retraining of cluster centroids. Use HNSW for append-heavy workloads.
+
+**14. What is efSearch in HNSW?**
+The candidate set size during query — larger = higher recall, higher latency. A runtime dial requiring no index rebuild.
+
+**15. What is RAGAS?**
+An evaluation framework for RAG pipelines measuring Faithfulness, Answer Relevancy, Context Precision, and Context Recall. Distinguishes retrieval failures from generation failures.
+
+**16. What is the lost-in-the-middle problem?**
+LLMs under-attend to content placed in the middle of long contexts. Mitigation: place key chunks first and last.
+
+**17. KV cache: what is it and when does it help?**
+Stores key/value attention matrices for prefix tokens, skipping recomputation on repeated prefixes. Critical for multi-turn conversations and shared system prompts.
+
+**18. Prompt injection vs. jailbreak?**
+Prompt injection embeds adversarial instructions in external content (tool outputs, retrieved docs). Jailbreak is direct user manipulation of the system prompt's intent. Different threat vectors, different mitigations.
+
+**19. What is output schema validation and why does it matter in agents?**
+Validating agent outputs against a typed schema (Pydantic, JSON Schema) before downstream consumption. Prevents invalid tool calls and silent data corruption.
+
+**20. When does multi-agent outperform single-agent?**
+When tasks require parallel specialization (legal review AND code generation AND QA simultaneously), or when context window limits require scope isolation. Adds latency and coordination cost — don't default to multi-agent.
+
+---
+
+## 4 · Signal Words That Distinguish Answers
+
+Interviewers listen for vocabulary that signals systems-level thinking. Missing these words marks a candidate as theoretical.
+
+**✅ Say this:**
+- "observable behavior" (not "it thinks")
+- "tool-call trace" (not "log")
+- "guardrail layer" (not "safety check")
+- "retrieval failure vs. generation failure" (diagnosing RAG gaps)
+- "context window budget" (not "context limit")
+- "process reward" vs. "outcome reward"
+- "recall@k vs. precision@k" (retrieval metric tradeoff)
+- "KV cache eviction" (memory management)
+- "deterministic routing" vs. "LLM-decided routing"
+- "trust boundary" (agent isolation)
+
+**❌ Don't say this:**
+- "just prompt it harder" (shows no understanding of systematic failure)
+- "it figures it out automatically" (no awareness of orchestration cost)
+- "add more context" (vague — says nothing about retrieval strategy)
+- "the model is smart enough" (ignores failure modes)
+- "just use a bigger model" (ignores cost/latency constraints)

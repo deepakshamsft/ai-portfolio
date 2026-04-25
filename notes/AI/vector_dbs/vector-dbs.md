@@ -3,6 +3,8 @@
 > **The story.** Approximate Nearest Neighbour search has a long pre-LLM history. **Locality-Sensitive Hashing** (Indyk & Motwani, 1998) was the first practical sublinear ANN algorithm. **Inverted File Index (IVF)** with product quantisation came from **Hervé Jégou** and colleagues at Inria, packaged into Facebook's **FAISS** library in **2017**. The big shift was **HNSW** — *Hierarchical Navigable Small World graphs* by **Yu. A. Malkov and D. A. Yashunin**, **2016** — which used multi-layer proximity graphs to deliver near-exact recall at far better latency, and now powers most production vector DBs. Microsoft's **DiskANN** (NeurIPS 2019) extended HNSW-style graphs onto SSDs, allowing billion-scale indexes that don't fit in RAM. The vector-database product wave — **Pinecone** (founded 2019), **Weaviate** (2019), **Milvus** (2019), **Qdrant** (2021), **Chroma** (2022), and **pgvector** (2021) — wrapped these algorithms in production-grade APIs once the LLM era made dense retrieval mainstream.
 >
 > **Where you are in the curriculum.** [RAGAndEmbeddings](../rag_and_embeddings) explained *what* is stored (embeddings) and *why*. This document explains *how* it is searched at scale: the index structures (Flat, IVF, HNSW, DiskANN), distance metrics (cosine, dot product, L2), and the production architecture choices (filters, hybrid retrieval, sharding) that determine whether your RAG pipeline serves 10 users or 10 million.
+>
+> **Notation.** $M$ — HNSW maximum connections per node; $ef_\text{construction}$ — dynamic candidate list size during index build; $ef_\text{search}$ — beam width during query; $n_\text{probe}$ — IVF clusters to search; $\text{recall@}k$ — fraction of true $k$-nearest neighbours returned by approximate search.
 
 ***
 
@@ -779,6 +781,11 @@ This is a **pure infrastructure chapter** — like replacing a prototype databas
 [14] https://tech.hoomanely.com/how-vector-databases-search-a-practical-guide-to-ivf-hnsw-pq-scann/
 [16] https://oneuptime.com/blog/post/2026-01-30-ivf-index/view
 [18] https://learn.microsoft.com/en-us/data-engineering/playbook/solutions/vector-database/
+
+## Bridge to Next Chapter
+
+Vector DBs solve the *infrastructure* half of RAG — fast retrieval at production scale. But infrastructure without an agent that can *act* on the retrieved context is just a sophisticated search engine. **ReAct & Semantic Kernel (Ch.6)** adds the orchestration layer: a loop where the model issues tool calls, receives observations (including RAG results from this chapter's HNSW index), and produces the next action. The PizzaBot goes from "retrieve-then-answer" to "think → act → observe → think again" — the architecture that pushes conversion from 18% to 28%.
+
 ## Illustrations
 
 ![Vector databases — exact vs ANN, HNSW graph, IVF clustering, recall-vs-latency frontier](img/Vector%20DBs.png)

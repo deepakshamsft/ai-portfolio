@@ -10,7 +10,7 @@
 
 ---
 
-## 0 · Bridge from Ch.3 — One Variable to Many
+## Bridge from Ch.3 — One Variable to Many
 
 > 🌉 **If you're rusty on multi-variable calculus:** This section rebuilds the intuition from scratch. Ch.3 gave you $f'(x)$ for a curve. Now we extend to functions of *several* variables — like tuning strike angle *and* speed *and* wall distance all at once.
 
@@ -82,7 +82,19 @@ $$\boldsymbol{\theta}_{k+1} = \boldsymbol{\theta}_k - \eta \nabla f(\boldsymbol{
 
 ---
 
-## 2 · Why Steepest Descent Is $-\nabla f$
+## 2 · Running Example — Tuning Eight Knobs at Once
+
+The knuckleball free kick has **eight tunable parameters**: $\boldsymbol{\theta} = (\theta, v_0, h_0, \text{strike zone}_x, \text{strike zone}_y, \text{wind speed}, \text{pitch wetness}, \text{kicker fatigue})$. We model goal probability as $P = f(\boldsymbol{\theta})$. We want to climb toward $P = 1$ — but which knob do we turn first?
+
+The gradient $\nabla_{\boldsymbol{\theta}} P \in \mathbb{R}^8$ answers exactly that: each entry $\partial P / \partial \theta_i$ says "if I nudge knob $i$ by a tiny amount, how much does goal probability change?" The entry with the largest magnitude is the most important knob. Gradient descent turns **all** knobs simultaneously in the direction of steepest improvement:
+
+$$\boldsymbol{\theta}_{k+1} = \boldsymbol{\theta}_k + \eta \nabla_{\boldsymbol{\theta}} P(\boldsymbol{\theta}_k) \quad \text{(maximising P)}$$
+
+Throughout this chapter we'll build the tools to compute $\nabla_{\boldsymbol{\theta}} P$ efficiently — even when $f$ is a deep function composition (neural network layers, each one a transformation of the previous).
+
+---
+
+## 2.1 · Why Steepest Descent Is $-\nabla f$
 
 A first-order Taylor expansion around $\boldsymbol{\theta}$ in a direction $\mathbf{u}$ with $\|\mathbf{u}\|=1$ and step $t > 0$:
 
@@ -309,6 +321,61 @@ The middle panel of the hero image uses a Hessian with eigenvalues $\{0.7, 3.3\}
 4. **Numerical gradient check against analytic formula every time.** `(L(θ + ε e_j) − L(θ − ε e_j)) / (2ε)` should match $\partial L / \partial \theta_j$ to ~6 digits.
 5. **Exploding/vanishing gradients in deep stacks.** If each $\|W_\ell^\top \mathrm{diag}(\sigma'_\ell)\|$ is $> 1$ on average, the backward product explodes; if $< 1$, it vanishes. This is the entire reason ResNets, LayerNorm, and gating exist.
 6. **Saddle points.** $\nabla f = 0$ does not mean a minimum. Look at Hessian eigenvalues — if they're mixed sign, you're at a saddle, not a valley floor.
+
+---
+
+## 8.5 · Code Skeleton
+
+```python
+# Educational: backpropagation through a 2-layer network from scratch
+import numpy as np
+
+def sigmoid(x): return 1 / (1 + np.exp(-x))
+def sigmoid_prime(x): return sigmoid(x) * (1 - sigmoid(x))
+
+# Forward pass: x -> h1 -> h2 -> loss
+def forward(x, W1, W2, y_true):
+    z1 = W1 @ x          # pre-activation layer 1
+    h1 = sigmoid(z1)     # activation
+    z2 = W2 @ h1         # pre-activation layer 2
+    h2 = sigmoid(z2)     # output
+    loss = 0.5 * np.sum((h2 - y_true) ** 2)
+    return z1, h1, z2, h2, loss
+
+# Backward pass: chain rule all the way to W1
+def backward(x, y_true, z1, h1, z2, h2, W1, W2):
+    dL_dh2 = h2 - y_true                           # dL/dh2
+    dL_dz2 = dL_dh2 * sigmoid_prime(z2)            # dL/dz2 (elementwise × σ')
+    dL_dW2 = np.outer(dL_dz2, h1)                  # dL/dW2 = δ2 · h1ᵀ
+    dL_dh1 = W2.T @ dL_dz2                         # dL/dh1 = W2ᵀ · δ2
+    dL_dz1 = dL_dh1 * sigmoid_prime(z1)            # dL/dz1
+    dL_dW1 = np.outer(dL_dz1, x)                   # dL/dW1 = δ1 · xᵀ
+    return dL_dW1, dL_dW2
+```
+
+```python
+# Production: automatic differentiation via PyTorch autograd
+import torch
+import torch.nn as nn
+
+class TwoLayerNet(nn.Module):
+    def __init__(self, d_in=2, d_hidden=3, d_out=1):
+        super().__init__()
+        self.layer1 = nn.Linear(d_in, d_hidden)
+        self.layer2 = nn.Linear(d_hidden, d_out)
+
+    def forward(self, x):
+        return torch.sigmoid(self.layer2(torch.sigmoid(self.layer1(x))))
+
+model = TwoLayerNet()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+x = torch.tensor([0.5, -0.3])
+y_true = torch.tensor([1.0])
+
+loss = 0.5 * (model(x) - y_true).pow(2)
+loss.backward()   # PyTorch computes the SAME chain-rule derivation above
+optimizer.step()  # θ ← θ - η∇L
+```
 
 ---
 

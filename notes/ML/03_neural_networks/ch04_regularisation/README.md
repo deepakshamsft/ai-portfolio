@@ -18,8 +18,9 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- Ch.1-2: Built 3-layer neural network
-- Ch.3: Backprop + Adam optimizer → ✅ **Constraint #1 ACHIEVED** ($48k MAE)
+- ✅ NN Ch.1 (XOR Problem): Proved need for hidden layers
+- ✅ NN Ch.2 (Neural Networks): Built 3-layer architecture
+- ✅ NN Ch.3: Backprop + Adam optimizer → **~$48k MAE** (breaking the <$50k intermediate target)
 - Can train neural networks efficiently
 - **But the model is overfitting!**
 
@@ -350,7 +351,7 @@ Adjust links and examples in an editorial pass if desired.
 **Progress toward constraints:**
 | Constraint | Status | Current State |
 |------------|--------|---------------|
-| #1 ACCURACY | ✅ **ACHIEVED** | $48k MAE on training (target: <$50k) |
+| #1 ACCURACY | ⚡ **APPROACHING** | $48k MAE on training; **test MAE $52k** — above the <$50k intermediate target, improving toward $28k final target |
 | #2 GENERALIZATION | ✅ **ACHIEVED** | **Test MAE $52k** (acceptable <$60k threshold), generalization gap 0.06 (was 0.24) |
 | #3 MULTI-TASK | ⚡ Partial | Can do regression + binary classification, but not multi-class segments |
 | #4 INTERPRETABILITY | ⚡ Partial | Still a black box (can't explain individual predictions) |

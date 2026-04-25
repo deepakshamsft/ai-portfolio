@@ -14,10 +14,10 @@
 > 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
 **What we know so far:**
-- ✅ Ch.1: Linear regression baseline (~$70k MAE)
-- ✅ Ch.2: Logistic regression (binary classification)
-- ✅ Ch.1: Diagnosed the problem — linear models can't handle non-linear boundaries (XOR failure)
-- ✅ Ch.1: Proved the solution — one hidden layer with non-linear activation can learn any function (Universal Approximation Theorem)
+- ✅ [Regression track](../../01_regression/ch01_linear_regression): Linear regression baseline (~$70k MAE)
+- ✅ [Classification track](../../02_classification/ch01_logistic_regression): Logistic regression for binary targets
+- ✅ NN Ch.1 (XOR Problem): Diagnosed the problem — linear models can't handle non-linear boundaries
+- ✅ NN Ch.1 (XOR Problem): Proved the solution — one hidden layer + non-linear activation can learn any function (Universal Approximation Theorem)
 
 **What's blocking us:**
 ⚠️ **We need to actually BUILD the neural network!**
@@ -27,11 +27,11 @@ Ch.1 showed that hidden layers + ReLU can solve XOR, but we sketched the archite
 - **Activation functions**: ReLU? Sigmoid? Tanh? When to use which?
 - **Weight initialization**: Random? Zeros? Xavier? He?
 - **Forward pass**: How to actually compute predictions through multiple layers?
-- **Apply to regression**: Ch.3 was classification (XOR); we need to predict house values (continuous output)
+- **Apply to regression**: NN Ch.1 (XOR problem) demonstrated on synthetic binary labels — now we need continuous house-value predictions
 
 **Immediate business need:**
 Product management wants **Constraint #1 (ACCURACY)** progress:
-- Current state: $70k MAE (Ch.1 linear regression)
+- Current state: ~$70k MAE baseline (Regression track ch01)
 - Target: <$50k MAE
 - Gap: $20k improvement needed
 

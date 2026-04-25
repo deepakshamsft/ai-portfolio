@@ -24,7 +24,7 @@
 - ❌ **But dense networks are wrong for spatial data!**
 
 **What's blocking us:**
-🊨 **New requirement: Multi-modal predictions from images**
+⚠️ **New requirement: Multi-modal predictions from images**
 
 Product team wants to extend UnifiedAI:
 - **Current**: Predict house value from tabular features (MedInc, HouseAge, etc.)

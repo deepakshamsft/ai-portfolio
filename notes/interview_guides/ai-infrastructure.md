@@ -4,7 +4,24 @@ This guide consolidates interview preparation material from the AI Infrastructur
 
 ---
 
-## GPU Architecture
+## 1 · Concept Map — The 10 Questions That Matter
+
+| # | Cluster | What the interviewer is testing |
+|---|---------|----------------------------------|
+| 1 | **GPU Roofline Model** | Do you know arithmetic intensity? Can you place LLM decode on the roofline? |
+| 2 | **KV Cache Sizing** | Can you compute KV cache memory per token/request? Know growth with batch × seq_len? |
+| 3 | **Quantization Tradeoffs** | Know the memory savings per dtype? Understand when perplexity loss matters? |
+| 4 | **TP vs DP vs ZeRO** | Can you explain tensor parallel vs data parallel and when communication dominates? |
+| 5 | **Prefill vs. Decode Bottleneck** | Do you know which phase is compute-bound vs memory-bound and why? |
+| 6 | **PagedAttention & Continuous Batching** | Can you explain vLLM's core innovations and the throughput gain they produce? |
+| 7 | **Production Serving Stack** | Do you know vLLM vs Ollama vs TGI and when to use each? |
+| 8 | **Cloud vs. Self-Host Economics** | Know $/token at SLA vs $/GPU-hour? Spot vs. reserved tradeoffs? |
+| 9 | **MLOps & Checkpointing** | Can you explain gradient checkpointing (memory) vs checkpoint saving (fault tolerance)? |
+| 10 | **End-to-End TTFT + P99** | Do you distinguish TTFT from throughput? Know which matters for users vs. cost? |
+
+---
+
+## 2 · Section-by-Section Deep Dives
 
 ### Must Know
 
@@ -197,4 +214,90 @@ This guide consolidates interview preparation material from the AI Infrastructur
 
 ---
 
-**End of AI Infrastructure Interview Guide**
+## 3 · The Rapid-Fire Round
+
+> 20 Q&A pairs. Each answer: ≤ 3 sentences.
+
+**1. What is arithmetic intensity?**
+FLOPs performed per byte read from memory. LLM decode at batch=1 has ~1–5 FLOP/byte — far left of the roofline, memory-bound. Adding compute does not help; bandwidth is the limit.
+
+**2. Where does LLM decode sit on the roofline?**
+Left of the ridge point — memory-bound. The GPU spends most time waiting for weights to arrive from HBM, not computing. This is why HBM bandwidth is the key inference spec.
+
+**3. How much VRAM does a 7B BF16 model need?**
+~14 GB for weights (2 bytes × 7B params), plus KV cache and activations. Total for serving at moderate sequence length: ~18–20 GB.
+
+**4. How does batching improve GPU utilisation?**
+Batch=32 reads weights once and produces 32 outputs — arithmetic intensity rises from ~2 to ~50+ FLOP/byte. This moves the workload toward the ridge point, better utilizing compute units.
+
+**5. What is the KV cache size per token for LLaMA-2-7B?**
+2 × 32 layers × 4096 hidden_dim × 2 bytes = 512 KB per token. A 2048-token sequence uses ~1 GB KV cache per request.
+
+**6. What does INT4 quantization buy you?**
+~8× VRAM reduction vs FP32 (0.5 bytes vs 4 bytes per param). A 7B model fits in ~3.5 GB. Tradeoff: 5–10% perplexity loss, especially for reasoning tasks.
+
+**7. Prefill vs. decode — what's the bottleneck for each?**
+Prefill (processing the prompt) is compute-bound — benefits from large batches. Decode (generating each token) is memory-bound — bottlenecked by HBM bandwidth.
+
+**8. What is PagedAttention?**
+KV cache stored in non-contiguous memory pages, like OS virtual memory. Eliminates KV cache fragmentation. Enables 2× larger batch sizes → 2× throughput — the core vLLM innovation.
+
+**9. What is continuous batching?**
+Adding new requests to a batch as others complete, rather than waiting for the whole batch. Keeps GPU utilization high. Achieves 2–3× throughput improvement vs static batching.
+
+**10. vLLM vs. Ollama — when to use each?**
+vLLM for high-concurrency production serving (continuous batching, PagedAttention, tensor parallelism). Ollama for local development and testing. Ollama has no production concurrency primitives.
+
+**11. What is gradient checkpointing?**
+Recomputing activations during the backward pass instead of storing them. Saves ~30–40% of activation memory at the cost of ~30% slower training. Essential for large models in limited VRAM.
+
+**12. Why does training need ~4× more memory than inference?**
+Training stores weights + optimizer states (2× weights for Adam) + gradients (1× weights) + activations. Inference stores only weights + KV cache + activations.
+
+**13. TP vs. DP — what is the key difference?**
+Tensor Parallelism (TP) shards the model weights across GPUs — each GPU holds part of each layer, and all-reduce happens per layer forward/backward. Data Parallelism (DP) replicates the full model on each GPU, syncing gradients after the backward pass.
+
+**14. Why does communication dominate at large GPU counts in DP?**
+All-reduce cost grows with batch size and model size. Beyond 8–16 GPUs, inter-node InfiniBand bandwidth (25 GB/s) vs intra-node NVLink (600+ GB/s) creates a communication wall.
+
+**15. What is ZeRO and which stage should you use?**
+ZeRO (Zero Redundancy Optimizer) partitions optimizer states (Stage 1), gradients (Stage 2), and parameters (Stage 3) across GPUs. Use Stage 2 for most training; Stage 3 for models that don't fit on a single GPU.
+
+**16. $/GPU-hour vs. $/token — which metric matters?**
+$/token at your SLA latency is the right metric. A cheap GPU that misses P99 latency targets has zero value in production. $/GPU-hour is a procurement metric, not a serving metric.
+
+**17. When should you use spot instances?**
+For training, where jobs are long and checkpointing is cheap. Never for production inference (users need availability). Spot can save 60–80% vs on-demand.
+
+**18. What is TTFT and why does it matter?**
+Time to First Token — latency from request submission to the first generated token. This is the user-perceived "responsiveness" metric. Throughput (tokens/sec overall) is the cost metric; TTFT is the UX metric.
+
+**19. How does speculative decoding work?**
+A smaller draft model proposes K tokens cheaply; the large target model verifies them in one forward pass. If all K are accepted, you get K tokens for the cost of 1 large-model step. Works best when the draft model is accurate (same family, quantized version).
+
+**20. What is the difference between BF16 and FP16?**
+Both use 16 bits total but different mantissa/exponent splits. BF16 has the same exponent range as FP32 (8 bits) with a shorter mantissa — much more stable during training. FP16 has a smaller exponent range and is more prone to loss spikes (overflow/underflow). Modern GPUs and TPUs prefer BF16 for training.
+
+---
+
+## 4 · Signal Words That Distinguish Answers
+
+**✅ Say this:**
+- \"arithmetic intensity\" (not \"FLOP/s\")
+- \"memory bandwidth bound\" (for decode)
+- \"KV cache pressure\" (memory growth with sequence length)
+- \"quantization calibration set\" (INT4 requires calibration data)
+- \"PagedAttention\" (not just \"vLLM\")
+- \"continuous batching\" (not just \"batching\")
+- \"TTFT\" (time to first token, the user-visible metric)
+- \"P99 latency\" (not just \"average latency\")
+- \"ridge point\" (roofline model crossover)
+- \"ZeRO Stage 2 vs 3\" (optimizer state partitioning)
+
+**❌ Don't say this:**
+- \"just use a bigger GPU\" (ignores bandwidth vs. compute tradeoff)
+- \"it's the same as regular ML\" (LLM inference has unique memory-bound characteristics)
+- \"quantization is free\" (perplexity loss is real, especially for reasoning)
+- \"more GPUs = linear speedup\" (communication overhead breaks this)
+- \"use Ollama in production\" (no concurrency primitives for serving at scale)
+

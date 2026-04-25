@@ -51,11 +51,27 @@ An unconditional diffusion model generates plausible images but has no mechanism
 
 ## 2 · Running Example — PixelSmith v3.5
 
+The VisualForge creative team has a new problem: unconditioned generation produces varied results — sometimes the bag faces the wrong direction, sometimes the background is off-white. **Classifier-Free Guidance (CFG)** locks the model onto the brief.
+
 ```
-Same DDPM architecture as Ch.4, now conditioned on a digit class label (0-9)
-Training: class label randomly dropped 10% of the time → model learns both
-Inference: run model with label AND without → amplify the direction toward the label
-Result: a 9 consistently generates nines; a 3 consistently generates threes
+VisualForge brief: "spring-collection hero shot"
+Prompt: "Mango leather crossbody bag, center frame, white background, studio lighting"
+Negative: "cluttered background, shadow, people, logo, blur"
+
+CFG scale sweep on this brief:
+  scale=1.0  → unconditioned (barely follows the prompt — varied, creative but unfocused)
+  scale=7.5  → production default (follows brief closely, high quality)
+  scale=12.0 → over-conditioned (artifacts, oversaturated colors)
+```
+
+> 📖 **Educational proxy:** The math is illustrated with digit-class labels (0–9) because it shows the conditional direction clearly with only 10 classes. The production mechanism is identical — replace "digit 3" with "white background product shot."
+
+```
+Educational math proxy:
+  Digit class label 3 → guides denoising toward "threes"
+  Class label dropped 10% during training → model learns both conditional and unconditional
+  CFG: ε̃ = ε_uncond + γ(ε_cond - ε_uncond)
+  γ=7.5 in production (same γ for digits or product shots)
 ```
 
 ---
@@ -134,6 +150,53 @@ The model moves away from $\mathbf{c}_{neg}$ and toward $\mathbf{c}$. Common neg
  - Sample $x_{t-1}$ using $\hat{\boldsymbol{\epsilon}}$
 
 **Note:** CFG doubles the compute cost at inference (two U-Net calls per step). Distilled models like LCM/Turbo can do CFG in a single pass.
+
+---
+
+## 5 · Production Example — VisualForge in Action
+
+**Brief type: Brand-Constrained Product-on-White with Negative Prompt Guardrails**
+
+VisualForge brand guidelines prohibit: visible logos on competitive products, cluttered backgrounds, model faces, and excessive shadows. CFG + negative prompts enforce these guardrails automatically.
+
+```python
+# Production: CFG scale sweep for VisualForge spring-collection brief
+from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
+import torch
+
+pipe = StableDiffusionPipeline.from_pretrained(
+    "stabilityai/stable-diffusion-2-1",
+    scheduler=DPMSolverMultistepScheduler.from_pretrained(
+        "stabilityai/stable-diffusion-2-1", subfolder="scheduler"),
+    torch_dtype=torch.float16
+).to("cuda")
+
+brief_prompt = "Mango leather crossbody bag, center frame, white background, studio lighting, sharp product photography"
+brand_negative = "people, faces, logo, text, watermark, shadow, cluttered background, blur, grain, competitor brand"
+
+# CFG scale sweep — pick scale that hits brief compliance without artifacts
+for scale in [1.0, 7.5, 12.0]:
+    img = pipe(
+        brief_prompt,
+        negative_prompt=brand_negative,
+        guidance_scale=scale,
+        num_inference_steps=20,
+        generator=torch.manual_seed(42),
+    ).images[0]
+    img.save(f"vf_cfg_scale_{scale}.png")
+```
+
+**CFG scale effect on VisualForge product brief:**
+
+| CFG scale | Brief compliance | Background | Artifact risk | Verdict |
+|-----------|-----------------|------------|----------------|---------|
+| 1.0 | Low (ignores prompt) | Variable | None | ❌ Not usable |
+| 5.0 | Medium | Usually white | Low | ⚡ Experimental |
+| 7.5 | High | White ✅ | Low | ✅ **Production default** |
+| 10.0 | Very high | White ✅ | Medium (color saturation) | ⚡ Sometimes useful |
+| 12.0 | Rigid | White ✅ | High (burnt highlights) | ❌ Avoid |
+
+> 💡 VisualForge uses `guidance_scale=7.5` as the default. For unusual brief types (e.g., "abstract brand pattern"), experiment up to 9.0. Above 10.0, artifacts appear in >30% of outputs on product shots.
 
 ---
 
