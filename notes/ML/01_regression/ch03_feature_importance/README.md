@@ -85,11 +85,22 @@ Three questions, three tools. Each method answers a different version of "how im
 | **Standardised weights** | Given all other features are in the model, how much does this feature still add? | Contributes unique signal *above and beyond* everything else |
 | **Permutation importance** | If we scramble this feature's values (killing its signal), how badly does accuracy drop? | The model *relies* on this feature and can't compensate with others |
 
-The three methods often give different rankings for the same dataset. That divergence — not the numbers themselves — is the diagnostic story. A feature that ranks high on all three is unambiguously important. A feature that is high on Method 1 but low on Method 3 is sharing signal with correlated features. A feature low on Method 1 but high on Methods 2 and 3 is only irreplaceable in combination with something else.
+The three methods often give different rankings for the same dataset. That divergence — not the numbers themselves — is the diagnostic story. **Use this convergence table to interpret any feature:**
+
+| Univariate R² | Methods 2+3 (Joint) | Interpretation | California Housing Example |
+|---|---|---|---|
+| **High** | **High** | ✅ Strong, independent, irreplaceable | MedInc — dominates alone *and* in joint model |
+| **High** | **Low** | ⚠️ Signal shared with correlated features | AveRooms — standalone power absorbed by AveBedrms |
+| **Low** | **High** | 🔵 Jointly irreplaceable — only works in combination | Lat/Lon — useless alone, critical together for geography |
+| **Low** | **Low** | ❌ Genuinely uninformative | Population — contributes ~$0 regardless of method |
+
+Armed with this framework, let's walk through each method:
 
 ### Feature Scaling
 
 Before any importance ranking is possible, all features must be on a common scale. Raw weights from an unstandardized model are not comparable — a weight of 200 for `Population` (range 3–35,682) looks enormous next to a weight of 0.4 for `MedInc` (range 0.5–15), but that gap reflects the input scale, not the feature's importance.
+
+Think of this like comparing heights measured in millimeters vs kilometers — a 1.8m person becomes 1,800 mm but 0.0018 km. The number changes dramatically, but the person stays exactly the same height. Similarly, a feature's raw weight depends entirely on what units you happened to choose for measurement. StandardScaler fixes this by converting every feature to the same unit: **"one typical swing in that feature across the dataset."** After standardization, a coefficient of 0.8 on income and 0.1 on population means income has genuinely 8× the effect per standard deviation of change — a fair comparison.
 
 **Standardization (Z-score normalization):**
 
@@ -113,6 +124,23 @@ Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
 **Min-max scaling** is an alternative — $x_j^{\text{mm}} = (x_j - \min_j) / (\max_j - \min_j)$ — but it is sensitive to outliers. StandardScaler is the safer default for regression and gradient-based training.
 
 > ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
+
+#### Understanding Positive Skew — Why Some Features Need Log Transform
+
+**What is skew?** Skew measures distributional asymmetry. In a symmetric distribution (like a normal curve), the mean equals the median. **Positive skew** means a long right tail — most values cluster near the low end, but a few extreme values stretch far to the right, pulling the mean above the median.
+
+```
+Symmetric distribution:       Positively skewed distribution:
+    ●●●●●●●                        ●●●●●●
+  ●●●●●●●●●                      ●●●●●●●●
+●●●●●●●●●●●                    ●●●●●●●●●●              ●●
+   ↑                              ↑       ↑           ↑
+ mean = median                   median  mean    long right tail
+```
+
+**Why skew breaks StandardScaler:** When you standardize a heavily skewed feature, the few extreme values inflate the standard deviation (σ), compressing 95% of the data into a narrow band near zero while placing outlier districts at +8σ or +12σ. This creates an unbalanced feature where most gradient updates are driven by a handful of extreme cases. 
+
+**Example:** `Population` ranges from 3 to 35,682. After standardization, a typical district (Population = 1,500) becomes −0.1σ, while the extreme district (Population = 35,682) becomes +12σ. The model's weight updates are dominated by that one extreme case, even though it's not representative.
 
 #### Log Transform & Box-Cox
 
@@ -361,7 +389,7 @@ The lesson:
 
 ### Method 3 — Permutation Importance
 
-The most reliable and model-agnostic method: after fitting, **randomly shuffle one feature's values** across all test samples (breaking its relationship with the target), make predictions, and measure how much test MAE rises.
+The most reliable and model-agnostic method: after fitting, **randomly shuffle one feature's values** across all test samples (breaking its relationship with the target), make predictions, and measure how much test MAE rises. Crucially, the model is never retrained — you're measuring how badly the model's existing weights are handicapped when a feature's signal is destroyed. This makes it a pure test of the model's *reliance* on each feature.
 
 $$\pi_j = \text{MAE}_{\text{shuffled } x_j} - \text{MAE}_{\text{original}}$$
 
@@ -438,7 +466,7 @@ Population       ·  0.00                 ·   0.01                 ·         $
 
 ### Variance Threshold — Dropping Near-Constant Features
 
-Before testing for multicollinearity, drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
+A feature that barely changes gives the model nothing to latch onto — it's like trying to predict house prices using a column that says "2.00" for every district. Before testing for multicollinearity, drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
 
 $$\text{Var}(x_j) = \frac{1}{n}\sum_{i=1}^{n}(x_{ij} - \bar{x}_j)^2$$
 
