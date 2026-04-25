@@ -3,7 +3,7 @@
 > **The story.** Training a large model on a single GPU is slow. Training GPT-3 (175B params) on one V100 would take 355 years. **Data parallelism** (Goyal et al., Facebook, **2017**) split batches across GPUs — if 1 GPU trains on 32 examples, 8 GPUs train on 256 → 8× faster. But memory was still the bottleneck. **ZeRO** (Rajbhandari et al., Microsoft, **2019**) sharded optimizer states across GPUs, cutting per-GPU memory by 4–8× → train 10× larger models. **FSDP** (Zhao et al., Meta, **2023**) took this further: shard parameters themselves, not just optimizer states → train 1T-param models on 128 GPUs. **LoRA** (Hu et al., Microsoft, **2021**) sidestepped the problem: freeze base model, only train small adapter weights → fine-tune 65B models on single consumer GPUs.
 >
 > **Where you are in the curriculum.** Ch.1-5 solved the inference problem (12k req/day, <2s latency). This chapter tackles training: **can we fine-tune Llama-3-8B to improve document extraction accuracy?** Ch.2 showed full fine-tuning needs 104GB → requires expensive A100s. This chapter introduces ZeRO-2 (shard optimizer across GPUs) and LoRA (train only adapters) → fine-tune on RTX 4090 budget.
-> <!-- TODO: add notation sentence here -->
+> **Notation.** `DP` = data parallelism (replicate model, split batch across GPUs). `TP` = tensor parallelism (split weight matrices column- or row-wise across GPUs). `PP` = pipeline parallelism (split layers across GPUs, pass activations between stages). `ZeRO` = Zero Redundancy Optimizer (shard optimizer states, gradients, or parameters across DP ranks; stages 1/2/3). `LoRA` = Low-Rank Adaptation; rank `r` ≪ `d_model`; `α` = scaling factor. `FSDP` = Fully Sharded Data Parallel (Meta's ZeRO-3 equivalent in PyTorch).
 
 ---
 

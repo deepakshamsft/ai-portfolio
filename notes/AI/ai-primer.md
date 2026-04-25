@@ -397,7 +397,17 @@ ReActAndSemanticKernel.md
 
 #### Detailed Paths
 
+**"I'm completely new to LLMs"**
+1. [LLMFundamentals.md](llm_fundamentals/llm-fundamentals.md) — complete (tokenisation, training stages, RLHF, context windows)
+2. [PromptEngineering.md](prompt_engineering/prompt-engineering.md) — complete (system prompts, structured output, injection defense)
+3. Part 1 of this document — read the PizzaBot running example so every subsequent note has a concrete anchor
+4. Story Arc Step 1 — [CoTReasoning.md](cot_reasoning/cot-reasoning.md) s1-3 (how next-token prediction becomes tool use)
+5. Story Arc Step 2 — [ReActAndSemanticKernel.md](react_and_semantic_kernel/react-and-semantic-kernel.md) s1-5 (the ReAct loop end-to-end)
+6. Story Arc Step 3 — [RAGAndEmbeddings.md](rag_and_embeddings/rag-and-embeddings.md) s1-6 (embeddings + full RAG pipeline)
+7. Story Arc Step 4 — [VectorDBs.md](vector_dbs/vector-dbs.md) s1-5 (index types, distance metrics, selection guide)
+
 **"I have an interview at an AI company next week"**
+> **Step 0 (if new to LLMs):** [LLMFundamentals.md](llm_fundamentals/llm-fundamentals.md) → [PromptEngineering.md](prompt_engineering/prompt-engineering.md) → Part 1 of this document first.
 1. [InterviewGuides/AgenticAI.md](../interview_guides/agentic-ai.md) — full pass, take notes on gaps
 2. [CoTReasoning.md](cot_reasoning/cot-reasoning.md) s1-3 — fill the CoT gap
 3. [ReActAndSemanticKernel.md](react_and_semantic_kernel/react-and-semantic-kernel.md) s1-5 + s12 — ReAct loop + comparison table
@@ -406,6 +416,7 @@ ReActAndSemanticKernel.md
 6. Return to [InterviewGuides/AgenticAI.md](../interview_guides/agentic-ai.md) — second pass, verify you can answer every question cold
 
 **"I'm building a RAG-based agent from scratch"**
+> **Step 0 (if new to LLMs):** [LLMFundamentals.md](llm_fundamentals/llm-fundamentals.md) → [PromptEngineering.md](prompt_engineering/prompt-engineering.md) → Part 1 of this document first.
 1. [RAGAndEmbeddings.md](rag_and_embeddings/rag-and-embeddings.md) — complete (ingestion + query pipeline)
 2. [VectorDBs.md](vector_dbs/vector-dbs.md) — complete (choose and tune your index)
 3. [VectorDBs_Supplement.md](vector_dbs/vector-dbs-supplement.md) — tuning recipes + pitfalls
@@ -414,17 +425,20 @@ ReActAndSemanticKernel.md
 6. [CoTReasoning.md](cot_reasoning/cot-reasoning.md) s5 — context management for long agent runs
 
 **"I want to understand how agents 'think' at a deep level"**
+> **Step 0 (if new to LLMs):** [LLMFundamentals.md](llm_fundamentals/llm-fundamentals.md) → [PromptEngineering.md](prompt_engineering/prompt-engineering.md) → Part 1 of this document first.
 1. [CoTReasoning.md](cot_reasoning/cot-reasoning.md) — complete
 2. [CoTReasoning_Supplement.md](cot_reasoning/cot-reasoning-supplement.md) — complete
 3. [ReActAndSemanticKernel.md](react_and_semantic_kernel/react-and-semantic-kernel.md) s1-6 — how thinking becomes acting
 4. [ReActAndSemanticKernel_Supplement.md](react_and_semantic_kernel/react-and-semantic-kernel-supplement.md) s1-2 — multi-agent thinking
 
 **"I need to choose between LangChain and Semantic Kernel for a production project"**
+> **Step 0 (if new to LLMs):** [LLMFundamentals.md](llm_fundamentals/llm-fundamentals.md) → [PromptEngineering.md](prompt_engineering/prompt-engineering.md) → Part 1 of this document first.
 1. [ReActAndSemanticKernel.md](react_and_semantic_kernel/react-and-semantic-kernel.md) s7-11 — complete comparison
 2. [ReActAndSemanticKernel_Supplement.md](react_and_semantic_kernel/react-and-semantic-kernel-supplement.md) s2-5 — LangGraph, HITL, tool design, failure modes
 3. [InterviewGuides/AgenticAI.md](../interview_guides/agentic-ai.md) s3 — crisp summary of tradeoffs
 
 **"I'm optimizing a slow or low-accuracy RAG system"**
+> **Step 0 (if new to LLMs):** [LLMFundamentals.md](llm_fundamentals/llm-fundamentals.md) → [PromptEngineering.md](prompt_engineering/prompt-engineering.md) → Part 1 of this document first.
 1. [RAGAndEmbeddings_Supplement.md](rag_and_embeddings/rag-and-embeddings-supplement.md) s1 — identify which failure mode you have
 2. [RAGAndEmbeddings.md](rag_and_embeddings/rag-and-embeddings.md) s8-12 — chunking strategies and advanced techniques
 3. [RAGAndEmbeddings_Supplement.md](rag_and_embeddings/rag-and-embeddings-supplement.md) s2 — HyDE, FLARE, query decomposition
@@ -473,11 +487,3 @@ The **Multi-Agent AI** track extends everything here to coordinated systems wher
 | Context window management | Message format handoff strategies — full history vs. summary vs. structured result (Ch.1) |
 
 ---
-
-<!-- AGENT-TODO: start
-When all todos below are implemented, delete this entire block.
-
-- [ ] Add Step 0 reading path entries to every goal-based reading path (prepend LLMFundamentals + PromptEngineering for readers new to LLMs)
-- [ ] Add a new reading path: "I'm completely new to LLMs" -- route: LLMFundamentals -> PromptEngineering -> Part 1 of this document -> Story Arc Step 1 onward
-- [ ] Add Interview Checklist tables (Must Know / Likely Asked / Trap to Avoid) to each core AI note: CoTReasoning.md, RAGAndEmbeddings.md, VectorDBs.md, ReActAndSemanticKernel.md (fixes.md s2b)
-AGENT-TODO: end -->

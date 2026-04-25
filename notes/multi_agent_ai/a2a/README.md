@@ -3,7 +3,7 @@
 > **The story.** **Google** announced the **Agent-to-Agent (A2A)** protocol in **April 2025** at Google Cloud Next, with launch partners including Anthropic, MongoDB, Salesforce, and SAP. The motivating distinction: an agent is *not* a tool. A tool is stateless, returns in milliseconds, and trusts whoever called it. An agent is stateful, may take minutes to complete, can spawn sub-agents, and lives in a different trust domain. A2A standardises **Agent Cards** (machine-readable capability manifests at `/.well-known/agent.json`), the task lifecycle (submit → working → completed/failed/canceled), and **SSE streaming** for incremental updates. Where [MCP](../mcp) is the protocol for an agent calling *tools*, A2A is the protocol for an agent delegating *to other agents* — and the two were explicitly designed to compose.
 >
 > **Where you are in the curriculum.** [Ch.2](../mcp) gave you tool integration. This chapter explains how delegating a task to another agent is fundamentally different from calling a tool, and what the A2A protocol provides to make that difference manageable in production: capability discovery, async task lifecycle, streaming progress, and trust boundaries. After this you have the protocol vocabulary for the rest of the track.
-<!-- TODO: notation sentence — define symbols used in chapter -->
+**Notation.** `A2A` = Agent-to-Agent protocol (Google, April 2025). `Agent Card` = machine-readable capability manifest served at `/.well-known/agent.json`. `Task` = the A2A lifecycle unit: `submitted → working → completed | failed | canceled`. `SSE` = Server-Sent Events (HTTP streaming used for incremental task progress updates). `MCP` = Model Context Protocol (tool-integration layer that A2A composes with for tool calls).
 
 ---
 

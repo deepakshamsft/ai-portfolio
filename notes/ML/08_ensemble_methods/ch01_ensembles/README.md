@@ -844,6 +844,4 @@ Ch.11 completed the supervised learning toolkit — we can now classify and regr
 
 ## Illustrations
 
-<!-- TODO: regenerate ensemble visualisation — img/ch01-ensembles.png (run gen_scripts/gen_ch01_ensembles.py when available) -->
-
 
