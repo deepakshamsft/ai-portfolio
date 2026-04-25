@@ -167,32 +167,12 @@ MI sums these deviations across the entire surface — so any shape of relations
 **Case 1 — U-shaped relationship (e.g., optimal dose):**  
 A drug at low dose does nothing; at the optimal dose it works; at high dose it becomes toxic. Price vs HouseAge in some sub-markets follows a similar arc — very new and very old houses both command a premium over mid-age stock.
 
-```
-y  ↑
-   |       ●
-   |     ●   ●
-   |   ●       ●
-   | ●           ●
-   └─────────────── x
-
-Pearson ρ ≈ 0  (symmetric, deviations cancel)
-MI         > 0  (knowing x strongly predicts y)
-```
+![U-shaped relationship: Pearson ρ ≈ 0 because symmetric deviations cancel, but MI > 0 because knowing x still predicts y strongly](img/ch03-mi-case1-ushape.png)
 
 **Case 2 — Threshold / step relationship (e.g., income cliff):**  
 House prices in California are relatively flat below a neighbourhood income of ~$3k/month, then jump sharply above it. The relationship exists but is not proportional — a linear model misses the jump entirely.
 
-```
-y  ↑
-   |               ●●●
-   |           ●●●
-   |●●●●●●●●
-   └─────────────── x
-           threshold
-
-Pearson ρ  moderate (captures partial signal)
-MI         high      (captures the full jump)
-```
+![Threshold relationship: Pearson ρ is moderate because it only captures a partial slope, but MI is high because it captures the full step jump](img/ch03-mi-case2-threshold.png)
 
 **The "Broken Ruler" — The Aha! Moment:**
 
@@ -213,19 +193,7 @@ print(f"Pearson ρ : {r:.3f}")   # → 0.000  ← ruler says "no relationship"
 print(f"MI score  : {mi:.3f}")  # → 0.95+  ← detective says "strong link"
 ```
 
-```
-Scatter of y = x²:
-y  ↑
- 9 │ ●               ●
- 4 │   ●           ●
- 1 │     ●       ●
- 0 │       ● ●
-   └─────────────────── x
-      −3             +3
-
-The ruler sees symmetric deviations and calls it zero.
-The detective sees that every x uniquely determines y and calls it strong.
-```
+![Parabola y = x²: left and right deviations from the mean cancel so Pearson reads 0.000, but every x maps to a unique y — MI reads 0.95+, confirming the strong relationship](img/ch03-broken-ruler-parabola.png)
 
 ![Mutual information in action: as the scatter morphs from a diagonal line into a U-shape, Pearson ρ falls to zero while the MI score stays high — proving MI catches what Pearson misses](img/ch03-mi-in-action.gif)
 
@@ -261,29 +229,17 @@ The key rows are Latitude and Longitude: ρ² ≈ 0 and ρ² ≈ 0 (they explain
 
 > 📖 For the information-theoretic foundation see *Cover & Thomas, "Elements of Information Theory," Wiley, Ch.2.*
 
-> 📖 **Technical Note — How `sklearn` estimates MI for continuous variables.** `mutual_info_regression` uses the **Kraskov k-NN estimator**: for each sample, it measures the distance to its $k$-th nearest neighbour in joint $(x, y)$ space versus in the marginal $x$ and $y$ spaces separately — no binning, no histogram choice, no smoothing parameter. Key properties: **$k$ controls bias-variance** (default $k=3$: lower bias but noisier; larger $k$ smooths but may underestimate MI for complex shapes); **set `random_state`** (the estimator adds a tiny perturbation to break ties); **scale-invariant** (MI does not change if you log-transform or standardise a feature — the rank structure is preserved and the density estimator adapts). Returns one score per feature; scores are not normalised — use relative magnitude only.
-
 ---
 
 ### Filter Methods — Pre-Training Feature Selection
 
-Filter methods rank features by their statistical relationship to the target — no model is trained. Use them to prune large feature sets before applying a model. Pearson and MI (above) are the primary filter signals; Spearman fills the gap when relationships are monotonic but not linear.
+Filter methods rank features by their statistical relationship to the target — no model is trained. Use them to prune large feature sets before applying a model. Pearson and MI are the two complementary signals: Pearson for straight-line relationships, MI for anything else.
 
-**Spearman Correlation (monotonic, non-parametric):**
-
-Ranks both x and y, then computes Pearson on the ranks. Captures non-linear but *monotonic* relationships:
-
-$$\rho_s = 1 - \frac{6\,\sum d_i^2}{n(n^2-1)}$$
-
-where $\rho_s$ is the Spearman correlation coefficient, $d_i$ is the rank difference between $x_i$ and $y_i$ (if $x_i$ is the 3rd largest value and $y_i$ is the 5th largest, then $d_i = 3 - 5 = -2$), and $n$ is the number of samples.
-
-> ⚠️ **Use Spearman when the scatter plot shows a curve rather than a line** — e.g., `MedInc` vs `MedHouseVal` is roughly linear (Pearson fine), but `Population` vs price is non-linear (Spearman safer). Both are available via `scipy.stats.spearmanr`.
-
-#### Decision Rule — When to Use Which Filter
+#### Decision Rule — Pearson vs MI
 
 | Situation | Use |
 |---|---|
-| You expect monotonic relationships; interpretability needed | Pearson (or Spearman if skewed) |
+| You expect linear or near-linear relationships | Pearson |
 | You suspect non-linearity (U-shapes, thresholds, clusters) | MI |
 | You have categorical features mixed with continuous | MI (`mutual_info_classif` for discrete target) |
 | You need a number you can directly compare to R² | Pearson² |
@@ -318,21 +274,7 @@ where $\text{Cov}(x_j, y)$ is the covariance between feature $j$ and target $y$,
 
 A high-R² feature forms a visible trend when plotted against the target. A low-R² feature produces a random cloud. The two scatter plots below show why MedInc dominates the univariate ranking while HouseAge is nearly flat:
 
-```
-MedInc → MedHouseVal  (ρ = 0.69, R² = 0.47)      HouseAge → MedHouseVal  (ρ = −0.04, R² ≈ 0.001)
-
-  MedHouseVal                                         MedHouseVal
-    5 │                             × × ×               5 │  ×   ×    ×    ×   ×
-    4 │                    × × ×                        4 │    ×    ×    ×   ×
-    3 │          × × × ×                                3 │  ×   ×  ×  ×  ×   ×
-    2 │    × × ×                                        2 │    ×    ×    ×   ×
-    1 │  ×                                              1 │  ×    ×    ×    ×  ×
-      └─────────────────────────────                      └──────────────────────
-          Low income ──────► High income                      Young ──────► Old
-
-  Tight upward band → income reliably                 Uniform cloud → house age tells
-  predicts home value. R² = 0.47.                     us almost nothing alone. R² ≈ 0.
-```
+![Side-by-side scatter plots: MedInc vs MedHouseVal shows a tight upward band with regression line (R² = 0.47); HouseAge vs MedHouseVal shows a uniform random cloud (R² ≈ 0)](img/ch03-univariate-scatter.png)
 
 **Key fact — ρ² = R² for single-feature OLS.** A tight scatter = high feature-target ρ = high R². The practical payoff: to rank all 8 features by univariate R², compute the **feature-target** Pearson correlations (the target column of the full 9×9 correlation matrix) and square them — that's all 8 R² values instantly, with no model fitting.
 
