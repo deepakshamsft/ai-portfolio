@@ -333,25 +333,6 @@ flowchart TD
 
 ### Regularization Path — What Happens as λ Increases
 
-```
-Weight
-  ↑
-  │  * * * * * * * * * * *──── MedInc (always important)
-  │   * * * * * * * *  
-  │    * *                ──── Latitude (moderately important)
-  │      * * *
-  │        * * *
-  │──────────*─────────── 0 ← Lasso zeros cross this line
-  │             * *       ──── Population² (noise → zeroed out)
-  │               * *
-  │─────────────────────── 
-  └──────────────────────→ λ (regularization strength)
-  small λ              large λ
-  (complex model)      (simple model)
-```
-
-> See the generated regularization path plot for all 7 tracked features:
-
 ![Regularization path: coefficient magnitudes vs log(λ)](img/ch05-regularization-path.png)
 
 Notice: `MedInc` (strong signal) never reaches zero even at high λ; `Population × AveBedrms` (noise) collapses to zero early.
@@ -359,25 +340,6 @@ Notice: `MedInc` (strong signal) never reaches zero even at high λ; `Population
 ---
 
 ### L1 vs L2 Geometry
-
-```
-L2 (Ridge) constraint:          L1 (Lasso) constraint:
-w₁² + w₂² ≤ t                  |w₁| + |w₂| ≤ t
-
-     w₂                              w₂
-      ↑                               ↑
-      |   ╱ MSE contours              |   ╱ MSE contours
-      |  ╱                            |  ╱
-      | ╱    ○                        | ╱   ◇ ← diamond has CORNERS
-      |╱   ○   ○  ← circle           |╱  ◇   ◇   at the axes
-   ───○──*────○──→ w₁             ──◇──*────◇──→ w₁
-      |   ○ ○                        |   ◇ ◇
-      |    ○                          |    ◇
-      |  ↑ solution touches           |  ↑ solution hits corner
-      |    circle (w≠0)               |    → w₁=0 or w₂=0! (sparse)
-```
-
-> See the generated side-by-side geometry figure:
 
 ![L1 vs L2 geometry: MSE ellipse + constraint region + solution point](img/ch05-l1-l2-geometry.png)
 
