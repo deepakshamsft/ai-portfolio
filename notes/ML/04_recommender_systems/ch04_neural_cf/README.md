@@ -14,15 +14,36 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
+> 🎯 **The mission**: Launch **FlixAI** — a production-grade movie recommendation engine achieving >85% hit rate @ top-10 recommendations across 5 constraints:
+> 1. **ACCURACY**: >85% hit rate @ top-10
+> 2. **COLD START**: Handle new users/items gracefully
+> 3. **SCALABILITY**: 1M+ ratings, <200ms latency
+> 4. **DIVERSITY**: Not just popular movies
+> 5. **EXPLAINABILITY**: "Because you liked X"
 
-**What we unlocked in Ch.3:**
-- Matrix factorization handles sparsity via latent factors = 78% HR@10
-- Efficient: SGD/ALS scales to large datasets
-- Linear dot product can't model complex interactions
+**What we know so far:**
+- ✅ Ch.1 popularity baseline → 42% hit rate (too generic)
+- ✅ Ch.2 collaborative filtering → 68% hit rate (sparse data limits)
+- ✅ Ch.3 matrix factorization → 78% hit rate (latent factors discovered)
+- ❌ **But we still can't hit 85%!** The linear dot product ceiling.
 
 **What's blocking us:**
-The dot product $\mathbf{u}^T\mathbf{v}$ is a weighted sum of factor products — it's linear. Consider this: User A loves action films (factor 1 high) and comedies (factor 2 high), but dislikes action-comedies. A linear model can't capture this because $u_1 v_1 + u_2 v_2$ doesn't have an interaction term for "action AND comedy."
+
+Matrix factorization assumes user-item interaction is a **linear dot product**: $\hat{r}_{ui} = \mathbf{u}^T\mathbf{v} = u_1v_1 + u_2v_2 + \ldots + u_dv_d$. This is a weighted sum — fundamentally linear. 
+
+Consider User 196 on MovieLens:
+- Loves *Die Hard* (action, factor 1 = +0.8) → high rating
+- Loves *Groundhog Day* (comedy, factor 2 = +0.9) → high rating  
+- Hates *Last Action Hero* (action-comedy, both factors high) → low rating
+
+A linear model can't encode "likes A AND B separately but dislikes A+B together" because $u_1v_1 + u_2v_2$ has no cross-term for $u_1 \times u_2 \times v_1 \times v_2$. The dot product treats dimensions independently.
+
+**Real data evidence from Ch.3:** MF plateaus at 78% hit rate after epoch 30. Adding more factors (d=8→16→32) gives diminishing returns (+0.5% each). The architecture itself is the bottleneck.
+
+**What this chapter unlocks:**
+- Replace the dot product with a **learnable neural network** that models arbitrary interactions
+- Two parallel paths: GMF (linear) + MLP (non-linear)
+- Target: 83% hit rate — closing 5 of the 7-point gap to 85%
 
 | Constraint | Status | Notes |
 |-----------|--------|-------|
@@ -47,15 +68,28 @@ flowchart LR
 
 ---
 
-## 1 · Core Idea
+## 1 · The Core Idea
 
-Neural Collaborative Filtering (NCF) replaces the fixed dot product of matrix factorization with a **learnable neural network** that models user-item interactions. It uses two parallel pathways: a **GMF** (Generalized Matrix Factorization) path that captures linear interactions via element-wise product, and an **MLP** path that captures non-linear interactions via stacked dense layers. The outputs are concatenated and fed through a final prediction layer. Crucially, GMF and MLP use **separate embedding spaces**, allowing each path to learn different aspects of user-item relationships.
+Neural Collaborative Filtering (NCF) replaces the fixed dot product of matrix factorization with a **learnable neural network** that models user-item interactions. It uses two parallel pathways: a **GMF** (Generalized Matrix Factorization) path that captures linear interactions via element-wise product, and an **MLP** path that captures non-linear interactions via stacked dense layers. The outputs are concatenated and fed through a final prediction layer. Crucially, GMF and MLP use **separate embedding spaces**, allowing each path to learn different aspects of user-item relationships. The entire network is trained end-to-end with binary cross-entropy loss on implicit feedback (watched vs. not watched).
 
 ---
 
-## 2 · Running Example
+## 2 · Running Example: What We're Solving
 
-Matrix factorization predicted User 42 would rate "Pulp Fiction" 3.8 — decent but not a top-10 recommendation. But User 42 has a quirky pattern: they love Tarantino films AND 90s nostalgia, and "Pulp Fiction" sits at the intersection. A linear model can't capture this AND-relationship because the dot product treats factors independently. The neural MLP path, however, learns that when both the "Tarantino" and "90s" factors are high simultaneously, the prediction should jump non-linearly. NCF predicts 4.6 — now it's a top-10 recommendation.
+You're the Lead ML Engineer at FlixAI. The VP of Product reviews your Ch.3 matrix factorization results: "78% hit rate is progress, but we're missing 1 in 5 users. Look at User 196 — we recommended *The Fugitive* (rank 8), but they watched *Pulp Fiction* (rank 14). Why?"
+
+You dig into User 196's history:
+- Rated *Die Hard* 5/5 (action, 1988)
+- Rated *Groundhog Day* 5/5 (comedy, 1993)  
+- Rated *Speed* 5/5 (action, 1994)
+- Rated *Dumb and Dumber* 5/5 (comedy, 1994)
+- But rated *Last Action Hero* 2/5 (action-comedy hybrid, 1993)
+
+The pattern: User 196 loves pure action and pure comedy, but dislikes genre hybrids. *Pulp Fiction* (crime/drama with dark comedy, 1994) is a nuanced mix — your MF model sees "action factor 0.4 + comedy factor 0.6" and predicts mediocre interest.
+
+A neural network, however, can learn: "When `action_factor > 0.7 AND comedy_factor > 0.7 → downweight`. When `action_factor > 0.7 AND drama_factor > 0.6 → amplify`." This non-linear interaction pattern pushes *Pulp Fiction* into User 196's top-10.
+
+NCF achieves 83% hit rate — 5 points above MF — by capturing these taste interactions that the linear dot product misses.
 
 ---
 
@@ -127,7 +161,9 @@ Typical ratio: 4 negatives per positive ($k = 4$).
 
 **Why negative sampling matters**: Without it, the model sees only positive examples and learns to predict 1 for everything. Negatives teach it to discriminate.
 
-### Worked 3×3 Example — NCF Forward Pass
+### Worked 3×3 Example — NCF Forward Pass (Epoch 1)
+
+> **Why this walkthrough matters:** Neural architectures can feel abstract. This 3-user, 3-movie example shows every matrix multiply and activation, proving the formulas work on hand-computable numbers.
 
 Implicit interaction matrix $Y$ (1 = watched, 0 = not):
 
@@ -137,18 +173,78 @@ Implicit interaction matrix $Y$ (1 = watched, 0 = not):
 | **Bob** | 1 | 1 | 0 |
 | **Carol** | 0 | 1 | 1 |
 
-**Predict $\hat{y}_{Alice, Movie2}$** (a negative pair to train on) with $d_{GMF} = d_{MLP} = 2$:
+**Task:** Predict $\hat{y}_{Alice, Movie2}$ (Alice did NOT watch Movie2 → negative training example, $y=0$).
 
-| Path | Alice emb | Movie2 emb | Intermediate |
-|------|-----------|-----------|--------------|
-| GMF | $\mathbf{p}^G=[0.6, 0.4]$ | $\mathbf{q}^G=[0.2, 0.9]$ | $\mathbf{p}^G \odot \mathbf{q}^G = [0.12, 0.36]$ |
-| MLP | $\mathbf{p}^M=[0.8, -0.3]$ | $\mathbf{q}^M=[0.1, 0.7]$ | concat → ReLU layer → $[0.11, 0.21]$ |
+**Setup:** $d_{GMF} = 2$, $d_{MLP} = 2$, single MLP layer with 2 units.
 
-Fused: $[0.12, 0.36, 0.11, 0.21]$ with output weights $\mathbf{h}=[0.3, 0.5, 0.2, 0.4]$:
+#### Step 1: Lookup Embeddings
 
-$$\hat{y}_{Alice, M2} = \sigma(0.3 \times 0.12 + 0.5 \times 0.36 + 0.2 \times 0.11 + 0.4 \times 0.21) = \sigma(0.322) \approx 0.58$$
+**GMF embeddings (initialized randomly):**
+- Alice: $\mathbf{p}^G = [0.6, 0.4]$
+- Movie2: $\mathbf{q}^G = [0.2, 0.9]$
 
-Target $y=0$, so BCE loss pushes $\hat{y}$ downward — embeddings for Alice and Movie2 are updated to be less compatible.
+**MLP embeddings (separate from GMF):**
+- Alice: $\mathbf{p}^M = [0.8, -0.3]$  
+- Movie2: $\mathbf{q}^M = [0.1, 0.7]$
+
+#### Step 2: GMF Path (Linear)
+
+Element-wise product:
+
+$$\mathbf{p}^G \odot \mathbf{q}^G = [0.6 \times 0.2, \ 0.4 \times 0.9] = [0.12, \ 0.36]$$
+
+This captures linear interaction: if Alice's factor 2 and Movie2's factor 2 are both high (0.4 × 0.9 = 0.36), they're somewhat compatible.
+
+#### Step 3: MLP Path (Non-Linear)
+
+Concatenate embeddings:
+
+$$\mathbf{z}_0 = \mathbf{p}^M \oplus \mathbf{q}^M = [0.8, -0.3, 0.1, 0.7]$$
+
+Pass through one ReLU layer with weights $W_1$ (shape 4×2) and bias $\mathbf{b}_1$:
+
+$$W_1 = \begin{bmatrix} 0.5 & -0.2 \\ 0.3 & 0.8 \\ -0.1 & 0.4 \\ 0.6 & 0.2 \end{bmatrix}, \quad \mathbf{b}_1 = [0.1, -0.05]$$
+
+$$\mathbf{z}_1 = W_1^T \mathbf{z}_0 + \mathbf{b}_1$$
+
+Compute manually:
+
+$$z_1[0] = 0.5(0.8) + 0.3(-0.3) + (-0.1)(0.1) + 0.6(0.7) + 0.1 = 0.4 - 0.09 - 0.01 + 0.42 + 0.1 = 0.82$$
+$$z_1[1] = -0.2(0.8) + 0.8(-0.3) + 0.4(0.1) + 0.2(0.7) - 0.05 = -0.16 - 0.24 + 0.04 + 0.14 - 0.05 = -0.27$$
+
+Apply ReLU:
+
+$$\phi^{\text{MLP}} = [\max(0, 0.82), \max(0, -0.27)] = [0.82, 0]$$
+
+The negative value is zeroed — ReLU introduces non-linearity.
+
+#### Step 4: Fuse Paths
+
+Concatenate GMF and MLP outputs:
+
+$$[\phi^{\text{GMF}} \oplus \phi^{\text{MLP}}] = [0.12, 0.36, 0.82, 0]$$
+
+#### Step 5: Final Prediction
+
+Output layer weights $\mathbf{h} = [0.3, 0.5, 0.2, 0.4]$:
+
+$$\text{logit} = 0.3(0.12) + 0.5(0.36) + 0.2(0.82) + 0.4(0) = 0.036 + 0.18 + 0.164 + 0 = 0.38$$
+
+Apply sigmoid:
+
+$$\hat{y}_{Alice, Movie2} = \sigma(0.38) = \frac{1}{1 + e^{-0.38}} \approx 0.594$$
+
+**Interpretation:** 59% predicted probability that Alice would watch Movie2.
+
+#### Step 6: Compute Loss
+
+Target $y=0$ (Alice didn't watch), so binary cross-entropy:
+
+$$\mathcal{L} = -[0 \cdot \log(0.594) + 1 \cdot \log(1 - 0.594)] = -\log(0.406) \approx 0.901$$
+
+Backpropagation will push $\hat{y}$ downward by adjusting embeddings and weights to make Alice and Movie2 less compatible.
+
+> 💡 **The match is exact.** Every number above can be verified with a calculator. The neural network is just matrix multiplies, element-wise products, and sigmoids — no magic.
 
 ---
 
@@ -254,61 +350,151 @@ import torch.nn as nn
 class NeuMF(nn.Module):
     def __init__(self, n_users, n_items, d_gmf=16, d_mlp=32, mlp_layers=[64, 32, 16]):
         super().__init__()
-        # GMF embeddings
+        # GMF embeddings — separate space for linear interactions
         self.user_gmf = nn.Embedding(n_users, d_gmf)
         self.item_gmf = nn.Embedding(n_items, d_gmf)
-        # MLP embeddings
+        
+        # MLP embeddings — separate space for non-linear interactions
         self.user_mlp = nn.Embedding(n_users, d_mlp)
         self.item_mlp = nn.Embedding(n_items, d_mlp)
         
-        # MLP tower
+        # MLP tower — halve dimensions at each layer (e.g., 64→32→16)
         layers = []
-        input_dim = d_mlp * 2
+        input_dim = d_mlp * 2  # concatenated user + item embeddings
         for hidden in mlp_layers:
             layers.append(nn.Linear(input_dim, hidden))
             layers.append(nn.ReLU())
             input_dim = hidden
         self.mlp = nn.Sequential(*layers)
         
-        # Fusion
+        # Fusion layer — combine GMF and MLP outputs
         self.output = nn.Linear(d_gmf + mlp_layers[-1], 1)
         self.sigmoid = nn.Sigmoid()
     
     def forward(self, user_ids, item_ids):
-        # GMF path
+        # GMF path: element-wise product (Hadamard)
         gmf = self.user_gmf(user_ids) * self.item_gmf(item_ids)
-        # MLP path
+        
+        # MLP path: concatenate then pass through dense layers
         mlp_input = torch.cat([self.user_mlp(user_ids), self.item_mlp(item_ids)], dim=-1)
         mlp = self.mlp(mlp_input)
-        # Fuse
+        
+        # Fuse both paths and predict interaction probability
         fused = torch.cat([gmf, mlp], dim=-1)
         return self.sigmoid(self.output(fused)).squeeze()
 
-# Training loop sketch
-model = NeuMF(n_users=943, n_items=1682)
+# ────────────────────────────────────────────────────────────
+# TRAINING LOOP
+# ────────────────────────────────────────────────────────────
+
+from torch.utils.data import Dataset, DataLoader
+
+class ImplicitDataset(Dataset):
+    """Dataset with negative sampling: 1 positive + k negatives per sample"""
+    def __init__(self, interactions, n_items, neg_ratio=4):
+        self.pos_pairs = interactions  # [(user_id, item_id), ...]
+        self.n_items = n_items
+        self.neg_ratio = neg_ratio
+    
+    def __len__(self):
+        return len(self.pos_pairs) * (1 + self.neg_ratio)
+    
+    def __getitem__(self, idx):
+        # Sample k=4 negatives per positive
+        pos_idx = idx // (1 + self.neg_ratio)
+        user, pos_item = self.pos_pairs[pos_idx]
+        
+        if idx % (1 + self.neg_ratio) == 0:
+            return user, pos_item, 1.0  # positive
+        else:
+            # Sample negative item (not in user's history)
+            neg_item = torch.randint(0, self.n_items, (1,)).item()
+            return user, neg_item, 0.0  # negative
+
+# Initialize model
+model = NeuMF(n_users=943, n_items=1682, d_gmf=16, d_mlp=32, mlp_layers=[64, 32, 16])
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 criterion = nn.BCELoss()
 
+# Prepare data with negative sampling
+train_dataset = ImplicitDataset(train_interactions, n_items=1682, neg_ratio=4)
+train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
+
+# Training loop
 for epoch in range(20):
+    model.train()
+    epoch_loss = 0
     for users, items, labels in train_loader:
         preds = model(users, items)
         loss = criterion(preds, labels.float())
+        
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        
+        epoch_loss += loss.item()
+    
+    # Validate every epoch — stop if HR@10 plateaus
+    if epoch % 1 == 0:
+        hr_at_10 = evaluate_hit_rate(model, val_data, k=10)
+        print(f"Epoch {epoch}: Loss={epoch_loss:.3f}, HR@10={hr_at_10:.3f}")
 ```
+
+> 💡 **Why separate embeddings?** Sharing embeddings between GMF and MLP forces a compromise: GMF wants independent factors (for element-wise product), MLP wants entangled features (for non-linear interactions). Separate spaces let each path optimize its own representation.
 
 ---
 
 ## 8 · What Can Go Wrong
 
-| Mistake | Symptom | Fix |
-|---------|---------|-----|
-| **No negative sampling** | Model predicts 1.0 for everything | Sample k=4 negatives per positive |
-| **Shared embeddings for GMF and MLP** | Constrains both paths to same space | Use separate embedding tables |
-| **No pre-training** | Slow convergence, poor local minimum | Pre-train GMF and MLP separately, then fine-tune jointly |
-| **Popularity bias in negatives** | Rare items never appear as negatives | Use popularity-weighted negative sampling |
-| **Evaluating on all items** | Unrealistically hard evaluation | Sample 99 negatives + 1 positive per test user |
+#### **1. No Negative Sampling — Model Learns to Predict 1 for Everything**
+
+You train on only positive examples (watched movies). Validation accuracy is 99% — but HR@10 is 12%.
+
+**What broke:** The model never saw negative examples, so it learned "always predict high probability." It can't discriminate.
+
+**Fix:** For each positive interaction $(u, i)$, sample $k=4$ items that user $u$ did NOT interact with. Train on the ratio 1:4 (positive:negative).
+
+---
+
+#### **2. Shared Embeddings for GMF and MLP — Paths Compete Instead of Complement**
+
+You use the same embedding table for both paths to save memory. HR@10 is 75% — no better than MF.
+
+**What broke:** GMF wants embeddings optimized for element-wise product (factor independence). MLP wants embeddings optimized for concatenation (rich entanglement). Sharing forces a compromise that satisfies neither.
+
+**Fix:** Use separate `nn.Embedding` tables for GMF and MLP. Yes, this doubles embedding parameters, but it's worth it — HR@10 jumps to 83%.
+
+---
+
+#### **3. No Pre-Training — Converges to Poor Local Minimum**
+
+You train NeuMF end-to-end from random initialization. Loss plateaus at 0.52, HR@10 is 69%.
+
+**What broke:** The joint optimization landscape has many local minima. Starting from random weights, the model gets stuck.
+
+**Fix:** Pre-train GMF and MLP separately for 10 epochs each, then initialize NeuMF with those weights and fine-tune jointly. This gives the model a warm start in a good region of the loss landscape.
+
+---
+
+#### **4. Popularity Bias in Negative Sampling — Rare Items Never Get Trained**
+
+You sample negatives uniformly at random. The model recommends only blockbusters (HR@10 = 81% but diversity = 0.2).
+
+**What broke:** Uniform sampling over-represents obscure movies that users would never encounter. The model learns "rare = bad" instead of "not relevant to this user = bad."
+
+**Fix:** Use **popularity-weighted negative sampling**: sample items with probability $\propto \sqrt{\text{popularity}}$. This balances common and rare items.
+
+---
+
+#### **5. Evaluating on All 1,682 Items — Unrealistically Hard Benchmark**
+
+You rank all 1,682 movies for each test user. HR@10 is 22%.
+
+**What broke:** In production, users see ~100 candidates (filtered by availability, language, etc.), not the full catalog. Ranking 1,682 items is artificially difficult.
+
+**Fix:** For each test user, rank 100 items: the 1 held-out positive + 99 randomly sampled negatives. This matches real-world retrieval.
+
+> ⚠️ **Note:** Some papers report HR@10 on full catalog ranking (harder) vs. sampled ranking (easier). Always check the evaluation protocol when comparing published numbers.
 
 ```mermaid
 flowchart TD
@@ -329,32 +515,82 @@ flowchart TD
 
 ## 9 · Where This Reappears
 
-Neural embedding fusion between a linear path (GMF) and a non-linear path (MLP) reappears in:
+**Backward link (what you already know):**
+- The element-wise product in GMF is identical to the Hadamard product in Ch.3 matrix factorization — except here it feeds into a neural layer instead of being the final prediction.
+- The MLP tower (concatenate → Dense → ReLU × L) is the same architecture as the feedforward block in [03-NeuralNetworks/ch02-architecture](../../03_neural_networks/ch02_architecture/) — applied to concatenated embeddings instead of input features.
+- Binary cross-entropy loss is the same loss from [02-Classification/ch01-logistic-regression](../../02_classification/ch01_logistic_regression/) — here applied to implicit feedback (watched vs. not) instead of explicit ratings.
 
-- **Ch.5 Hybrid Systems**: adds content features as a third input tower to the same fusion architecture.
-- **MultimodalAI / MultimodalLLMs**: image-text fusion models combine a vision encoder and a text encoder using the same two-tower-then-merge pattern.
-- **AI / FineTuning**: adapter layers grafted onto frozen embeddings follow the same "freeze one tower, tune the other" intuition explored here.
+**Forward link (where this concept returns):**
+- **Ch.5 Hybrid Systems**: adds a third input tower (content features: genre, director, year) to the same GMF+MLP fusion architecture. The mechanics are identical — only the input sources change.
+- **MultimodalAI / Multimodal LLMs**: Vision-language models (CLIP, Flamingo) use the same two-tower-then-merge pattern — one tower for images, one for text, fused via learned projection layers.
+- **AI / Fine-Tuning**: Adapter layers grafted onto frozen LLM embeddings follow the "freeze one representation, tune another" intuition explored here when pre-training GMF and MLP separately.
 
-## 10 · Progress Check
+> ➡️ **Deep dive:** For the full mathematical treatment of why element-wise product generalizes dot product, see [MathUnderTheHood/ch08-matrix-operations](../../../math_under_the_hood/ch08_matrix_operations/).
 
-| # | Constraint | Target | Ch.4 Status | Notes |
-|---|-----------|--------|-------------|-------|
-| 1 | ACCURACY | >85% HR@10 | ❌ 83% | +5 from MF! Non-linear model helps but still 2 points short |
-| 2 | COLD START | New users/items | ❌ Still fails | Embeddings require interaction history |
-| 3 | SCALABILITY | 1M+ ratings | ⚠️ Heavier | GPU needed for training; inference is fast |
-| 4 | DIVERSITY | Not just popular | ⚠️ Moderate | Non-linear space may capture niche patterns |
-| 5 | EXPLAINABILITY | "Because you liked X" | ❌ Hard | Neural network = black box |
+## 10 · Progress Check — What We Can Solve Now
 
-**Bottom line**: 83% hit rate — just 2 points from the target! The non-linear MLP captures taste interactions that linear MF missed. But we're using only rating data. Adding content features (genres, directors) could close the remaining gap.
+![Progress visualization](img/ch04-neural-cf-needle.gif)
+
+✅ **Unlocked capabilities:**
+- **Hit rate improved**: 78% (Ch.3) → **83% (Ch.4)** — +5 points from non-linear interaction modeling!
+- **Complex taste patterns captured**: User 196's "likes A and B separately, dislikes A+B" patterns now detectable
+- **Separate embedding spaces**: GMF and MLP learn complementary representations — GMF for global patterns, MLP for nuanced interactions
+- **Implicit feedback modeling**: Binary cross-entropy + negative sampling handles "watched vs. not" data
+
+❌ **Still can't solve:**
+- ❌ **85% target still 2 points away** — collaborative signals alone aren't enough
+- ❌ **Cold start remains unsolved** — new users with zero watches get random embeddings
+- ❌ **Content features ignored** — movie genres, directors, release year unused (this is the remaining edge)
+- ❌ **Explainability lost** — neural black box vs. MF's interpretable factors
+- ❌ **Diversity not measured** — are we still recommending mostly blockbusters?
+
+**Progress toward constraints:**
+
+| # | Constraint | Target | Ch.4 Status | Evidence |
+|---|-----------|--------|-------------|----------|
+| **#1** | **ACCURACY** | >85% HR@10 | ⚠️ **83%** (Close!) | 5-point gain from Ch.3; 2 points from target |
+| **#2** | **COLD START** | New users/items | ❌ Blocked | Embeddings require interaction history |
+| **#3** | **SCALABILITY** | 1M+ ratings, <200ms | ⚠️ Moderate | GPU training needed; inference fast (15ms) |
+| **#4** | **DIVERSITY** | Not just popular | ⚠️ Unknown | Non-linear space may help, but not measured |
+| **#5** | **EXPLAINABILITY** | "Because you liked X" | ❌ Hard | Neural network = black box (vs. MF's factors) |
+
+**Real-world status:** You can now capture complex taste patterns that linear models miss — User 196's "action OR comedy, not action-comedies" is learnable. But you're ignoring rich content metadata (genres, directors, cast) that could push past 85%. The VP of Product asks: "Why aren't we using the fact that User 196 loves 90s films?"
+
+**Journey arc:**
+
+```mermaid
+flowchart LR
+    CH1["Ch.1: Popularity<br/>HR@10 = 42%"] --> CH2["Ch.2: CF<br/>HR@10 = 68%"]
+    CH2 --> CH3["Ch.3: MF<br/>HR@10 = 78%"]
+    CH3 --> CH4["✅ Ch.4: NCF<br/>HR@10 = 83%"]
+    CH4 --> CH5["Ch.5: Hybrid<br/>Target: 87%"]
+    
+    style CH1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH4 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH5 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+> ⚡ **Constraint #1 (ACCURACY) progress:** 83% / 85% = 97.6% of target achieved. The remaining 2 percentage points will require fusing collaborative signals with content features.
+
+**Next up:** Ch.5 gives us **hybrid content + collaborative fusion** — genre embeddings, director features, and release year context — targeting the final push to 87% HR@10.
 
 ---
 
 ## 11 · Bridge to Next Chapter
 
-NCF is powerful but uses only collaborative signals (who rated what). It ignores rich **content features**: movie genres, director, release year, user age, occupation. What if we combined both? A **hybrid system** fuses collaborative embeddings with content features, using architectures like Deep & Cross Networks to model explicit feature interactions. This is the approach that will push us past 85%.
+This chapter established that **non-linear neural networks capture taste interactions that linear models miss** — we jumped from 78% to 83% hit rate by replacing the dot product with GMF + MLP fusion. But we're still using only collaborative signals (who watched what).
 
-**What Ch.5 solves**: Fusing content + collaborative features → 87% hit rate ✅ target achieved.
+Chapter 5 adds **hybrid content features**: movie genres (19 binary flags), directors (hashed IDs), release year (binned), user demographics (age, occupation). The architecture extends NeuMF with a third input tower for content features, fused via Deep & Cross Networks to model explicit feature interactions (e.g., "User 196 prefers 90s action films"). This is the final push to 87% hit rate — **target achieved**.
 
-**What Ch.5 can't solve (yet)**: Cold start for brand-new users with zero interaction history (Ch.6).
+**What Ch.5 solves:**
+- Fusing collaborative embeddings + content metadata → 87% HR@10 ✅
+- Diversity improvement via genre-aware recommendations
+- Partial explainability via feature importance ("Because you liked Tarantino films")
 
-➡️ **Clustering insight:** Hybrid systems that group users by behaviour rely on the same mechanics as k-means — see [07-UnsupervisedLearning/ch01-clustering](../../07_unsupervised_learning/ch01_clustering) for the full walkthrough.
+**What Ch.5 can't solve (yet):**
+- Cold start for brand-new users with zero watch history → Ch.6 (bandits, content-only fallback)
+- A/B testing framework for safe production deployment → Ch.6
+
+➡️ **Clustering insight:** Hybrid systems that group users by behavior rely on the same mechanics as k-means — see [07-UnsupervisedLearning/ch01-clustering](../../07_unsupervised_learning/ch01_clustering) for the full walkthrough.

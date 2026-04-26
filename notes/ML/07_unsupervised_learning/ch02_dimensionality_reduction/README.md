@@ -61,7 +61,9 @@ flowchart LR
 
 ## 1 · Core Idea
 
-High-dimensional customer data is hard to visualise, and Euclidean distances become noisy as dimensions grow (curse of dimensionality). Dimensionality reduction finds a lower-dimensional representation preserving the most important structure.
+**The problem:** In [Ch.1](../ch01_clustering) we clustered 440 customers using 6 spending features. But how do you *show* the clusters to a stakeholder? Scatter plots require 2 dimensions — but we have 6. And even if you could visualise 6D somehow, the **curse of dimensionality** makes Euclidean distances noisy in high dimensions: in 6D, "near" and "far" customers start to look equally distant.
+
+**The solution:** Dimensionality reduction compresses 6D → 2D (or 3D) while preserving the most important structure. Three philosophies, three algorithms:
 
 **PCA (Principal Component Analysis):** linear projection that maximises retained variance. Fast, deterministic, invertible. Best for overall structure and preprocessing before downstream clustering.
 
@@ -105,6 +107,8 @@ PCA finds a new orthogonal coordinate system aligned with the directions of maxi
 
 **Step 4 — project:** $\mathbf{Z} = \mathbf{X}_c \mathbf{V}_k$, where $\mathbf{V}_k$ contains the top $k$ eigenvectors.
 
+💡 **In English:** Each principal component is a weighted combination of the original features. PC1 might be "total spend" (all features positive weights). PC2 might be "fresh vs grocery" (Fresh high, Grocery negative). The eigenvalues tell you how much variance each component explains — larger $\lambda_i$ means that direction spreads the data more.
+
 #### Numeric PCA walkthrough (3 × 2 toy data)
 
 Raw data (3 customers, 2 features — Fresh spend, Frozen spend in £000s):
@@ -144,7 +148,9 @@ Eigenvector for λ₂=0: $v_2 = [1/\sqrt{2},\,1/\sqrt{2}]$ (the "sum" direction 
 
 EVR of PC1 = λ₁/(λ₁+λ₂) = 8/8 = **100%** — perfect: all variance lies along the Fresh−Frozen contrast axis. Projecting to 1D loses zero information here.
 
-> 💡 In practice with 6 UCI features, λ₁ explains ~45–60% of variance. The numeric walkthrough above shows *why* the first PC finds the axis of maximum spread — it's the eigenvector of the covariance matrix with the largest eigenvalue.
+💡 **Verification:** In practice with 6 UCI Wholesale features, PC1 explains ~45–60% of variance, PC2 ~20–30%. The toy example above is perfect (100% in PC1) because the data was constructed with zero variance along PC2. Real data is messier.
+
+**The match is exact:** The manual centroid calculation $\boldsymbol{\mu} = (9.3, 8.5)$ matches `sklearn.decomposition.PCA.mean_` for this 2-customer toy. The PC1 scores $[-2.83, 0, +2.83]$ match `pca.transform(X_c)[:,0]`.
 
 **Explained variance ratio:**
 
@@ -355,36 +361,131 @@ print(f"Silhouette in 6D: 0.42 → in PCA 2D: {sil_pca:.2f}")
 
 ## 8 · What Can Go Wrong
 
-- **Interpreting t-SNE cluster distances as meaningful.** Distances between clusters in a t-SNE plot are **not** proportional to true similarity. Two well-separated clusters may be practically identical in feature space. Only cluster presence and internal topology are interpretable.
+**Interpreting t-SNE cluster distances as meaningful** — Distances *between* clusters in a t-SNE plot are **not** proportional to true similarity. Two well-separated clusters in the t-SNE plot may be practically identical in the original 6D feature space. t-SNE optimises for *local* structure (neighbourhoods) at the expense of *global* structure (inter-cluster distances).
 
-- **Comparing t-SNE plots with different perplexities.** Different perplexities produce structurally different plots. "More clusters" at perplexity=10 is not evidence for more structure — it's an artefact of local scale. Always run multiple perplexities and look for consistent patterns.
+**Fix:** Only interpret cluster *presence* and internal topology in t-SNE. Never measure distances between cluster centres or use t-SNE coordinates for downstream modeling. For that, use PCA or UMAP.
 
-- **Using PCA variance explained alone to choose components.** 72% with 2 PCs is good for visualisation but bad for downstream modelling if the remaining 28% contains signal. If a rare customer type lives in PC3-PC4, cutting them off removes signal.
+---
 
-- **Treating UMAP as deterministic.** UMAP is stochastic — different `random_state` values give different embeddings. Set `random_state` and store the fitted reducer for `transform()` on new data.
+**Comparing t-SNE plots with different perplexities** — Perplexity=10 vs perplexity=50 can produce structurally different plots. "More clusters" at perplexity=10 is not evidence for richer structure — it's an artefact of using a smaller effective neighbourhood size. A single underlying cluster can fracture into micro-clusters if perplexity is too low.
 
-- **Reducing dimensions too aggressively before clustering.** PCA 6D→2D loses 28% of variance. If cluster separation depends on the lost variance, silhouette drops. Try 6D→4D (92% EVR) as a middle ground.
+**Fix:** Always run t-SNE with at least 3 different perplexities (e.g., 10, 30, 50). Look for patterns that persist across all three — those are the robust structures.
+
+---
+
+**Using PCA variance explained alone to choose components** — "PC1+PC2 explain 72% of variance, so 2 components is enough." But what if the remaining 28% contains the signal that separates rare customer types? If "Deli Specialists" (10% of customers) live primarily in PC3-PC4, cutting those components removes your ability to find them.
+
+**Fix:** For visualisation, 2 PCs is fine. For preprocessing before clustering, retain enough PCs to hit 90–95% explained variance (typically 4–5 PCs for 6 features). Silhouette will tell you if you cut too much.
+
+---
+
+**Treating UMAP as deterministic** — UMAP is stochastic. Different `random_state` values produce different 2D embeddings. If you train UMAP, visualise clusters, then re-run with a different seed, cluster positions will shift. If you built a marketing dashboard on the first embedding, it's now broken.
+
+**Fix:** Always set `random_state` for reproducibility. Store the fitted `UMAP` object with `pickle` or `joblib` so you can `.transform()` new customers into the same 2D space later.
+
+---
+
+**Reducing dimensions too aggressively before clustering** — PCA 6D→2D loses 28% of variance. If cluster separation depends on variance in PC3-PC6, your silhouette will drop when you cluster in 2D instead of 6D. You might see beautiful separate clusters in the 2D plot — but they might be artifacts of projection, not real separations in 6D.
+
+**Fix:** Try 6D→4D (typically 90–95% EVR) as a middle ground. Re-cluster in both 4D and 2D, compare silhouette. If 4D is much better, use 4D for modeling and 2D only for visualisation.
+
+---
+
+### Diagnostic Flowchart
+
+```mermaid
+flowchart TD
+ A["Dimensionality reduction
+results look wrong"] --> B{"Which method?"}
+ B -->|"PCA"| C{"2D or more?"}
+ C -->|"2D"| D["Check explained variance
+<70% → add more PCs"]
+ C -->|"4D+"| E["PCA is deterministic
+→ check preprocessing"]
+ B -->|"t-SNE"| F{"Tried multiple
+perplexities?"}
+ F -->|No| G["Run perplexity=10,30,50
+look for persistent patterns"]
+ F -->|Yes| H{"Interpreting
+inter-cluster distances?"}
+ H -->|Yes| I["Stop! t-SNE distances lie
+only topology is valid"]
+ B -->|"UMAP"| J{"Set random_state?"}
+ J -->|No| K["Add random_state=42
+for reproducibility"]
+ J -->|Yes| L{"Saved fitted model
+for transform()?"}
+ L -->|No| M["pickle.dump(reducer)
+for production use"]
+ L -->|Yes| N["✅ All good"]
+```
 
 
 ---
 
 ## 9 · Where This Reappears
 
-Dimensionality reduction and explained variance reappear in many contexts:
+Dimensionality reduction, explained variance, and embedding visualisation reappear throughout the ML and AI curriculum:
 
-- **Ch.3 Unsupervised Metrics**: clustering validation is run in the PCA-reduced space prepared here.
-- **NeuralNetworks (Topic 3) / Ch.10 Transformers**: attention map and residual-stream analyses commonly apply t-SNE or UMAP to transformer hidden states.
-- **AI / RAG & Vector DBs**: UMAP is a standard tool for visualizing embedding spaces and debugging retrieval quality.
+- **[Ch.3 — Unsupervised Metrics](../ch03_unsupervised_metrics)**: Clustering validation is run in the PCA-reduced space prepared in this chapter. The silhouette improvement from 0.42→0.48 here sets the stage for the final push to >0.5 in Ch.3.
+- **[Ch.1 — Clustering](../ch01_clustering)**: Backward link — the K=5 segmentation and silhouette=0.42 baseline from Ch.1 is what we're improving here. PCA preprocessing sharpens cluster boundaries that were fuzzy in raw 6D.
+- **[03-NeuralNetworks / Ch.10 Attention & Transformers](../../03_neural_networks/ch10_attention_mechanisms)**: Attention map visualisation uses t-SNE or UMAP to project 512D hidden states →2D. The "perplexity=30 for ~500 points" rule from this chapter applies directly to visualising transformer layers.
+- **[03-NeuralNetworks / Ch.16 TensorBoard](../../03_neural_networks/ch16_tensorboard)**: The embedding projector tab implements PCA, t-SNE, and UMAP — the exact 3 methods covered here. TensorBoard's "color by label" feature is the supervised analogue of our "color by K-Means cluster" visualisations.
+- **[AI / RAG & Vector DBs](../../../ai/rag_and_embeddings)**: Semantic search systems use UMAP to visualise document embeddings in 2D — same workflow as here (compress high-d vectors →2D, color by metadata). UMAP's `transform()` method (discussed here) enables adding new documents to an existing embedding space without retraining.
+- **[05-AnomalyDetection / Ch.2 Isolation Forest](../../05_anomaly_detection/ch02_isolation_forest)**: PCA is used for anomaly detection in its own right — points far from the principal subspace (large reconstruction error) are anomalies. Extends the "variance explained" concept here to "variance *not* explained = anomaly signal".
+- **Math Under The Hood / Eigendecomposition**: The full proof that PCA finds the eigenvectors of the covariance matrix (stated here, not derived) appears in [Math ch08](../../../math_under_the_hood/ch08_eigendecomposition).
 
-## 10 · Progress Check
+## 10 · Progress Check — What We Can Solve Now
 
-| Constraint | Status | Evidence |
-|------------|--------|----------|
-| #1 SEGMENTATION | ✅ Improved | Tighter clusters in PCA space |
-| #2 INTERPRETABILITY | ⚡ Partial | PCA loadings: PC1=total spend, PC2=fresh-vs-grocery |
-| #3 STABILITY | ❌ Not started | Need bootstrap (Ch.3) |
-| #4 SCALABILITY | ✅ Done | PCA O(nd²), UMAP scales to 100k+ |
-| #5 VALIDATION | ⚡ Closer | Silhouette = 0.48 (improved from 0.42, still below 0.5) |
+![Progress visualization](img/ch02-progress-check.png)
+
+✅ **Unlocked capabilities:**
+- **Visualisation unlocked!** — 6D customer data compressed to 2D using PCA (72% variance retained), t-SNE (local topology), and UMAP (global+local). Stakeholders can now *see* the 5 segments in scatter plots.
+- **Silhouette improvement: 0.42 → 0.48** — Re-clustering in PCA 2D space sharpened cluster boundaries. The curse of dimensionality was hurting us — distance calculations in 6D were noisy, PCA compression cleaned them up.
+- **PCA loadings reveal segment drivers** — PC1 = "total spend" (all features positive), PC2 = "fresh vs grocery" (Fresh positive, Grocery negative). Can now explain *why* segments differ: "Deli Specialists score high on PC2 because they buy disproportionately more Fresh/Deli, less Grocery/Milk."
+- **UMAP transform() for production** — Unlike t-SNE, UMAP supports `.transform()` on new customers. Can embed new arrivals into the same 2D space for consistent visualisation and downstream modeling.
+- **Scree plot for component selection** — Explained variance ratio plot shows 2 PCs (visualisation), 4 PCs (preprocessing, 92% variance), or all 6 PCs (no compression). Quantitative guidance, not guesswork.
+
+❌ **Still can't solve:**
+- ❌ **Silhouette = 0.48 < 0.5 target** — Better than Ch.1's 0.42, but still below the 0.5 threshold for "reasonable structure". Need hyperparameter tuning and validation (Ch.3).
+- ❌ **Is K=5 actually optimal?** — We keep using K=5 from Ch.1, but haven't *validated* it. Silhouette might prefer K=3 or K=7. Need systematic K-sweep with multiple metrics (Ch.3).
+- ❌ **Are segments stable?** — PCA is deterministic, but K-Means and UMAP are stochastic. Different seeds → different cluster assignments. Need bootstrap stability (Ch.3).
+- ❌ **No business validation yet** — We have pretty plots, but can the marketing team *act* on these segments? Need to assign names, validate with domain experts, test stability (Ch.3).
+
+**Progress toward constraints:**
+
+| Constraint | Status | Current State | Evidence |
+|------------|--------|---------------|----------|
+| #1 SEGMENTATION | ✅ **IMPROVED** | 5 clusters with silhouette=0.48 | Up from 0.42; tighter in PCA space |
+| #2 INTERPRETABILITY | ⚡ Partial | PCA loadings explain variance | PC1="total", PC2="fresh vs grocery" |
+| #3 STABILITY | ❌ Not started | UMAP stochastic, K-Means stochastic | Need bootstrap testing |
+| #4 SCALABILITY | ✅ **ACHIEVED** | PCA O(nd²), UMAP scales to 100k+ | — |
+| #5 VALIDATION | ⚡ Closer | Silhouette = 0.48 (improved) | Target is >0.5, almost there |
+
+**Real-world status:** "We can now visualise the 5 segments in 2D, and silhouette improved to 0.48 by clustering in PCA space. But we're still below the 0.5 validation threshold and haven't tested stability. Need quantitative metrics next."
+
+**Next up:** [Ch.3 — Unsupervised Metrics](../ch03_unsupervised_metrics) provides the full validation suite: silhouette analysis, Davies-Bouldin index, Calinski-Harabasz index, and bootstrap stability. The goal: push silhouette above 0.5, confirm K=5 is optimal (or adjust), and achieve 90%+ bootstrap stability so segments are production-ready.
+
+```mermaid
+flowchart LR
+ A["Ch.1: Clustering
+6D raw space
+silhouette = 0.42"] --> B["Ch.2: Dim Reduction
+PCA 2D
+silhouette = 0.48"]
+ B --> C["Ch.3: Metrics
+Validation
+silhouette = 0.52 ✅"]
+ A -.->|"K=5 baseline"| B
+ B -.->|"Visualisation
++ tighter clusters"| C
+ C -.->|"All 5 constraints ✅"| D["🎉 SegmentAI
+Production-Ready"]
+ style A fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+ style B fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+ style C fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+ style D fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ---
 

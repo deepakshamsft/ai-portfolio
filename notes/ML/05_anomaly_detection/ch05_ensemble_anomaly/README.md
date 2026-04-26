@@ -50,7 +50,9 @@ flowchart TD
 
 ## Animation
 
-![Chapter animation](img/ch05-ensemble-anomaly-needle.gif)
+![Ensemble fusion of four complementary detectors achieves 83% recall, exceeding the 80% target](img/ch05-ensemble-anomaly-needle.gif)
+
+---
 
 ## 1 · Core Idea
 
@@ -170,6 +172,8 @@ $$P(\text{ensemble wrong}) = \binom{4}{3}(0.25)^3(0.75)^1 + \binom{4}{4}(0.25)^4
 Individual error: 25% → Ensemble error: 5.1% — a **5× improvement** from simple voting!
 
 In practice, errors are not fully independent, but the more diverse the detectors, the closer we get to this ideal.
+
+> ⚡ **Constraint #1 breakthrough**: This mathematical result explains why our ensemble achieves 83% recall when the best individual detector reaches only 78%. Complementary errors cancel — fraud that one detector misses, another catches.
 
 ---
 
@@ -431,5 +435,7 @@ flowchart TD
 ## 10 · Bridge to Chapter 6
 
 Ch.5 achieved 83% recall by combining four detectors — the detection constraint is met. But a production fraud system needs more than accuracy. Ch.6 (Production & Real-Time Inference) addresses the remaining gaps: **concept drift detection** (fraudsters adapt → model must too), **latency optimization** (reduce the 50ms ensemble inference), **monitoring dashboards** (track model health), and **explainability** (generate human-readable reasons for each flag). This final chapter transforms FraudShield from a research prototype into a production-ready system that satisfies all 5 constraints.
+
+> ➡️ **From lab to production**: Achieving 83% recall in offline evaluation is one thing. Maintaining it as fraud evolves, delivering sub-100ms decisions, and explaining every block to compliance — that’s [Ch.6](../ch06_production).
 
 

@@ -91,7 +91,7 @@ The four tools and what they target:
 
 ## 2 · Running Example
 
-Network from Ch.4: `8 inputs → [128 ReLU] → [64 ReLU] → 1 linear`  
+Network from Ch.2: `8 inputs → [128 ReLU] → [64 ReLU] → 1 linear`  
 Trained on 80% of California Housing; evaluated on 20% held-out test.
 
 Without regularisation: model memorises district-specific quirks (a few outlier luxury blocks, census artefacts). **The goal:** improve test R² by at least 0.05 points with regularisation.
@@ -272,6 +272,7 @@ from sklearn.datasets import fetch_california_housing
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
+import numpy as np
 
 housing = fetch_california_housing()
 X, y = housing.data, housing.target
@@ -309,16 +310,6 @@ def dropout(h, p, training=True):
         return h
     mask = (np.random.rand(*h.shape) > p).astype(float)
     return h * mask / (1 - p)     # scale up to preserve expected magnitude
-
-## 9 · Where This Reappears
-
-Regularisation techniques are referenced throughout the curriculum and in production notes:
-
-- Model tuning and evaluation chapters in ML tracks.
-- Training best-practices in AIInfrastructure (weight decay, dropout, early stopping).
-- Practical examples in notebooks and project experiments.
-
-Adjust links and examples in an editorial pass if desired.
 ```
 
 ---
@@ -337,7 +328,25 @@ Adjust links and examples in an editorial pass if desired.
 
 ---
 
-## 9 · Progress Check — What We Can Solve Now
+## 9 · Where This Reappears
+
+Regularisation is the foundation for training stable, generalisable neural networks. Every subsequent chapter builds on these four techniques:
+
+- **[Ch.5 — CNNs](../ch05_cnns)**: Dropout after convolutional layers; Batch Normalisation (implicit regularisation); L2 weight decay for all conv filters. Data augmentation (random crops, flips) becomes the most powerful regulariser for image models.
+
+- **[Ch.6 — RNNs & LSTMs](../ch06_rnns_lstms)**: Dropout on LSTM hidden-to-hidden connections (variational dropout); gradient clipping (prevents exploding gradients, a form of regularisation); early stopping on sequence prediction validation loss.
+
+- **[Ch.7 — MLE & Loss Functions](../ch07_mle_loss_functions)**: L2 penalty reinterpreted as a Gaussian prior over weights (Bayesian perspective); connects regularisation to Maximum A Posteriori (MAP) estimation.
+
+- **[Ch.8 — TensorBoard](../ch08_tensorboard)**: Histogram visualisation of weight distributions (diagnose if L2 is too strong — all weights near zero); scalar tracking of train vs validation loss (visual early stopping signal).
+
+- **[Ch.10 — Transformers](../ch10_transformers)**: Layer normalisation (replaces batch norm in transformers); dropout on attention weights; label smoothing (regularises overconfident predictions); warmup + weight decay (AdamW optimiser combines both).
+
+The hyperparameter tuning chapter ([Ch.19 in the old curriculum](../../01_regression)) dedicates an entire section to the regularisation tuning order: dropout rate → L2 strength → early stopping patience → data augmentation budget.
+
+---
+
+## 10 · Progress Check — What We Can Solve Now
 
 ⚡ **MAJOR MILESTONE**: ✅ **Constraint #2 (GENERALIZATION) ACHIEVED!**
 
@@ -360,8 +369,8 @@ Adjust links and examples in an editorial pass if desired.
 **What we can solve:**
 
 **Generalize to unseen data!**
-- **Before** (Ch.5): Train R²=0.88, Test R²=0.64 → gap=0.24 (overfitting!)
-- **Now** (Ch.6): Train R²=0.82, Test R²=0.76 → gap=0.06 (acceptable!)
+- **Before** (Ch.3): Train R²=0.88, Test R²=0.64 → gap=0.24 (overfitting!)
+- **Now** (Ch.4): Train R²=0.82, Test R²=0.76 → gap=0.06 (acceptable!)
 - **Test MAE**: $85k → **$52k** (37% improvement on unseen districts)
 - **Real-world**: Model now works on new property listings, not just memorized training data
 
@@ -431,18 +440,18 @@ UnifiedAI can now predict house values on **new districts** (not in training dat
 - Can classify high/low value (binary)
 - Can't classify into 4+ market segments simultaneously ("Coastal Luxury", "Suburban Affordable", "Urban Dense", "Rural")
 - Can't do multi-label classification (e.g., "premium + new-construction + school-district")
-- **Need**: Ch.7-9 will add CNNs (spatial patterns), Ch.12 clustering (unsupervised segmentation)
+- **Need**: Ch.5 CNNs (spatial patterns from images), later chapters will add clustering (unsupervised segmentation)
 
 **Constraint #4 (INTERPRETABILITY)** — Still a black box:
 - **Question**: "Why did the model predict $350k for this district?"
 - **Current answer**: "Because 128 neurons in layer 1 activated, then 64 in layer 2, then..." (useless!)
-- **Need**: Feature importance, SHAP values, decision rules (Ch.10-11)
+- **Need**: Attention mechanisms (Ch.9-10) provide interpretable feature attribution; classical ML (Decision Trees, SHAP) covered in other tracks
 
 **Constraint #5 (PRODUCTION)** — Research code only:
 - No model versioning (can't roll back to previous version)
 - No A/B testing (can't compare model versions in production)
 - No monitoring (can't detect model drift or degradation)
-- **Need**: Ch.16-19 MLOps tooling
+- **Need**: Production tooling and monitoring covered in Ch.8 (TensorBoard) and MLOps best practices
 
 **Architectural decisions validated:**
 
@@ -482,11 +491,11 @@ For image-like data (satellite photos of districts, property images), we need **
 
 ---
 
-## 10 · Bridge to Chapter 5
+## 11 · Bridge to Chapter 5
 
 You can now train a well-regularised dense network. But dense networks treat every input pixel (or feature) symmetrically — they don't exploit spatial structure. Chapter 5 — **CNNs** — introduces convolutional filters that share weights across positions, making them orders of magnitude more efficient for image-like inputs.
 
 
 ## Illustrations
 
-![Regularisation — effect of L1, L2 penalties and dropout on learned weights](img/ch6-regularization.png)
+![Regularisation — effect of L1, L2 penalties and dropout on learned weights](img/ch04-regularisation.png)

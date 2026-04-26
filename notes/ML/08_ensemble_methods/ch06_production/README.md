@@ -264,17 +264,34 @@ print("\nFind the 'knee': where adding more trees stops helping.")
 
 ---
 
-## 9 · Progress Check
+## 9 · Progress Check — What We Can Solve Now
 
-| # | Constraint | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | IMPROVEMENT >5% | ✅ | Ensembles consistently beat single models |
-| 2 | DIVERSITY | ✅ | Stacking + pruning ensures useful diversity |
-| 3 | EFFICIENCY <5× | ✅ | Latency benchmarked; pruning keeps overhead manageable |
-| 4 | INTERPRETABILITY | ✅ | SHAP explains every prediction |
-| 5 | ROBUSTNESS | ✅ | Monitoring + versioning ensures production stability |
+![Progress visualization](img/ch06-progress-check.png) ← **Note**: This is a placeholder reference for future visual dashboard
 
-**All 5 EnsembleAI constraints achieved!**
+✅ **Unlocked capabilities:**
+- **Latency benchmarks**: P50/P99 measured for Linear/DT/RF/XGBoost/LightGBM/Stack — you know the cost
+- **Model pruning**: Found the "knee" where marginal accuracy gain drops below threshold
+- **Production decision framework**: "Ensemble or not?" decision tree for tabular vs non-tabular data
+- **Versioning discipline**: Model + data hash + hyperparameters + metrics + SHAP summary packaged together
+- **A/B testing protocol**: 2–4 week tests with guardrails on P99 latency and business metrics
+- **Monitoring infrastructure**: Feature drift, prediction distribution, SHAP value drift detection
+- **Constraint #1 (IMPROVEMENT) ✅ ACHIEVED**: Ensembles beat single models by >5% (validated in production)
+- **Constraint #2 (DIVERSITY) ✅ ACHIEVED**: Pruning ensures only useful diversity remains
+- **Constraint #3 (EFFICIENCY) ✅ ACHIEVED**: Latency <5× single model (via pruning and framework choice)
+- **Constraint #4 (INTERPRETABILITY) ✅ ACHIEVED**: SHAP explains every prediction (compliance-ready)
+- **Constraint #5 (ROBUSTNESS) ✅ ACHIEVED**: Monitoring + versioning + rollback ensure production stability
+
+**All 5 EnsembleAI constraints achieved in production context!**
+
+❌ **Still can't solve:**
+- ❌ **Online learning**: Ensemble models are batch learners — can't update incrementally without full retraining
+- ❌ **Imbalanced multi-class**: Ensembles help but don't fully solve 1:1000 class imbalance (need specialized sampling)
+- ❌ **Non-tabular data**: For images/text/audio, neural networks still dominate ensembles
+- ❌ **Causal inference**: Ensembles predict correlations, not causal effects — can't answer "What if I intervene?"
+
+**Real-world status**: You can now ship production-grade ensemble systems for tabular data. You've benchmarked latency, pruned weak members, versioned everything, A/B tested against simple baselines, and set up monitoring. Ensembles are justified when accuracy gain × business value > engineering overhead.
+
+**Track complete!** You've mastered the full ensemble lifecycle from bagging theory to production deployment. For tabular data, gradient-boosted trees with SHAP explanations are the industry standard.
 
 ---
 

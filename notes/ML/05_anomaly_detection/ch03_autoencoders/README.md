@@ -1,9 +1,5 @@
 # Ch.3 — Autoencoders for Anomaly Detection
 
-![Animation: reconstruction-error separation and ROC calibration move fraud recall from about 72% to 89%.](img/ch03-autoencoders-needle.gif)
-
-*Visual takeaway: learning normal transaction structure widens anomaly reconstruction error, and calibrated thresholds push recall into production-ready territory.*
-
 > **The story.** In **1986**, David Rumelhart, Geoffrey Hinton, and Ronald Williams published *"Learning representations by back-propagating errors"* — the paper that made training deep networks practical. Among many consequences, it enabled **autoencoders**: networks that learn to compress input into a bottleneck representation and then reconstruct it. The idea of using reconstruction error for anomaly detection came later, crystallized in the 2000s as deep learning matured. The logic is elegant: train a neural network to reconstruct *normal* data perfectly; when it encounters an anomaly, the reconstruction fails because the bottleneck never learned to encode that pattern. In **2014**, Kingma and Welling's Variational Autoencoder (VAE) added a probabilistic twist, and in **2016**, Sakurada and Yairi formally demonstrated autoencoders for industrial anomaly detection. Today, reconstruction-based detection is a pillar of deep anomaly detection — from fraud to manufacturing defects to medical imaging.
 >
 > **Where you are in the curriculum.** Ch.1 (statistics) caught 45% and Ch.2 (Isolation Forest) caught 72%. Both treat anomaly detection as a scoring/separation problem. This chapter introduces the first *representation learning* approach: the autoencoder learns **what normal looks like** by compressing and reconstructing it. Fraud, never seen during training on clean data, reconstructs poorly. This paradigm — learn normality, flag deviations — is the foundation of deep anomaly detection.
@@ -39,6 +35,14 @@ flowchart LR
     style CH3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style GOAL fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
+
+---
+
+## Animation
+
+![Reconstruction-error separation moves fraud recall from 72% to 78%](img/ch03-autoencoders-needle.gif)
+
+*Visual takeaway: learning normal transaction structure widens anomaly reconstruction error, pushing recall closer to the target.*
 
 ---
 
@@ -117,7 +121,7 @@ Without a bottleneck ($d_z = 30$, same as input), the network learns the identit
 - **Sweet spot** ($d_z = 7$-$14$): Captures normal structure, fails on fraud
 - **Too wide** ($d_z = 28$): Near-identity mapping → low error on fraud too (defeats the purpose)
 
-**Information bottleneck principle**: The optimal $d_z$ is the intrinsic dimensionality of the normal data manifold. For 30 PCA features with correlations, this is typically 7-14.
+> 💡 **Information bottleneck principle**: The optimal $d_z$ is the intrinsic dimensionality of the normal data manifold. Too wide → learns identity (fraud also reconstructs well). Too narrow → can't capture normal structure (high error on everything). For 30 PCA features with correlations, the sweet spot is typically $d_z = 7$-$14$.
 
 ### Denoising Autoencoder Extension
 
@@ -353,6 +357,8 @@ print(f"AUC: {auc(fpr, tpr):.4f}")
 
 ### Training on Contaminated Data
 
+> ⚠️ **Critical**: Always train **only on labeled legitimate transactions**. Even 0.17% fraud contamination degrades performance.
+
 - **Including fraud in training data** — If even 0.17% of training data is fraud, the autoencoder partially learns fraud patterns. With 227k normal transactions and 400 fraud, the impact is small but measurable (~1-2% recall drop). **Fix**: **Always train only on labeled legitimate transactions**. If labels aren't available, use the most conservative contamination assumption.
 
 ### Overfitting to Training Distribution
@@ -401,16 +407,20 @@ flowchart TD
 - **Constraint #4 (ADAPTABILITY)**: Static model — must retrain for new fraud patterns
 - ⚡ **Constraint #5 (EXPLAINABILITY)**: Per-feature reconstruction error shows *which features* reconstructed poorly — semi-interpretable
 
+**Progress toward constraints:**
+
 | Constraint | Status | Current State |
 |------------|--------|---------------|
-| #1 DETECTION | ❌ Very close | 78% recall (need >80%) |
-| #2 PRECISION | ✅ Met | <0.5% FPR achievable |
-| #3 REAL-TIME | ✅ Met | ~10ms inference |
-| #4 ADAPTABILITY | ❌ Blocked | Static model |
-| #5 EXPLAINABILITY | ⚡ Partial | Per-feature error decomposition |
+| **#1 DETECTION** | ❌ Very close | 78% recall (need >80%) |
+| **#2 PRECISION** | ✅ Met | <0.5% FPR achievable |
+| **#3 REAL-TIME** | ✅ Met | ~10ms inference |
+| **#4 ADAPTABILITY** | ❌ Blocked | Static model |
+| **#5 EXPLAINABILITY** | ⚡ Partial | Per-feature error decomposition |
 
 ---
 
 ## 10 · Bridge to Chapter 4
 
 The autoencoder brought us to 78% by learning *what normal looks like* and flagging deviations. But it's a neural network — computationally heavier and harder to interpret than classical methods. Ch.4 (One-Class SVM) offers a kernel-based alternative: draw a **tight boundary** around normal data in a high-dimensional kernel space. It's mathematically principled (maximum-margin), requires no neural network training, and achieves ~75% recall. More importantly, it captures a different signal than the autoencoder — making it a valuable component for the ensemble in Ch.5.
+
+> ➡️ **Completing the detector quartet**: We now have four complementary methods — [Ch.1](../ch01_statistical_methods) (statistical), [Ch.2](../ch02_isolation_forest) (tree-based), Ch.3 (neural), and [Ch.4](../ch04_one_class_svm) (kernel). Each peaks around 45-78% recall. [Ch.5](../ch05_ensemble_anomaly) fuses them to break 80%.

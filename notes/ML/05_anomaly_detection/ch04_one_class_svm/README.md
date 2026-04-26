@@ -38,7 +38,9 @@ flowchart LR
 
 ## Animation
 
-![Chapter animation](img/ch04-one-class-svm-needle.gif)
+![Boundary-based anomaly detection with One-Class SVM achieves 75% recall](img/ch04-one-class-svm-needle.gif)
+
+---
 
 ## 1 · Core Idea
 
@@ -382,13 +384,15 @@ flowchart TD
 - **Constraint #4 (ADAPTABILITY)**: Static model — retraining with new data is slow
 - ⚡ **Constraint #5 (EXPLAINABILITY)**: Can identify closest support vectors, but kernel-space reasoning is opaque
 
+**Progress toward constraints:**
+
 | Constraint | Status | Current State |
 |------------|--------|---------------|
-| #1 DETECTION | ❌ Close | 75% recall (need >80%). 4 complementary detectors available |
-| #2 PRECISION | ✅ Met | <0.5% FPR achievable |
-| #3 REAL-TIME | ✅ Met | ~20ms inference |
-| #4 ADAPTABILITY | ❌ Blocked | Slow retraining |
-| #5 EXPLAINABILITY | ⚡ Partial | Support vectors provide some interpretability |
+| **#1 DETECTION** | ❌ Close | 75% recall (need >80%). 4 complementary detectors available |
+| **#2 PRECISION** | ✅ Met | <0.5% FPR achievable |
+| **#3 REAL-TIME** | ✅ Met | ~20ms inference |
+| **#4 ADAPTABILITY** | ❌ Blocked | Slow retraining |
+| **#5 EXPLAINABILITY** | ⚡ Partial | Support vectors provide some interpretability |
 
 **The key observation**: No single method hits 80%. But each catches *different* fraud:
 - Z-score catches extreme-value fraud

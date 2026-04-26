@@ -250,21 +250,46 @@ print(f"Stack: RMSE = {rmse_stack:.4f}")
 
 ---
 
-## 9 · Progress Check
+## 9 · Where This Reappears
 
-| # | Constraint | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | IMPROVEMENT >5% | ✅ | Stack beats best single model (if diverse base learners) |
-| 2 | DIVERSITY | ✅ | Stacking forces combination of different model families |
-| 3 | EFFICIENCY <5× | ⚠️ | K base models → K× inference time |
-| 4 | INTERPRETABILITY | ✅ | SHAP on meta-learner (Ch.4) |
-| 5 | ROBUSTNESS | ✅ | Cross-validated stacking reduces variance |
+Stacking is the final accuracy tool before production deployment:
+
+➡️ **Ch.6 (Production)**: You'll learn when stacking is worth the 3–5× latency cost and when to stick with a single XGBoost model.  
+➡️ **Cross-track**: Stacking reappears in [02-Classification](../../02_classification) (stacked facial attribute classifiers), [04-RecommenderSystems](../../04_recommender_systems) (hybrid recommendation stacks), [05-AnomalyDetection](../../05_anomaly_detection) (ensemble detectors).  
+➡️ **Competition strategy**: Every Kaggle winner uses stacking in the final submission — it's the last 1–3% gain when single models plateau.
 
 ---
 
-## 10 · Bridge to Chapter 6
+## 10 · Progress Check — What We Can Solve Now
 
-Stacking gives the best possible accuracy on tabular data — but at what cost? $K$ base models means $K\times$ inference latency, $K\times$ memory, and $K\times$ deployment complexity. Chapter 6 tackles the **production reality**: when ensembles are worth the overhead, how to prune weak members, latency budgets, A/B testing ensemble vs single model, and the decision framework for "ensemble or not?"
+![Progress visualization](img/ch05-progress-check.png) ← **Note**: This is a placeholder reference for future visual dashboard
+
+✅ **Unlocked capabilities:**
+- **Meta-learning**: Meta-learner learns optimal combination of RF + XGBoost + Ridge across feature space
+- **Validation accuracy boost**: From roughly 88% (best single model) to 93% (stacked ensemble) in the seeded example
+- **Forced diversity**: Stacking requires different model families → decorrelated errors
+- **Cross-validated OOF predictions**: Out-of-fold predictions prevent data leakage in meta-learner training
+- **Constraint #1 (IMPROVEMENT) ✅**: Stack consistently beats best single model by 1–5% (if base models are diverse)
+- **Constraint #2 (DIVERSITY) ✅**: Forces combination of tree-based + linear + instance-based models
+- **Constraint #4 (INTERPRETABILITY) ✅**: SHAP on meta-learner explains final predictions
+- **Constraint #5 (ROBUSTNESS) ✅**: Cross-validated stacking reduces variance vs single-fold blending
+
+❌ **Still can't solve:**
+- ❌ **Constraint #3 (EFFICIENCY) — PARTIAL**: K base models → K× inference latency (vs 5× target)
+- ❌ **Production deployment**: Haven't benchmarked real-world P50/P99 latency or A/B tested vs simple model
+- ❌ **Model pruning**: Don't know which base models to drop without hurting accuracy
+- ❌ **Monitoring and versioning**: No production infrastructure for ensemble deployment
+- ❌ **Diminishing returns**: When does stacking overhead outweigh 1–3% accuracy gain?
+
+**Real-world status**: You can now achieve the highest possible accuracy on tabular data by stacking diverse models. But you don't know if it's worth deploying. Three base models = 3× latency. Will stakeholders pay that cost for 2% better MAE?
+
+**Next up:** Ch.6 gives you **production ensembles** — latency benchmarks, model pruning, A/B testing, versioning, monitoring, and the decision framework for "ensemble or not?"
+
+---
+
+## 11 · Bridge to Chapter 6
+
+Stacking delivers maximum accuracy, but $K$ base models means $K\times$ latency and deployment complexity. Chapter 6 tackles the **production reality** — latency benchmarks, model pruning, A/B testing, versioning, and the "ensemble or not?" decision framework.
 
 ➡️ **Evaluation:** Stack accuracy, AUC, and calibration metrics are covered in depth at [02-Classification/ch03-metrics](../../02_classification/ch03_metrics).  
 ➡️ **Tuning:** Meta-learner selection and base model grid search strategies are in [02-Classification/ch05-hyperparameter-tuning](../../02_classification/ch05_hyperparameter_tuning).

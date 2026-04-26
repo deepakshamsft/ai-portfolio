@@ -35,12 +35,12 @@ In the animation for this chapter, the Bellman gap contracts $8.20 \rightarrow 3
 Both converge to optimality. Both require knowing $P(s'|s,a)$.
 
 | Constraint | Status after this chapter |
-|-----------|-------------------------|
-| #1 OPTIMALITY | ✅ **Achieved!** Both algorithms find $\pi^*$ |
-| #2 EFFICIENCY | ⚠️ Depends on $|S|$ — polynomial in state space size |
-| #3 SCALABILITY | ❌ $O(|S|^2 |A|)$ per iteration — infeasible for large state spaces |
-| #4 STABILITY | ✅ Guaranteed convergence (contraction mapping) |
-| #5 GENERALIZATION | ❌ Solution is specific to the given MDP |
+|-----------|---------------------------|
+| #1 OPTIMALITY | ✅ **Achieved!** Both algorithms provably find $\pi^*$ (with known $P$) |
+| #2 EFFICIENCY | ⚠️ Polynomial in $|S|$ — $O(|S|^2 |A|)$ per iteration is feasible for small MDPs |
+| #3 SCALABILITY | ❌ $O(|S|^2 |A|)$ per iteration — infeasible for $|S| > 10^6$ (CartPole, Atari) |
+| #4 STABILITY | ✅ Guaranteed convergence (contraction mapping theorem, $\gamma < 1$) |
+| #5 GENERALIZATION | ❌ Solution is specific to the given $P$ and $R$ — no transfer |
 
 ```mermaid
 flowchart LR
@@ -386,8 +386,10 @@ flowchart TD
 
 Iterative policy evaluation and the value-function sweep underpin theoretical results across the track:
 
-- **Ch.3–Ch.4**: convergence guarantees for Q-learning and DQN cite the contraction-mapping property introduced here.
-- **Ch.5 Policy Gradients**: the actor-critic's critic is initialized by running a policy-evaluation sweep analogous to DP.
+- **[Ch.3 Q-Learning](../ch03_q_learning)**: Q-learning convergence proof relies on the contraction-mapping theorem from value iteration — same $\gamma$-contraction property guarantees $Q^k \to Q^*$.
+- **[Ch.4 DQN](../ch04_dqn)**: Target networks freeze $\theta^-$ for $C$ steps — analogous to policy evaluation's fixed-policy sweep before improvement.
+- **[Ch.5 Policy Gradients](../ch05_policy_gradients)**: Actor-critic's critic performs online policy evaluation (TD updates) — a 1-step approximation of the DP evaluation loop.
+- **[Ch.6 Modern RL](../ch06_modern_rl)**: PPO's clipped objective prevents large policy changes — enforcing a trust region analogous to policy iteration's monotonic improvement.
 - **AI / Agentic AI**: BFS/DFS planning in tool-calling agents is a discrete, deterministic special case of DP on a state graph.
 
 ## 10 · Progress Check

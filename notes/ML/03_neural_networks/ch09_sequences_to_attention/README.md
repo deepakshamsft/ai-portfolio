@@ -10,41 +10,44 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
-> 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
+> 1. **ACCURACY**: ≤$28k MAE (regression) + ≥95% accuracy (classification)
+> 2. **GENERALIZATION**: Unseen districts + new face identities
+> 3. **MULTI-TASK**: Same architecture predicts value **and** classifies attributes
+> 4. **INTERPRETABILITY**: Attention weights provide explainable feature attribution
+> 5. **PRODUCTION**: <100ms inference, TensorBoard monitoring
 
 **What we know so far:**
-- ✅ Ch.1–4: Achieved Constraints #1 ($48k MAE) and #2 (generalization)
-- ✅ Ch.5: CNNs for spatial data (partial #3 multi-task)
-- ✅ Ch.6: RNNs/LSTMs for sequential data (partial #5 production)
-- ✅ Ch.7: MLE — principled loss selection
-- ✅ Ch.8: TensorBoard training diagnostics (monitoring, partial #5)
-- ❌ Constraint #4 (INTERPRETABILITY): deferred to Ensemble track
-- 💡 **But RNNs are slow and bottlenecked**
+- ✅ Ch.1–2: Dense feedforward networks unify regression and classification (same hidden layers, different output heads)
+- ✅ Ch.3: Backpropagation and Adam optimizer work identically for both tasks
+- ✅ Ch.4: Dropout, L2, and batch normalization prevent overfitting in both paradigms
+- ✅ Ch.5: CNNs extract spatial features for image regression and classification
+- ✅ Ch.6: RNNs/LSTMs handle sequential data (time series regression, text classification)
+- ✅ Ch.7: MSE and BCE both derive from Maximum Likelihood Estimation (MLE)
+- ✅ Ch.8: TensorBoard monitors training identically across tasks (Constraint #5 partial)
+- ❌ **But RNNs are slow and bottlenecked — can't scale to production text processing**
 
 **What's blocking us:**
-⚠️ **RNN/LSTM bottleneck for sequence modeling**
 
 Product team wants to add **text descriptions** to property listings:
 - **Input**: "Spacious 3-bedroom home near excellent schools, recently renovated kitchen"
-- **Need**: Extract features from text to improve valuation
-- **Problem**: RNN (Ch.6) processes text **sequentially** — word 1 → word 2 → word 3 → ...
-  - **Slow**: Can't parallelize (GPU sits idle waiting for previous word)
-  - **Information bottleneck**: By word 20, model forgot word 1 ("spacious")
+- **Need**: Extract features from text to improve valuation accuracy
+- **Problem**: Ch.6's LSTM processes text **sequentially** — word 1 → word 2 → word 3 → ...
 
-**Why this matters:**
-- **Production latency**: RNN takes 200ms to process 50-word description → too slow for real-time API
-- **Accuracy loss**: Long-range dependencies lost ("spacious" at start affects value, but forgotten by end)
-- **Scalability**: Can't use full GPU parallelism → expensive compute wasted
+**The three failures:**
+1. **Latency (Constraint #5 PRODUCTION)**: LSTM takes 200ms to process 50-word description → blocks real-time API (<100ms target)
+2. **Information loss (Constraint #1 ACCURACY)**: By word 20, model forgot word 1 ("spacious") — long-range dependencies vanish through recurrence
+3. **GPU parallelism wasted (Constraint #5 PRODUCTION)**: Sequential processing means GPU cores sit idle waiting for previous token — can't scale to millions of listings
 
 **What this chapter unlocks:**
-⚡ **Attention mechanism — the foundation for Transformers (Ch.10):**
-1. **Parallel processing**: All words processed simultaneously (no sequential bottleneck)
-2. **Direct connections**: Word 20 can directly "look at" word 1 (no information loss)
-3. **Soft lookup**: Query-Key-Value mechanism → weighted sum over all positions
-4. **Interpretability**: Attention weights show which words model focuses on
 
-💡 **Bridge to Ch.10**: Attention is the core mechanism behind every modern LLM (GPT, BERT, Claude, Gemini)
+⚡ **Attention mechanism — parallel sequence processing:**
+- **Parallel processing**: All tokens processed simultaneously (no sequential bottleneck) → <50ms for 50 words
+- **Direct connections**: Word 20 can directly "look at" word 1 via softmax weights (no information loss)
+- **Soft dictionary lookup**: Query-Key-Value mechanism → differentiable weighted sum over all positions
+- **Interpretability foundation (Constraint #4)**: Attention weights show which words model focuses on (Ch.10 builds on this)
+
+> ➡️ **Forward to Ch.10**: This chapter builds the intuition and three building blocks (dot product similarity, softmax, Q/K/V roles). Ch.10 adds learnable projections ($W_Q, W_K, W_V$), multi-head attention, and positional encoding → the Transformer architecture behind GPT, BERT, and every modern LLM.
 
 ---
 
@@ -58,25 +61,29 @@ Product team wants to add **text descriptions** to property listings:
 
 A Python `dict` does *hard* lookup: the key either matches or it doesn't, and you get exactly one value. Attention does *soft* lookup: your query is compared to **every** key, a softmax turns those comparisons into weights, and the output is the weighted average of **every** value.
 
-That single line is the entire concept. Everything in Ch.10 — scaled dot-product attention, multi-head attention, self-attention, cross-attention, encoder blocks — is an elaboration on this one idea.
+That single line is the entire concept. Everything in [Ch.10](../ch10_transformers) — scaled dot-product attention, multi-head attention, self-attention, cross-attention, encoder blocks — is an elaboration on this one idea.
+
+> ➡️ **Contrast with [Ch.6](../ch06_rnns_lstms) RNNs**: An LSTM carries a single hidden state vector forward sequentially. Attention replaces that single vector with a **weighted blend computed fresh at every position** by looking at the entire sequence.
 
 ---
 
-## 2 · Running Example
+## 2 · Running Example: What We're Solving
 
-Same California Housing dataset we have used since Ch.1, but framed differently.
+The UnifiedAI mission requires processing **property text descriptions** to extract valuation features — \"Spacious 3-bedroom home near excellent schools, recently renovated kitchen.\" [Ch.6](../ch06_rnns_lstms)'s LSTM handles this sequentially, creating a latency bottleneck (200ms for 50 words) that blocks Constraint #5 (PRODUCTION: <100ms inference). Attention fixes this by processing all words in parallel.
 
-Treat a district as a **sequence of 8 feature-tokens**: `MedInc`, `HouseAge`, `AveRooms`, `AveBedrms`, `Population`, `AveOccup`, `Latitude`, `Longitude`. At the end of this chapter you will be able to answer:
+To build intuition, start simpler: treat each **California Housing district as a sequence of 8 feature-tokens** — `MedInc`, `HouseAge`, `AveRooms`, `AveBedrms`, `Population`, `AveOccup`, `Latitude`, `Longitude`. At the end of this chapter you will be able to answer:
 
 > *"Given the query `MedInc`, which other feature-tokens should I pay attention to when predicting house value?"*
 
-You will answer it with nothing more exotic than dot products and a softmax — no transformer required.
+You will answer it with nothing more than dot products and a softmax — no transformer, no learned weights, just the three building blocks. [Ch.10](../ch10_transformers) will then scale this to full text sequences with learned projections and positional encoding, delivering the <50ms latency needed for production.
 
 ---
 
 ## 3 · Math — Three Building Blocks
 
 ### 3.1 Dot Product as Similarity
+
+> 📚 **Math foundation**: For the geometric interpretation of dot products and vector norms, see [Math Under the Hood Ch.1 — Linear Algebra](../../../../math_under_the_hood/ch01_linear_algebra) and [Ch.5 — Matrices](../../../../math_under_the_hood/ch05_matrices).
 
 For two vectors $\mathbf{a}, \mathbf{b} \in \mathbb{R}^d$:
 
@@ -91,6 +98,8 @@ $$\mathbf{a} \cdot \mathbf{b} = \sum_{i=1}^{d} a_i b_i = \|\mathbf{a}\| \|\mathb
 If both vectors are **unit-normalised** ($\|\mathbf{a}\| = \|\mathbf{b}\| = 1$), the dot product is exactly $\cos\theta$ — cosine similarity. Every attention mechanism in modern AI is built on this one fact.
 
 ### 3.2 Softmax as Differentiable Argmax
+
+> 📚 **Math foundation**: For the derivative of exponential functions and the chain rule needed to backpropagate through softmax, see [Math Under the Hood Ch.6 — Gradient & Chain Rule](../../../../math_under_the_hood/ch06_gradient_chain_rule).
 
 Given a vector of scores $\mathbf{s} = (s_1, \ldots, s_n)$:
 
@@ -209,26 +218,45 @@ Same sentence, same wall-clock:
 
 ```mermaid
 flowchart LR
- subgraph RNN["Ch.6 RNN — sequential"]
- X1["x1"] --> H1["h1"] --> H2["h2"] --> H3["h3"] --> H4["h4"]
- X2["x2"] --> H2
- X3["x3"] --> H3
- X4["x4"] --> H4
- end
+    subgraph RNN["Ch.6 RNN — sequential"]
+        X1["x1"] --> H1["h1"] --> H2["h2"] --> H3["h3"] --> H4["h4"]
+        X2["x2"] --> H2
+        X3["x3"] --> H3
+        X4["x4"] --> H4
+    end
+    
+    style X1 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style X2 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style X3 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style X4 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style H1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style H2 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style H3 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style H4 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
 ```mermaid
 flowchart LR
- subgraph ATT["Ch.10 Attention — parallel"]
- A1["x1"] --> ALL((All positions<br/>attend to<br/>all positions<br/>simultaneously))
- A2["x2"] --> ALL
- A3["x3"] --> ALL
- A4["x4"] --> ALL
- ALL --> O1["y1"]
- ALL --> O2["y2"]
- ALL --> O3["y3"]
- ALL --> O4["y4"]
- end
+    subgraph ATT["Ch.10 Attention — parallel"]
+        A1["x1"] --> ALL((All positions<br/>attend to<br/>all positions<br/>simultaneously))
+        A2["x2"] --> ALL
+        A3["x3"] --> ALL
+        A4["x4"] --> ALL
+        ALL --> O1["y1"]
+        ALL --> O2["y2"]
+        ALL --> O3["y3"]
+        ALL --> O4["y4"]
+    end
+    
+    style A1 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style A2 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style A3 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style A4 fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style ALL fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style O1 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style O2 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style O3 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style O4 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
 The RNN needs 4 sequential steps. Attention needs 1 parallel step. On a GPU, that difference is the entire reason transformers won.
@@ -260,9 +288,14 @@ One input vector, three roles:
 
 ```mermaid
 flowchart LR
- X["x<br/>(token embedding)"] -->|"× W_Q"| Q["Q: what am I looking for?"]
- X -->|"× W_K"| K["K: what do I advertise?"]
- X -->|"× W_V"| V["V: what do I actually carry?"]
+    X["x<br/>(token embedding)"] -->|"× W_Q"| Q["Q: what am I looking for?"]
+    X -->|"× W_K"| K["K: what do I advertise?"]
+    X -->|"× W_V"| V["V: what do I actually carry?"]
+    
+    style X fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style Q fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style K fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style V fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
 This triangle is the single most compressed way to remember QKV:
@@ -318,16 +351,6 @@ def soft_lookup(q, keys, values, tau=1.0):
  output = weights @ values # (d_value,)
  return output, weights
 
-## 9 · Where This Reappears
-
-The attention intuition and soft-lookup pattern reappear across many chapters and application notes:
-
-- Transformers and multi-head attention in Ch.10.
-- MultimodalAI where self-attention is used to fuse modalities.
-- Retrieval and RAG pipelines in the AI track.
-
-Please update with precise chapter links during editorial review.
-
 # 8 housing features → 8 random "embeddings" in R^4 (in Ch.10 these are learned)
 rng = np.random.default_rng(42)
 feature_names = ["MedInc", "HouseAge", "AveRooms", "AveBedrms",
@@ -350,15 +373,106 @@ Run this and you will see an 8-element probability distribution summing to 1 —
 
 ## 8 · What Can Go Wrong
 
-- **Forgetting that attention is permutation-equivariant** — a transformer without positional encoding cannot tell "dog bites man" from "man bites dog"; if your model ignores order, check that PE is actually being added.
-- **Temperature too low (or dot products too large)** — the softmax saturates into a one-hot, gradients vanish, training stalls. Ch.10's $\sqrt{d_k}$ divisor is not cosmetic; it is the fix.
-- **Confusing "what the query is looking for" with "what the key advertises"** — $Q$ and $K$ come from the same input but play different roles. Using a single vector for both degrades every attention layer downstream.
-- **Assuming attention = alignment** — attention weights tell you *where the model looked*, not *why it decided*. They are a useful diagnostic, not an explanation.
-- **Mixing up set operations and sequence operations** — attention by itself is a set operation; the sequence-ness comes entirely from positional encoding.
+**Forgetting that attention is permutation-equivariant** — model ignores word order
+
+A transformer without positional encoding treats "dog bites man" and "man bites dog" identically — the attention mechanism is symmetric over positions. You discover this when your sentiment classifier gives the same score to "I love this, not bad" and "I hate this, not good" because it's only seeing the bag-of-words.
+
+**Fix:** Always verify positional encoding is added to embeddings before the first attention layer. In [Ch.10](../ch10_transformers), sinusoidal PE is injected once at the input; in production code, check `pos_encoding + token_embedding` happens before `attention_layer`.
 
 ---
 
-## Bridge to Ch.10
+**Temperature too low (or dot products too large)** — softmax collapses to one-hot, gradients vanish
+
+When dot products $q \cdot k_i$ grow large (high-dimensional embeddings without scaling), $e^{s_i}$ explodes, softmax puts 0.9999 weight on one position and $10^{-5}$ on the rest. The weighted sum degenerates to a hard lookup, gradients through the softmax vanish, and training stalls after the first few epochs.
+
+**Fix:** Scale attention scores by $\sqrt{d_k}$ (the square root of key dimension) — this is [Ch.10](../ch10_transformers)'s "scaled dot-product attention." The $\sqrt{d_k}$ divisor is not cosmetic; it prevents variance explosion as dimension grows.
+
+---
+
+**Confusing "what the query is looking for" with "what the key advertises"** — using same vector for Q and K
+
+$Q$ and $K$ come from the same input sequence but serve different roles: the query asks "what do I need?", the key answers "what do I offer?". Using the raw embedding for both (no learned projections $W_Q, W_K$) forces every position to look for itself most strongly, collapsing attention into a weak identity operation.
+
+**Fix:** [Ch.10](../ch10_transformers) introduces separate learnable projection matrices $W_Q \in \mathbb{R}^{d_{model} \times d_k}$ and $W_K \in \mathbb{R}^{d_{model} \times d_k}$ — this lets the model learn *what to look for* (Q) vs. *what to advertise* (K) as two separate functions.
+
+---
+
+**Assuming attention weights = model explanation** — misinterpreting attention as causality
+
+Attention weights show *where* the model looked, not *why* it made a decision. High attention on "not" when classifying "not bad" as positive doesn't mean "not" caused the positive label — it could be the downstream FFN layer that flipped the polarity. Research (Jain & Wallace 2019) shows attention weights often disagree with gradient-based attribution.
+
+**Fix:** Use attention weights as a **diagnostic** ("the model is looking at these tokens"), not an **explanation** ("these tokens caused the prediction"). For causal attribution, use integrated gradients or SHAP values — covered in the Ensemble Methods track's interpretability chapter.
+
+---
+
+**Mixing up set operations and sequence operations** — expecting attention to preserve order
+
+Attention itself has no notion of order — it's a weighted sum over a set. Shuffling the input tokens shuffles the output identically (permutation equivariance). If you train an attention-only model on "A then B then C" sequences, it can't distinguish them from "C then A then B" without external position information.
+
+**Fix:** Sequence-ness comes **entirely** from positional encoding, not from attention. [Ch.10](../ch10_transformers)'s sinusoidal PE injects absolute position into embeddings; relative positional encodings (T5, ALiBi) directly bias attention scores by distance.
+
+---
+
+## 9 · Progress Check — What We Can Solve Now
+
+✅ **Unlocked capabilities:**
+- **Parallel sequence processing**: All tokens attend to all others simultaneously (vs. LSTM's sequential bottleneck)
+- **Direct long-range connections**: Query at position $t$ can directly access key/value at position $1$ (no information decay through recurrence)
+- **Soft dictionary lookup intuition**: Understand attention as differentiable weighted retrieval (dot product → softmax → weighted sum)
+- **Q/K/V mental model**: One input vector, three roles (question / label / payload) — foundation for all transformer architectures
+- **Permutation equivariance**: Recognize that attention treats input as a set → motivates positional encoding necessity
+
+❌ **Still can't solve:**
+- ❌ **No learned projections yet**: This chapter reuses the same embedding for Q, K, V — Ch.10 introduces learnable $W_Q, W_K, W_V$ matrices
+- ❌ **Single attention head**: Ch.10's multi-head attention parallelizes multiple Q/K/V triplets to capture different relationship patterns
+- ❌ **No positional encoding**: Without position information, "dog bites man" = "man bites dog" — Ch.10 fixes this
+- ❌ **Not production-ready**: No full encoder stack, no layer norm, no residual connections — Ch.10 assembles the complete architecture
+- ❌ **Constraint #1 (ACCURACY)**: Still at Ch.6 baselines — Ch.10's full Transformer is needed to reach ≤$28k MAE target
+- ❌ **Constraint #4 (INTERPRETABILITY)**: Attention weights provide *diagnostic* information, not full explainability — deferred to Ensemble Methods track
+
+**Progress toward constraints:**
+
+| Constraint | Target | Status | Notes |
+|------------|--------|--------|-------|
+| #1 ACCURACY | ≤$28k MAE + ≥95% acc | ⏳ Foundation | Ch.9 builds attention intuition; Ch.10 delivers full Transformer architecture |
+| #2 GENERALIZATION | Unseen data | ✅ Maintained | Attention is permutation-equivariant → generalizes across token orders |
+| #3 MULTI-TASK | Same architecture | ✅ Maintained | Attention mechanism is task-agnostic (regression vs. classification) |
+| #4 INTERPRETABILITY | Explainable | ⏳ Partial | Attention weights show *where* model looks (diagnostic), not *why* it decides |
+| #5 PRODUCTION | <100ms, scalable | ⏳ Partial | Parallel processing unlocked; Ch.10 adds full encoder stack + production tooling |
+
+**Chapter progression:**
+
+```mermaid
+flowchart LR
+    CH1["Ch.1 XOR<br/>Non-linearity"] --> CH2["Ch.2 Neural Nets<br/>Dense layers"]
+    CH2 --> CH3["Ch.3 Backprop<br/>Training"]
+    CH3 --> CH4["Ch.4 Regularization<br/>Generalization"]
+    CH4 --> CH5["Ch.5 CNNs<br/>Spatial features"]
+    CH5 --> CH6["Ch.6 RNNs/LSTMs<br/>Sequential features"]
+    CH6 --> CH7["Ch.7 MLE<br/>Loss theory"]
+    CH7 --> CH8["Ch.8 TensorBoard<br/>Monitoring"]
+    CH8 --> CH9["✅ Ch.9 Attention<br/>Soft lookup<br/>Q/K/V intuition"]
+    CH9 --> CH10["Ch.10 Transformers<br/>Multi-head attention<br/>Positional encoding<br/>≤$28k MAE target"]
+    
+    style CH1 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH2 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH3 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH4 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH5 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH6 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH7 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH8 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH9 fill:#b45309,stroke:#e2e8f0,stroke-width:3px,color:#ffffff
+    style CH10 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+**Real-world status**: We understand the core attention mechanism (soft dictionary lookup via dot product + softmax) and the Q/K/V conceptual framework. We can explain why attention parallelizes where RNNs serialize. But we don't yet have a production-ready architecture — no learned projections, no multi-head parallelism, no positional encoding, no encoder stack. Ch.10 assembles all of this into the Transformer.
+
+**Next up:** [Ch.10](../ch10_transformers) gives us **Transformers** — multi-head attention, learnable $W_Q/W_K/W_V$ projections, sinusoidal positional encoding, layer norm, and residual connections. That complete architecture is what powers GPT, BERT, ViT, CLIP, and every modern foundation model.
+
+---
+
+## 10 · Bridge to Ch.10
 
 Ch.9 established **what attention is** — a soft dictionary lookup parameterised by dot product and softmax — and **what it lacks** without help: an inherent sense of order. Ch.10 takes exactly this mechanism, adds learnable $W_Q, W_K, W_V$ projections, scales the dot product by $\sqrt{d_k}$, runs multiple heads in parallel, and injects sinusoidal positional encodings — producing the transformer encoder that sits inside every modern LLM, embedding model, and vision foundation model. Every symbol in Ch.10 has already been introduced here. The only new ideas will be **how many** of them you stack.
 

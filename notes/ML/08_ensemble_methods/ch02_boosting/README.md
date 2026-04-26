@@ -291,21 +291,45 @@ flowchart TD
 
 ---
 
-## 9 · Progress Check
+## 9 · Where This Reappears
 
-| # | Constraint | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | IMPROVEMENT >5% | ✅ | GB beats RF on California Housing |
-| 2 | DIVERSITY | ✅ | Sequential error correction → each tree adds unique info |
-| 3 | EFFICIENCY <5× | ⏳ | Sequential training is slower than parallel RF |
-| 4 | INTERPRETABILITY | ⚡ | Feature importance available; SHAP in Ch.4 |
-| 5 | ROBUSTNESS | ⚠️ | Boosting sensitive to noise; needs early stopping |
+The boosting principles you've learned here underpin the entire production ML ecosystem:
+
+➡️ **Ch.3 (XGBoost/LightGBM/CatBoost)**: These frameworks implement gradient boosting with second-order optimization, histogram-based splits, and GPU acceleration.  
+➡️ **Ch.4 (SHAP)**: TreeSHAP computes exact feature contributions for boosted trees by exploiting the additive ensemble structure.  
+➡️ **Ch.5 (Stacking)**: Gradient Boosting is the most popular base learner in stacks — its low bias complements Random Forest's low variance.  
+➡️ **Ch.6 (Production)**: Early stopping (introduced here) is essential for production deployment — prevents overfitting and reduces unnecessary latency.  
+➡️ **Cross-track**: Boosting reappears in [05-AnomalyDetection](../../05_anomaly_detection) (Isolation Forest uses tree structure) and [04-RecommenderSystems](../../04_recommender_systems) (LightFM uses boosting-like updates).
 
 ---
 
-## 10 · Bridge to Chapter 3
+## 10 · Progress Check — What We Can Solve Now
 
-Gradient Boosting works, but sklearn's implementation is single-threaded, slow on large datasets, and lacks modern regularization. Chapter 3 introduces **XGBoost**, **LightGBM**, and **CatBoost** — industrial-strength frameworks that add second-order optimization, histogram-based splits, GPU acceleration, and native categorical handling. These are the models that actually win competitions and run in production.
+![Progress visualization](img/ch02-progress-check.png) ← **Note**: This is a placeholder reference for future visual dashboard
+
+✅ **Unlocked capabilities:**
+- **Bias reduction**: Gradient Boosting beats Random Forest on California Housing by focusing on residual errors
+- **Residual RMSE**: Dropped from roughly $92k$ (mean baseline) to $55k$ (boosted ensemble) through sequential correction
+- **Early stopping**: Validation-based halting prevents overfitting automatically
+- **Sequential learning**: Each tree adds unique information by fitting what the ensemble still gets wrong
+- **Constraint #1 (IMPROVEMENT) ✅**: GB beats RF by >5% on MAE/RMSE
+- **Constraint #2 (DIVERSITY) ✅**: Sequential error correction ensures every tree contributes differently
+
+❌ **Still can't solve:**
+- ❌ **Constraint #3 (EFFICIENCY)**: Sequential training is slower than parallel RF; can't use all CPU cores simultaneously
+- ❌ **Constraint #4 (INTERPRETABILITY)**: Feature importance is available but only global; per-prediction explanations need SHAP (Ch.4)
+- ❌ **Robustness to label noise**: Boosting keeps re-focusing on mislabeled samples → overfits noise without robust loss
+- ❌ **Production-grade speed**: sklearn's GradientBoosting is single-threaded and slow on large datasets (need XGBoost/LightGBM in Ch.3)
+
+**Real-world status**: You can now reduce bias by boosting, but sklearn's implementation is too slow for production and lacks modern regularization. Sequential training also makes it harder to parallelize.
+
+**Next up:** Ch.3 gives you **XGBoost, LightGBM, and CatBoost** — industrial-strength frameworks with second-order optimization, histogram splits, GPU acceleration, and L1/L2 regularization.
+
+---
+
+## 11 · Bridge to Chapter 3
+
+Gradient Boosting reduces bias by fitting residuals sequentially, but sklearn's implementation is too slow for production and lacks regularization. Chapter 3 introduces **XGBoost, LightGBM, and CatBoost** — frameworks that add second-order optimization, histogram splits, GPU support, and L1/L2 regularization.
 
 ➡️ **Evaluation:** Track learning curve overfitting with the metrics in [02-Classification/ch03-metrics](../../02_classification/ch03_metrics).  
 ➡️ **Tuning:** `n_estimators`, `learning_rate`, `max_depth` search strategies are in [02-Classification/ch05-hyperparameter-tuning](../../02_classification/ch05_hyperparameter_tuning).

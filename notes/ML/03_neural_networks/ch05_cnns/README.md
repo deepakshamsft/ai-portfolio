@@ -14,55 +14,97 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
-> 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+> 🎯 **The mission**: Launch **UnifiedAI** — prove neural networks unify regression and classification under one architecture, satisfying 5 constraints:
+> 1. **ACCURACY**: ≤$28k MAE (regression) + ≥95% accuracy (classification)
+> 2. **GENERALIZATION**: Work on unseen districts + future expansion (CA → nationwide)
+> 3. **MULTI-TASK**: Predict value (regression) AND classify attributes (multi-label)
+> 4. **INTERPRETABILITY**: Predictions explainable to non-technical stakeholders
+> 5. **PRODUCTION-READY**: <100ms inference, TensorBoard monitoring, scale to millions
 
 **What we know so far:**
-- ✅ Ch.1-4: Dense neural networks achieving $48k MAE with good generalization
-- ✅ **Constraint #1 (ACCURACY)** ✅ **Constraint #2 (GENERALIZATION)** both achieved
-- ✅ Can train regularized models on **tabular data** (8 numerical features)
+- ✅ Ch.1–2: Dense neural networks built the foundation — same architecture for regression and classification
+- ✅ Ch.3: Backpropagation trains both tasks identically (Adam + chain rule)
+- ✅ Ch.4: Regularization (dropout, L2, BatchNorm) transfers perfectly across tasks
+- ✅ Can handle **tabular data** (8 numerical features → house value or binary attributes)
 - ❌ **But dense networks are wrong for spatial data!**
 
 **What's blocking us:**
-⚠️ **New requirement: Multi-modal predictions from images**
+⚠️ **Images break dense networks — spectacularly**
 
-Product team wants to extend UnifiedAI:
-- **Current**: Predict house value from tabular features (MedInc, HouseAge, etc.)
-- **New requirement**: Also use **satellite imagery** of districts to assess neighborhood quality
-- **Business value**: Property condition (well-maintained vs distressed) strongly affects value
+Product team adds a new data source:
+- **Current**: Tabular features (MedInc, HouseAge, Latitude, etc.)
+- **New**: **Satellite imagery** of districts — detect well-maintained vs distressed neighbourhoods
+- **Why it matters**: Property condition (visible from aerial photos) strongly predicts value but isn't captured in census features
 
-**Why dense networks fail for images:**
-- **8×8 pixel grid** = 64 input values
-- **Dense layer** with 128 units = 64 × 128 = **8,192 parameters**
-- **Problem 1**: Treats pixel (0,0) and pixel (7,7) as unrelated → ignores spatial structure
-- **Problem 2**: Scale to 224×224 RGB images = 150,528 inputs × 128 units = **19 million parameters** in first layer!
-- **Problem 3**: No translation invariance — if a roof appears 5 pixels left, the network must relearn "roof" from scratch
+**Try it first — what happens if you feed an 8×8 image to a dense layer?**
+
+```
+8×8 greyscale grid = 64 pixel inputs
+Dense layer with 128 hidden units:
+  → 64 × 128 = 8,192 weights
+  → 128 biases
+  → 8,320 parameters for one layer
+```
+
+**Now scale to real images (224×224 RGB):**
+```
+224 × 224 × 3 = 150,528 inputs
+150,528 × 128 = 19,267,584 weights (first layer alone!)
+```
+
+**Three catastrophic failures:**
+
+1. **Parameter explosion**: 19 million weights in layer 1 → overfits training set with 2,000 images
+2. **No spatial structure**: Pixel (0,0) and pixel (223,223) are unrelated in weight matrix $W$ → ignores the fact that nearby pixels form edges, textures, objects
+3. **No translation invariance**: If a roof appears 10 pixels left, the network must relearn "roof" from scratch — it has separate weights for every position
+
+> 💡 **Hubel & Wiesel (1959) discovered the fix 30 years before anyone trained a CNN:** The cat's visual cortex has neurons that respond to local features (edges, bars) at any position. The same filter reused everywhere.
 
 **What this chapter unlocks:**
-⚡ **Convolutional Neural Networks (CNNs):**
-1. **Convolutional layers**: Sliding 3×3 filters with **weight sharing** → 9 parameters instead of 8,192
-2. **Translation equivariance**: Same filter detects edges/textures anywhere in the image
-3. **Pooling layers**: Downsample spatially (max/average pooling) → translation invariance
-4. **Hierarchical features**: Layer 1 = edges, Layer 2 = textures, Layer 3 = objects
 
-💡 **Application to UnifiedAI**: Train CNN on synthetic 8×8 neighborhood grids (bright = maintained, dark = distressed) → classify as "tidy" or "distressed". This will later extend to real satellite imagery for **Constraint #3 (MULTI-TASK)** partial progress.
+⚡ **Convolutional Neural Networks (CNNs) — the architecture that fixed computer vision:**
+
+1. **Weight sharing**: A 3×3 filter has **9 parameters** (vs. 8,192 for dense) and applies everywhere
+2. **Translation equivariance**: Same filter detects "roof edge" at any position
+3. **Pooling**: Max/average pooling → downsampling + translation invariance
+4. **Hierarchical features**: Layer 1 learns edges, Layer 2 learns textures, Layer 3 learns objects (emerges from backprop, not hand-designed)
+5. **Unification proof**: Same conv layers → different output head → solves regression AND classification
+
+**UnifiedAI progress:**
+- **Regression**: CNNs on satellite imagery → predict house value from aerial features
+- **Classification**: Same conv architecture → classify neighbourhood condition (tidy vs distressed)
+- **Constraint #3 (MULTI-TASK)** ⚡ Partial → spatial features now available for multi-modal fusion
+- **Constraint #4 (SPATIAL FEATURES)** ✅ Achieved → convolution captures local patterns dense layers miss
+
+> 📖 **Dataset note:** This chapter demonstrates CNNs on minimal **8×8 synthetic grids** (bright = maintained, dark = distressed) to keep the notebook runnable without large downloads. The same principles scale to 224×224 real satellite imagery — Ch.8 (TensorBoard) shows full CelebA integration.
 
 ---
 
 ## 1 · Core Idea
 
-A **Convolutional Neural Network** replaces the dense matrix multiply with a **sliding dot product** (convolution). The same learned filter is applied at every spatial position, exploiting two properties of images:
+A **Convolutional Neural Network** replaces the dense matrix multiply with a **sliding dot product** (convolution). The same learned 3×3 filter is applied at every spatial position — **weight sharing** cuts parameters from millions to single digits while learning translation-equivariant features.
 
-- **Translation equivariance:** a roof looks like a roof whether it's top-left or bottom-right.
-- **Locality:** nearby pixels are more informative about each other than distant ones.
+**Two properties of images that CNNs exploit:**
+
+1. **Locality**: Nearby pixels are more correlated than distant ones — edges, textures, and objects are local patterns
+2. **Translation equivariance**: A "roof edge" looks the same whether it appears top-left or bottom-right → the same filter should detect it everywhere
+
+**Parameter count comparison:**
 
 ```
-Dense layer: each of the 512×512 = 262,144 pixels connects to every neuron
- → millions of weights per layer, no spatial bias
+Dense layer on 224×224 RGB image:
+  Input: 224 × 224 × 3 = 150,528 values
+  Hidden layer: 128 units
+  Parameters: 150,528 × 128 = 19,267,584 (19 million!)
 
-Conv layer: a 3×3 filter has only 9 weights;
- it slides across all positions → same features detected everywhere
+Convolutional layer (32 filters, 3×3 kernel, RGB input):
+  Kernel size: 3 × 3 × 3 (RGB channels)
+  Filters: 32
+  Parameters: (3×3×3 + 1) × 32 = 896 (under 1,000!)
+  → 99.995% reduction
 ```
+
+> 💡 **Why this works:** The dense layer learns *"when pixel (10,10) is bright AND pixel (150,87) is dark, predict X"* — position-specific, doesn't generalise. The conv layer learns *"when a 3×3 patch looks like [edge filter], activate strongly"* — applies that knowledge everywhere.
 
 ---
 
@@ -289,15 +331,118 @@ def conv2d(x, kernel, stride=1, padding=0):
 # layers.MaxPooling2D(2, data_format='channels_first'),
 # layers.Conv2D(16, 3, activation='relu', data_format='channels_first', padding='valid'),
 # layers.Flatten(),
-# layers.Dense(32, activation='relu'),
-# layers.Dense(1, activation='sigmoid'),
-# ])
-# model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-# model.summary()
+⚠️ **Stacking 5+ conv layers without BatchNorm → training collapse**
+
+**Symptom:** Loss oscillates wildly after epoch 10, validation accuracy stuck at ~60%.
+
+**Why:** Each conv layer shifts the distribution of activations → later layers constantly re-adapt → gradients explode or vanish.
+
+**Fix:** Add `BatchNormalization()` after each `Conv2D + ReLU`. BN normalizes layer inputs per mini-batch → stable training.
+
+```python
+model.add(layers.Conv2D(32, 3, activation='relu'))
+model.add(layers.BatchNormalization())  # ← Add this
+model.add(layers.MaxPooling2D(2))
 ```
 
 ---
 
+⚠️ **Kernel size too large on small inputs → no spatial info left**
+
+**Symptom:** First conv layer outputs 2×2 feature map, pooling makes it 1×1 → network learns nothing.
+
+**Why:** 7×7 kernel on 8×8 input with `valid` padding → output size = $(8 - 7) / 1 + 1 = 2$. Pooling(2×2) → 1×1.
+
+**Fix:** Use 3×3 kernels (standard) or add `padding='same'` to keep spatial dims.
+
+```python
+![Progress visualization](img/ch05-cnns-needle.gif)
+
+✅ **Unlocked capabilities:**
+
+1. **Process spatial data efficiently**: 3×3 conv filter = **896 parameters** vs dense layer = **19 million** (99.995% reduction on 224×224 RGB)
+2. **Translation equivariance**: Same filter detects "roof edge" at (10,10) or (200,150) — learns once, applies everywhere
+3. **Hierarchical feature learning**: Layer 1 = edges, Layer 2 = corners/textures, Layer 3 = object parts (emerges from backprop)
+4. **Spatial downsampling**: MaxPool(2×2) halves resolution → broader receptive field + translation invariance
+5. **Multi-modal fusion ready**: CNN encoder (images → features) + concatenate with tabular features → UnifiedAI can now use satellite imagery + census data
+
+**Demonstration on synthetic 8×8 grids:**
+- **Task**: Binary classifier (tidy vs distressed neighbourhoods)
+- **Performance**: **92% accuracy** on held-out test set
+- **Architecture**: Conv2D(8 filters, 3×3) → MaxPool(2×2) → Conv2D(16, 3×3) → Dense(32) → Sigmoid
+- **Parameters**: 1,217 total (vs 8,320 for dense-only baseline)
+
+---
+
+**Progress toward UnifiedAI constraints:**
+
+| Constraint | Status | Evidence |
+|------------|--------|----------|
+| **#1 ACCURACY** | ⚠️ **In Progress** | Dense nets: ~$48k MAE (above $28k target). CNNs add spatial features but don't change tabular regression yet. |
+| **#2 GENERALIZATION** | ✅ **ACHIEVED** | Ch.4 regularization (dropout, L2, BN) prevents overfitting. Test performance stable. |
+| **#3 MULTI-TASK** | ⚡ **Partial** | **NEW**: Can process images + tabular! Same conv layers → different output head → classification (92% on 8×8 grids) OR regression. Multi-modal fusion pipeline ready. |
+| **#4 INTERPRETABILITY** | ⚡ **Partial** | Can visualize learned filters (edges, textures) but can't explain individual predictions yet. Need attention (Ch.9–10) or SHAP. |
+| **#5 PRODUCTION** | ❌ **Blocked** | Research notebook only. No model versioning, monitoring, or deployment pipeline. Need TensorBoard (Ch.8).
+**Fix:** Use `GlobalAveragePooling2D()` — collapses (128, 7, 7) → (128,) by averaging each 7×7 map to a single number.
+
+```python
+# Wrong: Flatten re-introduces parameter explosion
+layers.Flatten()  # (128,7,7) → (6272,)
+layers.Dense(128)  # 6272 × 128 = 803k params
+
+# Right: GAP keeps params minimal
+layers.GlobalAveragePooling2D()  # (128,7,7) → (128,)
+layers.Dense(128)  # 128 × 128 = 16k params
+```
+
+---
+
+⚠️ **Not normalizing pixel values → gradient explosion**
+
+**Symptom:** Loss = NaN after 2 epochs, weights explode to ±10,000.
+
+**Why:** Raw pixel values in [0, 255] → Conv2D weights initialized ~0.01 → first activations ~2.55 → ReLU passes them → layer 2 gets huge inputs → gradients explode.
+
+**Fix:** Divide by 255.0 before training: `X_img = X_img / 255.0` → pixels in [0, 1].
+
+---
+
+⚠️ **Applying max pooling too aggressively → spatial detail lost**
+
+**Symptom:** Network can't distinguish fine-grained patterns (e.g., window frames vs solid walls).
+
+**Why:** Two consecutive MaxPool(2×2) on 16×16 input:
+- After pool 1: 16×16 → 8×8
+- After pool 2: 8×8 → 4×4
+- Only 4×4 spatial info left → can't learn fine details
+
+**Fix:** Pool after every 2–3 conv layers, not after every layer. Let conv layers accumulate finer features before downsampling.
+
+---
+
+**Diagnostic flowchart:**
+
+```mermaid
+graph TD
+    A[Training fails] --> B{Loss oscillates<br/>after epoch 10?}
+    B -->|Yes| C[Add BatchNorm after each Conv2D]
+    B -->|No| D{Loss = NaN<br/>early?}
+    D -->|Yes| E[Normalize pixels: X/255.0]
+    D -->|No| F{Output 1×1 or 2×2<br/>after first conv?}
+    F -->|Yes| G[Use 3×3 kernel or padding='same']
+    F -->|No| H{Model has millions<br/>of parameters?}
+    H -->|Yes| I[Replace Flatten with GlobalAveragePooling2D]
+    H -->|No| J{Can't learn<br/>fine details?}
+    J -->|Yes| K[Reduce pooling frequency]
+    J -->|No| L[Check other issues:<br/>learning rate, optimizer]
+    
+    style C fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style E fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style G fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style I fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style K fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style A fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 ## 8 · What Can Go Wrong
 
 - **Not using BatchNorm after deep conv stacks.** Stacking 5+ conv layers without BatchNorm causes internal covariate shift — later layers constantly adapt to shifting activation distributions. Symptoms: slow convergence, loss oscillation after ~10 epochs. Fix: add `BatchNormalization()` after each `Conv2D + ReLU`.
@@ -374,7 +519,7 @@ def conv2d(x, kernel, stride=1, padding=0):
 ❌ **Explain CNN predictions** (Constraint #4):
 - Can visualize filters ("Layer 1 detects edges"), but not explain individual predictions
 - Need SHAP values (Ch.11) for per-prediction explanations
-
+This chapter proved **weight sharing** cuts parameters by 99.99% while learning translation-equivariant spatial features. **Ch.6 — RNNs/LSTMs** applies the same principle to *sequential* data: instead of sharing a filter across spatial positions, share a recurrent cell across time steps — monthly price trends, property descriptions, sensor readings. Same weight-sharing logic, different axis (time instead of space)
 ❌ **Production deployment** (Constraint #5):
 - No model versioning, monitoring, or A/B testing
 - Need MLOps infrastructure (Ch.16-19)
@@ -393,12 +538,26 @@ CNNs exploit spatial locality. But what if your data is a **sequence** — house
 
 ![Convolutional filters — sliding kernel feature extraction from input images](img/ch7-cnn-filters.png)
 
+---
+
 ## 11 · Where This Reappears
 
-Convolutional concepts reappear in vision and multimodal chapters, and in practical model engineering notes:
+CNNs are the foundation of computer vision — every concept from this chapter reappears throughout the modern ML stack:
 
-- MultimodalAI (TextToImage, VisionTransformers) for image encoders and hybrids.
-- Model deployment and inference optimisations in AIInfrastructure.
-- Examples and experiments in project folders and notebooks.
+**Within this track:**
+- **[Ch.8 — TensorBoard](../ch08_tensorboard)**: Monitor conv layer activations, visualize filter weights as histograms, track spatial dimension changes
+- **[Ch.9 — Sequences → Attention](../ch09_sequences_to_attention)**: Attention as "conv with learned kernel positions" — both do weighted sums over neighborhoods
+- **[Ch.10 — Transformers](../ch10_transformers)**: Vision Transformers (ViT) replace conv layers with attention, but conv is still used in hybrid architectures
 
-Replace these placeholders with precise cross-links during editorial pass.
+**Cross-track dependencies:**
+- **[Multimodal AI](../../multimodal_ai)**: Every image encoder (CLIP, diffusion models, Stable Diffusion) uses CNNs or their transformer successors
+- **[AI Infrastructure](../../ai_infrastructure/inference_optimization)**: Conv operations are the primary target for GPU optimization (CUDA kernels, TensorRT)
+- **[Projects](../../../projects/ml)**: Real-world CNN deployments (image classification, object detection, segmentation)
+
+**Specific reappearances:**
+1. **Weight sharing** → Transformers share attention weights across all positions (same principle, different mechanism)
+2. **Pooling** → Global Average Pooling before classifier (every modern CNN architecture)
+3. **Hierarchical features** → Foundation models (CLIP, ResNet) learn universal image representations
+4. **Translation equivariance** → Data augmentation (random crops, flips) exploit this property
+
+> ➡️ **Why this matters for UnifiedAI:** Ch.6 (RNNs) handles temporal sequences, Ch.10 (Transformers) unifies spatial + sequential + attention under one architecture. CNNs are the first step toward that unification.

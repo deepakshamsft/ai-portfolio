@@ -234,18 +234,20 @@ Output: Return G₀ (cumulative discounted reward)
 4. RETURN G
 ```
 
-**Trace through GridWorld** (policy: always go Right, then Down):
+**Trace through GridWorld** (policy: always go Right until hitting the wall at column 3, then go Down):
 
-| Step $t$ | State $s$ | Action $a$ | Next $s'$ | Reward $r$ | Discount | $G$ so far |
-|----------|-----------|-----------|-----------|-----------|----------|-----------|
+| Step $t$ | State $s$ | Action $a$ | Next $s'$ | Reward $r$ | Discount $\gamma^t$ | Contribution to $G$ |
+|----------|-----------|-----------|-----------|-----------|---------------------|--------------------|
 | 0 | 0 | → | 1 | −1 | 1.000 | −1.000 |
-| 1 | 1 | → | 2 | −1 | 0.900 | −1.900 |
-| 2 | 2 | → | 3 | −1 | 0.810 | −2.710 |
-| 3 | 3 | ↓ | 7 | −1 | 0.729 | −3.439 |
-| 4 | 7 | ↓ | 11 | −1 | 0.656 | −4.095 |
-| 5 | 11 | ↓ | 15 | +10 | 0.590 | +1.805 |
+| 1 | 1 | → | 2 | −1 | 0.900 | −0.900 |
+| 2 | 2 | → | 3 | −1 | 0.810 | −0.810 |
+| 3 | 3 | ↓ | 7 | −1 | 0.729 | −0.729 |
+| 4 | 7 | ↓ | 11 | −1 | 0.656 | −0.656 |
+| 5 | 11 | ↓ | 15 | +10 | 0.590 | +5.905 |
 
-**Final return:** $G_0 = 1.805$. The agent took 6 steps. Can we do better with a different policy?
+**Final return:** $G_0 = -1.000 - 0.900 - 0.810 - 0.729 - 0.656 + 5.905 = \mathbf{+1.810}$
+
+The agent took 6 steps. The discounted goal reward (+10 × 0.590) outweighs the accumulated step penalties. Can we do better with a different policy? Yes — a shorter path (e.g., 0→4\u21938→12→13→14→15, only 4 steps downward + 3 right) yields higher return.
 
 ---
 
@@ -411,7 +413,10 @@ flowchart TD
 
 The MDP vocabulary (state, action, reward, transition, discount, Bellman equation) is the shared language of the entire RL track and appears beyond it:
 
-- **Ch.2–Ch.6**: every algorithm is a different strategy for solving the Bellman optimality equation; the notation is identical.
+- **[Ch.2 Dynamic Programming](../ch02_dynamic_programming)**: Value iteration and policy iteration solve the Bellman optimality equation iteratively using known $P(s'|s,a)$.
+- **[Ch.3 Q-Learning](../ch03_q_learning)**: Q-learning learns $Q^*$ from experience using the same Bellman backup, but without knowing $P$.
+- **[Ch.4 DQN](../ch04_dqn)**: Neural network approximation replaces the Q-table, but the TD target $r + \gamma \max Q(s',a')$ is identical.
+- **[Ch.5 Policy Gradients](../ch05_policy_gradients)**: Actor-critic uses TD error $\delta = r + \gamma V(s') - V(s)$ as the advantage estimate — same Bellman bootstrap.
 - **AI / FineTuning**: InstructGPT and DPO cast language-model alignment as an MDP with human-preference rewards.
 - **MultiAgentAI**: multi-agent systems extend the single-agent MDP to joint action spaces and shared reward structures.
 

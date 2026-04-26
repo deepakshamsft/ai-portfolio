@@ -51,7 +51,9 @@ flowchart LR
 
 ## Animation
 
-![Chapter animation](img/ch04-dqn-needle.gif)
+![Animation: DQN stabilizes training and drives average episode reward from about 50 to 195+ on CartPole via experience replay and target networks.](img/ch04-dqn-needle.gif)
+
+**Needle moved:** average episode reward rises from roughly 50 (random policy) to 195+ (solved) as the DQN network converges with experience replay and target network stabilization.
 
 ## 1 · Core Idea
 
@@ -160,25 +162,32 @@ The online network $\theta$ picks the best action; the target network $\theta^-$
 
 ### 3.5 Numeric Example
 
-**Compact replay buffer (3 transitions):**
+**Compact replay buffer snapshot (3 transitions from CartPole):**
 
-| # | State $s$ | Action | Reward | Next $s'$ | Done |
-|---|-----------|--------|--------|-----------|------|
+| # | State $s$ (position, velocity, angle, ang.vel) | Action | Reward | Next $s'$ | Done |
+|---|-----------------------------------------------|--------|--------|-----------|------|
 | 1 | [0.02, 0.15, −0.03, −0.20] | 1 (Right) | +1 | [0.03, 0.10, −0.04, −0.15] | False |
 | 2 | [0.03, 0.10, −0.04, −0.15] | 0 (Left)  | +1 | [0.02, 0.09, −0.01, +0.10] | False |
 | 3 | [0.02, 0.09, −0.01, +0.10] | 1 (Right) | +1 | [0.04, 0.12, −0.03, −0.05] | False |
 
-**One gradient step using transition 1** ($\gamma = 0.99$):
+**DQN gradient step using transition #1** ($\gamma = 0.99$):
 
-Given: State $s = [0.02, 0.15, -0.03, -0.2]$, action $a = 1$ (Right), reward $r = 1$, next state $s' = [0.03, 0.10, -0.04, -0.15]$, $\gamma = 0.99$
+**Given:**
+- State $s = [0.02, 0.15, -0.03, -0.2]$, action $a = 1$ (Right), reward $r = 1$
+- Next state $s' = [0.03, 0.10, -0.04, -0.15]$
 
-Network outputs: $Q(s', 0; \theta^-) = 42.3$, $Q(s', 1; \theta^-) = 44.1$, current $Q(s, 1; \theta) = 40.5$
+**Network outputs (target network $\theta^-$):**
+- $Q(s', 0; \theta^-) = 42.3$ (Q-value for Left in next state)
+- $Q(s', 1; \theta^-) = 44.1$ (Q-value for Right in next state)
+- $Q(s, 1; \theta) = 40.5$ (current network's Q-value for the action taken)
 
-$$y = 1 + 0.99 \times \max(42.3, 44.1) = 1 + 0.99 \times 44.1 = 44.659$$
+**TD target:**
+$$y = r + \gamma \max_{a'} Q(s', a'; \theta^-) = 1 + 0.99 \times \max(42.3, 44.1) = 1 + 0.99 \times 44.1 = \mathbf{44.659}$$
 
-$$\mathcal{L} = (44.659 - 40.5)^2 = 17.31$$
+**Loss:**
+$$\mathcal{L} = (y - Q(s, a; \theta))^2 = (44.659 - 40.5)^2 = (4.159)^2 = \mathbf{17.30}$$
 
-Gradient step pushes $Q(s, 1; \theta)$ toward 44.659.
+**Gradient step:** Backpropagate through $Q(s, 1; \theta)$ to push it toward **44.659**. The target network $\theta^-$ parameters are **not** updated (frozen for $C$ steps).
 
 ---
 
@@ -428,9 +437,11 @@ flowchart TD
 
 Experience replay, target network stabilization, and neural function approximation for RL appear widely:
 
-- **Ch.5 Policy Gradients** and **Ch.6 Modern RL**: PPO, SAC, and TD3 all use experience replay and periodic target refreshes introduced here.
-- **Ch.6 Modern RL / Double-DQN**: the decoupled select/evaluate trick also appears in offline RL algorithms such as CQL.
-- **MultimodalAI / VisionTransformers**: CNN-based state representations connect directly to ViT patch embeddings.
+- **[Ch.5 Policy Gradients](../ch05_policy_gradients)**: Actor-critic can use replay buffers for off-policy variants (though standard A2C is on-policy); the critic network $V_w(s)$ is trained similarly to DQN's target.
+- **[Ch.6 Modern RL](../ch06_modern_rl)**: DDPG and SAC are off-policy algorithms using experience replay — DDPG is "DQN for continuous actions"; PPO's value network uses target-like updates with GAE.
+- **Ch.6 Modern RL / Double-DQN**: The decoupled select/evaluate trick ($\arg\max$ with $\theta$, evaluate with $\theta^-$) also appears in TD3 (twin critics) and offline RL algorithms like CQL.
+- **NeuralNetworks (ML Track 03) / BatchNormalization**: The target network's periodic hard update is similar to batch norm's running statistics — frozen parameters stabilize training.
+- **MultimodalAI / VisionTransformers**: CNN-based state representations (Atari frames → convolutional features) connect directly to ViT patch embeddings — both encode spatial structure.
 
 ## 10 · Progress Check
 

@@ -234,23 +234,44 @@ shap.plots.scatter(shap_values[:, "MedInc"])
 
 ---
 
-## 9 · Progress Check
+## 9 · Where This Reappears
 
-| # | Constraint | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | IMPROVEMENT >5% | ✅ | (Achieved in Ch.1–3) |
-| 2 | DIVERSITY | ✅ | (Achieved in Ch.1–3) |
-| 3 | EFFICIENCY <5× | ✅ | TreeSHAP is milliseconds per prediction |
-| 4 | INTERPRETABILITY | ✅ | **SHAP: per-prediction explanations** |
-| 5 | ROBUSTNESS | ✅ | (Achieved in Ch.1–3) |
+SHAP is the universal interpretability tool — you'll use it everywhere:
 
-**All 5 constraints addressed!**
+➡️ **Ch.5 (Stacking)**: Explain the meta-learner's decisions by applying SHAP to the stacked ensemble.  
+➡️ **Ch.6 (Production)**: SHAP summaries are part of every production deployment checklist — regulatory compliance requires per-prediction explanations.  
+➡️ **Cross-track**: SHAP works on *any* model — [03-NeuralNetworks](../../03_neural_networks) (DeepSHAP for neural nets), [02-Classification](../../02_classification) (KernelSHAP for SVMs), [04-RecommenderSystems](../../04_recommender_systems) (explain collaborative filtering).  
+➡️ **Backward pointer**: Retroactively satisfies **SmartVal Constraint #4** from [01-Regression](../../01_regression) — you can now explain the neural network predictions from Ch.4-6 of that track.
 
 ---
 
-## 10 · Bridge to Chapter 5
+## 10 · Progress Check — What We Can Solve Now
 
-SHAP explains *individual* ensemble models. But what if we could *combine* different types of models — a Random Forest, an XGBoost, and a linear model — into a super-ensemble? Chapter 5 introduces **stacking and blending**: train a *meta-learner* on the outputs of diverse base models. The meta-learner learns which base model to trust in which region of feature space. SHAP can then explain the meta-learner too.
+![Progress visualization](img/ch04-progress-check.png) ← **Note**: This is a placeholder reference for future visual dashboard
+
+✅ **Unlocked capabilities:**
+- **Per-prediction explanations**: "MedInc=8.2 pushed this prediction +$85k above average"
+- **Complete decomposition**: SHAP values sum exactly to (prediction - base value) — every dollar accounted for
+- **TreeSHAP speed**: Exact Shapley values in milliseconds for tree ensembles (polynomial time, not exponential)
+- **Model-agnostic**: SHAP works on any model (trees, neural nets, SVMs) via KernelSHAP or DeepSHAP
+- **Visual toolkit**: Waterfall (single prediction), beeswarm (global importance), dependence plots (feature interactions)
+- **Constraint #4 (INTERPRETABILITY) ✅ ACHIEVED!**: Per-prediction explanations satisfy regulatory compliance requirements
+- **All 5 EnsembleAI constraints now addressed!**
+
+❌ **Still can't solve:**
+- ❌ **Causal interpretation**: SHAP shows association, not causation — "MedInc correlates with price" ≠ "increasing MedInc causes higher prices"
+- ❌ **Counterfactual explanations**: SHAP doesn't answer "What would I need to change to get a different prediction?"
+- ❌ **Ensemble combination**: Can we beat XGBoost by *stacking* diverse models? (Next: Ch.5)
+
+**Real-world status**: You can now deploy XGBoost/LightGBM with full interpretability. Every prediction comes with a compliance-ready explanation. Lending regulators approve. Stakeholders trust the model. But can you squeeze even more accuracy by combining model families?
+
+**Next up:** Ch.5 gives you **stacking and blending** — train a meta-learner on predictions from diverse base models (RF + XGBoost + Ridge). The meta-learner learns which base model to trust in which region of feature space.
+
+---
+
+## 11 · Bridge to Chapter 5
+
+SHAP explains individual models, but what if you *combined* Random Forest + XGBoost + Ridge into a super-ensemble? Chapter 5 introduces **stacking** — a meta-learner that learns which base model to trust in which region of feature space.
 
 ---
 

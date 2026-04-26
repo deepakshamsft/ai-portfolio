@@ -52,7 +52,9 @@ flowchart LR
 
 ## Animation
 
-![Chapter animation](img/ch05-policy-gradients-needle.gif)
+![Animation: Actor-critic reduces policy gradient variance and drives average episode return from about 30 to 180+ on CartPole as the advantage function stabilizes learning.](img/ch05-policy-gradients-needle.gif)
+
+**Needle moved:** average episode return rises from roughly 30 (high-variance REINFORCE) to 180+ (low-variance actor-critic) as the advantage function ($A = Q - V$) stabilizes gradient estimates.
 
 ## 1 · Core Idea
 
@@ -120,15 +122,21 @@ where $G_t = \sum_{k=0}^{T-t} \gamma^k r_{t+k+1}$ is the return from time $t$.
 
 **Toy policy-gradient update (3-state, one episode):**
 
-Episode: s0→a1 (r=−1) → s1→a0 (r=+5) → s2 (terminal).  
-Returns: G0 = −1 + 0.9×5 = 3.5, G1 = 5, G2 = 0.
+Episode: $s_0 \xrightarrow{a_1, r=-1} s_1 \xrightarrow{a_0, r=+5} s_2$ (terminal).
 
-| Step | State | Action | Return G | log π(a\|s) gradient direction |
-|------|-------|--------|----------|-------------------------------|
-| 0 | s0 | a1 | 3.5 | push up π(a1\|s0) |
-| 1 | s1 | a0 | 5.0 | push up π(a0\|s1) strongly |
+Returns (working backward from terminal, $\gamma = 0.9$):
+- $G_2 = 0$ (terminal state, no future rewards)
+- $G_1 = r_2 + \gamma G_2 = 5 + 0.9 \times 0 = \mathbf{5.0}$
+- $G_0 = r_1 + \gamma G_1 = -1 + 0.9 \times 5.0 = -1 + 4.5 = \mathbf{3.5}$
 
-Positive returns reinforce the taken actions; a negative baseline (−2) would only reinforce actions better than chance.
+Policy gradient updates:
+
+| Step | State | Action | Return $G$ | Gradient direction | Effect |
+|------|-------|--------|------------|-------------------|--------|
+| 0 | $s_0$ | $a_1$ | **3.5** | $\nabla_\theta \log \pi(a_1|s_0)$ | Push up $\pi(a_1|s_0)$ (action led to positive return) |
+| 1 | $s_1$ | $a_0$ | **5.0** | $\nabla_\theta \log \pi(a_0|s_1)$ | Push up $\pi(a_0|s_1)$ **strongly** (high return) |
+
+Positive returns reinforce the taken actions. If we subtract a baseline of $b = 2.0$, the effective signals become $G_0 - b = 1.5$ and $G_1 - b = 3.0$ — still positive, but lower variance across episodes.
 
 **Numeric example** — CartPole episode:
 
@@ -421,9 +429,10 @@ flowchart TD
 
 The policy gradient theorem and actor-critic architecture are the direct precursors of modern RL algorithms and LLM alignment:
 
-- **Ch.6 Modern RL**: PPO is actor-critic with a clipped objective; A3C is parallel actor-critic; SAC adds entropy to the actor loss — all build on §3 here.
-- **AI / FineTuning**: RLHF trains the LLM policy with a PPO-style actor-critic loop; the reward signal comes from a trained preference model.
-- **MultiAgentAI / AgentFrameworks**: multi-agent actor-critic methods (MAPPO, QMIX) parallelise the single-agent architecture introduced here.
+- **[Ch.6 Modern RL](../ch06_modern_rl)**: PPO is actor-critic with a clipped surrogate objective ($\epsilon = 0.2$); A3C is asynchronous parallel actor-critic; SAC adds entropy maximization to the actor loss — all build on the advantage function $A(s,a) = Q(s,a) - V(s)$ from §3.5 here.
+- **AI / FineTuning / RLHF**: InstructGPT trains the language model policy $\pi_\theta$ using PPO with a learned reward model $r_\phi(s,a)$ — the actor-critic architecture from this chapter applied to text generation.
+- **AI / FineTuning / DPO**: Direct Preference Optimization skips the critic by using the policy's log-probability ratio as an implicit value — a simplified actor-only variant of policy gradients.
+- **MultiAgentAI / AgentFrameworks**: Multi-agent actor-critic methods (MAPPO, QMIX) extend the single-agent architecture here: MAPPO trains one policy per agent with a centralized critic; QMIX learns joint Q-values factored by agent.
 
 ## 10 · Progress Check
 

@@ -54,7 +54,9 @@ flowchart LR
 
 ## Animation
 
-![Chapter animation](img/ch01-statistical-methods-needle.gif)
+![Chapter 1 progress animation showing Z-score baseline establishing 45% recall](img/ch01-statistical-methods-needle.gif)
+
+---
 
 ## 1 · Core Idea
 
@@ -186,6 +188,8 @@ With 0.17% fraud rate:
 - **Type 2** (subtle): ~55% of fraud cases → indistinguishable from normal in marginal distributions
 
 This is why we get ~45% recall. Statistical methods detect the easy, extreme frauds but miss the sophisticated ones that mimic normal behavior.
+
+> 💡 **Key insight**: Anomalies that live in the distribution tails are easy to catch statistically. But sophisticated fraud that mimics normal behavior in marginal distributions requires learning multivariate structure — which is why we need Isolation Forests ([Ch.2](../ch02_isolation_forest)) and autoencoders ([Ch.3](../ch03_autoencoders)).
 
 ---
 
@@ -346,6 +350,8 @@ mahal = np.sqrt(np.sum(diff @ cov_inv * diff, axis=1))
 
 ### The Gaussian Assumption Trap
 
+> ⚠️ **Warning**: PCA features are NOT Gaussian — V1-V28 are PCA-transformed but the original features may have been highly non-Gaussian. PCA preserves the shape of distributions, not normality.
+
 - **PCA features are NOT Gaussian** — V1-V28 are PCA-transformed but the original features may have been highly non-Gaussian. PCA preserves the shape of distributions, not normality. A Z-score of 3 on a heavy-tailed feature captures far fewer anomalies than expected. **Fix**: Use **IQR** (distribution-free) or **robust Z-scores** using median and MAD (Median Absolute Deviation) instead of mean and std.
 
 ### The Univariate Blindness
@@ -401,19 +407,23 @@ flowchart TD
 
 **The core problem**: Statistical methods assume fraud = extreme values. But sophisticated fraud mimics normal transaction patterns. We need methods that learn complex "normality" boundaries.
 
+**Progress toward constraints:**
+
 | Constraint | Status | Current State |
 |------------|--------|---------------|
-| #1 DETECTION | ❌ Failing | 45% recall (need >80%) |
-| #2 PRECISION | ⚡ Partial | Achievable at 0.5% FPR but recall too low |
-| #3 REAL-TIME | ✅ Met | Z-scores compute in <1ms |
-| #4 ADAPTABILITY | ❌ Blocked | Static mean/std, no drift handling |
-| #5 EXPLAINABILITY | ⚡ Partial | Z-scores are interpretable |
+| **#1 DETECTION** | ❌ Failing | 45% recall (need >80%) |
+| **#2 PRECISION** | ⚡ Partial | Achievable at 0.5% FPR but recall too low |
+| **#3 REAL-TIME** | ✅ Met | Z-scores compute in <1ms |
+| **#4 ADAPTABILITY** | ❌ Blocked | Static mean/std, no drift handling |
+| **#5 EXPLAINABILITY** | ⚡ Partial | Z-scores are interpretable |
 
 ---
 
 ## 10 · Bridge to Chapter 2
 
 Ch.1 established the scoring paradigm — compute a deviation measure, threshold it, flag anomalies — but statistical methods assume fraud lives in distribution tails. Ch.2 (Isolation Forest) flips the idea: instead of measuring *distance from normal*, it measures *how easy a point is to isolate*. The key insight is that anomalies, being rare and different, require fewer random splits to separate from the rest. No distribution assumptions needed — just recursive partitioning. Recall jumps from 45% to ~72%.
+
+> ➡️ **Looking ahead**: [Ch.2](../ch02_isolation_forest) introduces tree-based isolation, [Ch.3](../ch03_autoencoders) uses neural reconstruction error, and [Ch.4](../ch04_one_class_svm) draws kernel-space boundaries. Each captures a different signal — setting up the ensemble in [Ch.5](../ch05_ensemble_anomaly) that finally exceeds 80%.
 
 ➡️ **Clustering-based anomaly detection:** DBSCAN and GMM-based isolation are covered in [07-UnsupervisedLearning/ch01-clustering](../../07_unsupervised_learning/ch01_clustering) — the same density intuition applies.
 

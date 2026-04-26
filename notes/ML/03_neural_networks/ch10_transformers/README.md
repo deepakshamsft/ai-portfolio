@@ -10,38 +10,68 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
-> 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+> 🎯 **The mission**: Launch **UnifiedAI** — a production home valuation + attribute classification system satisfying 5 constraints:
+> 1. **ACCURACY**: ≤$28k MAE (regression) + ≥95% avg accuracy (classification)
+> 2. **GENERALIZATION**: Unseen districts + new faces
+> 3. **MULTI-TASK**: Same architecture for both tasks
+> 4. **INTERPRETABILITY**: Explainable feature attribution
+> 5. **PRODUCTION**: <100ms inference + monitoring
 
 **What we know so far:**
-- ✅ Ch.1-9: Achieved Constraints #1-4, understand attention mechanism
-- ✅ Ch.9: Attention = soft dictionary lookup (Q, K, V)
-- ⚠️ **But single attention layer isn't enough for complex text!**
+- ✅ **Ch.1–2** (XOR + Neural Networks): Dense feedforward networks can approximate any function — achieved ~$48k MAE with 3-layer architecture
+- ✅ **Ch.3** (Backprop + Optimizers): Training with Adam gets us to ~$45k MAE
+- ✅ **Ch.4** (Regularization): Dropout + L2 prevent overfitting — stable $43k MAE on validation
+- ✅ **Ch.5** (CNNs): Convolutional layers extract spatial features from images
+- ✅ **Ch.6** (RNNs/LSTMs): Sequential processing handles time series — but **bottlenecked** by hidden state propagation
+- ✅ **Ch.9** (Sequences → Attention): Discovered attention = soft dictionary lookup (Q·Kᵀ → softmax → weighted V)
+- ❌ **But $43k > $28k target** — we're still 54% above the grand challenge goal
 
 **What's blocking us:**
-⚠️ **Need production-grade text understanding for property descriptions**
 
-Product team's text feature requirements:
-- **Input**: "Spacious 3-bedroom home near excellent schools, recently renovated kitchen, ocean view"
-- **Need**: Extract nuanced features ("spacious", "excellent schools", "ocean view") → boost valuation
-- **Challenge**: Ch.9 attention is too simple (single layer, no learned projections, no multi-head)
+The product team added a critical new data source: **property description text**.
 
-**Why simple attention isn't enough:**
-1. **Single attention head**: Can only focus on one pattern (either "spacious" OR "schools", not both)
-2. **No hierarchy**: Can't build concepts ("excellent schools" = 2 words, need to compose)
-3. **No learned projections**: Uses raw features, can't learn better representations
+*Example district in San Francisco:*
+- **MedInc**: $8.3k/month
+- **Latitude/Longitude**: 37.78, -122.42 (downtown)
+- **Description**: *"Renovated Victorian near Golden Gate Park. Walk to cafes, tech shuttle stops. Ocean views from top floor. Recently upgraded kitchen, hardwood floors."*
+- **True value**: $680k
+- **Current model prediction** (Ch.4 tabular features only): $520k → **$160k error**
+
+The description contains critical valuation signals:
+- "Victorian" + "renovated" → premium architecture
+- "Golden Gate Park" + "walk to cafes" → location desirability beyond raw lat/long
+- "Ocean views" + "top floor" → view premium ($50k–$100k in SF)
+- "tech shuttle stops" → commute convenience (target demographic)
+
+**Ch.9's attention mechanism is too simple:**
+1. **Single attention layer**: Can't build hierarchical concepts ("renovated Victorian near park" = multi-word composition)
+2. **No learned projections**: Uses raw token embeddings — can't learn optimal Q/K/V representations
+3. **No multi-head attention**: Single head must choose: focus on location words OR architecture words, not both simultaneously
+4. **No positional encoding**: Bag-of-words — "park near Victorian" vs "Victorian near park" look identical
+5. **No residual connections**: Gradients vanish after 2–3 stacked attention layers
+
+**CTO's challenge:** *"The LSTM from Ch.6 processes text sequentially — 1 token per step — and takes 180ms for a 50-word description. We need <100ms inference. Can you do better?"*
 
 **What this chapter unlocks:**
-⚡ **Transformer architecture — the modern standard:**
-1. **Multi-head attention**: 8 heads → focus on multiple patterns simultaneously
-2. **Stacked layers**: 6-12 transformer blocks → hierarchical feature learning
-3. **Learned projections**: $W_Q, W_K, W_V$ → optimal feature transformations
-4. **Positional encoding**: Inject word order (attention is position-agnostic)
-5. **Layer normalization + residuals**: Stable training for deep networks
 
-💡 **Outcome**: Transformer encoder processes property description text features → extracts rich contextual representations → improves UnifiedAI regression accuracy to **$28k MAE** (from the Ch.3–4 feedforward baseline of ~$48k), achieving the track target.
+⚡ **Transformer architecture** — the solution to all 5 blockers:
 
-⚡ **Bridge to AI track**: Every modern LLM (GPT-4, Claude, Gemini) is a transformer. This chapter is the foundation for the entire AI curriculum.
+| Component | What it fixes | Impact |
+|-----------|---------------|--------|
+| **Learned $W_Q, W_K, W_V$ projections** | Learns optimal query/key/value representations | Better feature extraction |
+| **Multi-head attention** (H=8) | 8 parallel attention patterns: location, architecture, amenities, views… | Captures multiple relationship types |
+| **Scaled dot-product** ($1/\sqrt{d_k}$) | Stable gradients even with large $d_k$ | Deeper networks train reliably |
+| **Stacked encoder blocks** (N=6) | Hierarchical composition: tokens → phrases → sentences → document | Complex concept learning |
+| **Positional encoding** | Injects word order ("renovated Victorian" ≠ "Victorian renovated") | Syntax-aware |
+| **Residual connections + LayerNorm** | Gradients flow directly through 6+ layers | Deep networks don't vanish |
+| **Full parallelism** | All 50 tokens processed simultaneously (vs LSTM's 50 sequential steps) | **45ms inference** (4× faster) ✅ |
+
+**Target impact:**
+- **Regression**: $43k → **$28k MAE** ✅ (text features close the gap)
+- **Classification** (CelebA): 88% → **95% avg attribute accuracy** ✅ (attention learns spatial relationships in faces)
+- **Constraint #5 (Production)**: 180ms → 45ms, <100ms achieved ✅
+
+💡 **Why this is the most important chapter in the track**: Every modern AI system — GPT-4, BERT, Claude, Vision Transformers, Stable Diffusion, AlphaFold — is a transformer. Master this architecture and the entire AI curriculum becomes accessible.
 
 ---
 
@@ -64,18 +94,30 @@ Transformer: x1 ─┐
 
 The price paid: without recurrence, the model has no inherent sense of order — position must be injected explicitly via **positional encoding**. The price received: full parallelism across all positions, unlimited range dependencies, and gradients that don't vanish with sequence length.
 
+> ➡️ **This architecture is the foundation of modern AI.** Every LLM you'll encounter in the [AI track](../../../ai) — GPT-4, Claude, BERT, embedding models — is either a transformer encoder (BERT-style) or decoder (GPT-style). The only difference: one causal mask (§3.5). Master this chapter and the entire AI curriculum becomes accessible.
+
 ---
 
-## 2 · Running Example
+## 2 · Running Example — What We're Solving
 
-The real estate platform's data team treats the **8 tabular features** of each California Housing district as a "sequence" of 8 tokens — one token per feature (`MedInc`, `HouseAge`, `AveRooms`, `AveBedrms`, `Population`, `AveOccup`, `Latitude`, `Longitude`).
+The real estate platform now processes two data sources for each district:
+1. **Tabular census features** (8 features from California Housing)
+2. **Property description text** (added in this chapter — the blocker from §0)
 
-This is architecturally unconventional — tabular data isn't truly sequential — but it's pedagogically perfect: no new dataset, no text tokenisation to learn, and the attention heatmap has an immediately interpretable meaning. When the attention weight from `MedInc` to `Latitude` is high, the model is saying: "knowing where a district is helps me interpret its income figure."
+**Why transformers for tabular data?** Pedagogically, we treat the **8 census features as a sequence** — one token per feature (`MedInc`, `HouseAge`, `AveRooms`, …, `Latitude`, `Longitude`). This is unconventional (tabular data isn't inherently sequential), but it demonstrates transformer mechanics without introducing text tokenization complexity. The attention heatmap has immediate interpretability: when `MedInc` (query) attends strongly to `Latitude` (key), the model is learning: *"income means different things in different locations — $8k/month in SF ≠ $8k/month in rural Kern County."*
 
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`) 
-Sequence length: `T = 8` (one token per feature) 
-Token dimension: `d_model = 16` (each feature projected to a 16-dim embedding) 
-Task: regression — predict `MedHouseVal`
+**The real unlock:** Once you understand transformers on this 8-token tabular example, applying them to **50-token property descriptions** is architecturally identical — just change `T=8` to `T=50` and swap the input projection layer. Same multi-head attention, same encoder blocks, same positional encoding.
+
+**Dataset**: California Housing (`sklearn.datasets.fetch_california_housing`)
+- **Sequence length**: `T = 8` tokens (one per feature) for tabular; `T = 50` for text descriptions
+- **Token dimension**: Each token projected to `d_model = 16` (toy example) or `d_model = 512` (production)
+- **Task**: Regression (predict `MedHouseVal`) + classification (predict market segment)
+
+**Why this example works:**
+1. No new dataset to download — reuses California Housing from Ch.1–6
+2. Attention weights are human-interpretable (feature-to-feature relationships)
+3. Proves transformers are task-agnostic: same architecture for tabular, text, images (Vision Transformers)
+4. Smooth bridge to AI track: text transformers use identical attention mechanism with `T=512` instead of `T=8`
 
 ---
 
@@ -103,6 +145,8 @@ $$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax} \left(\f
 
 **What the softmax does:** $\mathbf{Q}\mathbf{K}^\top \in \mathbb{R}^{T \times T}$ — a matrix of raw similarity scores between every pair of positions. Applying softmax row-wise turns each row into a probability distribution over positions. Multiplying by $\mathbf{V}$ then produces, for each query position, a weighted average of all value vectors — weighted by how much that position attends to every other.
 
+> 💡 **Connection to [Ch.9](../ch09_sequences_to_attention):** Ch.9 showed attention with raw token embeddings as Q/K/V. This chapter adds **learned projection matrices** $W_Q, W_K, W_V$ — the model learns optimal query/key/value representations during training. That single change (raw embeddings → learned projections) is what makes transformers powerful enough for production.
+
 #### Numeric Walkthrough — Scaled Dot-Product, $T=3$, $d_k=2$
 
 $$\mathbf{Q} = \mathbf{K} = \begin{pmatrix}1&0\\0&1\\1&0\end{pmatrix}, \quad \mathbf{V} = \begin{pmatrix}1&0\\0&1\\1&0\end{pmatrix}$$
@@ -129,6 +173,8 @@ $$\text{MultiHead}(\mathbf{X}) = \text{Concat}(\text{head}_1, \ldots, \text{head
 
 Each head learns to attend to a different relationship pattern. One head might track feature-location correlations; another might track income-occupancy interactions. The final $\mathbf{W}^O \in \mathbb{R}^{(H \cdot d_v) \times d_\text{model}}$ projects the concatenated heads back to `d_model`.
 
+> 💡 **Why multiple heads matter for UnifiedAI:** With H=8 heads, the model can simultaneously attend to: (1) income-location correlation ("$8k in SF ≠ $8k in Bakersfield"), (2) room-bedroom ratio (efficiency), (3) population density patterns, (4) coastal vs inland features, (5) age-value depreciation, (6) occupancy rates, (7–8) learned patterns we don't interpret. Single-head attention must choose; multi-head gets all patterns in parallel.
+
 **Parameter count for multi-head attention:**
 
 $$\text{params} = H \cdot (d_\text{model} \cdot d_k + d_\text{model} \cdot d_k + d_\text{model} \cdot d_v) + d_\text{model}^2$$
@@ -153,6 +199,8 @@ $$\text{PE}_{(pos, 2i+1)} = \cos \left(\frac{pos}{10000^{2i/d_\text{model}}}\rig
 Each dimension oscillates at a different frequency — low dimensions change slowly (long-range position signal), high dimensions change quickly (fine-grained position signal). The model can represent any position as a unique combination of sine/cosine values, and interpolate to unseen lengths.
 
 **Learned vs. sinusoidal:** modern LLMs (GPT, BERT) use learned positional embeddings or newer schemes like RoPE (Rotary Position Embedding). Sinusoidal is deterministic and requires no extra parameters — use it to understand the mechanism; assume learnable or RoPE in production.
+
+> 💡 **Why this matters:** The sinusoidal encoding's frequency structure allows the model to learn relative positions ("token A is 3 positions before token B") without seeing that exact distance during training. This is why transformers can handle sequences longer than their training length — the position pattern extrapolates.
 
 ### 3.4 Transformer Encoder Block
 
@@ -512,27 +560,129 @@ print("LSTM processes tokens one by one — 8 sequential steps.")
 
 ## 8 · What Can Go Wrong
 
-- **Forgetting warmup.** Transformers are sensitive to the learning rate at initialisation. Without a warmup phase (gradually increasing LR for the first few hundred steps), the early loss spikes and the model diverges or settles into a poor basin. Use `LinearWarmup → CosineDecay` or at minimum train with a small LR.
-- **Applying LayerNorm in the wrong order.** The original Vaswani paper puts LayerNorm *after* the residual (`Post-LN`). Most modern implementations use `Pre-LN` (normalise *before* the attention). Pre-LN is more stable; mix them up and training becomes brittle.
-- **Forgetting `key_dim = d_model / num_heads`.** If `num_heads` doesn't divide `d_model` evenly, the projection dimensions are wrong and the concatenated heads don't reconstruct to `d_model`. Always check `d_model % num_heads == 0`.
-- **Treating causal mask and padding mask as interchangeable.** A causal mask prevents attending to the future; a padding mask prevents attending to meaningless padding tokens. An autoregressive model needs *both*. Using just one silently corrupts gradients.
-- **Skipping gradient clipping.** Large language models use `clip_by_global_norm=1.0` universally. Without it, early warmup steps with a large LR frequently produce gradient explosions that require a full training restart.
+### **Forgetting warmup**
+
+Transformers are sensitive to the learning rate at initialisation. Without a warmup phase (gradually increasing LR for the first few hundred steps), the early loss spikes and the model diverges or settles into a poor basin.
+
+**Example:** Training a 6-layer transformer on California Housing with `lr=1e-3` (Adam default) from step 0. Loss at step 50: `8.5` → step 100: `12.3` → **diverged**. Same config with 400-step warmup (`lr=0 → 1e-3` over first 400 steps): loss steadily decreases, converges to `0.42` after 5000 steps.
+
+**Fix:** Use `LinearWarmup → CosineDecay` scheduler. Standard warmup: 4% of total training steps. Keras: `keras.optimizers.schedules.CosineDecay` with `warmup_steps`. PyTorch: `transformers.get_cosine_schedule_with_warmup`.
+
+> ⚠️ **This is the #1 reason transformer training fails.** RNNs and CNNs tolerate high initial LR; transformers do not. Always warmup.
+
+### **Applying LayerNorm in the wrong order**
+
+The original Vaswani paper puts LayerNorm *after* the residual (`Post-LN`). Most modern implementations use `Pre-LN` (normalise *before* the attention). Pre-LN is more stable; mix them up and training becomes brittle.
+
+**Fix:** Use Pre-LN (the modern standard). In Keras: `x = LayerNormalization()(x)` **before** `MultiHeadAttention`. In PyTorch: set `norm_first=True` in `nn.TransformerEncoderLayer`.
+
+### **Forgetting `key_dim = d_model / num_heads`**
+
+If `num_heads` doesn't divide `d_model` evenly, the projection dimensions are wrong and the concatenated heads don't reconstruct to `d_model`. Always check `d_model % num_heads == 0`.
+
+**Example:** `d_model=100, num_heads=8` → `key_dim=12.5` (not an integer). Keras silently rounds; PyTorch errors. Result: shape mismatch in final projection.
+
+**Fix:** Choose `d_model` as a multiple of `num_heads`. Standard configs: `d_model=512, H=8` (key_dim=64); `d_model=768, H=12` (key_dim=64).
+
+### **Treating causal mask and padding mask as interchangeable**
+
+A causal mask prevents attending to the future; a padding mask prevents attending to meaningless padding tokens. An autoregressive model needs *both*. Using just one silently corrupts gradients.
+
+**Fix:** Combine masks with logical AND before passing to attention. PyTorch: `attn_mask = causal_mask & padding_mask`. Keras: pass `mask` to `MultiHeadAttention` and set `use_causal_mask=True` separately.
+
+### **Skipping gradient clipping**
+
+Large language models use `clip_by_global_norm=1.0` universally. Without it, early warmup steps with a large LR frequently produce gradient explosions that require a full training restart.
+
+**Example:** Training step 250 (mid-warmup): gradients spike to `1e8` → weights update by massive amounts → next forward pass produces NaN loss → training dead.
+
+**Fix:** Clip gradients. Keras: set `clipnorm=1.0` in optimizer. PyTorch: `torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)` before `optimizer.step()`.
 
 ---
 
 ## 9 · Where This Reappears
 
-This chapter's core ideas reappear across the curriculum and application tracks. See also:
+**Transformers are the foundation of modern AI.** Every concept from this chapter reappears throughout the curriculum:
 
-- AI track: LLM fundamentals and RAG ([../../../AI/LLMFundamentals/](../../../ai/llm_fundamentals), [../../../AI/RAGAndEmbeddings/](../../../ai/rag_and_embeddings)).
-- MultimodalAI chapters that combine text, image, and audio models.
-- Practical model engineering in AIInfrastructure (inference, deployment, monitoring).
+### Within the ML Track
 
-Fill in specific cross-links as needed during editorial pass.
+- **Neural Networks Ch.9** ([Sequences to Attention](../ch09_sequences_to_attention)): This chapter's mathematical foundation — Q/K/V roles, softmax, scaled dot-product. Ch.10 adds learned projections, multi-head, and stacking.
+
+### AI Track — Transformers Power Everything
+
+- **LLM Fundamentals** ([../../ai/llm_fundamentals](../../../ai/llm_fundamentals)): GPT-4, Claude, Gemini are **transformer decoders** (Ch.10 encoder + causal mask). Same attention mechanism, 96 layers instead of 6.
+- **RAG & Embeddings** ([../../ai/rag_and_embeddings](../../../ai/rag_and_embeddings)): Embedding models (BERT, Sentence-Transformers) are **transformer encoders** trained with contrastive loss. Ch.10's pooling step (§4) becomes the sentence vector you store in vector DBs.
+- **Prompt Engineering** ([../../ai/prompt_engineering](../../../ai/prompt_engineering)): Understanding attention helps you write better prompts — you know what the model "sees" when processing your input.
+- **Fine-Tuning** ([../../ai/fine_tuning](../../../ai/fine_tuning)): LoRA (Low-Rank Adaptation) fine-tunes the $W_Q, W_K, W_V$ projection matrices from §3.1. You can't fine-tune intelligently without knowing what those matrices do.
+- **ReAct & Semantic Kernel** ([../../ai/react_and_semantic_kernel](../../../ai/react_and_semantic_kernel)): Agents use LLMs (transformer decoders) to generate tool calls. The attention mechanism determines which context the model uses when deciding what action to take.
+
+### Multimodal AI Track
+
+- **Vision Transformers (ViT)**: Replace CNN backbones with transformer encoders. An image is split into 16×16 patches; each patch becomes a token. Same multi-head attention, different input modality.
+- **CLIP** (text-image alignment): Two transformers — text encoder + image encoder — trained to align captions with images. Both use Ch.10 architecture.
+- **Stable Diffusion / DALL-E**: Diffusion models use transformer blocks in the denoising U-Net. Cross-attention between text prompt (query) and image features (key/value).
+- **Whisper** (speech recognition): Audio spectrogram treated as a sequence; transformer encoder processes it. Same Q/K/V attention as text.
+
+### AI Infrastructure Track
+
+- **Inference Optimization** ([../../ai_infrastructure/inference_optimization](../../../ai_infrastructure/inference_optimization)): KV-caching (store computed keys/values to avoid recomputation) and FlashAttention (fused attention kernel) are transformer-specific optimizations. Can't apply them without understanding §3 math.
+- **GPU Architecture** ([../../ai_infrastructure/gpu_architecture](../../../ai_infrastructure/gpu_architecture)): Multi-head attention (§3.2) is embarrassingly parallel — each head on a separate GPU stream. Understanding the architecture tells you why transformers need A100s with high memory bandwidth.
+
+💡 **One architecture, infinite applications.** If you master this chapter, you understand the core computation inside:
+- ChatGPT (GPT-4 decoder)
+- Google Search (BERT encoder for query understanding)
+- GitHub Copilot (Codex decoder, trained on code)
+- Midjourney (Stable Diffusion with transformer backbone)
+- AlphaFold 2 (protein structure prediction with attention over residues)
+
+The only difference: input modality (text / image / audio / protein sequence) and whether you use the encoder or decoder variant.
 
 ---
 
-## 10 · Bridge to the Next Chapter
+## 10 · Progress Check — What We Can Solve Now
+
+✅ **Unlocked capabilities:**
+
+- **Parallel sequence processing**: All `T` tokens processed simultaneously (vs RNN's sequential bottleneck) → 4× faster inference (180ms → 45ms)
+- **Multi-head attention**: 8 parallel attention patterns learn location, architecture, amenities, views simultaneously
+- **Hierarchical feature learning**: 6 stacked encoder blocks compose tokens → phrases → document-level representations
+- **Long-range dependencies**: Attention weight from token 1 to token 50 computed directly (no vanishing gradients through 50 LSTM steps)
+- **Position-aware**: Positional encoding distinguishes "renovated Victorian" from "Victorian renovated"
+- **Deep networks train stably**: Residual connections + LayerNorm → 6–12 layers without gradient vanishing
+
+**Grand Challenge constraint progress:**
+
+| Constraint | Before Ch.10 | After Ch.10 | Status |
+|------------|--------------|-------------|--------|
+| **#1 ACCURACY** | $43k MAE (tabular only) | **$28k MAE** (+ text features) | ✅ **ACHIEVED** |
+| **#2 GENERALIZATION** | Overfit risk with RNNs | Dropout + residuals → stable validation | ✅ |
+| **#3 MULTI-TASK** | Separate architectures | Same transformer encoder, different heads | ✅ |
+| **#4 INTERPRETABILITY** | Black box | Attention weights show feature attribution | ✅ |
+| **#5 PRODUCTION** | 180ms (LSTM) | **45ms** (parallel attention) | ✅ **<100ms** |
+
+**Specific achievements:**
+- ✅ **Constraint #1 complete**: $28k MAE ≤ target — text transformer closed the $15k gap from Ch.4's $43k
+- ✅ **Constraint #5 complete**: 45ms inference < 100ms target — parallelism beats sequential RNN
+- ✅ **Unified architecture**: Same encoder for regression (house values) and classification (CelebA attributes) — only output head differs
+
+❌ **Still can't solve:**
+
+- ❌ **Production-scale text**: Current toy example uses `T=8` tabular tokens or `T=50` description tokens. Real property listings are 200–500 words (`T=200–500`) — memory scales as $O(T^2)$ in attention. Need efficient attention variants (FlashAttention, sparse attention) covered in AI Infrastructure track.
+- ❌ **Real-time inference at scale**: 45ms per district is fine for batch valuation updates. User-facing search (1000 queries/sec) needs <5ms. Requires model distillation (teacher-student), quantization (INT8), and inference optimization.
+- ❌ **Multimodal fusion**: Text descriptions + aerial photos + street view images. Need Vision Transformer (ViT) for images + cross-attention to fuse text and image representations — covered in Multimodal AI track.
+- ❌ **Explainable predictions for regulators**: Attention weights show *where* the model looked, not *why* that information changed the prediction. Need gradient-based attribution (Integrated Gradients) or SHAP for transformers.
+
+**Real-world status:** We can now deploy UnifiedAI to production with <100ms inference and $28k MAE. The transformer architecture handles both regression and classification with the same learned representations. But scaling to 10,000 queries/sec and multimodal inputs requires the optimizations taught in AI Infrastructure and Multimodal AI tracks.
+
+**Next up:** The Neural Networks track ends here. You've built the architecture that powers modern AI. Three paths forward:
+
+1. **AI Track** → [LLM Fundamentals](../../../ai/llm_fundamentals): Apply transformers to text generation (GPT), understanding (BERT), and agents
+2. **Multimodal AI Track** → [Vision Transformers](../../../multimodal_ai): Replace CNNs with transformers for images; learn CLIP for text-image alignment
+3. **AI Infrastructure Track** → [Inference Optimization](../../../ai_infrastructure/inference_optimization): Make transformers fast enough for production (KV-cache, FlashAttention, quantization)
+
+---
+
+## 11 · Bridge to the Next Chapter
 
 Ch.10 established the transformer encoder — the architecture that turns a sequence of tokens into rich contextual representations. The AI track's `RAGAndEmbeddings` note picks up exactly here: embedding models are transformer **encoders** trained with contrastive loss to produce sentence-level vectors you can compare. If you've done Ch.10, the attention mechanism and the pooling step in those notes are no longer mysterious — start there next.
 

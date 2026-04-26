@@ -298,20 +298,44 @@ print(f"CatBoost — RMSE: {rmse_cat:.4f}  Time: {t_cat:.2f}s  Rounds: {cat.best
 
 ---
 
-## 9 · Progress Check
+## 9 · Where This Reappears
 
-| # | Constraint | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | IMPROVEMENT >5% | ✅ | XGB/LGB/Cat beat RF and sklearn GB |
-| 2 | DIVERSITY | ✅ | Different split strategies per framework |
-| 3 | EFFICIENCY <5× | ✅ | LightGBM: fast training; all: fast inference |
-| 4 | INTERPRETABILITY | ⚡ | Built-in feature importance; SHAP in Ch.4 |
-| 5 | ROBUSTNESS | ✅ | Regularization (L1/L2) + early stopping |
+The production-grade boosting frameworks you've learned here are the industry standard for tabular data:
+
+➡️ **Ch.4 (SHAP)**: TreeSHAP computes exact Shapley values for XGBoost/LightGBM in milliseconds — per-prediction explanations for regulatory compliance.  
+➡️ **Ch.5 (Stacking)**: XGBoost and LightGBM are the most popular base learners in production stacks — their speed and accuracy make them ideal ensemble members.  
+➡️ **Ch.6 (Production)**: XGBoost/LightGBM latency benchmarks, GPU deployment, and model pruning are covered in the production chapter.  
+➡️ **Cross-track**: XGBoost reappears everywhere — [05-AnomalyDetection](../../05_anomaly_detection) (Isolation Forest → XGBoost comparison), [04-RecommenderSystems](../../04_recommender_systems) (item feature models), [07-UnsupervisedLearning](../../07_unsupervised_learning) (cluster-downstream tasks).
 
 ---
 
-## 10 · Bridge to Chapter 4
+## 10 · Progress Check — What We Can Solve Now
 
-We now have accurate, fast, regularized ensemble models — but we can only explain them at the *global* level (which features matter overall). Stakeholders want *per-prediction* explanations: "Why did the model predict $350k for *this specific* district?" Chapter 4 introduces **SHAP** (SHapley Additive exPlanations) — a theoretically grounded framework from game theory that decomposes any model's prediction into feature contributions.
+![Progress visualization](img/ch03-progress-check.png) ← **Note**: This is a placeholder reference for future visual dashboard
 
+✅ **Unlocked capabilities:**
+- **Production-grade speed**: LightGBM trains 10×+ faster than sklearn GB via histogram binning
+- **Regularization toolkit**: L1/L2 on leaf weights (λ, α), minimum split gain (γ), early stopping
+- **Second-order optimization**: XGBoost uses gradient + Hessian for optimal split finding
+- **GPU acceleration**: All three frameworks support GPU training (10×+ speedup on large data)
+- **Categorical native handling**: CatBoost handles categoricals without one-hot encoding
+- **Constraint #1 (IMPROVEMENT) ✅**: XGB/LGB beat sklearn GB and Random Forest by >5%
+- **Constraint #2 (DIVERSITY) ✅**: Different split strategies (level-wise vs leaf-wise vs symmetric)
+- **Constraint #3 (EFFICIENCY) ✅**: Training <5× sklearn GB; inference <1ms per prediction
+- **Constraint #5 (ROBUSTNESS) ✅**: L1/L2 + early stopping prevent overfitting
+
+❌ **Still can't solve:**
+- ❌ **Constraint #4 (INTERPRETABILITY)**: Only global feature importance; no per-prediction explanations yet (need SHAP in Ch.4)
+- ❌ **Extrapolation**: Trees still clamp to training range — can't predict beyond observed values
+- ❌ **Online learning**: XGBoost/LightGBM are batch learners — can't update incrementally on new data
+
+**Real-world status**: You now have competition-winning, production-ready gradient boosting. These models dominate Kaggle tabular competitions and ship at scale (Uber, Airbnb, Spotify). But you still can't explain individual predictions to compliance teams.
+
+**Next up:** Ch.4 gives you **SHAP** — per-prediction explanations via Shapley values from game theory. You'll finally satisfy Constraint #4 (Interpretability) with TreeSHAP's exact, fast feature attributions.
+
+---
+
+## 11 · Bridge to Chapter 4
+
+XGBoost and LightGBM deliver production-grade accuracy and speed, but stakeholders want *per-prediction* explanations: "Why $350k for *this* district?" Chapter 4 introduces **SHAP** — Shapley values from game theory that decompose any model's prediction into exact feature contributions.
 

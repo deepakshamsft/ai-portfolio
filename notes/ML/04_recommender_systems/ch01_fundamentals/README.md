@@ -14,28 +14,24 @@
 > 1. **ACCURACY**: >85% hit rate@10 — 2. **COLD START**: New users/items — 3. **SCALABILITY**: 1M+ ratings — 4. **DIVERSITY**: Not just popular movies — 5. **EXPLAINABILITY**: "Because you liked X"
 
 **What we know so far:**
-- We have the MovieLens 100k dataset (943 users, 1,682 movies, 100k ratings)
-- We understand the business problem (recommend movies users will watch)
-- **But we have NO model yet!**
+- ✅ MovieLens 100k dataset loaded (943 users, 1,682 movies, 100k ratings, 93.7% sparse)
+- ✅ Business stakes understood (every % point in hit rate = $2M ARR; users with zero hits churn in 30 days)
+- ❌ **But you have NO model, NO metrics, NO baseline to compare against!**
+
+The VP of Product won't accept vague claims. You need falsifiable numbers: "Our system achieves X% hit rate, which beats the naive baseline by Y points." Without a baseline, "it feels better" is meaningless.
 
 **What's blocking us:**
-We need the **simplest possible baseline** and a rigorous evaluation framework. Before building matrix factorization or neural networks, we must establish:
-- How do we measure recommendation quality?
-- What accuracy can we achieve by just recommending popular movies?
-- What does the data actually look like (sparsity, distributions)?
+You have the MovieLens 100k dataset (100,000 ratings from 943 users on 1,682 movies). You understand the business problem (recommend movies users will watch). But you have **no model, no metrics, no baseline**. Before building matrix factorization or neural networks, you must answer three questions:
+- How do you measure recommendation quality?
+- What accuracy can you achieve by just recommending popular movies to everyone?
+- What does sparse data (93.7% of the user-item matrix is empty) mean for collaborative filtering later?
 
-Without a baseline, we can't measure progress. Without evaluation metrics, we can't compare approaches.
-
-| Constraint | Status | Notes |
-|-----------|--------|-------|
-| ACCURACY >85% HR@10 | ❌ Not started | Need baseline first |
-| COLD START | ❌ Not started | Popularity handles cold start trivially |
-| SCALABILITY | ✅ Trivial | Popularity = precomputed list |
-| DIVERSITY | ❌ Fails | Everyone gets the same list |
-| EXPLAINABILITY | ⚠️ Weak | "Because it's popular" — not personalised |
+Without a baseline, you can't measure progress. Without evaluation metrics, you can't compare approaches. The VP of Product won't accept "it feels better" — you need numbers.
 
 **What this chapter unlocks:**
-The **popularity baseline** — recommend the top-rated movies to all users — plus the evaluation framework (precision@k, recall@k, NDCG, hit rate) we use for the entire track.
+- **Popularity baseline**: 42% hit rate@10 by recommending the same top-rated movies to all users (Bayesian-averaged to avoid niche-movie dominance)
+- **Evaluation framework**: precision@k, recall@k, hit rate@k, NDCG@k — the shared metrics for Ch.1–6
+- **Sparsity quantification**: 93.7% empty matrix — the constraint that drives Ch.2–3's latent factor approach
 
 ```mermaid
 flowchart LR
@@ -58,15 +54,15 @@ flowchart LR
 
 ## 1 · Core Idea
 
-A recommender system predicts which items a user will prefer, then ranks those items to present a top-$k$ list. The three fundamental approaches are: **content-based filtering** (recommend items similar to what you liked before, using item features), **collaborative filtering** (recommend items that similar users liked), and **hybrid systems** (combine both). This chapter builds the simplest possible recommender — a popularity baseline — and establishes the evaluation metrics that all later chapters share.
+A recommender system predicts which items a user will prefer, then ranks those items to present a top-$k$ list. This chapter builds the simplest possible recommender — a **popularity baseline** (rank by average rating, recommend the same top-10 to everyone) — and establishes the evaluation metrics (precision@k, recall@k, hit rate@k, NDCG@k) that all later chapters share. You'll hit 42% on the hit-rate-at-10 metric — a 43-point gap to the 85% production target that later chapters must close.
 
 ---
 
-## 2 · Running Example
+## 2 · Running Example: What We're Solving
 
-You're a data scientist at FlixAI, a movie streaming platform. The VP of Product has a simple ask: "Give me a recommendation widget for the homepage. I don't care how it works — just show users movies they'll actually watch." Your first task: load the MovieLens 100k dataset, understand its structure, and build a popularity-based recommender as the baseline to beat.
+You're a data scientist at **FlixAI**, a movie streaming platform competing with Netflix. The VP of Product calls you into a meeting: "I need a recommendation widget for the homepage. I don't care how fancy the algorithm is — just show users movies they'll actually click. We're hemorrhaging engagement. Users scroll past our suggestions 60% of the time." 
 
-**Dataset**: MovieLens 100k — 100,000 ratings (1–5 stars) from 943 users on 1,682 movies. 93.7% of the user-item matrix is empty (sparse!).
+Your first task: load the MovieLens 100k dataset (100,000 ratings from 943 users on 1,682 movies), understand its structure (93.7% of the user-item matrix is empty!), and build a popularity-based recommender as the baseline to beat. You have one week to show numbers.
 
 ---
 
@@ -111,7 +107,15 @@ Of the $k$ items recommended, how many did the user actually interact with?
 
 $$\text{Precision@}k = \frac{|\{\text{relevant items}\} \cap \{\text{recommended top-}k\}|}{k}$$
 
-**Example**: Recommend 10 movies, user watched 3 of them → Precision@10 = 3/10 = 0.3
+**Worked example — 3 users, k=5:**
+
+| User | Relevant movies (rated 4+) | Recommended top-5 | Hits | Precision@5 |
+|------|---------------------------|-------------------|------|-------------|
+| Alice | {Star Wars, Fargo, Alien, Pulp Fiction} | {Star Wars, Shawshank, Fargo, Godfather, Forrest Gump} | {Star Wars, Fargo} | 2/5 = **0.40** |
+| Bob | {Jurassic Park, Matrix} | {Star Wars, Shawshank, Fargo, Godfather, Forrest Gump} | {} | 0/5 = **0.00** |
+| Carol | {Shawshank, Godfather} | {Star Wars, Shawshank, Fargo, Godfather, Forrest Gump} | {Shawshank, Godfather} | 2/5 = **0.40** |
+
+Mean precision@5 across 3 users = (0.40 + 0.00 + 0.40) / 3 = **0.27**
 
 #### Recall@k
 
@@ -119,7 +123,17 @@ Of all the items the user would interact with, how many did we surface in the to
 
 $$\text{Recall@}k = \frac{|\{\text{relevant items}\} \cap \{\text{recommended top-}k\}|}{|\{\text{relevant items}\}|}$$
 
-**Example**: User would watch 20 movies, we recommended 10, user watched 3 → Recall@10 = 3/20 = 0.15
+**Continued example:**
+
+| User | Total relevant | Hits in top-5 | Recall@5 |
+|------|----------------|---------------|----------|
+| Alice | 4 movies | 2 | 2/4 = **0.50** |
+| Bob | 2 movies | 0 | 0/2 = **0.00** |
+| Carol | 2 movies | 2 | 2/2 = **1.00** |
+
+Mean recall@5 = (0.50 + 0.00 + 1.00) / 3 = **0.50**
+
+💡 **Key insight:** Alice has higher recall (50%) than precision (40%) because she has 4 relevant movies total but only 2 were recommended. Carol has 100% recall (both her relevant movies appeared) but only 40% precision (the other 3 recommendations weren't relevant to her). Precision measures recommendation quality; recall measures coverage. **For FlixAI, hit rate matters most** — users who find zero relevant items in their top-10 churn within 30 days.
 
 #### Hit Rate@k (HR@k)
 
@@ -127,9 +141,17 @@ The fraction of users for whom **at least one** recommended item is relevant:
 
 $$\text{HR@}k = \frac{|\{u : |\text{relevant}_u \cap \text{top-}k_u| \geq 1\}|}{|\text{all users}|}$$
 
-**Example**: 943 users, 396 have ≥1 hit in their top-10 → HR@10 = 396/943 = 42%
+**Continued example:**
 
-This is our **primary metric** for the FlixAI challenge. It answers: "What fraction of users find something worth watching in our recommendations?"
+| User | Got ≥1 hit? |
+|------|------------|
+| Alice | ✅ Yes (2 hits) |
+| Bob | ❌ No (0 hits) |
+| Carol | ✅ Yes (2 hits) |
+
+HR@5 = 2/3 = **0.67** (67% of users found at least one relevant movie in their top-5)
+
+⚡ **Constraint #1 (ACCURACY) status**: 42% HR@10 → **43-point gap to 85% target**. The popularity baseline is the floor, not the ceiling. Every technique in Ch.2–6 exists to close this gap.
 
 #### NDCG@k (Normalized Discounted Cumulative Gain)
 
@@ -139,9 +161,26 @@ $$\text{DCG@}k = \sum_{j=1}^{k} \frac{2^{\text{rel}_j} - 1}{\log_2(j+1)}$$
 
 $$\text{NDCG@}k = \frac{\text{DCG@}k}{\text{IDCG@}k}$$
 
-where $\text{rel}_j$ is the relevance of the item at position $j$ and IDCG is the DCG of the ideal (perfect) ranking.
+where $\text{rel}_j$ is the relevance of the item at position $j$ (typically 1 for relevant, 0 for not) and IDCG is the DCG of the ideal (perfect) ranking.
 
-**Example**: If the relevant item is at position 1, DCG = 1.0. At position 10, DCG = 1/log₂(11) = 0.29. NDCG captures that rank 1 is 3.4× more valuable than rank 10.
+**Alice's ranking from the example above:**
+
+| Position $j$ | Movie | Relevant? | $\text{rel}_j$ | $2^{\text{rel}_j}-1$ | $\log_2(j+1)$ | Contribution |
+|------------|-------|-----------|---------|------------|----------|-------------|
+| 1 | Star Wars | ✅ Yes | 1 | 1 | 1.00 | 1.00 |
+| 2 | Shawshank | ❌ No | 0 | 0 | 1.58 | 0.00 |
+| 3 | Fargo | ✅ Yes | 1 | 1 | 2.00 | 0.50 |
+| 4 | Godfather | ❌ No | 0 | 0 | 2.32 | 0.00 |
+| 5 | Forrest Gump | ❌ No | 0 | 0 | 2.58 | 0.00 |
+
+DCG@5 = 1.00 + 0.00 + 0.50 + 0.00 + 0.00 = **1.50**
+
+Ideal ranking (both relevant items at positions 1–2):
+IDCG@5 = 1.00 + 1/1.58 = 1.00 + 0.63 = **1.63**
+
+NDCG@5 = 1.50 / 1.63 = **0.92**
+
+💡 **Key insight:** If Fargo had appeared at position 2 instead of position 3, DCG would be 1.00 + 0.63 = 1.63 (perfect score). NDCG penalizes pushing relevant items lower in the ranking — position 1 is worth 3.4× more than position 10. This matters for production: users rarely scroll past the first 3 recommendations.
 
 ### Worked 3×3 Example — Bayesian Average
 
@@ -321,32 +360,81 @@ flowchart TD
 
 ## 9 · Where This Reappears
 
-Evaluation metrics (HR@k, NDCG@k, precision@k, recall@k) and the train/test split strategy introduced here form the shared scaffolding for every subsequent chapter:
+**Evaluation metrics** introduced here (HR@k, precision@k, recall@k, NDCG@k) form the shared scaffolding for every subsequent chapter in this track:
 
-- **Ch.2–Ch.6**: every Progress Check table reuses HR@10 as the primary metric; the 85% target traces back to the baseline gap established here.
-- **Ensemble Methods (Topic 8)**: ranking ensemble outputs uses the same Bayesian-average damping described in §3.
-- **AI / RAG & Evaluating AI Systems**: retrieval metrics (MRR, NDCG) are direct descendants of the ranking evaluation framework built here.
+- **Ch.2 Collaborative Filtering**: Uses HR@10 to measure the jump from 42% (popularity) → 68% (user-user CF) → same leave-one-out split strategy
+- **Ch.3 Matrix Factorization**: Tracks HR@10 progression to 78% and introduces NDCG@10 to measure ranking quality as latent factors emerge
+- **Ch.4 Neural Collaborative Filtering**: Compares HR@10 and NDCG@10 between linear (SVD) and non-linear (neural) approaches at 83%
+- **Ch.5 Hybrid Systems**: Achieves 87% HR@10 (target met!) by fusing content + collaborative signals — still using the same evaluation protocol
+- **Ch.6 Cold Start & Production**: Extends HR@k with A/B testing metrics (lift, CTR) but HR@10 remains the offline evaluation gold standard
 
-## 10 · Progress Check
+**Bayesian average** (damping low-count items toward global mean) reappears in:
+- **Track 8 Ensemble Methods**: Weighted averaging of model outputs uses the same shrinkage principle
+- **AI Track / Evaluating AI Systems**: Retrieval metrics (MRR, NDCG) descend directly from the ranking framework built here
 
-| # | Constraint | Target | Ch.1 Status | Notes |
-|---|-----------|--------|-------------|-------|
-| 1 | ACCURACY | >85% HR@10 | ❌ 42% | Popularity baseline — no personalisation |
-| 2 | COLD START | New users/items | ⚠️ Trivial | Same list for everyone — works but unhelpful |
-| 3 | SCALABILITY | 1M+ ratings | ✅ | Precomputed list — O(n log n) once |
-| 4 | DIVERSITY | Not just popular | ❌ Fails | By definition recommends only popular items |
-| 5 | EXPLAINABILITY | "Because you liked X" | ❌ None | "Because it's popular" — not personalised |
+**Sparsity** (93.7% empty matrix) is the recurring villain:
+- **Ch.2**: User-user CF struggles when users share few co-rated items (sparsity kills neighborhood formation)
+- **Ch.3**: Matrix factorization solves this by learning latent factors that interpolate across missing entries
+- **Ch.4**: Neural embeddings provide even denser representations, compressing 1,682 items into 50-dimensional vectors
 
-**Bottom line**: 42% hit rate — the simplest baseline that gives everyone the same recommendations. We need **personalisation** to go further.
+💡 **Meta-lesson**: Every technique in Ch.2–6 is a response to sparsity. The popularity baseline ignores the user-item matrix structure entirely; every later chapter exploits it more deeply.
+
+## 10 · Progress Check — What We Can Solve Now
+
+✅ **Unlocked capabilities:**
+- **Baseline established**: 42% hit rate@10 using popularity-based recommendations (Bayesian-averaged to avoid niche-movie dominance)
+- **Evaluation framework**: precision@k, recall@k, HR@k, NDCG@k defined and demonstrated with worked 3-user examples
+- **Sparsity quantified**: 93.7% of the 943×1,682 user-item matrix is empty — this drives the need for latent factors in Ch.3
+- **Cold start trivially solved**: Same list for everyone works for new users (but provides zero personalization value)
+- **Scalability achieved**: Precomputed list → O(n log n) sort once, O(1) lookup per user
+
+❌ **Still can't solve:**
+- ❌ **Accuracy gap: 43 points below target** — 42% HR@10 vs 85% goal. Treating all users identically leaves 58% of users with zero relevant recommendations.
+- ❌ **Diversity fails by design** — Recommending "Shawshank Redemption" and "Star Wars" to everyone is accurate but useless. A 20-year-old action fan and a 60-year-old romance lover get the same 10 movies.
+- ❌ **Explainability is weak** — "Because it's popular" provides no personal insight. Users don't trust recommendations they don't understand.
+
+**Progress toward constraints:**
+
+| # | Constraint | Target | Ch.1 Status | Evidence |
+|---|-----------|--------|-------------|----------|
+| **#1** | **ACCURACY** | >85% HR@10 | ❌ **42%** | 43-point gap — need personalization |
+| **#2** | **COLD START** | New users/items | ⚠️ **Trivial** | Works but unhelpful (no taste signal) |
+| **#3** | **SCALABILITY** | 1M+ ratings | ✅ **Achieved** | Precomputed list, O(1) per user |
+| **#4** | **DIVERSITY** | Not just popular | ❌ **Fails** | By definition recommends only blockbusters |
+| **#5** | **EXPLAINABILITY** | "Because you liked X" | ❌ **None** | "Popular" ≠ personalized reasoning |
+
+**Real-world status**: You can launch a homepage widget that shows popular movies. It scales perfectly and handles cold start. But 58% of users find nothing worth watching in your top-10, and the recommendations provide zero personalization. The VP of Product would reject this.
+
+**Diagnostic question**: *Why does the popularity baseline fail so badly?*
+- **Root cause**: No user taste modeling. A user who rated 50 romance movies 5-stars and zero action movies gets recommended the same action blockbusters as everyone else.
+- **What we're missing**: User-item similarity. If User A and User B both loved "The Godfather" and "Goodfellas", they probably have similar taste — recommend what A liked to B.
+
+**Next up:** Ch.2 introduces **collaborative filtering** — find users with similar ratings, recommend what *they* liked. This jumps us from 42% → 68% by leveraging the structure of the 100k-rating matrix instead of ignoring it.
+
+```mermaid
+flowchart LR
+    CH1["Ch.1<br/>Popularity<br/>HR@10=42%"] --> CH2["Ch.2<br/>Collab Filtering<br/>HR@10=68%"]
+    CH2 --> CH3["Ch.3<br/>Matrix Factor<br/>HR@10=78%"]
+    CH3 --> CH4["Ch.4<br/>Neural CF<br/>HR@10=83%"]
+    CH4 --> CH5["Ch.5<br/>Hybrid<br/>HR@10=87% ✅"]
+    CH5 --> CH6["Ch.6<br/>Production<br/>Cold Start ✅"]
+    
+    style CH1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:3px,color:#ffffff
+    style CH2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH4 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH5 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH6 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ---
 
 ## 11 · Bridge to Next Chapter
 
-The popularity baseline treats every user identically — a 20-year-old action fan and a 60-year-old romance lover get the same 10 movies. Obviously this fails. The next chapter introduces **collaborative filtering**: find users with similar taste and recommend what *they* liked. This is the first step toward personalisation and will jump us from 42% to 68% hit rate.
+The popularity baseline treats every user identically — a 20-year-old action fan and a 60-year-old romance lover get the same 10 movies. This fails spectacularly (42% hit rate). **Ch.2 introduces collaborative filtering**: find users with similar rating patterns ("User A and User B both loved The Godfather and Goodfellas → similar taste") and recommend what *they* liked. This is the first step toward personalization and jumps hit rate from 42% → 68%.
 
-**What Ch.2 solves**: Personalised recommendations using user-user and item-item similarity.
+**What Ch.2 unlocks:** User-user and item-item similarity metrics (cosine, Pearson correlation), neighborhood formation, and personalized scoring.
 
-**What Ch.2 can't solve (yet)**: Sparsity (93.7% of the matrix is empty) limits the number of useful neighbors. We'll need latent factors (Ch.3) to overcome this.
+**What Ch.2 can't solve yet:** Sparsity (93.7% empty matrix) limits the number of useful neighbors — two users must have rated overlapping items to compute similarity. We'll need latent factors (Ch.3 matrix factorization) to overcome this.
 
 

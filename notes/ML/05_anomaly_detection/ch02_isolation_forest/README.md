@@ -1,9 +1,5 @@
 # Ch.2 — Isolation Forest
 
-![Animation: path-length scoring plus threshold tuning moves fraud recall from about 45% to 80%.](img/ch02-isolation-forest-needle.gif)
-
-*Visual takeaway: once rare cases are isolated quickly and the threshold is calibrated, the recall needle moves from weak baseline coverage to the target range.*
-
 > **The story.** In **2008**, Fei Tony Liu and Kai Ming Ting at Monash University and Zhi-Hua Zhou at Nanjing University published *"Isolation Forest"* — and flipped anomaly detection on its head. Every prior method asked "how far is this point from normal?" (distance-based) or "how dense is the region around this point?" (density-based). Liu et al. asked the opposite: **"how easy is this point to isolate?"** Their insight was beautifully simple: if you recursively split data with random cuts, anomalies — being few and different — get isolated in fewer splits than normal points. No density estimation, no distance computation, no distribution assumptions. Just trees. The algorithm ran in $O(n \log n)$ time, scaled to millions of records, and often outperformed methods that took orders of magnitude longer. It became the default first-try anomaly detector in industry within a decade.
 >
 > **Where you are in the curriculum.** Ch.1 showed that statistical thresholds catch ~45% of fraud — the extreme, obvious cases. This chapter introduces the first *learning-based* anomaly detector. Isolation Forest doesn't assume any distribution; it lets the data's structure decide what's anomalous. The path-length scoring concept here connects directly to ensemble methods in [Ch.5](../ch05_ensemble_anomaly) and will serve as one of our ensemble components in the final FraudShield system.
@@ -37,6 +33,14 @@ flowchart LR
     style CH2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style GOAL fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
+
+---
+
+## Animation
+
+![Path-length scoring and threshold tuning move fraud recall from 45% baseline to 72%](img/ch02-isolation-forest-needle.gif)
+
+*Visual takeaway: once rare cases are isolated quickly and the threshold is calibrated, the recall needle moves from weak baseline coverage toward the target range.*
 
 ---
 
@@ -112,6 +116,8 @@ $$s(\mathbf{x}, n) = 2^{-\frac{E[h(\mathbf{x})]}{c(n)}}$$
   - $s = 2^{-8.7/9.0} = 2^{-0.967} = 0.51$ → **normal**
 - Transaction C (deeply normal, in dense cluster): average path length $E[h] = 12.1$
   - $s = 2^{-12.1/9.0} = 2^{-1.344} = 0.39$ → **very normal**
+
+> 💡 **Key insight**: Anomalies require fewer splits to isolate because they’re **few** and **different**. Normal points live in dense clusters and need many splits to separate from each other. This is why isolation-based scoring works without any distribution assumptions.
 
 **4-sample path length worked example** ($\psi = 256$, $c(256) \approx 9.0$, anomaly threshold $s > 0.65$):
 
@@ -319,6 +325,8 @@ def path_length(x, tree, depth=0):
 
 ### Contamination Miscalibration
 
+> ⚠️ **Warning**: The default `contamination='auto'` (0.5) is catastrophically wrong for 0.17% fraud. Always set it explicitly or use ROC-curve thresholding.
+
 - **Using default `contamination='auto'` (0.5)** — Isolation Forest in sklearn defaults to 50% contamination, which is absurdly wrong for 0.17% fraud. The model sets its internal threshold to flag half the data as anomalous. **Fix**: Set `contamination` close to the true anomaly rate (0.001-0.005), or better yet, ignore sklearn's built-in threshold and use `decision_function()` scores with ROC-curve thresholding.
 
 ### Sub-sample Size Sensitivity
@@ -369,16 +377,20 @@ flowchart TD
 - **Constraint #4 (ADAPTABILITY)**: Static model — no drift detection
 - ⚡ **Constraint #5 (EXPLAINABILITY)**: Can identify which features contributed to isolation, but not as clear as Z-scores
 
+**Progress toward constraints:**
+
 | Constraint | Status | Current State |
 |------------|--------|---------------|
-| #1 DETECTION | ❌ Close | 72% recall (need >80%) |
-| #2 PRECISION | ✅ Met | <0.5% FPR achievable |
-| #3 REAL-TIME | ✅ Met | ~5ms inference |
-| #4 ADAPTABILITY | ❌ Blocked | No drift handling |
-| #5 EXPLAINABILITY | ⚡ Partial | Feature-level importance available |
+| **#1 DETECTION** | ❌ Close | 72% recall (need >80%) |
+| **#2 PRECISION** | ✅ Met | <0.5% FPR achievable |
+| **#3 REAL-TIME** | ✅ Met | ~5ms inference |
+| **#4 ADAPTABILITY** | ❌ Blocked | No drift handling |
+| **#5 EXPLAINABILITY** | ⚡ Partial | Feature-level importance available |
 
 ---
 
 ## 10 · Bridge to Chapter 3
 
 Isolation Forest improved recall from 45% to 72% by learning data structure instead of assuming distributions. But it still treats anomaly detection as a geometric problem — separating points with random cuts. Ch.3 (Autoencoders) takes a fundamentally different approach: **learn to reconstruct normal transactions**, then flag those with high reconstruction error as anomalies. By compressing transactions through a bottleneck, the autoencoder learns a compact representation of "normal" — and anything that doesn't compress well is suspicious. Recall jumps to ~78%.
+
+> ➡️ **The representation learning shift**: [Ch.1](../ch01_statistical_methods) and Ch.2 score anomalies by *position* (distance or isolation). [Ch.3](../ch03_autoencoders) scores them by *reconstructability* — a fundamentally different inductive bias that catches fraud the geometric methods miss.

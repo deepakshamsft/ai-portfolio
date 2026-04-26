@@ -14,17 +14,22 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
-> 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+> 🎯 **The mission**: Launch **UnifiedAI** — a unified neural architecture proving the same model handles regression AND classification, satisfying 5 constraints:
+> 1. **ACCURACY**: ≤$28k MAE (regression) + ≥95% avg accuracy (classification)
+> 2. **GENERALIZATION**: Unseen districts + new face identities
+> 3. **MULTI-TASK**: Same shared architecture for both tasks
+> 4. **INTERPRETABILITY**: Attention weights provide explainable feature attribution
+> 5. **PRODUCTION**: <100ms inference, TensorBoard monitoring, model versioning
 
 **What we know so far:**
-- ✅ Ch.1–7: Achieved Constraints #1 ($48k MAE) and #2 (generalization via regularisation)
-- ✅ Ch.5: CNNs for spatial data (partial #3 multi-task)
-- ✅ Ch.6: RNNs/LSTMs for sequences (partial #5 production-ready)
-- ✅ Ch.7: MLE framework — understand why we use each loss
-- ✔ Constraint #3 (MULTI-TASK): partial — CNNs handle images; full value+segment multi-task comes later
-- ❌ Constraint #4 (INTERPRETABILITY): deferred to Ensemble track (SHAP explanations)
-- ❌ **But training is still a black box!**
+- ✅ Ch.1–7: Achieved $48k MAE (progress toward #1) and generalization via regularisation (#2 ✅)
+- ✅ Ch.2: Same dense architecture handles regression and classification (partial #3)
+- ✅ Ch.5: CNNs extract spatial features for both tasks
+- ✅ Ch.6: RNNs/LSTMs handle sequential data
+- ✅ Ch.7: MLE framework — understand why we use MSE (regression) vs BCE (classification)
+- ❌ Constraint #1 (ACCURACY): Still at $48k MAE — need to push further to ≤$28k (Ch.9–10 unlock this via attention)
+- ❌ Constraint #4 (INTERPRETABILITY): Attention mechanisms coming in Ch.9–10
+- ❌ **But training is still a black box!** Can't diagnose why validation loss plateaus or gradients vanish
 
 **What's blocking us:**
 ⚠️ **Can't debug training failures**
@@ -49,7 +54,7 @@ Engineer reports: "Model trained for 50 epochs, validation loss stopped decreasi
 3. **Gradient histograms**: Monitor gradient magnitudes → catch vanishing/exploding gradients
 4. **Embedding projector**: Visualize learned representations → validate feature learning
 
-⚡ **Constraint #5 PARTIAL**: Monitoring infrastructure in place — still need versioning, A/B testing (Ch.19)
+⚡ **Constraint #5 PARTIAL ✅**: Monitoring infrastructure in place — still need versioning, A/B testing, deployment automation (final pieces in Ch.10 context)
 
 ---
 
@@ -71,17 +76,13 @@ TensorBoard is not a debugging tool for code errors. It is a **training diagnost
 
 ---
 
-## 2 · Running Example
+## 2 · Running Example — Instrumenting the UnifiedAI Training Loop
 
-We return to the **Ch.5 training loop**: a small Keras neural network trained on California Housing. We instrument it with the `TensorBoard` callback to emit:
+You're building **UnifiedAI** — the production home valuation system that must hit <$50k MAE while generalizing to unseen districts. [Ch.3](../ch03_backprop_optimisers) trained a 3-layer neural network to $48k MAE on **California Housing**, but you have no visibility into what happened during those 50 epochs: did early layers learn meaningful features? Did gradients vanish in deep layers? Did overfitting start at epoch 30 (wasting 20 epochs of compute)? TensorBoard answers these questions by instrumenting the training loop with four types of logs: **(1) Scalars** — training and validation MSE per epoch to detect overfitting the moment it starts; **(2) Histograms** — weight and gradient distributions per layer to catch vanishing gradients or dead neurons; **(3) Projector** — the network's intermediate 16-dim representation of test districts, visualized via t-SNE to validate that similar-priced neighbourhoods cluster together; **(4) Custom scalars** — learning rate schedules and any domain-specific metrics (e.g., error breakdown by price tier). You run the same Ch.3 architecture with one added line: `callbacks=[TensorBoard(log_dir='logs/run_001')]` — now every epoch writes diagnostic data that TensorBoard's browser dashboard reads in real-time.
 
-1. Training and validation MSE per epoch (Scalars)
-2. Weight and bias distributions per layer (Histograms)
-3. Gradient histograms (Histograms — requires manual summary writing or `histogram_freq`)
-4. Intermediate activations as a custom embedding (Projector)
-
-Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)  
-Network: 3-layer dense network (same as Ch.5)
+**Dataset**: California Housing (`sklearn.datasets.fetch_california_housing`) — 20,640 districts × 8 features  
+**Network**: 3-layer dense (8 → 64 → 32 → 16 → 1) with ReLU activations, same as [Ch.3](../ch03_backprop_optimisers)  
+**What you'll see**: The scalars tab showing validation loss plateau at epoch 35 (early stopping signal), histograms revealing that the first hidden layer's gradients are 100× smaller than the output layer (mild vanishing gradient), and the projector showing that high-value coastal districts ($500k+) cluster separately from inland districts — proof the network learned geographically meaningful features.
 
 ---
 
@@ -317,9 +318,68 @@ print("Embedding + metadata written for Projector tab")
 
 ---
 
-## Bridge to Ch.9 — From Sequences to Attention
+## Illustrations
 
-Ch.8 gave you the instruments to diagnose a trained network. Ch.9 is a short **bridge chapter** that introduces attention as a soft dictionary lookup — dot product + softmax + weighted sum of values — without any transformer machinery. It exists so the full transformer architecture in Ch.10 lands softly: every symbol you will meet there ($Q$, $K$, $V$, the $T\times T$ attention matrix, positional encoding) is introduced first in pure-numpy form in Ch.9.
+![TensorBoard panels — scalars, weight histograms, embedding projector, and diagnostics dashboard](img/ch16-tensorboard.png)
+
+---
+
+## 9 · Where This Reappears
+
+TensorBoard's instrumentation patterns reappear throughout the remaining Neural Networks track and across the broader AI curriculum:
+
+**Within this track:**
+- **[Ch.9 — Sequences to Attention](../ch09_sequences_to_attention)**: TensorBoard scalars track attention weight entropy and Q/K/V gradient flow — critical for diagnosing when attention collapses to uniform weights or fails to learn position-dependent patterns
+- **[Ch.10 — Transformers](../ch10_transformers)**: The Projector tab visualizes positional encodings and multi-head attention outputs; weight histograms reveal whether different attention heads learn distinct patterns (specialization) or collapse to identical behaviour (redundancy)
+- **01-Regression / [Ch.07 — Hyperparameter Tuning](../../01_regression/ch07_hyperparameter_tuning)**: TensorBoard's `HParams` plugin automates hyperparameter sweep visualization — compare 100+ training runs side-by-side to identify optimal learning rate, batch size, and architecture combinations
+
+**Cross-track applications:**
+- **Classification track**: Monitor precision/recall curves and ROC-AUC as custom scalars; log confusion matrices as images to catch class imbalance issues mid-training
+- **Ensemble Methods**: Compare TensorBoard logs across individual base learners (decision trees, neural nets) vs. the ensemble — validate that ensemble loss converges faster and to a lower minimum
+- **Anomaly Detection**: Histogram tab reveals when autoencoders learn to reconstruct only normal samples (healthy training) vs. memorizing anomalies (overfitting failure mode)
+
+**Production & MLOps notes (AI Infrastructure track):**
+- **Experiment tracking systems** (Weights & Biases, MLflow, Neptune) extend TensorBoard's single-run logging to multi-experiment comparison with hosted dashboards, automatic hyperparameter recording, and model versioning
+- **Production monitoring** adapts TensorBoard patterns: Prometheus/Grafana dashboards log inference latency, prediction distributions, and data drift metrics using the same scalar/histogram mental model
+- **Model debugging workflows**: TensorBoard Profiler (GPU timeline, memory usage, op-level bottlenecks) feeds directly into optimization decisions in deployment pipelines
+
+**Key insight for production:** The habit of always launching TensorBoard at training start (`tensorboard --logdir logs/ &`) becomes second nature — the 10-second setup cost saves hours of debugging when training diverges or validation metrics plateau unexpectedly.
+
+---
+
+## 10 · Progress Check — What We Can Solve Now
+
+![Progress dashboard showing Constraint #5 monitoring infrastructure now in place](img/ch08-progress-check.png)
+
+✅ **Unlocked capabilities:**
+- **Diagnose training failures in real-time**: Scalars tab catches overfitting the moment validation loss diverges from training loss — no more wasting 20+ epochs on a doomed training run
+- **Detect vanishing/exploding gradients**: Histogram tab shows gradient magnitudes per layer — spot dying neurons (ReLU outputting 0 always) or weight collapse before the model fully fails
+- **Validate feature learning**: Projector tab visualizes intermediate representations — confirm that the network learned meaningful embeddings where similar inputs cluster together
+- **Monitor compute efficiency**: Profile tab identifies GPU bottlenecks (data loading, layer-wise throughput) — optimize training speed without guessing
+
+**Constraint status update:**
+- ✅ **Constraint #1 (ACCURACY)**: Still at $48k MAE — TensorBoard provides diagnostics but doesn't directly improve accuracy (next chapters unlock that)
+- ✅ **Constraint #2 (GENERALIZATION)**: Regularization (Ch.4) handles this; TensorBoard validates it by showing train/val gap
+- ⏸️ **Constraint #3 (MULTI-TASK)**: Deferred to later chapters
+- ⏸️ **Constraint #4 (INTERPRETABILITY)**: Deferred to Ensemble Methods track (SHAP)
+- ⚡ **Constraint #5 (PRODUCTION) — PARTIAL ✅**: **Monitoring infrastructure is now in place!**  
+  We can instrument training, log metrics, and diagnose failures — critical production capability unlocked. Still missing: model versioning, A/B testing, deployment automation (covered in Hyperparameter Tuning chapter and AI Infrastructure track).
+
+❌ **Still can't solve:**
+- ❌ **Sequential data patterns**: Housing price time series, text sequences — RNNs/LSTMs solved this conceptually (Ch.6), but we don't yet have the **attention mechanism** that powers modern sequence models
+- ❌ **Scale to long sequences efficiently**: RNNs process sequences step-by-step (slow, hard to parallelize); transformers (Ch.10) process entire sequences in parallel
+- ❌ **Transfer learning from pre-trained models**: Current networks train from scratch; modern production systems fine-tune pre-trained transformers (covered in Ch.10 context)
+
+**Real-world status:**  
+We now have production-grade **training diagnostics** — TensorBoard dashboards catch overfitting early, reveal gradient issues, and validate that learned representations cluster meaningfully. This is the instrumentation every serious ML engineering team uses daily. But we're still limited to sequential models (RNNs) for sequences — attention mechanisms (Ch.9–10) will unlock parallel training and the foundation for modern LLMs.
+
+**Next up:** [Ch.9 — From Sequences to Attention](../ch09_sequences_to_attention) teaches **attention as a soft dictionary lookup** (dot product + softmax + weighted sum) — the single idea that powers transformers, GPT, BERT, and every modern language model. Ch.9 is a bridge chapter (shorter, no grand challenge tracking) that introduces $Q$, $K$, $V$ without transformer machinery so Ch.10 lands softly.
+
+---
+
+## 11 · Bridge to Ch.9 — From Sequences to Attention
+
+Ch.8 gave you the instruments to diagnose a trained network. [Ch.9](../ch09_sequences_to_attention) is a short **bridge chapter** that introduces attention as a soft dictionary lookup — dot product + softmax + weighted sum of values — without any transformer machinery. It exists so the full transformer architecture in [Ch.10](../ch10_transformers) lands softly: every symbol you will meet there ($Q$, $K$, $V$, the $T\times T$ attention matrix, positional encoding) is introduced first in pure-numpy form in Ch.9.
 
 The full 10-chapter arc:
 
@@ -331,22 +391,7 @@ Ch.4:     Regularisation (preventing overfitting)
 Ch.5:     CNNs (spatial feature extraction)
 Ch.6:     RNNs & LSTMs (sequence modelling)
 Ch.7:     MLE & Loss Functions (why the losses are what they are)
-Ch.8:     TensorBoard (diagnosing training with instruments)
+Ch.8:     TensorBoard (diagnosing training with instruments)  ← YOU ARE HERE
 Ch.9:     From Sequences to Attention (the bridge to transformers)
 Ch.10:    Transformers & Attention (the architecture behind modern LLMs)
 ```
-
-
-## Illustrations
-
-![TensorBoard panels — scalars, weight histograms, embedding projector, and diagnostics dashboard](img/ch16-tensorboard.png)
-
-## 9 · Where This Reappears
-
-Instrumentation and monitoring patterns reappear across the repo and in production notes:
-
-- Experiment tracking and logs in AIInfrastructure (MLOps and experiment management).
-- Diagnostic recipes referenced in training notebooks across ML topics.
-- Production monitoring and profiling in deployment guides.
-
-Refine these cross-references during editorial cleanup.

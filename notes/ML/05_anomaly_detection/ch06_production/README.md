@@ -36,7 +36,9 @@ flowchart LR
 
 ## Animation
 
-![Chapter animation](img/ch06-production-needle.gif)
+![Production hardening: drift detection, latency optimization, and explainability complete FraudShield](img/ch06-production-needle.gif)
+
+---
 
 ## 1 · Core Idea
 
@@ -437,6 +439,8 @@ for idx in top_features:
 ## 8 · What Can Go Wrong
 
 ### Silent Model Degradation
+
+> ⚠️ **Production risk**: Without drift monitoring, recall can drop from 83% to 60% in 3 months while accuracy stays at 99.8%. You won’t notice until thousands of fraud cases slip through.
 
 - **No drift monitoring** — The model's recall drops from 83% to 60% over 3 months, but nobody notices because accuracy (99.8%) barely changes. Thousands of fraud cases are missed. **Fix**: Monitor **recall on confirmed fraud** (from investigation team feedback) and **anomaly score distribution** (ADWIN). Alert when either shifts significantly.
 

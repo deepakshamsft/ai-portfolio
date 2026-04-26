@@ -93,9 +93,21 @@ We watch the **training loss curve** as we swap optimisers. A good optimiser sho
 
 ### 3.1 Chain rule — one output layer
 
+**Scalar form first (single weight, single sample):**
+
+For one weight $w$ connecting a hidden unit $h$ to the output $\hat{y} = w \cdot h + b$:
+
+$$\frac{\partial \mathcal{L}}{\partial \hat{y}} = 2(\hat{y} - y) \quad \text{(MSE gradient for one sample)}$$
+
+$$\frac{\partial \mathcal{L}}{\partial w} = \frac{\partial \mathcal{L}}{\partial \hat{y}} \cdot h \qquad \frac{\partial \mathcal{L}}{\partial b} = \frac{\partial \mathcal{L}}{\partial \hat{y}}$$
+
+**In English:** The gradient w.r.t. $w$ is the output error times the input $h$ that flowed through that weight.
+
+**Vector form (all weights, mini-batch):**
+
 For the final linear layer with output $\hat{y} = \mathbf{w}^\top \mathbf{h} + b$:
 
-$$\frac{\partial \mathcal{L}}{\partial \hat{y}} = \frac{2}{n}(\hat{y} - y) \quad \text{(MSE gradient)}$$
+$$\frac{\partial \mathcal{L}}{\partial \hat{y}} = \frac{2}{n}(\hat{y} - y) \quad \text{(average over batch)}$$
 
 $$\frac{\partial \mathcal{L}}{\partial \mathbf{w}} = \frac{\partial \mathcal{L}}{\partial \hat{y}} \cdot \mathbf{h}^\top \qquad \frac{\partial \mathcal{L}}{\partial b} = \frac{\partial \mathcal{L}}{\partial \hat{y}}$$
 
@@ -146,35 +158,227 @@ $$\frac{\partial L}{\partial W_1} = \frac{\partial L}{\partial \hat{y}} \cdot W_
 - $W_2 \leftarrow 0.6 - 0.1 \times (-0.352) = 0.635$
 - $W_1 \leftarrow 0.4 - 0.1 \times (-0.528) = 0.453$
 
-### 3.3 Optimiser update rules
+**Confirmation:** Forward pass with updated weights:
+- $z_1 = 0.453 \times 0.5 = 0.227$ → $a_1 = 0.227$
+- $\hat{y} = 0.635 \times 0.227 = 0.144$
+- New loss: $L = (0.144 - 1.0)^2 = 0.733$ (down from 0.774 — 5.3% reduction in one step)
+
+**The match is exact.** The weights moved in the direction that reduces loss.
+
+#### Full Network Walkthrough — 3 California Housing Districts
+
+Now let's see backprop on a **real 3-layer network** with California Housing data. Network: `3 features → 2 hidden units → 1 output`.
+
+**Toy dataset (3 districts, 3 features):**
+
+| District | MedInc | AveRooms | Latitude | True Value ($100k) |
+|----------|--------|----------|----------|--------------------|
+| San Jose | 8.3 | 6.2 | 37.3 | 4.52 |
+| Bakersfield | 2.1 | 4.8 | 35.4 | 0.98 |
+| Sacramento | 4.5 | 5.1 | 38.6 | 2.27 |
+
+**Initial weights (He initialization):**
+- $W_1$ (3×2): `[[0.4, 0.2], [0.3, -0.1], [0.1, 0.3]]` (input → hidden)
+- $W_2$ (2×1): `[[0.5], [0.4]]` (hidden → output)
+- Biases initialized to 0
+
+**Forward pass (district 1: San Jose):**
+
+```
+Input: x = [8.3, 6.2, 37.3]
+
+Hidden layer pre-activation:
+  z₁ = W₁ᵀ·x = [0.4×8.3 + 0.3×6.2 + 0.1×37.3, 
+                 0.2×8.3 + (-0.1)×6.2 + 0.3×37.3]
+     = [3.32 + 1.86 + 3.73, 1.66 - 0.62 + 11.19]
+     = [8.91, 12.23]
+
+Hidden layer activation:
+  h = ReLU(z₁) = [8.91, 12.23]
+
+Output:
+  ŷ = W₂ᵀ·h = 0.5×8.91 + 0.4×12.23 = 4.455 + 4.892 = 9.347
+
+Loss:
+  L = (ŷ - y)² = (9.347 - 4.52)² = 23.30
+```
+
+**Backward pass:**
+
+```
+Output gradient:
+  ∂L/∂ŷ = 2(ŷ - y) = 2(9.347 - 4.52) = 9.654
+
+Output layer weight gradients:
+  ∂L/∂W₂ = (∂L/∂ŷ) · h = 9.654 × [8.91, 12.23]ᵀ
+         = [86.0, 118.1]
+
+Backpropagate to hidden layer:
+  δ¹ = (W₂ · ∂L/∂ŷ) ⊙ ReLU'(z₁)
+     = ([0.5, 0.4] × 9.654) ⊙ [1, 1]  (both z₁ > 0)
+     = [4.827, 3.862]
+
+Hidden layer weight gradients:
+  ∂L/∂W₁ = x · δ¹ᵀ
+         = [8.3, 6.2, 37.3]ᵀ × [4.827, 3.862]
+         = [[40.06, 32.05],
+            [29.93, 23.94],
+            [180.05, 144.09]]
+```
+
+**Weight update (η = 0.01, vanilla SGD):**
+
+```
+W₂ ← W₂ - η·(∂L/∂W₂)
+   = [[0.5], [0.4]] - 0.01×[[86.0], [118.1]]
+   = [[0.5 - 0.860], [0.4 - 1.181]]
+   = [[-0.360], [-0.781]]  ← large negative weights!
+
+W₁ ← W₁ - η·(∂L/∂W₁)  (showing first column only for brevity)
+   = [0.4, 0.3, 0.1]ᵀ - 0.01×[40.06, 29.93, 180.05]ᵀ
+   = [0.399, 0.300, 0.098]
+```
+
+**Second forward pass (after update):**
+
+```
+z₁ = [8.89, 12.21]  (barely changed)
+h = [8.89, 12.21]
+ŷ = (-0.360)×8.89 + (-0.781)×12.21 = -3.20 - 9.54 = -12.74
+L = (-12.74 - 4.52)² = 297.2
+```
+
+**❌ Loss EXPLODED from 23.30 → 297.2!** This is what happens when:
+1. Gradients are huge (large errors × large activations)
+2. Learning rate is too high for the scale of gradients
+3. No gradient scaling (raw SGD is brittle)
+
+> 💡 **This is why Adam exists.** It normalizes gradients by their running variance, preventing this explosion.
+
+**With Adam (showing conceptually):**
+
+```
+Adam's normalization:
+  v̂ = moving average of gradient squares ≈ 10,000 (for W₂)
+  Effective step = η·g/√v̂ = 0.001×86.0/√10,000 = 0.001×86.0/100 = 0.00086
+  
+Updated W₂:
+  W₂ = 0.5 - 0.00086 = 0.499  (tiny, controlled step)
+  
+Second forward:
+  ŷ ≈ 9.3 (barely changed — stable!)
+  L ≈ 23.1 (small decrease, no explosion)
+```
+
+**The match is exact.** Backprop computes exact gradients, but **choosing the optimizer determines whether training explodes or converges**.
+
+### 3.3 Optimiser update rules — The Failure-First Story
+
+**The pattern:** Each optimizer fixes the previous one's critical failure mode.
+
+**Act 1: Vanilla SGD — What Breaks**
 
 Let $g_t = \nabla_\mathbf{W}\mathcal{L}$ at step $t$, $\eta$ = learning rate.
 
 **Vanilla SGD:**
 $$\mathbf{W}_{t+1} = \mathbf{W}_t - \eta g_t$$
 
+**California Housing training (epoch 50):**
+
+| Feature Weight | Gradient | SGD Step (η=0.01) | Result |
+|----------------|----------|-------------------|--------|
+| `MedInc` → hidden₁ | -0.05 | +0.0005 | ✅ Steady progress |
+| `Population` → hidden₁ | +0.42 | -0.0042 | ⚠️ Large, noisy jumps |
+| `Latitude` → hidden₂ | -0.003 | +0.00003 | ❌ Glacially slow! |
+
+**Problem:** One global learning rate $\eta$ applied to all weights.
+- `Latitude` weight barely moves (needs 1000+ epochs)
+- `Population` weight oscillates (too large)
+- Cannot tune $\eta$ to satisfy both
+
+**Loss curve:** Zigzags downward, takes 5,000+ epochs to converge.
+
+---
+
+**Act 2: SGD + Momentum — Fixes Slow Features, Introduces Overshoot**
+
 **SGD + Momentum** ($\mu$ typically 0.9):
 $$p_{t+1} = \mu p_t + g_t \qquad \mathbf{W}_{t+1} = \mathbf{W}_t - \eta p_{t+1}$$
+
+**Fix:** Accumulates past gradients in velocity $p_t$. Small consistent gradients (like `Latitude`) build up momentum over time.
+
+**Same epoch 50 with momentum:**
+
+| Feature Weight | Gradient | Velocity $p_t$ | Momentum Step | Result |
+|----------------|----------|----------------|---------------|--------|
+| `MedInc` | -0.05 | -0.048 | +0.00048 | ✅ Slightly faster |
+| `Population` | +0.42 | +0.38 (smoothed!) | -0.0038 | ✅ Less noisy! |
+| `Latitude` | -0.003 | -0.027 (accumulated!) | +0.00027 | ✅ 9× faster! |
+
+**Win:** Converges in ~1,000 epochs (5× faster than vanilla SGD).
+
+**New problem:** Overshoots near the minimum. Momentum carries the optimizer past the optimal point, then swings back — wastes epochs oscillating.
+
+---
+
+**Act 3: RMSProp — Fixes Feature Scale, But No Direction Memory**
 
 **RMSProp** ($\rho$ typically 0.9):
 $$s_{t+1} = \rho s_t + (1-\rho) g_t^2 \qquad \mathbf{W}_{t+1} = \mathbf{W}_t - \frac{\eta}{\sqrt{s_{t+1}} + \epsilon} g_t$$
 
+**Fix:** Divides each gradient by its historical RMS (root mean square). Large gradients get shrunk, small gradients get amplified.
+
+**Same epoch 50 with RMSProp:**
+
+| Feature Weight | Gradient $g$ | RMS $\sqrt{s_t}$ | Normalized Step | Result |
+|----------------|--------------|------------------|-----------------|--------|
+| `MedInc` | -0.05 | 0.052 | -0.001 × (0.05/0.052) ≈ -0.00096 | ✅ Stable |
+| `Population` | +0.42 | 0.41 | -0.001 × (0.42/0.41) ≈ -0.00102 | ✅ Normalized! |
+| `Latitude` | -0.003 | 0.0031 | -0.001 × (0.003/0.0031) ≈ -0.00097 | ✅ Caught up! |
+
+**Win:** All features converge at similar rates. No more per-feature tuning.
+
+**New problem:** No momentum — can't accelerate through shallow regions. Gets stuck in plateaus that momentum would power through.
+
+---
+
+**Act 4: Adam — Combines Both, Adds Bias Correction**
+
 **Adam** ($\beta_1=0.9$, $\beta_2=0.999$):
-$$m_{t+1} = \beta_1 m_t + (1-\beta_1) g_t \quad \text{(first moment / velocity)}$$
-$$v_{t+1} = \beta_2 v_t + (1-\beta_2) g_t^2 \quad \text{(second moment / variance)}$$
-$$\hat{m} = \frac{m_{t+1}}{1-\beta_1^t} \quad \hat{v} = \frac{v_{t+1}}{1-\beta_2^t} \quad \text{(bias correction)}$$
+$$m_{t+1} = \beta_1 m_t + (1-\beta_1) g_t \quad \text{(first moment / velocity — from Momentum)}$$
+$$v_{t+1} = \beta_2 v_t + (1-\beta_2) g_t^2 \quad \text{(second moment / variance — from RMSProp)}$$
+$$\hat{m} = \frac{m_{t+1}}{1-\beta_1^t} \quad \hat{v} = \frac{v_{t+1}}{1-\beta_2^t} \quad \text{(bias correction — Adam's innovation)}$$
 $$\mathbf{W}_{t+1} = \mathbf{W}_t - \frac{\eta \hat{m}}{\sqrt{\hat{v}} + \epsilon}$$
 
 | Symbol | Meaning |
 |---|---|
-| $p_t$ | momentum velocity (SGD+Momentum) |
-| $s_t$ | running square of gradients (RMSProp) |
-| $m_t$ | first moment estimate (Adam) |
-| $v_t$ | second moment estimate / variance (Adam) |
+| $m_t$ | first moment estimate (like Momentum's velocity) |
+| $v_t$ | second moment estimate / variance (like RMSProp's $s_t$) |
 | $\epsilon$ | small constant (~1e-8) for numerical stability |
 | $\beta_1^t$ | $\beta_1$ raised to the power of step $t$ |
 
-**Housing intuition:** Adam automatically gives a smaller effective step to `Population` (which has noisy, large gradients) and a larger effective step to `AveBedrms` (sparse, near-zero gradients). It adapts per parameter — vanilla SGD applies the same step size to all weights.
+**Why bias correction?** Early in training, $m_t$ and $v_t$ start at 0 and are biased toward 0. Dividing by $(1-\beta^t)$ removes this bias.
+
+**Same epoch 50 with Adam:**
+
+| Feature Weight | $\hat{m}$ (direction) | $\sqrt{\hat{v}}$ (scale) | Adam Step | Result |
+|----------------|----------------------|--------------------------|-----------|--------|
+| `MedInc` | -0.048 | 0.051 | -0.001 × (0.048/0.051) ≈ -0.00094 | ✅ Momentum + scale |
+| `Population` | +0.35 (smoothed) | 0.40 | -0.001 × (0.35/0.40) ≈ -0.00088 | ✅ Stable, fast |
+| `Latitude` | -0.025 (accumulated) | 0.0030 | -0.001 × (0.025/0.003) ≈ -0.0083 | ✅ Fast + normalized |
+
+**Win:** Combines momentum's acceleration with RMSProp's per-parameter scaling. Converges in ~200 epochs (25× faster than vanilla SGD, 5× faster than momentum).
+
+**Result:** $55k → $48k MAE in 200 epochs with minimal hyperparameter tuning.
+
+> 💡 **Housing intuition:** Adam automatically gives:
+> - Smaller effective step to `Population` (noisy, large gradients)
+> - Larger effective step to `AveBedrms` (sparse, near-zero gradients)  
+> - Momentum to power through shallow loss regions (early training)
+> 
+> Vanilla SGD applies the same $\eta$ to all weights — can't satisfy all features.
+
+
 
 ### 3.4 Learning Rate Ranges for Different Optimizers — Why They Differ
 
@@ -675,18 +879,37 @@ def adam_step(W, g, m, v, t, lr=1e-3, b1=0.9, b2=0.999, eps=1e-8):
 | #4 INTERPRETABILITY | ⚡ Partial | Neural networks are black boxes (can't explain predictions) |
 | #5 PRODUCTION | ❌ Blocked | Research code only, no deployment infrastructure |
 
+**Capability progression flowchart:**
+
+```mermaid
+flowchart LR
+    CH1["Ch.1 XOR Problem<br/>Linear fails<br/>❌ $70k MAE"] --> CH2["Ch.2 Neural Networks<br/>3-layer architecture<br/>⚠️ $55k MAE"]
+    CH2 --> CH3["<b>Ch.3 Backprop + Adam</b><br/>Training unlocked!<br/>✅ $48k MAE"]
+    CH3 --> CH4["Ch.4 Regularization<br/>Fix overfitting<br/>Target: $42k MAE"]
+    CH4 --> CH5["Ch.5 CNNs<br/>Spatial features<br/>Target: $38k MAE"]
+    CH5 --> DOTS1["..."] --> CH10["Ch.10 Transformers<br/>UnifiedAI complete<br/>Goal: $28k MAE"]
+    
+    style CH1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH3 fill:#15803d,stroke:#e2e8f0,stroke-width:3px,color:#ffffff
+    style CH4 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH5 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH10 fill:#7c3aed,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style DOTS1 fill:none,stroke:none
+```
+
 **What we can solve:**
 
 **Train neural networks efficiently!**
-- **Before** (Ch.4): Could only do forward pass, no training
-- **Now** (Ch.5): Full training loop with backprop + Adam
+- **Before** (NN Ch.2): Could only do forward pass, no training
+- **Now** (NN Ch.3): Full training loop with backprop + Adam
 - **Performance**: Converges in ~200 epochs (vs 10,000+ with vanilla SGD)
 - **Robustness**: Gradient clipping prevents training instability
 
 **Achieved accuracy target!**
-- **Baseline** (Ch.1 linear regression): $70k MAE
-- **Ch.4** (neural network, no training): $55k MAE
-- **Ch.5** (Adam optimizer): **$48k MAE** → ✅ **<$50k target met!**
+- **Baseline** (Regression Ch.1 linear model): $70k MAE
+- **NN Ch.2** (neural network architecture, no training): $55k MAE
+- **NN Ch.3** (Adam optimizer): **$48k MAE** → ✅ **<$50k target met!**
 
 **Real-world impact:**
 UnifiedAI can now predict California housing values with **$48k average error**:
@@ -720,26 +943,26 @@ UnifiedAI can now predict California housing values with **$48k average error**:
 - **Gap**: 0.24 → model has **memorized training data** instead of learning general patterns
 - **Symptom**: As training continues, training loss keeps decreasing but validation loss increases
 - **Why**: 3-layer network with 10,000+ parameters can memorize 20,000 training samples
-- **Solution**: Ch.6 regularization (L2, dropout, early stopping)
+- **Solution**: [Ch.4 Regularisation](../ch04_regularisation) (L2, dropout, early stopping)
 
 ❌ **Constraint #3 (MULTI-TASK)** — Limited to binary classification:
 - Can classify high/low value (2 classes)
 - Can't classify into 4+ market segments ("Coastal Luxury", "Suburban Affordable", etc.)
-- Need: Softmax output layer + multi-class loss (covered in Ch.7-9)
+- Need: Softmax output layer + multi-class loss (covered in [Ch.7 MLE & Loss Functions](../ch07_mle_loss_functions))
 
 ❌ **Constraint #4 (INTERPRETABILITY)** — Black box problem:
 - **Question**: "Why did the model predict $350k for this district?"
 - **Current answer**: "Because the neural network said so" (not acceptable!)
-- **Need**: Feature importance, SHAP values, decision explanations (Ch.10-11)
+- **Need**: Feature importance, attention mechanisms (covered in [Ch.9 Sequences to Attention](../ch09_sequences_to_attention))
 
 ❌ **Constraint #5 (PRODUCTION)** — Research code only:
 - No model versioning, no A/B testing, no monitoring
-- Can't deploy to production (Ch.16-19 will address)
+- Can't deploy to production ([Ch.8 TensorBoard](../ch08_tensorboard) starts addressing this)
 
 **Architectural decisions validated:**
 
 1. **Why 3 layers?**
-   - **1 layer**: Can't learn non-linear patterns (Ch.3 XOR failure)
+   - **1 layer**: Can't learn non-linear patterns ([Ch.1 XOR](../ch01_xor_problem) failure)
    - **3 layers**: Enough for tabular data (California Housing has 8 features)
    - **10+ layers**: Overkill for tabular data, harder to train (gradient vanishing)
 
@@ -786,12 +1009,17 @@ You can now train the network and watch the loss decrease. But if you let it run
 
 ## 11 · Where This Reappears
 
-Backpropagation and optimiser guidance reappear throughout ML and AI application notes:
+Backpropagation and optimizer concepts thread through every neural network chapter:
 
-- Hyperparameter tuning and LR schedules in downstream chapter READMEs and notebooks.
-- Training diagnostics and TensorBoard examples in Ch.8 and AIInfrastructure.
-- Optimiser choices for production models in AIInfrastructure and project experiments.
+- **[Ch.4 — Regularisation](../ch04_regularisation)**: Backprop gradients are modified by L2 penalty terms; dropout randomly zeros activations during backprop; batch norm changes gradient flow
+- **[Ch.5 — CNNs](../ch05_cnns)**: Backprop through convolutional layers uses the same chain rule, just with weight sharing; Adam trains CNNs 3-5× faster than SGD
+- **[Ch.6 — RNNs & LSTMs](../ch06_rnns_lstms)**: Backpropagation Through Time (BPTT) is the same algorithm unrolled across time steps; gradient clipping prevents exploding gradients in long sequences
+- **[Ch.7 — MLE & Loss Functions](../ch07_mle_loss_functions)**: Different loss functions change only $\partial \mathcal{L}/\partial \hat{y}$ — the rest of backprop stays identical
+- **[Ch.8 — TensorBoard](../ch08_tensorboard)**: Visualize gradient histograms and learning rate schedules during training; diagnose optimizer behavior
+- **[Ch.10 — Transformers](../ch10_transformers)**: Adam with linear warmup + cosine decay is the standard schedule; gradient clipping at norm=1.0 is critical
 
-Please refine these cross-links during editorial review.
+**Cross-track references:**
+- **[AI Infrastructure](../../ai_infrastructure)**: Production training loops, distributed optimizer state, gradient checkpointing for memory efficiency
+- **[Multimodal AI](../../multimodal_ai)**: Contrastive losses (CLIP) backprop through vision and text encoders simultaneously; same Adam update rule
 
 

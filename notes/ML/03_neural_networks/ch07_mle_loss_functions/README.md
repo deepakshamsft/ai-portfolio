@@ -1,9 +1,5 @@
 # Ch.7 — MLE & Loss Functions
 
-![Animation: switching from mismatch losses to likelihood-matched objectives moves classification accuracy from about 68% to 84%.](img/ch07-mle-loss-needle.gif)
-
-*Visual takeaway: once the loss geometry matches the data-generating assumption, optimization signal quality improves and the accuracy needle moves without increasing model complexity.*
-
 > **The story.** **Maximum Likelihood Estimation** was given its modern form in two papers by **R. A. Fisher** (1912 and the canonical 1922 "On the Mathematical Foundations of Theoretical Statistics"). Fisher's claim was audacious: there is *one* principled way to estimate parameters from data — pick the parameters that make the observed data most probable. The consequences were enormous. Gauss's 1809 derivation of least squares fell out as a special case (Gaussian noise → MSE). Berkson's 1944 logistic regression fell out as another (Bernoulli noise → binary cross-entropy). Multiclass classification fell out as a third (Categorical noise → categorical cross-entropy). Every loss function in this curriculum — every loss function in PyTorch's `torch.nn` namespace — is, secretly, a negative log-likelihood from Fisher's framework. Once you see this, you stop memorising losses and start *deriving* them.
 >
 > **Where you are in the curriculum.** Every loss the platform has used — MSE for house-price regression in [Ch.1](../../01_regression/ch01_linear_regression), binary cross-entropy for high-value classification in [Ch.2](../../02_classification/ch01_logistic_regression) — was chosen for a reason deeper than habit. This chapter gives the principled derivation: change the noise model, change the loss. Once you understand this, [Ch.10](../ch10_transformers)'s next-token cross-entropy and the AI track's RLHF reward modelling will feel like the same idea wearing different costumes.
@@ -14,39 +10,56 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
-> 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+> 🎯 **The mission**: Launch **UnifiedAI** — prove neural networks unify regression and classification, satisfying 5 constraints:
+> 1. **ACCURACY**: ≤$28k MAE (regression) + ≥95% accuracy (classification)
+> 2. **GENERALIZATION**: Work on unseen districts + future expansion (CA → nationwide)
+> 3. **MULTI-TASK**: Same architecture predicts value **and** classifies attributes
+> 4. **INTERPRETABILITY**: Predictions explainable to non-technical stakeholders
+> 5. **PRODUCTION**: <100ms inference, TensorBoard monitoring, handle missing data
 
 **What we know so far:**
-- Ch.1-6: Achieved Constraints #1 and #2
-- Can train models for regression, binary classification, multi-class segmentation
-- 💡 **But why did we use MSE for regression and cross-entropy for classification?**
+- ✅ [Ch.1–2](../ch01_xor_problem): Built feedforward networks — same hidden layers for regression and classification
+- ✅ [Ch.3](../ch03_backprop_optimisers): Backprop + Adam work identically for both tasks
+- ✅ [Ch.4](../ch04_regularisation): Dropout, L2, BatchNorm prevent overfitting in both
+- ✅ [Ch.5](../ch05_cnns): CNNs extract spatial features for image regression and classification
+- ✅ [Ch.6](../ch06_rnns_lstms): RNNs/LSTMs handle sequences for both tasks
+- 💡 **But why MSE for regression and cross-entropy for classification?**
 
 **What's blocking us:**
-⚠️ **Loss functions chosen by convention, not understanding**
+⚠️ **Loss functions chosen by convention, not principled understanding**
 
-Engineer asks: "Why MSE for regression? Why not MAE? Why not something else?"
-- **Current**: Use MSE because "that's what everyone uses"
-- **Problem**: No principled understanding → can't choose loss for new problems
-- **Example**: Product wants to add **quantile regression** (predict 10th, 50th, 90th percentiles) — which loss?
+Your Lead Engineer asks: "Why MSE for house prices? Why not MAE? Why cross-entropy for classification?"
+- **Current state**: Use MSE because "that's what sklearn defaults to"
+- **Problem**: No principled framework → can't choose loss for new problems
+- **Real scenario**: Product wants **quantile regression** (predict 10th, 50th, 90th percentiles for risk bands) — which loss function?
+- **Another scenario**: Model chases luxury mansion outliers ($2M homes) — is MSE the right choice?
 
-**Why this matters for production:**
-- **Loss choice = modeling assumption**: MSE assumes Gaussian noise, MAE assumes Laplace noise
-- **Wrong loss = wrong model**: Using MSE when data has heavy-tailed outliers → model chases outliers
-- **Custom objectives**: Production systems need custom losses (e.g., asymmetric costs: underestimate expensive homes = worse than overestimate cheap homes)
+**Why this matters for UnifiedAI production:**
+- **Loss = modeling assumption**: MSE assumes Gaussian noise, BCE assumes Bernoulli noise
+- **Wrong loss = wrong model**: Using MSE for classification → vanishing gradients near correct predictions
+- **Custom objectives**: Production needs asymmetric costs (underestimate expensive coastal homes = worse than overestimate inland homes)
+- **Unification proof**: MSE and BCE both derive from the **same MLE framework** — different noise models, same principle
 
 **What this chapter unlocks:**
-⚡ **Principled loss function selection via Maximum Likelihood Estimation (MLE):**
-1. **MLE framework**: Choose parameters that maximize P(observed data | model)
-2. **Loss derivation**: Negative log-likelihood → derives MSE, MAE, BCE, cross-entropy
-3. **Custom losses**: Change noise assumption → derive new loss for your problem
-4. **Theory + practice**: Understand why every loss we've used was correct
+⚡ **Constraint #6 Foundation — Principled loss function selection:**
+1. **MLE framework**: Choose parameters that maximize $P(\text{observed data} \mid \text{model})$
+2. **Loss derivation**: Negative log-likelihood → derives MSE, MAE, BCE, cross-entropy from first principles
+3. **Unification proof**: Same MLE principle → different noise assumptions → task-specific losses
+4. **Custom losses**: Change noise assumption → derive new loss for your problem (quantile, robust, asymmetric)
 
-💡 **Outcome**: Can derive correct loss for any problem (quantile regression, robust regression, etc.) from first principles!
+💡 **Outcome**: Understand that MSE and BCE aren't arbitrary conventions — they're **MLE estimators** under different noise models. Can now derive correct loss for any production problem!
 
 ---
 
-## 1 · Core Idea
+## Animation
+
+![Animation: switching from mismatch losses to likelihood-matched objectives moves classification accuracy from about 68% to 84%.](img/ch07-mle-loss-needle.gif)
+
+*The needle animation shows: when you align the loss function with the data-generating process (Gaussian → MSE, Bernoulli → BCE), optimization signal quality improves and accuracy increases — without changing model architecture, hyperparameters, or data. The only change: matching loss to likelihood.*
+
+---
+
+## 1 · The Core Idea
 
 **Maximum Likelihood Estimation (MLE):** choose model parameters $\theta$ that maximise the probability of the observed training data:
 
@@ -64,7 +77,7 @@ The key insight: **the loss function is a modelling choice, not an optimisation 
 
 ---
 
-## 2 · Running Example
+## 2 · Running Example: What We're Solving
 
 We return to both California Housing tasks from Ch.1 and Ch.2:
 
@@ -77,7 +90,7 @@ Dataset: **California Housing** (`sklearn.datasets.fetch_california_housing`)
 
 ---
 
-## 3 · Math
+## 3 · The Math
 
 ### 3.1 MLE: Setup
 
@@ -159,7 +172,7 @@ With MSE loss $(\hat{p} - y)^2 = (0.99 - 1)^2 = 0.0001$ — a nearly vanishing g
 
 ---
 
-## 4 · Step by Step
+## 4 · How It Works — Step by Step
 
 ```
 Deriving the correct loss:
@@ -178,7 +191,7 @@ Choosing empirically:
 
 ---
 
-## 5 · Key Diagrams
+## 5 · The Key Diagrams
 
 ### Derivation chain
 
@@ -210,7 +223,7 @@ BCE gradient near correct prediction: -1/0.99 ≈ -1.01 → strong signal preser
 
 ---
 
-## 6 · Hyperparameter Dial
+## 6 · The Hyperparameter Dial
 
 Loss functions have no tuning parameters in the conventional sense, but there are related choices:
 
@@ -271,6 +284,8 @@ def huber(y_true, y_pred, delta=1.0):
 
 ## 8 · What Can Go Wrong
 
+**Pattern:** Loss function mismatches create slow convergence, uncalibrated probabilities, or NaN gradients. Every issue below traces to choosing a loss that doesn't match the data-generating process.
+
 ### Using the Wrong Loss for the Wrong Task
 
 - **Using MSE for binary classification.** MSE treats the output as a real number, not a probability. Gradients are nearly zero for confident (correct) predictions and large only for large-residual wrong predictions. This means correct predictions don't reinforce and wrong predictions can oscillate. The model also fails to output calibrated probabilities. **Fix:** Use **Binary Cross-Entropy (BCE)** for binary classification — it's derived from the Bernoulli MLE (§3.3) and provides strong gradients even when predictions are nearly correct.
@@ -298,25 +313,144 @@ def huber(y_true, y_pred, delta=1.0):
 | **Binary classification** | Imbalanced (e.g., 95% negative) | **BCE + class weighting** | Re-weight positive class to balance loss contributions |
 | **Multi-class** | Mutually exclusive classes | **Categorical Cross-Entropy** | Categorical MLE (§3.4) |
 
-> 💡 **For regression loss selection:** See [Ch.1 §3 "Loss Function Evolution"](../../01_regression/ch01_linear_regression/README.md#loss-function-evolution--what-each-captures-and-misses) for concrete California Housing examples showing numerical impact of outliers on MSE vs MAE vs Huber, plus a decision tree for choosing the right loss based on your data.
+> 💡 **For regression loss selection:** See [Regression Ch.1 §3 "Loss Function Evolution"](../../01_regression/ch01_linear_regression/README.md#loss-function-evolution--what-each-captures-and-misses) for concrete California Housing examples showing numerical impact of outliers on MSE vs MAE vs Huber, plus a decision tree for choosing the right loss based on your data.
 
 ---
 
-## Bridge to Chapter 8
+## Diagnostic Flowchart
 
-Ch.7 showed that training loss has a mathematical meaning — it's a log-likelihood under a noise model. But watching a single scalar loss decrease across epochs is a crude signal. Chapter 16 — **TensorBoard** — instruments the training loop to emit richer diagnostics: loss curves, metric curves, weight distributions, gradient histograms, and projector visualisations. These are the debugging tools that show *why* a loss is decreasing (or not).
+```mermaid
+flowchart TD
+    START["Loss function chosen"] --> Q1{"Output type?"}
+    Q1 -->|Continuous| Q2{"Check residuals"}
+    Q2 -->|Normal distribution| MSE["✅ Use MSE<br/>(Gaussian MLE)"]
+    Q2 -->|Few outliers<br/>< 10%| HUBER["✅ Use Huber<br/>(δ ≈ 1 std dev)"]
+    Q2 -->|Many outliers<br/>> 10%| MAE["✅ Use MAE<br/>(Laplace MLE)"]
+    
+    Q1 -->|Binary| Q3{"Class balance?"}
+    Q3 -->|Balanced<br/>~50/50| BCE["✅ Use BCE<br/>(Bernoulli MLE)"]
+    Q3 -->|Imbalanced<br/>e.g. 95/5| BCEW["✅ Use BCE + class_weight<br/>(weighted Bernoulli)"]
+    
+    Q1 -->|Multi-class| Q4{"Mutually exclusive?"}
+    Q4 -->|Yes| CCE["✅ Use Categorical CE<br/>(Categorical MLE)"]
+    Q4 -->|No<br/>Multi-label| MBCE["✅ Use Multi-label BCE<br/>(Independent Bernoullis)"]
+    
+    MSE --> CHECK{"Training diverges?"}
+    HUBER --> CHECK
+    MAE --> CHECK
+    BCE --> CHECK
+    BCEW --> CHECK
+    CCE --> CHECK
+    MBCE --> CHECK
+    
+    CHECK -->|NaN loss| CLIP["⚠️ Clip probabilities<br/>[ε, 1-ε]"]
+    CHECK -->|Gradients explode| GRAD["⚠️ Gradient clipping<br/>or lower LR"]
+    CHECK -->|Converges but<br/>wrong metric| EVAL["⚠️ Check evaluation metric<br/>Loss ≠ business metric"]
+    CHECK -->|Model ignores<br/>minority class| WEIGHT["⚠️ Re-weight loss<br/>or resample data"]
+    
+    style MSE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style HUBER fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style MAE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style BCE fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style BCEW fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CCE fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style MBCE fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CLIP fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style GRAD fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style EVAL fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style WEIGHT fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
+---
 
 ## Illustrations
 
 ![MLE and loss functions — log-likelihood derivation of MSE and cross-entropy](img/ch15-mle-and-loss-funcs.png)
 
+---
+
 ## 9 · Where This Reappears
 
-The MLE framework and loss-function derivations reappear throughout the curriculum and application notes. See:
+The MLE framework and loss-function derivations established here propagate through the entire curriculum:
 
-- Model selection and calibration in AI track (LLMs and RAG).
-- Evaluation chapters and metrics discussions in other ML topics.
-- Production loss choices in AIInfrastructure and MLOps notes.
+**Within this track:**
+- **[Ch.8 — TensorBoard](../ch08_tensorboard)**: Monitor loss curves for MSE (regression) and BCE (classification) side-by-side — same dashboard, different log-likelihood targets
+- **[Ch.10 — Transformers](../ch10_transformers)**: Next-token prediction uses categorical cross-entropy (MLE under categorical distribution) — same principle, language modeling context
 
-Update with more precise cross-links during editorial cleanup.
+**Across ML tracks:**
+- **[Classification Ch.1 — Logistic Regression](../../02_classification/ch01_logistic_regression)**: Binary cross-entropy first appears here — this chapter shows *why* it's the right choice
+- **[Regression Ch.1 — Linear Regression](../../01_regression/ch01_linear_regression)**: MSE, MAE, Huber introduced empirically — this chapter gives the probabilistic foundation
+- **[Ensemble Methods Ch.2 — XGBoost](../../08_ensemble_methods/ch02_gradient_boosting)**: XGBoost's objective function is the negative log-likelihood (reg:squarederror = MSE, binary:logistic = BCE)
+
+**In AI topics:**
+- **[AI — LLM Fundamentals](../../../ai/llm_fundamentals)**: Language model pre-training minimizes cross-entropy over token sequences — scaled-up version of this chapter's categorical MLE
+- **[AI — Fine-Tuning](../../../ai/fine_tuning)**: Custom loss functions for RLHF (Reinforcement Learning from Human Feedback) derive from MLE with policy distributions
+
+**In production contexts:**
+- **[AI Infrastructure — Inference Optimization](../../../ai_infrastructure/inference_optimization)**: Loss choice affects numerical precision requirements (FP16 clipping in BCE vs MSE overflow)
+- Production model monitoring: Log-likelihood degradation signals distribution shift (production data deviates from training noise model)
+
+---
+
+## 10 · Progress Check — What We Can Solve Now
+
+![Progress: MLE framework unlocks principled loss selection](img/ch07-progress-check.png)
+
+✅ **Unlocked capabilities:**
+- **Principled loss selection**: Can derive the correct loss function for any problem from first principles (MLE)
+- **Unification understanding**: MSE (regression) and BCE (classification) are both negative log-likelihoods under different noise models
+- **Custom loss derivation**: Given a new noise model (Laplace, Cauchy, Student-t), can derive the corresponding loss
+- **Diagnostic reasoning**: When training fails, can trace back to likelihood assumptions (e.g., MSE for classification → wrong noise model)
+- **Task-agnostic framework**: Same MLE principle applies to regression, classification, ranking, density estimation
+
+❌ **Still can't solve:**
+- ❌ **Can't monitor training beyond scalar loss** — need rich diagnostics (loss curves, weight histograms, gradient flow)
+- ❌ **Can't see *why* loss decreases** — is the model learning features or memorizing? Need TensorBoard
+- ❌ **Can't visualize learned representations** — embeddings, attention weights, activation patterns all hidden
+- ❌ **Can't debug convergence issues** — vanishing/exploding gradients, dead neurons, saturation all invisible
+
+**Progress toward UnifiedAI constraints:**
+
+| Constraint | Status | Current State |
+|------------|--------|---------------|
+| **#1 ACCURACY** | 🟡 In progress | Network architecture + backprop + regularization proven task-agnostic; MLE shows losses are task-agnostic too |
+| **#2 GENERALIZATION** | ✅ Ch.4 solved | Dropout, L2, BatchNorm prevent overfitting |
+| **#3 MULTI-TASK** | 🟡 Theory proven | Same architecture + different output head + MLE-derived loss = unified pipeline |
+| **#4 INTERPRETABILITY** | ⬜ Not started | Attention mechanisms (Ch.9–10) will provide feature attribution |
+| **#5 PRODUCTION** | 🟡 Partial | Loss theory complete; monitoring tooling (TensorBoard) next |
+
+**Real-world status**: You can now justify loss function choices to stakeholders with probabilistic reasoning. When product asks "Why not just use accuracy as the loss?", you can explain that accuracy is non-differentiable (gradient = 0 everywhere) and doesn't provide an optimization signal — BCE is the smooth, differentiable surrogate derived from Bernoulli MLE.
+
+**What's next**: [Ch.8 — TensorBoard](../ch08_tensorboard) instruments the training loop. You'll log scalars (loss, metrics), histograms (weights, gradients), and embeddings (projector). This makes training observable — see weight distributions, diagnose vanishing gradients, and visualize what the model learns epoch-by-epoch.
+
+```mermaid
+flowchart LR
+    CH1["Ch.1 XOR<br/>Linear fails"] --> CH2["Ch.2 Neural Nets<br/>Same arch, diff tasks"]
+    CH2 --> CH3["Ch.3 Backprop<br/>Same training"]
+    CH3 --> CH4["Ch.4 Regularization<br/>Same techniques"]
+    CH4 --> CH5["Ch.5 CNNs<br/>Spatial features"]
+    CH5 --> CH6["Ch.6 RNNs/LSTMs<br/>Sequential features"]
+    CH6 --> CH7["✅ Ch.7 MLE & Loss<br/>Same principle<br/>Different noise models"]
+    CH7 --> CH8["⬜ Ch.8 TensorBoard<br/>Monitor everything<br/><100ms latency"]
+    CH8 --> CH9["⬜ Ch.9 Attention<br/>Q/K/V mechanics"]
+    CH9 --> CH10["⬜ Ch.10 Transformers<br/>≤$28k + ≥95%<br/>UnifiedAI complete"]
+    
+    style CH1 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH2 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH3 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH4 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH5 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH6 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH7 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:3px,color:#ffffff
+    style CH8 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH9 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH10 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+---
+
+## 11 · Bridge to the Next Chapter
+
+Ch.7 proved that training losses have mathematical meaning — they're negative log-likelihoods under specific noise models. MSE assumes Gaussian errors, BCE assumes Bernoulli outputs, and both derive from the same MLE principle. But watching a single scalar loss decrease epoch-by-epoch is a crude signal — you can't see weight distributions, gradient flow, or learned representations.
+
+**Next up:** [Ch.8 — TensorBoard](../ch08_tensorboard) instruments the training loop with rich diagnostics. You'll log scalars (loss/metric curves), histograms (weight and gradient distributions), and embeddings (high-dimensional projector). These tools make training **observable** — diagnose vanishing gradients, track layer saturation, and visualize what features the model learns. Same TensorBoard dashboard for regression and classification, proving the unification thesis one more time.

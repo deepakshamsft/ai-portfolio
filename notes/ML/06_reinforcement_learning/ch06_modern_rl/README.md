@@ -45,7 +45,9 @@
 
 ## Animation
 
-![Chapter animation](img/ch06-modern-rl-needle.gif)
+![Animation: PPO clipping stabilizes policy updates and drives average success rate from 60% to 95% while preventing catastrophic performance collapse.](img/ch06-modern-rl-needle.gif)
+
+**Needle moved:** average success rate rises from 60% (unclipped policy gradients with instability) to 95% (PPO with $\epsilon$-clipping) while maintaining stability — no catastrophic drops.
 
 ## 1 · Core Idea
 
@@ -413,9 +415,11 @@ def ppo_update(actor, critic, rollout_buffer, clip_eps=0.2, epochs=4):
 
 PPO, entropy regularization, and the practical deployment of RL reappear throughout advanced tracks:
 
-- **AI / FineTuning**: InstructGPT, DPO, and GRPO all use PPO or its policy-gradient relatives to align language models; the clipping and KL-penalty ideas map directly to §3.
-- **MultiAgentAI**: MAPPO and QMIX extend PPO with joint-action value functions and centralised critics.
-- **AIInfrastructure / ParallelismAndDistributedTraining**: A3C's asynchronous multi-worker design is an early template for distributed RL training strategies.
+- **AI / FineTuning / RLHF**: InstructGPT (GPT-3 → ChatGPT) uses PPO with clipping ($\epsilon = 0.2$) to fine-tune the language model policy against a learned reward model — the clipped surrogate objective from §3.1 here applied to text generation.
+- **AI / FineTuning / DPO**: Direct Preference Optimization replaces PPO's clipped objective with a closed-form policy update using preference data — achieving similar trust-region constraints without the clip.
+- **MultiAgentAI / CooperativeAgents**: MAPPO (Multi-Agent PPO) extends the single-agent PPO algorithm here to cooperative settings with a centralized critic that sees all agents' observations.
+- **MultiAgentAI / CompetitiveAgents**: Self-play with PPO (AlphaGo Zero, OpenAI Five) uses the stability of clipped updates to prevent policy collapse when the opponent distribution shifts.
+- **AIInfrastructure / DistributedTraining**: A3C's asynchronous multi-worker architecture from §3.2 is a precursor to modern distributed RL frameworks (Ray RLlib, Acme) — parallel data collection with centralized optimization.
 
 ## 10 · Progress Check
 

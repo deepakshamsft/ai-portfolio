@@ -276,25 +276,49 @@ flowchart TD
 
 ---
 
-## 9 · Progress Check
+## 9 · Where This Reappears
 
-| # | Constraint | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | IMPROVEMENT >5% | ✅ | RF RMSE < DT RMSE by >10% typically |
-| 2 | DIVERSITY | ✅ | Bootstrap + feature randomization → low $\rho$ |
-| 3 | EFFICIENCY <5× | ⏳ | Not yet benchmarked (Ch.6) |
-| 4 | INTERPRETABILITY | ⚡ Partial | Global feature importance only; SHAP in Ch.4 |
-| 5 | ROBUSTNESS | ✅ | OOB score stable across seeds; ensemble variance ≪ single tree |
+The bagging concept you've just learned is the foundation for multiple advanced techniques:
+
+➡️ **Ch.2 (Boosting)**: Contrasts with bagging's parallel training — boosting trains sequentially to reduce bias instead of variance.  
+➡️ **Ch.3 (XGBoost/LightGBM)**: XGBoost adds `subsample` and `colsample_bytree` — both borrowed from Random Forest's randomization strategy.  
+➡️ **Ch.4 (SHAP)**: TreeSHAP computes exact Shapley values for Random Forest by exploiting the tree structure.  
+➡️ **Ch.5 (Stacking)**: Random Forest is the most common base model in stacks — its low variance makes it a reliable ensemble member.  
+➡️ **Ch.6 (Production)**: OOB error estimation provides free validation — you'll use it to prune weak trees before deployment.
 
 ---
 
-## 10 · Bridge to Chapter 2
+## 10 · Progress Check — What We Can Solve Now
 
-Random Forest reduces **variance** by averaging decorrelated trees — but it doesn't directly address **bias**. A shallow Random Forest of stumps still underfits. Chapter 2 introduces **boosting**: instead of training trees in parallel on random subsets, train them *sequentially*, with each tree correcting the previous ensemble's errors. AdaBoost reweights misclassified samples; Gradient Boosting fits the *residuals*. The strategy shifts from "average out the noise" to "focus on what's still wrong."
+![Progress visualization](img/ch01-progress-check.png) ← **Note**: This is a placeholder reference for future visual dashboard
+
+✅ **Unlocked capabilities:**
+- **Variance reduction**: Random Forest beats single Decision Tree by >10% RMSE consistently
+- **Free validation**: OOB score provides accurate test estimate without holdout set
+- **Feature importance**: Stable global rankings across 200 trees (vs noisy single-tree importance)
+- **Parallel training**: All trees train independently → n_jobs=-1 uses all CPU cores
+- **Constraint #1 (IMPROVEMENT) ✅**: >5% RMSE improvement over single Decision Tree achieved
+- **Constraint #2 (DIVERSITY) ✅**: Bootstrap + feature randomization ensures low correlation ρ
+- **Constraint #5 (ROBUSTNESS) ✅**: Predictions stable across random seeds
+
+❌ **Still can't solve:**
+- ❌ **High-bias problems**: Random Forest can't reduce bias — a shallow RF of stumps still underfits
+- ❌ **Constraint #3 (EFFICIENCY)**: Haven't benchmarked latency against production SLA yet (Ch.6)
+- ❌ **Constraint #4 (INTERPRETABILITY)**: Only global feature importance; no per-prediction explanations (need SHAP in Ch.4)
+- ❌ **Extrapolation**: Trees clamp predictions to training range — can't predict beyond min/max values
+
+**Real-world status**: You can now deploy robust regression and classification models that beat single trees and provide free validation estimates. But if your data has high bias (underfitting), bagging alone won't fix it.
+
+**Next up:** Ch.2 gives you **boosting** — sequential error correction that reduces *bias* by training each tree to fix the ensemble's remaining mistakes.
+
+---
+
+## 11 · Bridge to Chapter 2
+
+Random Forest reduces **variance** by averaging decorrelated trees, but it doesn't reduce **bias** — shallow forests of stumps still underfit. Chapter 2 introduces **boosting**, where trees train *sequentially* with each one correcting the ensemble's remaining errors.
 
 ➡️ **Evaluation:** Ensemble accuracy, AUC, and precision/recall trade-offs are covered in depth at [02-Classification/ch03-metrics](../../02_classification/ch03_metrics).  
 ➡️ **Tuning:** Grid search and cross-validation for `n_estimators` and `max_depth` are in [02-Classification/ch05-hyperparameter-tuning](../../02_classification/ch05_hyperparameter_tuning).
-# Ch.11 — SVM & Ensembles
 
 > **The story.** Two parallel revolutions in the 1990s. **SVMs** came from **Vladimir Vapnik and Corinna Cortes** at AT&T Bell Labs in **1995** — the maximum-margin classifier plus the kernel trick let SVMs handle non-linear boundaries without explicitly building the feature space. For about a decade SVMs *were* statistical machine learning, dominating bioinformatics and text classification. The ensemble lineage ran in parallel: **Leo Breiman's bagging** (1996) showed that averaging many high-variance trees crushes their variance; the same year **Yoav Freund & Robert Schapire's AdaBoost** built trees *sequentially* with each one focusing on the previous's mistakes; Breiman's **Random Forests** (2001) added feature subsampling to bagging. The end of the boosting line was **Tianqi Chen & Carlos Guestrin's XGBoost** (**2014**) and Microsoft's **LightGBM** (2017), which between them won effectively every tabular Kaggle competition for a decade and remain the production default for structured data.
 >

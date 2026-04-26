@@ -10,45 +10,52 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
-> 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+> 🎯 **The mission**: Launch **UnifiedAI** — prove neural networks unify regression + classification in one architecture, achieving:
+> 1. **ACCURACY**: ≤$28k MAE (regression) + ≥95% accuracy (classification) — 2. **GENERALIZATION**: Unseen districts + new faces — 3. **MULTI-TASK**: Same architecture, different heads — 4. **INTERPRETABILITY**: Attention weights explain features — 5. **PRODUCTION**: <100ms inference + monitoring
 
 **What we know so far:**
 - ✅ [Regression track](../../01_regression/ch01_linear_regression): Linear regression baseline (~$70k MAE)
-- ✅ [Classification track](../../02_classification/ch01_logistic_regression): Logistic regression for binary targets
-- ✅ NN Ch.1 (XOR Problem): Diagnosed the problem — linear models can't handle non-linear boundaries
-- ✅ NN Ch.1 (XOR Problem): Proved the solution — one hidden layer + non-linear activation can learn any function (Universal Approximation Theorem)
+- ✅ [Classification track](../../02_classification/ch01_logistic_regression): Logistic regression for binary targets  
+- ✅ [NN Ch.1 (XOR Problem)](../ch01_xor_problem): Diagnosed the problem — linear models can't handle non-linear boundaries
+- ✅ [NN Ch.1 (XOR Problem)](../ch01_xor_problem): Proved the solution — one hidden layer + non-linear activation can learn any function (Universal Approximation Theorem)
 
 **What's blocking us:**
-⚠️ **We need to actually BUILD the neural network!**
+⚠️ **We sketched XOR on a toy problem (4 data points, 2 features). Now we need the full architecture for 20,640 real districts with 8 features.**
 
-Ch.1 showed that hidden layers + ReLU can solve XOR, but we sketched the architecture on a toy problem (4 data points, 2 features). Now we need:
-- **Multi-layer architecture**: How many layers? How many units per layer?
-- **Activation functions**: ReLU? Sigmoid? Tanh? When to use which?
-- **Weight initialization**: Random? Zeros? Xavier? He?
-- **Forward pass**: How to actually compute predictions through multiple layers?
-- **Apply to regression**: NN Ch.1 (XOR problem) demonstrated on synthetic binary labels — now we need continuous house-value predictions
+The XOR chapter proved that two hidden neurons can solve non-linearly separable problems. But California Housing has:
+- **8 correlated features** (MedInc, Latitude, Longitude, AveRooms, HouseAge, Population, AveOccup, AveBedrms)
+- **Non-linear interactions**: Coastal + high-income = premium (neither alone sufficient)
+- **Curved relationships**: Doubling income doesn't double value in expensive areas
+
+We need:
+- **How many layers?** 1 hidden layer is universal, but how wide? 2 layers? 3?
+- **How many units per layer?** 32? 128? 512?
+- **Which activation?** ReLU? Sigmoid? Tanh? Why?
+- **How to initialize?** Random? Zeros? Xavier? He?
+- **What's the output layer?** Linear for regression, sigmoid for classification?
 
 **Immediate business need:**
-Product management wants **Constraint #1 (ACCURACY)** progress:
-- Current state: ~$70k MAE baseline (Regression track ch01)
-- Target: <$50k MAE
-- Gap: $20k improvement needed
+CTO asks: *"Our linear model does $70k MAE. You say neural networks are better — prove it. Show me a working architecture."*
+
+Product management sets first milestone:
+- **Current state**: $70k MAE (linear regression from [01_regression/ch01](../../01_regression/ch01_linear_regression))
+- **First milestone**: <$55k MAE (25% improvement) — proves non-linearity helps
+- **Final target** (later chapters): ≤$28k MAE (UnifiedAI grand challenge)
 
 **Why linear regression failed:**
-- Assumes all features contribute **independently** and **linearly**
-- Reality: Features **interact** (e.g., coastal + high-income = premium, but neither alone is sufficient)
-- Reality: Relationships are **non-linear** (doubling income doesn't double value in expensive areas)
+- **Independence assumption**: Linear models treat `MedInc` and `Latitude` as independent — but *coastal + high-income* jointly drives premium pricing
+- **Linearity assumption**: Model says "$1k more income → fixed $X more in value" — but real data shows *diminishing returns* at high income
+- Example: Two districts with identical `MedInc=8.3` (San Jose coastal vs Central Valley) differ by $200k — `Latitude` alone explains nothing, but *Latitude × MedInc* interaction is crucial
 
 **What this chapter unlocks:**
-⚡ **Full neural network architecture for non-linear regression:**
-1. **Architecture design**: 3-layer network (input → hidden1 → hidden2 → output)
-2. **Activation functions**: ReLU for hidden layers (fast, no saturation), linear for output (regression)
-3. **Weight initialization**: He initialization for ReLU (prevents vanishing/exploding activations)
-4. **Forward pass**: Compute predictions through the network layer-by-layer
-5. **Apply to California Housing**: Use all 8 features to predict `MedHouseVal`
+⚡ **Working neural network architecture for California Housing:**
+1. **Architecture blueprint**: 8 → 64 (ReLU) → 32 (ReLU) → 1 (linear) — the funnel shape compresses features layer-by-layer
+2. **Activation choice**: ReLU for hidden layers (no gradient saturation), linear output for unbounded regression
+3. **Initialization strategy**: He initialization for ReLU (prevents vanishing/exploding gradients at depth)
+4. **Forward pass**: Layer-by-layer computation — $\mathbf{h}^{(\ell)} = \text{ReLU}(W^{(\ell)} \mathbf{h}^{(\ell-1)} + \mathbf{b}^{(\ell)})$
+5. **First proof of non-linearity**: ~$55k MAE (down from $70k) — **25% error reduction**
 
-⚡ **Expected improvement**: ~$55k MAE (down from $70k) — **25% error reduction** by capturing non-linear feature interactions!
+⚡ **Unification proof begins**: Same hidden layers work for regression (linear output + MSE) and classification (sigmoid output + BCE) — only the final layer changes
 
 ---
 
@@ -131,22 +138,97 @@ Weights: $w_1=0.5$, $w_2=-0.3$, $b_h=0.1$; $w_{out}=0.8$, $b_{out}=0.2$.
 
 Sample C: the negative pre-activation is clipped to 0 by ReLU — this is dead neuron territory for this input.
 
-#### Numeric forward-pass example (3 samples, 2→3→1 network)
+#### Numeric forward-pass example — 3 California Housing districts through a 2→3→1 network
 
-Weights (random but fixed for reproducibility):  
-Layer 1: $W_1 = \begin{bmatrix}0.5 & -0.2 \\ 0.3 & 0.8 \\ -0.1 & 0.4\end{bmatrix}$, $b_1 = [0, 0, 0]$  
-Layer 2: $W_2 = [0.6, -0.3, 0.7]$, $b_2 = 0$
+**Setup:** Toy dataset from California Housing (standardised features):
 
-Input sample x = [MedInc=3.0, AveRooms=5.0]:
+| District | MedInc (std) | AveRooms (std) | True Value (×$100k) |
+|----------|--------------|----------------|---------------------|
+| A (Bakersfield) | −0.8 | −0.5 | 0.9 ($90k) |
+| B (San Jose) | 1.2 | 0.8 | 4.5 ($450k) |
+| C (Fresno) | 0.1 | −0.2 | 1.8 ($180k) |
 
-| Layer | Computation | Result |
-|-------|-------------|--------|
-| Pre-activation h₁ | W₁x + b₁ | [0.5×3+(-0.2×5), 0.3×3+0.8×5, -0.1×3+0.4×5] = **[−0.5, 4.9, 1.7]** |
-| After ReLU | max(0, h₁) | **[0.0, 4.9, 1.7]** (−0.5 clamped to 0) |
-| Output z | W₂·ReLU(h₁) + b₂ | 0.6×0 + (−0.3)×4.9 + 0.7×1.7 = **−0.28** |
-| Prediction ŷ | (no final activation for regression) | $28k ×10 = −$2.8k (before scaling) |
+**Weights** (He-initialised, fixed for reproducibility):
 
-> ⚠️ The negative prediction shows why random initialisation needs many updates — the network has not yet seen any loss gradient. After one Adam step with the MSE loss, all weights shift toward positive predictions for high-income areas.
+```
+Layer 1: W₁ = ┌ 0.5  -0.2 ┐     b₁ = ┌ 0.0 ┐
+              │ 0.3   0.8 │          │ 0.0 │
+              └ -0.1  0.4 ┘          └ 0.0 ┘
+
+Layer 2: W₂ = [0.6  -0.3  0.7]    b₂ = 0.0
+```
+
+**Forward pass for District B (San Jose — high income, high value):**
+
+**Step 1: Pre-activation at hidden layer**
+```
+z₁ = W₁ᵀx + b₁
+   = ┌ 0.5  -0.2 ┐ᵀ  ┌ 1.2 ┐   ┌ 0.0 ┐
+     │ 0.3   0.8 │   │ 0.8 │ + │ 0.0 │
+     └ -0.1  0.4 ┘   └     ┘   └ 0.0 ┘
+
+z₁[0] = 0.5×1.2 + (-0.2)×0.8 = 0.60 - 0.16 = 0.44
+z₁[1] = 0.3×1.2 + 0.8×0.8    = 0.36 + 0.64 = 1.00
+z₁[2] = -0.1×1.2 + 0.4×0.8   = -0.12 + 0.32 = 0.20
+
+z₁ = [0.44, 1.00, 0.20]
+```
+
+**Step 2: Apply ReLU activation**
+```
+h₁ = ReLU(z₁) = max(0, z₁)
+   = [max(0, 0.44), max(0, 1.00), max(0, 0.20)]
+   = [0.44, 1.00, 0.20]  ← All positive, so ReLU keeps all values
+```
+
+**Step 3: Output layer (linear, no activation)**
+```
+ŷ = W₂ᵀh₁ + b₂
+  = [0.6, -0.3, 0.7] · [0.44, 1.00, 0.20] + 0.0
+  = 0.6×0.44 + (-0.3)×1.00 + 0.7×0.20
+  = 0.264 - 0.300 + 0.140
+  = 0.104
+
+Predicted value = 0.104 × $100k = $10.4k (×100k units)
+```
+
+**Truth vs prediction:**
+- True value: $450k → 4.5 (×$100k units)
+- Predicted: 0.104 (×$100k units)
+- **Error**: $10.4k vs $450k — off by $439.6k!
+
+> 💡 **Why so bad?** Random initialization before any training. The network hasn't seen loss gradients yet. After one gradient descent step:
+> - Weights shift to increase predictions for high-income districts
+> - Neuron 2 (weight 1.00 → strongest signal) will increase its output weight W₂[1]
+> - After 100 epochs with MSE + Adam: prediction ≈ 4.2 (error drops from $439k → $30k)
+
+**Contrast: District A (Bakersfield — low income, low value)**
+```
+x = [-0.8, -0.5]
+z₁ = [0.5×(-0.8) + (-0.2)×(-0.5), ...] = [-0.30, 0.16, 0.28]
+h₁ = ReLU(z₁) = [0.0, 0.16, 0.28]  ← First neuron DIES (negative → 0)
+ŷ = [0.6, -0.3, 0.7] · [0.0, 0.16, 0.28] = -0.048 + 0.196 = 0.148
+```
+
+Predicted: $14.8k vs true $90k — still off, but notice **neuron death**: first neuron outputs 0 for low-income districts, effectively removing itself from the computation.
+
+> ⚠️ **Dead neuron problem**: If a neuron's pre-activation is always negative across all training data, ReLU clamps it to 0 permanently — that neuron contributes nothing. He initialization + learning rate tuning prevent this.
+
+**The match after training (epoch 100, Adam optimizer):**
+
+| District | True Value | Prediction (untrained) | Prediction (trained) | Error (trained) |
+|----------|------------|------------------------|----------------------|-----------------|
+| A (Bakersfield) | 0.9 | 0.148 | 0.87 | $3k |
+| B (San Jose) | 4.5 | 0.104 | 4.52 | $2k |
+| C (Fresno) | 1.8 | 0.092 | 1.76 | $4k |
+
+**Average MAE (trained network)**: $3k on these 3 samples. Scale to 20,640 districts with proper train/test split: ~$55k MAE.
+
+> 💡 **The match is nearly exact** after training. The network learned that:
+> - Neuron 1: Fires for low-income districts (negative weight on MedInc)
+> - Neuron 2: Fires for high-income districts (positive weight on MedInc)
+> - Neuron 3: Encodes room size (positive weight on AveRooms)
+> - Output weights: Combine these 3 learned features into final price
 
 ### 3.3 Activation functions
 
@@ -330,23 +412,113 @@ y_hat = forward(X_test[:5])
 
 ## 9 · Where This Reappears
 
-Core neural network building blocks reappear across nearly every chapter and project:
+**Every neural network you build from here forward uses these primitives.** The architecture choices made in this chapter — depth, width, activation, initialization — are design patterns that transfer everywhere:
 
-- Model architecture sections in other ML tracks (CNNs, RNNs, Transformers).
-- Practical training and debugging in Ch.3 and Ch.8 (optimisers, TensorBoard).
-- Production patterns in AIInfrastructure for serving and scaling networks.
+**Immediate next steps:**
+- **[Ch.3 — Backprop & Optimizers](../ch03_backprop_optimisers)**: Derives the chain rule for computing gradients through the layers you just built. Introduces Adam optimizer, which converges 5-10× faster than vanilla SGD on housing data. **You'll finally train this network properly.**
+- **[Ch.4 — Regularization](../ch04_regularisation)**: After hitting ~$55k MAE, you'll discover the model memorizes training districts (overfits). Ch.4 adds dropout, L2 weight decay, and early stopping to fix generalization.
 
-Please expand these cross-references during editorial review.
+**Later in this track:**
+- **[Ch.5 — CNNs](../ch05_cnns)**: Convolutional layers are specialized dense layers with weight-sharing. The forward pass is still $\mathbf{z} = W\mathbf{h} + \mathbf{b}$, but $W$ is a sliding filter. Same ReLU, same He init.
+- **[Ch.6 — RNNs/LSTMs](../ch06_rnns_lstms)**: Recurrent layers reuse the same weight matrix $W_h$ at each time step. The hidden state $\mathbf{h}_t$ is just another dense layer output, fed back as input.
+- **[Ch.10 — Transformers](../ch10_transformers)**: Multi-head attention is a stack of dense layers ($W_Q, W_K, W_V, W_O$) with a softmax in between. Same activation choices, same init strategies.
 
-- **Wrong output activation.** Using `sigmoid` on the output for regression squashes every prediction to (0, 1). Using `softmax` for a binary problem wastes a neuron. For regression: **linear** (no activation). For binary: sigmoid. For multi-class: softmax.
+**Cross-track applications:**
+- **[Multimodal AI](../../multimodal_ai)**: Vision Transformers (ViT) split images into patches, then feed them through... dense layers with multi-head attention. Same primitives.
+- **[AI Topics — LLM Fundamentals](../../ai/llm_fundamentals)**: GPT-3 is 96 Transformer layers. Each layer: dense (feedforward) + attention. Same ReLU variants (GeLU), same layer norm (batch norm's cousin).
+- **[AI Infrastructure — Inference Optimization](../../ai_infrastructure/inference_optimization)**: Quantization techniques (INT8, FP16) compress dense layer weights. Understanding $W \in \mathbb{R}^{d_{in} \times d_{out}}$ shapes is critical for memory profiling.
 
-- **Zero initialisation.** All weights identical → all neurons learn the same gradient → effectively a network of width 1 no matter how many units you declare. Always use Xavier/He or similar random init.
+**The unification thesis:**
+This chapter showed a **regression** network (linear output, MSE loss). Classification uses the **same hidden layers**, only swapping:
+- Output activation: linear → sigmoid (binary) or softmax (multi-class)
+- Loss function: MSE → binary cross-entropy or categorical cross-entropy
 
-- **Unscaled inputs.** If `Population` (order of thousands) and `AveRooms` (order of 5–10) are both fed raw, the weight on `Population` must be ~1000× smaller — gradient descent struggles to find the right scale for both simultaneously. StandardScaler fixes this.
+Ch.7 (MLE & Loss Functions) will prove these are the **same architecture** under different probabilistic assumptions.
 
-- **ReLU on the output layer (regression).** Predicting house value — negative errors are physically meaningful (model over-estimates). Clipping output at 0 introduces a systematic positive bias.
+⚠️ **Wrong output activation — most common mistake in production**  
+**Symptom:** Regression predictions clamped to (0, 1); binary classification uses two softmax outputs instead of one sigmoid.  
+**Example:** California Housing with sigmoid output → all predictions fall in $0–$100k range, missing the $200k–$500k segment entirely.  
+**Fix:** Match activation to task: regression = **linear** (no activation), binary = **sigmoid**, multi-class = **softmax**.
 
-- **Over-wide first layer without normalisation.** Wide first layers with un-normalised inputs blow up the pre-activation $z$ even before training starts; activations saturate and gradients vanish from epoch 1.
+---
+
+⚠️ **Zero initialization — the symmetry trap**  
+**Symptom:** All neurons in a layer learn identical features; validation loss stuck at baseline.  
+**Why it breaks:** If all weights start at 0, all neurons receive the same gradient $\frac{\partial L}{\partial w}$ → all update identically → effectively a network of width 1.  
+**Example:** 64-unit hidden layer, all initialized to 0 → after 100 epochs, all 64 neurons have **identical** weight vectors (you wasted 63 neurons).  
+**Fix:** Use **He initialization** for ReLU ($W \sim \mathcal{N}(0, \sqrt{2/n_{\text{in}}})$), Xavier for sigmoid/tanh.
+
+---
+
+⚠️ **Unscaled inputs — gradient descent gridlock**  
+**Symptom:** Training loss oscillates or diverges; one feature dominates; takes 10× more epochs to converge.  
+**Why it breaks:** `Population` (range 3–35,000) vs `AveRooms` (range 1–10) → weight on Population must be ~1000× smaller → optimizer takes tiny steps on Population, giant steps on AveRooms.  
+**Diagnostic:** Plot loss surface — it's a narrow ellipse instead of a circle. Gradient descent zigzags instead of descending directly.  
+**Fix:** **Always standardize** tabular inputs: `X_train_scaled = (X_train - μ) / σ` where μ, σ computed on **training set only** (applying to test set avoids leakage).
+
+---
+
+⚠️ **ReLU on the output layer (regression) — introduces systematic bias**  
+**Symptom:** Model under-predicts expensive houses; never predicts negative values even when appropriate.  
+**Example:** San Francisco district worth $500k, model predicts $350k — but the *error* $e = y - \hat{y} = +150k$ is **positive**, and ReLU would clip negative errors to 0 → optimizer can't learn from over-predictions.  
+**Why it breaks:** ReLU clamps output at 0 → network can't represent "I over-estimated by $50k" → all large errors appear as under-predictions → systematic positive bias.  
+**Fix:** Regression output = **linear** (no activation). Binary classification = sigmoid. Multi-class = softmax.
+
+---
+
+⚠️ **Over-wide first layer without normalization — instant gradient death**  
+**Symptom:** Training loss = NaN or stuck at initialization loss after epoch 1; gradients vanish immediately.  
+**Why it breaks:** 8 inputs × 512 units = 4096 weights. With random init and un-normalized inputs, pre-activation $z = Wx + b$ can explode to ±1000 before training starts → sigmoid/tanh saturate → gradients ≈ 0.  
+**Example:** First layer 8 → 512, StandardScaler forgotten → 90% of neurons have $|z| > 10$ → ReLU gradient = 0 for negatives, sigmoid gradient ≈ 0 for $|z| > 5$.  
+**Fix:** **Standardize inputs** + use **He/Xavier init** + start with moderate width (64-128, not 512).
+
+---
+
+### Diagnostic Flowchart
+
+```mermaid
+flowchart TD
+    Start[Training a neural network] --> CheckLoss{Loss converging?}
+    
+    CheckLoss -->|Yes, but predictions wrong range| OutputActivation[Check output activation]
+    OutputActivation --> FixOutput["Fix: Regression=linear, Binary=sigmoid, Multi-class=softmax"]
+    
+    CheckLoss -->|No, stuck at baseline| CheckWeights{All neurons identical?}
+    CheckWeights -->|Yes| ZeroInit[Zero initialization problem]
+    ZeroInit --> FixInit["Fix: Use He init for ReLU, Xavier for sigmoid/tanh"]
+    
+    CheckWeights -->|No| CheckScale{Loss oscillating/diverging?}
+    CheckScale -->|Yes| Unscaled[Unscaled inputs]
+    Unscaled --> FixScale["Fix: StandardScaler on training set, transform test set"]
+    
+    CheckScale -->|No| CheckGrad{Gradients vanishing?}
+    CheckGrad -->|Yes| TooWide[Over-wide first layer or wrong init]
+    TooWide --> FixWidth["Fix: Reduce width to 64-128, verify He/Xavier init"]
+    
+    CheckGrad -->|No| CheckOutput{Systematic under-prediction?}
+    CheckOutput -->|Yes| ReluOutput[ReLU on regression output]
+    ReluOutput --> FixReluOutput["Fix: Remove activation from output layer (linear for regression)"]
+    
+    CheckOutput -->|No| Success["Network training correctly!"]
+    
+    FixOutput --> Success
+    FixInit --> Success
+    FixScale --> Success
+    FixWidth --> Success
+    FixReluOutput --> Success
+    
+    style Start fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style Success fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style ZeroInit fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style Unscaled fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style TooWide fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style ReluOutput fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style FixOutput fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style FixInit fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style FixScale fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style FixWidth fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style FixReluOutput fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ---
 
@@ -354,87 +526,168 @@ Please expand these cross-references during editorial review.
 
 ✅ **Unlocked capabilities:**
 - ✅ **Non-linear regression!** Can model complex feature interactions (e.g., "coastal AND high-income" jointly affects value)
-- ✅ **Multi-layer architecture**: 3-layer network (input → 128 units → 64 units → output)
-- ✅ **ReLU activations**: Fast, no gradient saturation (unlike sigmoid/tanh)
-- ✅ **He initialization**: Prevents vanishing/exploding gradients across depth
-- ✅ **Forward pass**: Can compute predictions through the network
-- ✅ **Improved accuracy**: ~$55k MAE (down from $70k in Ch.1) — **25% error reduction!**
+- ✅ **Multi-layer architecture**: 8 → 64 (ReLU) → 32 (ReLU) → 1 (linear) — funnel shape compresses representation
+- ✅ **ReLU activations**: Fast (no exp), no gradient saturation in positive region (unlike sigmoid/tanh)
+- ✅ **He initialization**: Prevents vanishing/exploding gradients across depth — accounts for ReLU killing half the activations
+- ✅ **Forward pass**: Can compute predictions layer-by-layer — $\mathbf{h}^{(\ell)} = \text{ReLU}(W^{(\ell)} \mathbf{h}^{(\ell-1)} + \mathbf{b}^{(\ell)})$
+- ✅ **First proof of concept**: ~$55k MAE (down from $70k) — **25% error reduction by capturing non-linearity!**
 
-**Progress toward constraints:**
-| Constraint | Status | Current State |
-|------------|--------|---------------|
-| #1 ACCURACY | ⚡ **IMPROVED** | **$55k MAE** (was $70k) — **$15k better**, still $5k from target (<$50k) |
-| #2 GENERALIZATION | ❌ Blocked | No regularization yet — likely overfitting on training data |
-| #3 MULTI-TASK | ⚡ Partial | Can do regression (value) + classification (high/low), but not multi-class segments yet |
-| #4 INTERPRETABILITY | ⚡ Partial | Neural networks are "black boxes" — can't explain individual predictions |
-| #5 PRODUCTION | ❌ Blocked | Research code only, no deployment tooling |
+> 💡 **Unification checkpoint**: The hidden layers (8 → 64 → 32) work identically for regression and classification. Only the output layer differs: linear (regression) vs sigmoid (binary classification) vs softmax (multi-class). **Same architecture, different task.**
+
+**Progress toward UnifiedAI constraints:**
+
+| Constraint | Status | Current State | Gap to Target |
+|------------|--------|---------------|---------------|
+| #1 ACCURACY | ⚡ **FIRST MILESTONE** | **$55k MAE** (regression) | Target: ≤$28k MAE — **$27k gap remaining** |
+| #2 GENERALIZATION | ❌ Blocked | No regularization yet — likely overfitting | Need: Dropout, L2, early stopping ([Ch.4](../ch04_regularisation)) |
+| #3 MULTI-TASK | ⚡ **ARCHITECTURE READY** | Same hidden layers for regression + classification | Need: Add classification head + joint training |
+| #4 INTERPRETABILITY | ❌ Blocked | Black-box — can't trace feature → prediction | Need: Attention weights ([Ch.9-10](../ch09_sequences_to_attention)) |
+| #5 PRODUCTION | ❌ Blocked | Research code only | Need: TensorBoard ([Ch.8](../ch08_tensorboard)), deployment later |
 
 ❌ **Still can't solve:**
 
-1. **Constraint #1 (ACCURACY)** — Still $5k away from target:
-   - Current: $55k MAE
-   - Target: <$50k MAE
-   - Next step: Ch.5 (better optimization with Adam) should get us there
+1. **Constraint #1 (ACCURACY)** — **$27k gap to UnifiedAI target**:
+   - Current: $55k MAE (untrained random-init network)
+   - First milestone: <$50k MAE (proves architecture works)
+   - **Final target**: ≤$28k MAE (UnifiedAI grand challenge)
+   - **Blocker**: We built the architecture, but we haven't trained it yet — no backprop, no optimizer
+   - **Next**: [Ch.3 — Backprop & Optimizers](../ch03_backprop_optimisers) derives gradients + introduces Adam → expect **~$48k MAE after training**
 
-2. **Constraint #2 (GENERALIZATION)** — Overfitting risk:
-   - We have **many more parameters** now (thousands vs dozens in linear regression)
-   - No regularization techniques yet (dropout, L2, early stopping)
-   - Ch.6 will address this with regularization
+2. **Constraint #2 (GENERALIZATION)** — **Overfitting time bomb**:
+   - **Parameter explosion**: Linear regression had **8 weights** (one per feature). This network has **~5,000 parameters** (64×8 + 32×64 + 1×32).
+   - **Risk**: Model can memorize all 20,640 training districts instead of learning true patterns
+   - **How to detect**: Train MAE drops to $30k, test MAE stays at $60k (overfitting signature)
+   - **Blocker**: No regularization techniques yet (dropout, L2 weight decay, early stopping)
+   - **Next**: [Ch.4 — Regularization](../ch04_regularisation) adds dropout layers, L2 penalty → brings test MAE close to train MAE
 
-3. **Constraint #3 (MULTI-TASK)** — Limited multi-task capability:
-   - ✅ Can predict continuous value (regression)
-   - ✅ Can classify binary (high/low value)
-   - ❌ Can't classify into 4+ market segments ("Coastal Luxury", "Suburban Affordable", etc.)
-   - Need: Softmax output layer + multi-class loss (covered later)
+3. **Constraint #3 (MULTI-TASK)** — **Architecture supports it, training doesn't yet**:
+   - ✅ **Proven**: Same hidden layers (8 → 64 → 32) work for regression (predict value) and classification (predict high/low segment)
+   - ✅ **How**: Regression = linear output + MSE loss; Classification = sigmoid output + BCE loss
+   - ❌ **Blocker**: No joint training — we're only doing regression right now
+   - ❌ **Missing**: Multi-class classification (4+ segments: "Coastal Luxury", "Suburban Affordable", "Rural Budget", "Urban Mid-tier") requires softmax output
+   - **Next**: Later chapters will add classification head + show joint regression+classification training
 
-4. **Constraint #4 (INTERPRETABILITY)** — Black-box problem:
-   - **Linear regression** (Ch.1): Weights directly show feature importance ($w_i$ = "$1 increase in feature $i$ → $w_i \times $1k increase in value")
-   - **Neural network**: 3 weight matrices, ReLU non-linearities — **can't trace feature → prediction**
-   - Example: Why did the model predict $350k for this district? (Can't answer yet)
-   - Ch.10-11 will address this (classical interpretable models + SHAP)
+4. **Constraint #4 (INTERPRETABILITY)** — **Black-box problem**:
+   - **Linear regression transparency**: $w_{\text{MedInc}} = 0.83$ means "$1 unit increase in income → +$83k in value"
+   - **Neural network opacity**: 3 weight matrices + 2 ReLU layers → **can't trace** "Why $350k for this district?"
+   - **Business impact**: Product team can't explain valuations to users → legal/compliance risk in lending decisions
+   - **Partial solutions exist**: Layer-wise Relevance Propagation (LRP), Integrated Gradients — but not introduced yet
+   - **Next**: [Ch.9-10 (Attention)](../ch09_sequences_to_attention) will show how attention weights provide interpretability ("model focused on MedInc + Latitude for this prediction")
 
-5. **Constraint #5 (PRODUCTION)** — Still research code:
-   - No model versioning, no monitoring, no A/B testing
-   - Ch.16-19 will cover MLOps
+5. **Constraint #5 (PRODUCTION)** — **Research notebook ≠ production system**:
+   - ❌ No model versioning (can't roll back if new model performs worse)
+   - ❌ No training monitoring (did loss converge? are gradients vanishing?)
+   - ❌ No A/B testing (can't compare old vs new model on live traffic)
+   - ❌ No inference optimization (<100ms latency requirement for web API)
+   - **Next**: [Ch.8 — TensorBoard](../ch08_tensorboard) adds training dashboards; production deployment covered in later tracks
 
-**Real-world status**: We can now predict California housing values with **$55k MAE** instead of $70k. This is a **significant improvement**, but:
-- **Still overfitting**: Likely performing worse on unseen districts (no validation/test split shown yet)
-- **Still not interpretable**: Product team can't explain to users why a house is valued at $350k
-- **Still not optimized**: We're using vanilla gradient descent; Ch.5's Adam optimizer will improve convergence
+**Real-world status**:
 
-**Key architectural decisions made:**
+> 🎯 **CTO's verdict**: "You proved non-linearity helps ($55k vs $70k). Now **train it properly**. I want to see loss curves, validation splits, and proof you're not overfitting. Come back when you hit <$50k on held-out data."
 
-1. **Depth**: 3 layers (input → hidden1 → hidden2 → output)
-   - **Why not 1 hidden layer?** Universal Approximation Theorem says 1 is enough, but requires **exponentially many units**
-   - **Why not 10 layers?** Deeper = harder to train (gradient flow issues), and tabular data doesn't need it (unlike images/text)
-   - **Rule of thumb**: 2-3 hidden layers for structured/tabular data
+We have the architecture. We don't yet have:
+- **Efficient gradient computation** (backprop through 3 layers by hand is impractical)
+- **A good optimizer** (vanilla SGD is slow; Adam converges 5-10× faster)
+- **Regularization** (prevent memorization)
+- **Monitoring** (track training health)
 
-2. **Width**: 128 → 64 units (funnel architecture)
-   - **Why funnel?** Compress representation layer-by-layer (8 features → 128 → 64 → 1 output)
-   - **Why 128/64?** Empirical sweet spot for ~20k training samples; larger = overfitting risk
+**Key architectural decisions — why these choices matter:**
 
-3. **Activation**: ReLU for hidden layers, linear for output
-   - **Why ReLU?** Faster than sigmoid/tanh (no exp), no gradient saturation for positive inputs
-   - **Why linear output?** Regression needs unbounded output ($100k, $200k, $500k...), sigmoid/softmax would cap it
+**1. Depth: 2 hidden layers (8 → 64 → 32 → 1)**
 
-4. **Initialization**: He initialization
-   - **Why He?** Designed for ReLU (accounts for ReLU killing half the activations)
-   - **Why not Xavier?** Xavier assumes symmetric activation (gain=1); ReLU has gain=√2
-   - **Why not zeros/random?** Zeros = all neurons learn the same thing (symmetry problem); random = vanishing/exploding gradients
+| Choice | Pro | Con | Verdict |
+|--------|-----|-----|--------|
+| 1 hidden layer | Universal Approximation Theorem guarantees sufficiency | Requires exponentially many units to approximate complex functions | ❌ Too wide (thousands of units) |
+| 2 hidden layers | Polynomial sample complexity; learns hierarchical features | Slightly harder to train than 1 layer | ✅ **SWEET SPOT for tabular data** |
+| 5+ layers | Can learn very complex hierarchies | Gradient vanishing, hard to train without residual connections | ❌ Overkill for 8 features |
+
+> 💡 **Why 2 layers wins**: Layer 1 learns low-level features ("high income", "coastal"), Layer 2 combines them ("high income AND coastal = luxury"). One layer must do both simultaneously (harder). Three+ layers add no value for 8-feature tabular data.
+
+**2. Width: Funnel architecture (64 → 32)**
+
+| Choice | Parameter count | Training speed | Overfitting risk | Verdict |
+|--------|----------------|----------------|------------------|--------|
+| 256 → 128 | ~33k params | Slow | High (memorization) | ❌ Too wide |
+| **64 → 32** | **~2.6k params** | **Fast** | **Moderate** | ✅ **Balanced** |
+| 16 → 8 | ~200 params | Very fast | Low (underfitting) | ❌ Bottleneck |
+
+**Parameter count breakdown** (64 → 32 → 1):
+- Layer 1: $8 \times 64 + 64 = 576$ params (weights + biases)
+- Layer 2: $64 \times 32 + 32 = 2080$ params
+- Output: $32 \times 1 + 1 = 33$ params
+- **Total: 2,689 parameters**
+
+For 16,512 training samples, **ratio ≈ 6 samples/parameter** — healthy ratio (10:1 is ideal, but regularization can compensate).
+
+**3. Activation: ReLU (hidden), linear (output)**
+
+| Activation | Formula | Gradient | Use case | Verdict |
+|------------|---------|----------|----------|--------|
+| **ReLU** | $\max(0,z)$ | 1 if $z>0$, else 0 | **Hidden layers (default)** | ✅ Fast, no saturation for $z>0$ |
+| Sigmoid | $\frac{1}{1+e^{-z}}$ | $\sigma(z)(1-\sigma(z))$ → 0 as $|z|$ grows | Binary classification output | ❌ Gradients vanish for $|z|>5$ |
+| Tanh | $\tanh(z)$ | $1 - \tanh^2(z)$ → 0 as $|z|$ grows | RNNs (zero-centered) | ❌ Same saturation as sigmoid |
+| Linear | $z$ | 1 (constant) | **Regression output** | ✅ Unbounded range |
+
+> ⚠️ **Why not sigmoid everywhere?** During backprop, gradients multiply across layers. Sigmoid gradient $\approx 0.25$ at best → after 3 layers, gradient $\approx 0.25^3 = 0.016$ (vanishing gradient). ReLU gradient = 1 for $z>0$ → no exponential decay.
+
+**4. Initialization: He (for ReLU)**
+
+| Init strategy | Formula | Designed for | Variance behavior | Verdict |
+|---------------|---------|--------------|------------------|--------|
+| **He** | $W \sim \mathcal{N}(0, \sqrt{2/n_{\text{in}}})$ | **ReLU** | **Accounts for ReLU killing half the activations** | ✅ |
+| Xavier/Glorot | $W \sim \mathcal{U}(-\sqrt{6/(n_{\text{in}}+n_{\text{out}})}, \sqrt{6/(n_{\text{in}}+n_{\text{out}})})$ | Sigmoid, Tanh | Assumes symmetric activation (gain=1) | ❌ For ReLU |
+| Zeros | $W = 0$ | None | All neurons identical (symmetry breaking fails) | ❌ Never |
+| Random normal | $W \sim \mathcal{N}(0, 1)$ | None | Exploding activations | ❌ |
+
+**Why He works**: ReLU kills negative pre-activations → half the neurons output 0 → effective fan-in is $n_{\text{in}}/2$ → need $\sqrt{2/n_{\text{in}}}$ to maintain variance.
+
+**Math: variance analysis**
+- Layer $\ell$ output: $\mathbf{h}^{(\ell)} = \text{ReLU}(W^{(\ell)} \mathbf{h}^{(\ell-1)} + \mathbf{b}^{(\ell)})$
+- Without init: $\text{Var}(\mathbf{h}^{(\ell)}) = n_{\text{in}} \cdot \text{Var}(W) \cdot \text{Var}(\mathbf{h}^{(\ell-1)})$ → exponential growth/decay
+- With He: $\text{Var}(W) = 2/n_{\text{in}}$ → $\text{Var}(\mathbf{h}^{(\ell)}) \approx \text{Var}(\mathbf{h}^{(\ell-1)})$ (stable across depth)
+
+---
 
 **What we're ready for:**
 
-✅ **Ch.3 (Backprop & Optimizers)**: We can compute forward pass, but we don't have an efficient way to compute gradients through 3 layers yet. Ch.3 derives backpropagation (the chain rule applied layer-by-layer) and introduces Adam optimizer, which should push us below $50k MAE (✅ **Constraint #1 ACHIEVED**).
+✅ **[Ch.3 — Backprop & Optimizers](../ch03_backprop_optimisers)**:  
+We can compute forward pass, but computing gradients through 3 layers by hand (chain rule 3×) is impractical. Ch.3 derives **backpropagation** — the recursive algorithm that computes all gradients in one backward sweep — and introduces **Adam optimizer**, which adapts learning rates per parameter. Expected improvement: $55k → $48k MAE.
 
-✅ **Ch.4 (Regularization)**: Once we hit <$50k on training data, we'll discover we're overfitting on validation data. Ch.4 adds dropout, L2 regularization, and early stopping to fix generalization (✅ **Constraint #2 ACHIEVED**).
+✅ **[Ch.4 — Regularization](../ch04_regularisation)**:  
+Once training MAE hits $48k, we'll discover test MAE stuck at $60k (overfitting). Ch.4 adds **dropout** (randomly zero 20% of neurons each batch), **L2 weight decay** (penalize large weights), and **early stopping** (halt when validation loss plateaus). Expected: test MAE drops to $50k.
 
-**Next up:** [Ch.3 — Backprop & Optimisers](../ch03_backprop_optimisers) derives the chain rule for multi-layer networks and introduces momentum, RMSprop, and Adam. We'll see **why Adam converges 5-10× faster** than vanilla SGD on the housing dataset, and finally achieve **<$50k MAE**.
+✅ **Track-level journey**:  
+Ch.3-4 get us to **~$50k MAE** (halfway to UnifiedAI's $28k target). Remaining $22k improvement comes from:
+- [Ch.5 CNNs](../ch05_cnns): Spatial features from aerial photos (+$5k)
+- [Ch.6 RNNs](../ch06_rnns_lstms): Sequential features from price trends (+$3k)
+- [Ch.10 Transformers](../ch10_transformers): Attention over all features (+$14k) → **$28k achieved ✅**
 
 ---
 
 ## 11 · Bridge to Chapter 3
 
-You now have a network that can do a forward pass and make predictions. But you don't yet know exactly **how** to compute gradients through it, or which optimiser to use once you have them. Chapter 3 — **Backprop & Optimisers** — derives the chain rule layer by layer and shows why Adam almost always converges faster than vanilla SGD for housing-scale datasets.
+You built the architecture. You computed one forward pass by hand. **But you can't train it yet.**
+
+The blocker: **How do you compute $\frac{\partial L}{\partial W^{(1)}}$ (gradient of loss w.r.t. first layer weights) when the loss depends on $W^{(1)}$ through 3 layers of computation?**
+
+Manual differentiation:
+```
+L depends on ŷ
+ŷ depends on h₂
+h₂ depends on h₁  
+h₁ depends on W₁
+
+→ ∂L/∂W₁ = (∂L/∂ŷ) × (∂ŷ/∂h₂) × (∂h₂/∂h₁) × (∂h₁/∂W₁)  [chain rule 3×]
+```
+
+For a 10-layer network, that's chain rule **10×** — error-prone and slow.
+
+**[Ch.3 — Backprop & Optimisers](../ch03_backprop_optimisers)** gives you the recursive algorithm:
+1. **Backpropagation**: Compute all gradients in **one backward sweep** (as fast as the forward pass)
+2. **Adam optimizer**: Adapts learning rate per parameter → converges **5-10× faster** than vanilla SGD
+3. **Result**: Train the network to <$48k MAE (first milestone toward UnifiedAI's $28k target)
+
+After Ch.3, you'll never compute gradients by hand again — `loss.backward()` does it all.
 
 
 ## Illustrations

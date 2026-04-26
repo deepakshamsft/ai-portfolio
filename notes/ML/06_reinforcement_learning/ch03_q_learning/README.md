@@ -381,10 +381,10 @@ flowchart TD
 
 TD updates and the Q-function are the foundation of all value-based RL in the track:
 
-- **Ch.4 DQN**: replaces the lookup table with a neural network but uses the identical Bellman target — 
- + γ max Q(s', a'; θ⁻).
-- **Ch.5 Actor-Critic**: the critic is a learned V(s) or Q(s,a) updated by TD(0), exactly §3.1 here.
-- **Recommender Systems (Topic 4) Ch.6**: ε-greedy exploration for cold start is a direct application of the exploration policy in §3.5.
+- **[Ch.4 DQN](../ch04_dqn)**: Replaces the Q-table with a neural network $Q(s,a;\theta)$ but uses the identical Bellman target: $r + \gamma \max_{a'} Q(s', a'; \theta^-)$.
+- **[Ch.5 Policy Gradients](../ch05_policy_gradients)**: The actor-critic's critic is a learned $V(s)$ updated by TD(0): $\delta = r + \gamma V(s') - V(s)$ — exactly the TD error from §3.1 here.
+- **[Ch.6 Modern RL](../ch06_modern_rl)**: SAC uses twin Q-networks updated with TD targets; PPO's value function critic uses TD($\lambda$) — both build on the Q-learning foundation.
+- **Recommender Systems (ML Track 04) Ch.6**: $\epsilon$-greedy exploration for cold-start recommendations is a direct application of the exploration policy in §3.5.
 
 ## 10 · Progress Check
 
