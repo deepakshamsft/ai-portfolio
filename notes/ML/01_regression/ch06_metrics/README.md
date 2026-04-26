@@ -464,7 +464,8 @@ A point prediction of "$380k" is incomplete. Stakeholders need: **"$380k ± $45k
 For a 95% confidence interval, we use $z_{0.975} = 1.96$ (the z-score that leaves 2.5% in each tail of the normal distribution).
 
 **The calculation:** If RMSE = $52k (our standard deviation of prediction errors), then:
-- 95% interval = $\hat{y} \pm 1.96 \times \$52\text{k} = \hat{y} \pm \$102\text{k}$
+
+$$\text{95\% interval} = \hat{y} \pm 1.96 \times \text{RMSE} = \hat{y} \pm 1.96 \times 52\text{k} = \hat{y} \pm 102\text{k}$$
 
 This means: "We're 95% confident the true house value lies within ±$102k of our prediction."
 
@@ -489,11 +490,11 @@ upper = np.percentile(predictions, 97.5, axis=0)
 
 ### Residual-Based Intervals (Parametric Method)
 
-Assuming residuals are approximately normal:
+Using the formula explained above, assuming residuals are approximately normal:
 
 $$\hat{y} \pm z_{0.975} \cdot \text{RMSE}$$
 
-For 95% confidence: $z_{0.975} = 1.96$, so interval = $\hat{y} \pm 1.96 \times \text{RMSE}$.
+Where $z_{0.975} = 1.96$ for 95% confidence (as derived from the normal distribution).
 
 **California Housing:** RMSE ≈ $50k → 95% interval ≈ ±$98k (wide! Reflects model uncertainty on extreme values).
 
