@@ -41,27 +41,70 @@
 
 ---
 
-## 1 · Core Idea
+## 1 · Core Idea — Teaching Two Encoders to Speak the Same Language
 
-**CLIP** (Contrastive Language-Image Pretraining, OpenAI 2021) trains two encoders — a ViT image encoder and a transformer text encoder — jointly on 400 million image-text pairs scraped from the internet. The training objective is beautifully simple: **make the embedding of each image similar to the embedding of its paired caption, and dissimilar to the embeddings of all other captions in the same batch**. No class labels. No manual annotations. Just the signal that a photograph of a dog and the text "a photo of a dog" belong together.
+**Your challenge at VisualForge:** You have a ViT image encoder (Ch.2) that turns photos into 768-dim embeddings. You need a text encoder that produces embeddings in the **same space** so that "modern office with natural light" and a photo of a modern office have similar embeddings. Without this alignment, you cannot search images with text queries, and you cannot condition image generation on text prompts.
 
-The result is a shared embedding space where you can directly compare images and text using cosine similarity. This single capability unlocks: zero-shot image classification, semantic image search, and — most importantly for this track — the text conditioning mechanism inside every latent diffusion model.
+**CLIP's solution (OpenAI 2021):** Train two separate encoders — a ViT for images and a GPT-like transformer for text — jointly on 400 million image-text pairs scraped from the internet. The training objective is beautifully simple:
+
+> **Make the embedding of each image similar to its paired caption, and dissimilar to all other captions in the batch.**
+
+No class labels. No manual annotations. Just the natural supervision signal that a photograph of a dog and the caption "a photo of a dog" belong together.
+
+**The training loop:** Sample a batch of $N = 32{,}768$ image-text pairs. Encode each image → 512-dim vector (L2-normalized). Encode each text → 512-dim vector (L2-normalized). Compute the $N \times N$ similarity matrix $S$ where $S_{ij}$ = cosine similarity between image $i$ and text $j$. The diagonal entries $S_{ii}$ are the matching pairs (positives); the off-diagonal entries are non-matching pairs (negatives). Train with InfoNCE loss: maximize the diagonal, minimize the off-diagonal.
+
+**Result:** After training on 400M pairs, CLIP produces a shared embedding space where you can directly compare images and text using cosine similarity. This single capability unlocks:
+
+1. **Zero-shot image classification**: Given class names, embed them as text → compare to image embedding → pick closest
+2. **Semantic image search**: Embed text query → retrieve images with highest cosine similarity
+3. **Text-conditioned generation** (Ch.4+): CLIP's text encoder becomes the conditioning signal inside Stable Diffusion's U-Net
+
+CLIP is not a generative model — it aligns modalities. Generation comes from diffusion models (Ch.4), which will use CLIP's text encoder to condition the denoising process on your prompt "modern office with natural light".
 
 ---
 
-## 2 · Running Example — PixelSmith v2
+## 2 · Running Example — VisualForge Image Search
 
+**Your scenario:** You're the Lead ML Engineer at VisualForge Studio. Your designer needs to find stock photos matching a client brief: "modern office with natural light, minimalist, professional photography". You have 10,000 stock images indexed. Manually browsing would take hours.
+
+**Before CLIP (Ch.1-2):** You have image embeddings (ViT from Ch.2) but no text embeddings. Can't search "modern office" because text and images live in separate spaces.
+
+**After CLIP (this chapter):** Both text and images project into the same 512-dim space:
+
+```python
+# VisualForge: Semantic image search with CLIP
+import torch
+from transformers import CLIPProcessor, CLIPModel
+
+# Load pre-trained CLIP
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+# Client brief from VisualForge campaign: "Spring Collection Hero"
+client_brief = "modern office with natural light, minimalist, professional photography"
+
+# Encode text query → 512-dim embedding
+text_inputs = processor(text=[client_brief], return_tensors="pt", padding=True)
+text_embedding = model.get_text_features(**text_inputs)  # shape: (1, 512)
+text_embedding = text_embedding / text_embedding.norm(dim=-1, keepdim=True)  # L2 normalize
+
+# Encode all 10k stock images (precomputed offline)
+# image_embeddings shape: (10000, 512), all L2-normalized
+
+# Rank by cosine similarity (equivalent to dot product on unit sphere)
+similarities = (text_embedding @ image_embeddings.T).squeeze(0)  # shape: (10000,)
+top_5_indices = similarities.argsort(descending=True)[:5]
+
+# Return top 5 matches to designer
+for idx in top_5_indices:
+    print(f"Image {idx}: similarity {similarities[idx]:.3f}")
+# Output:
+# Image 3421: similarity 0.876 — modern office, large windows, clean desk
+# Image 7834: similarity 0.852 — minimalist workspace, natural lighting
+# Image 1290: similarity 0.831 — professional office interior, bright
 ```
-Goal: Build a text-image search index: given a text query, return the most 
- semantically matching image from a collection.
 
-Process: Encode each image → 512-dim embedding (stored in index)
- For a query, encode the text → 512-dim embedding
- Rank images by cosine similarity to the text embedding
-
-Before CLIP (Ch.1+2): we have image embeddings but no text embeddings
-After CLIP (this chapter): image and text live in the SAME space → direct comparison
-```
+**Result:** Designer gets top 5 matches in 0.2 seconds instead of browsing 10k images manually. This search capability is the foundation for text-conditioned generation (Ch.4+).
 
 ---
 
@@ -111,60 +154,55 @@ No gradient updates to CLIP. No labelled training data for the new task. The mod
 
 ---
 
-## 4 · How It Works — Step by Step
+## 4 · Visual Intuition — The Contrastive Learning Dance
+
+**You're training CLIP.** Each batch contains $N = 32{,}768$ image-text pairs scraped from the web. Your goal: teach two separate encoders (ViT for images, Transformer for text) to project into the **same 512-dim space** where matching pairs are close and non-matching pairs are far.
+
+**The training loop:**
 
 **Step 1: Batch assembly**
-```
-Sample N image-text pairs from the 400M dataset
-Each pair: (image of ocean sunset, "golden hour at the beach")
-```
+- Sample 32,768 image-text pairs from 400M dataset
+- Example pair: (photo of "Parisian café at golden hour", caption "golden hour at a Parisian café")
 
-**Step 2: Encode**
-```
-Image encoder (ViT-B/32): image → 768-dim → linear projection → 512-dim → L2 norm
-Text encoder (GPT-like transformer): tokens → 512-dim (from [EOS] token) → L2 norm
-```
+**Step 2: Dual encoding**
+- **Image encoder** (ViT-B/32): JPEG → 768-dim ViT output → linear → 512-dim → L2 normalize
+- **Text encoder** (GPT-like transformer): tokens → [EOS] hidden state → 512-dim → L2 normalize
+- Both outputs are **unit vectors** on the 512-dim hypersphere
 
 **Step 3: Similarity matrix**
-```
-S = V @ T.T shape (N, N)
-S[i,j] = cosine similarity between image i and text j
-S[i,i] = matching pair (positive)
-S[i,j≠i] = non-matching pair (negative)
-```
+- Compute $S = V \cdot T^\top$ where $S_{ij}$ = cosine similarity between image $i$ and text $j$
+- Shape: $(N, N) = (32768, 32768)$
+- Diagonal $S_{ii}$ = matching pairs (positives)
+- Off-diagonal $S_{ij, i \neq j}$ = non-matching pairs (negatives)
 
-**Step 4: Symmetric cross-entropy**
-```
-Row-wise softmax of S → loss for each image finding its text
-Column-wise softmax of S → loss for each text finding its image
-Average both losses
-```
+**Step 4: Symmetric InfoNCE loss**
+- **Image → Text direction**: For each image, find its caption among $N$ captions (row-wise softmax)
+- **Text → Image direction**: For each caption, find its image among $N$ images (column-wise softmax)
+- Average both losses → symmetric gradient
 
 **Step 5: Temperature scaling**
-```
-S_scaled = S / τ
-Lower τ → sharper distribution → harder to distinguish → higher loss gradient
-```
+- Scale $S$ by learnable temperature $\tau \approx 0.07$
+- Lower $\tau$ → sharper softmax → model must be more confident → harder optimization
 
 **Step 6: Backprop through both encoders**
-```
-Gradients flow back into both ViT and text transformer
-Both learn to embed matching pairs close, non-matching pairs far
-```
+- Gradients push matching pairs closer (increase $S_{ii}$)
+- Gradients push non-matching pairs apart (decrease $S_{ij, i \neq j}$)
+- With 32,767 negatives per sample, the model learns fine-grained distinctions
+
+**Geometrically:** After training, semantically similar images and texts cluster together on the unit hypersphere. "Cat" embeddings (image and text) are near each other; "dog" embeddings are in a different cluster.
 
 ---
 
-## 5 · The Key Diagrams
-
-### CLIP Architecture
+### CLIP Architecture Diagram
 
 ```
  TEXT INPUT IMAGE INPUT
- "a photo of a cat" [JPEG of a cat]
+ "modern office with natural light" [JPEG from VisualForge stock library]
  │ │
  ┌─────▼──────────────┐ ┌────────▼────────────┐
  │ Text Transformer │ │ ViT Image Encoder │
  │ (GPT-like, 12L) │ │ (ViT-B/32 or L/14) │
+ │ 63M parameters │ │ 88M parameters │
  │ │ │ │
  │ [EOS] hidden state │ │ [CLS] hidden state │
  │ → linear → 512-dim │ │ → linear → 512-dim │
@@ -176,11 +214,14 @@ Both learn to embed matching pairs close, non-matching pairs far
  │ │
  └──────────────┬───────────────────┘
  │
- cosine similarity = v · t
- (same space → directly comparable)
+ cosine_similarity(t, v) = t · v
+ ↑
+ Same 512-dim space → directly comparable
+ → enables text-image search and zero-shot classification
+ → will condition diffusion models (Ch.4+)
 ```
 
-### InfoNCE Loss — Batch Similarity Matrix
+### InfoNCE Loss — Batch Similarity Matrix (N=8 shown)
 
 ```
  Text embeddings
@@ -202,40 +243,240 @@ Both learn to embed matching pairs close, non-matching pairs far
 
 ---
 
-## 6 · What Changes at Scale
+## 5 · Production Example — VisualForge Text-Conditioned Search
 
-| Factor | OpenAI CLIP (2021) | State of the art (2024) |
-|--------|-------------------|------------------------|
-| Training data | 400M image-text pairs (WIT) | LAION-5B (5 billion pairs) |
-| Batch size | 32,768 | 65,536–262,144 |
-| Image encoder | ViT-B/32, ViT-L/14 | ViT-G/14, ViT-bigG |
-| Embedding dim | 512–768 | 1024–1280 |
-| Text encoder | GPT-style, 63M params | GPT-style, 124M–340M |
-| Zero-shot ImageNet top-1 | 76.2% (ViT-L/14@336) | ~80%+ (EVA-CLIP) |
+**Your production pipeline:** VisualForge Studio runs 5 concurrent client campaigns. Each campaign has a style guide ("minimalist tech", "luxury lifestyle", "eco-conscious", etc.). Your designers need to quickly find reference images matching each campaign's aesthetic.
 
-**Hard negatives matter:** CLIP's quality scales with batch size because larger batches provide more hard negatives. A batch of 32K gives 32,767 negatives per sample. Methods like ARCA and CoCa further improve by mining hard negatives from the full dataset.
+**Before CLIP:**
+- Designers manually tag 10k stock photos with keywords: "modern", "minimalist", "professional"
+- Search is boolean: "modern AND office" returns all images tagged with both
+- Miss semantically similar images tagged differently ("contemporary workspace")
+- Takes 3 hours/week per designer to tag new stock images
 
-**The text encoder in Stable Diffusion:** SD v1-v2 uses CLIP's text encoder (frozen) to convert prompts to 77 × 768 cross-attention conditioning tokens. SD v2 switches to OpenCLIP ViT-H/14. SDXL uses two text encoders: OpenCLIP ViT-bigG (1280-dim) + CLIP ViT-L (768-dim) concatenated → 2048-dim conditioning.
+**After CLIP (this chapter):**
+- Pre-compute CLIP embeddings for all 10k stock images (one-time cost: 10 minutes on laptop CPU)
+- Store embeddings in vector index (FAISS, Qdrant, or simple NumPy array for 10k scale)
+- Designer types campaign brief → CLIP encodes text → retrieve top-K similar images
+
+```python
+# VisualForge: Production semantic search pipeline
+import numpy as np
+import faiss
+from transformers import CLIPModel, CLIPProcessor
+
+# One-time setup: index 10k stock images
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+# Precompute and index image embeddings
+image_embeddings = []  # List of 10k PIL Images
+for img in stock_library:
+    inputs = processor(images=img, return_tensors="pt")
+    emb = model.get_image_features(**inputs)
+    emb = emb / emb.norm(dim=-1, keepdim=True)  # L2 normalize
+    image_embeddings.append(emb.cpu().numpy())
+
+image_embeddings = np.vstack(image_embeddings)  # shape: (10000, 512)
+index = faiss.IndexFlatIP(512)  # Inner product (cosine sim on unit vectors)
+index.add(image_embeddings)
+
+# Real-time query: Campaign "Spring Collection Hero"
+campaign_brief = "woman in floral dress, Parisian café, golden hour, editorial"
+text_inputs = processor(text=[campaign_brief], return_tensors="pt", padding=True)
+text_emb = model.get_text_features(**text_inputs)
+text_emb = text_emb / text_emb.norm(dim=-1, keepdim=True)
+
+# Retrieve top 10 matches
+scores, indices = index.search(text_emb.cpu().numpy(), k=10)
+
+# Designer reviews top 10 in 15 seconds instead of browsing 10k images
+for rank, (idx, score) in enumerate(zip(indices[0], scores[0])):
+    print(f"{rank+1}. Image {idx}: score {score:.3f}")
+```
+
+**Impact on VisualForge Constraints:**
+- **Constraint #4 (Control)**: ⚡ Text conditioning architecture validated → ready to plug into diffusion models
+- **Constraint #5 (Throughput)**: Designer time saved: 3 hours/week → 0 hours/week on manual tagging
+- **ROI**: CLIP-based search deployed → 15 hours/month saved across 5 designers → $3k/month labor savings
+
+**Production considerations:**
+- **Index size**: 10k images × 512 dims × 4 bytes (float32) = 20 MB (trivial; fits in RAM)
+- **Query latency**: Text encoding 15 ms + FAISS search 2 ms = **17 ms end-to-end** (real-time)
+- **Scaling**: For 1M images, use approximate nearest neighbor (FAISS IVF index) → 50 ms latency
 
 ---
 
-## 7 · Common Misconceptions
+## 6 · Common Failure Modes — When CLIP Breaks
 
-**"CLIP is a generative model"**
-CLIP is a discriminative/contrastive model — it scores similarity but does not generate images or text. Generation is handled by diffusion models in later chapters.
+**You're debugging VisualForge's CLIP-based search.** Designers report unexpected results. Here's what goes wrong and how to diagnose:
 
-**"CLIP understands spatial relationships"**
-CLIP struggles with spatial and compositional reasoning. "A red circle above a blue square" and "A blue square above a red circle" often produce very similar embeddings because CLIP's pretraining emphasises object identity over spatial layout. This is why ControlNet (Ch.8) exists.
+### 6.1 · Spatial Relationships Are Ignored
 
-**"Zero-shot means CLIP was not trained on ImageNet"**
-CLIP was not trained *with ImageNet labels*, but it was trained on internet data that certainly contains ImageNet images. The claim is that classification is performed *without fine-tuning on labelled ImageNet data*, not that the model is truly naive about those images.
+**Symptom:** Query "red circle above blue square" returns same images as "blue square above red circle"
 
-**"The similarity score is a probability"**
-After L2 normalisation, the dot product gives cosine similarity in $[-1, 1]$. It is not a probability. To get probabilities you must apply softmax across a set of candidate texts.
+**Cause:** CLIP is trained on image-caption pairs that describe objects but rarely specify spatial layout precisely. The model learns **what objects are present** but not **where they are**.
+
+**Example:**
+```python
+# Both queries produce nearly identical embeddings
+query1 = "a red circle above a blue square"
+query2 = "a blue square above a red circle"
+similarity = cosine_sim(encode_text(query1), encode_text(query2))
+print(similarity)  # Output: 0.94 (nearly identical!)
+```
+
+**Fix:** For spatial control, you need **ControlNet** (Ch.8) or **layout-to-image** models. CLIP is not sufficient.
+
+**VisualForge impact:** Campaign "Product Demo" requires "shoe front-and-center, 5 colorways in row" → CLIP search won't enforce layout → need ControlNet-conditioned generation.
 
 ---
 
-## 8 · Interview Checklist
+### 6.2 · Fine-Grained Visual Details Are Missed
+
+**Symptom:** Query "woman in coral dress" returns images of dresses in red, pink, orange — not specifically coral
+
+**Cause:** CLIP's text encoder has limited color vocabulary. "Coral" and "orange-pink" may embed similarly. The model learns coarse semantics, not fine-grained attributes.
+
+**Example:**
+```python
+# VisualForge: Campaign "Spring Collection" requires exact color match
+query = "coral dress"  # Client's Pantone 16-1546 (Living Coral)
+results = search_clip(query, top_k=10)
+# Returns: 3 coral, 4 salmon, 2 peach, 1 orange — only 30% exact match
+```
+
+**Fix:** Fine-tune CLIP on your domain (VisualForge's stock library + color labels) or use multi-stage retrieval: CLIP for semantic filtering → color histogram for exact color match.
+
+**VisualForge production workaround:**
+```python
+# Two-stage search: CLIP semantic + HSV color filter
+clip_candidates = search_clip("coral dress", top_k=100)  # Broad semantic search
+target_hsv = (15, 0.6, 0.9)  # Coral in HSV space
+filtered = [img for img in clip_candidates if color_distance(img, target_hsv) < 0.1]
+# Now 80% exact color match
+```
+
+---
+
+### 6.3 · Counting Failures
+
+**Symptom:** Query "three apples" returns images with 1, 2, 3, or 4 apples indiscriminately
+
+**Cause:** CLIP does not learn counting. "Three apples" and "five apples" embed similarly because the text encoder focuses on the object ("apples") not the quantity.
+
+**Example:**
+```python
+# VisualForge: Campaign "Product Lineup" needs exact count
+query = "five running shoes in a row"  # Client brief: showcase 5 colorways
+results = search_clip(query, top_k=10)
+# Returns images with 3, 4, 5, 6 shoes — no count enforcement
+```
+
+**Fix:** Use object detection (YOLO, Grounding DINO) to count objects post-retrieval, or use ControlNet with segmentation maps to enforce exact count during generation.
+
+---
+
+### 6.4 · Text in Images Is Not Read
+
+**Symptom:** Query "billboard with text 'VisualForge Studio'" returns generic billboards, not images with that specific text
+
+**Cause:** CLIP's ViT encoder processes images as patches; it does not have OCR capability. Text is treated as visual texture, not readable content.
+
+**Fix:** Use OCR (Tesseract, EasyOCR) to extract text from images → filter CLIP results by OCR output.
+
+---
+
+### 6.5 · Domain Shift — Web Pretraining vs. VisualForge Stock
+
+**Symptom:** CLIP performs poorly on VisualForge's professional stock photos (studio lighting, retouched, high-res) compared to casual web images
+
+**Cause:** CLIP is trained on 400M web-scraped image-caption pairs (Instagram, Flickr, e-commerce). Professional marketing photography has different statistics (lighting, composition, post-processing).
+
+**Example:**
+```python
+# Query: "professional product photography, white background"
+# Web images: 85% precision (CLIP trained on e-commerce listings)
+# VisualForge stock: 60% precision (studio lighting different from web)
+```
+
+**Fix:** Fine-tune CLIP on VisualForge's labeled stock library (10k images × campaign tags). Fine-tuning on 2k labeled pairs improves precision from 60% → 78%.
+
+**Production recipe:**
+```python
+# Fine-tune CLIP on VisualForge domain
+from transformers import CLIPModel, Trainer
+
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+train_dataset = VisualForgeDataset(images=stock_library, captions=campaign_tags)
+trainer = Trainer(model=model, train_dataset=train_dataset, ...)
+trainer.train()  # 2 hours on single RTX 4090
+# Result: VisualForge-specific CLIP variant with 78% precision on domain queries
+```
+
+---
+
+## 7 · When to Use CLIP vs. Alternatives
+
+**You're designing VisualForge's retrieval pipeline.** Should you use CLIP, or something else?
+
+| Scenario | Use CLIP | Alternative | Why |
+|----------|----------|-------------|-----|
+| Semantic image search ("modern office") | ✅ CLIP | ❌ Keyword tags | CLIP understands semantics; keywords are brittle |
+| Exact visual match (find duplicates) | ❌ CLIP | ✅ Perceptual hash (pHash) | CLIP embeddings are semantic, not pixel-exact |
+| Fine-grained attribute ("coral dress") | ⚠️ CLIP + filter | ✅ Fine-tuned CLIP or attribute classifier | CLIP coarse; fine-tune for domain |
+| Spatial layout ("logo top-left corner") | ❌ CLIP | ✅ Object detection (YOLO, GroundingDINO) | CLIP ignores spatial relationships |
+| Text in images ("find billboard with text 'Sale'") | ❌ CLIP | ✅ OCR (Tesseract) + keyword search | CLIP cannot read text |
+| Zero-shot classification ("is this a product photo?") | ✅ CLIP | ❌ Supervised classifier | CLIP zero-shot; no training data needed |
+| Cross-modal retrieval (text→image, image→text) | ✅ CLIP | ❌ Separate text/image models | CLIP shared space enables cross-modal |
+| Text-conditioned generation ("generate modern office") | ✅ CLIP (as component) | ❌ Unconditional GAN | CLIP text encoder conditions diffusion models |
+
+**VisualForge decision matrix:**
+
+- **Campaign "Spring Collection Hero"** (semantic search for reference images) → **CLIP** ✅
+- **Campaign "Product Demo"** (exact product geometry, spatial layout) → **CLIP retrieval + ControlNet generation** ✅
+- **Campaign "Brand Pattern"** (exact color matching) → **CLIP + HSV filter** ✅
+- **Quality assurance** (detect duplicates in generated outputs) → **pHash**, not CLIP ❌
+- **Text-to-image generation** (core VisualForge capability) → **CLIP text encoder + diffusion model** (Ch.4+) ✅
+
+**Rule of thumb:** CLIP is a semantic alignment model, not a spatial/attribute/OCR model. Use it for "what objects are present" tasks, not "where/how many/what text" tasks.
+
+---
+
+## 8 · Connection to Prior Chapters — Building the Foundation
+
+**Where you came from:**
+
+- **[Ch.1 Multimodal Foundations](../foundations/README.md)**: Learned the challenge of aligning multiple modalities (text, image, video). Saw that raw pixel generation suffers from mode collapse → need embedding spaces.
+- **[Ch.2 Vision Transformers](../vision_transformers/README.md)**: Built the image encoder (ViT) that produces structured image embeddings. But ViT alone cannot handle text.
+
+**What this chapter adds:**
+
+- **CLIP completes the text-image alignment:** Pairs ViT (image encoder from Ch.2) with a text transformer, trains both jointly with contrastive loss.
+- **Shared embedding space unlocked:** Images and text now live in the same 512-dim space → enables semantic search, zero-shot classification, and (in Ch.4+) text-conditioned generation.
+
+**Dependency chain:**
+```
+Ch.1 Foundations → understand modality alignment problem
+ │
+ ▼
+Ch.2 ViT → image encoder (produces image embeddings)
+ │
+ ▼
+Ch.3 CLIP (this chapter) → add text encoder + contrastive training
+ │ → shared text-image embedding space
+ ▼
+Ch.4 Diffusion Models → generation capability
+ │ (but no text conditioning yet)
+ ▼
+Ch.5+ → wire CLIP text encoder into diffusion U-Net
+ → text-conditioned generation (Stable Diffusion architecture)
+```
+
+**Key insight:** CLIP does not generate images. It aligns images and text. Generation comes from diffusion models (Ch.4), which will use CLIP's text encoder as the conditioning signal. Separating alignment (CLIP) from generation (diffusion) is the key architectural insight behind Stable Diffusion.
+
+---
+
+## 9 · Interview Checklist
 
 ### Must Know
 - What are the two encoders in CLIP and what do they output?
@@ -250,16 +491,70 @@ After L2 normalisation, the dot product gives cosine similarity in $[-1, 1]$. It
 - "What does CLIP's embedding space geometry look like?"
  → All embeddings are on the unit hypersphere (`L2 norm = 1`); matching pairs are close (high cosine sim); unrelated pairs are near-orthogonal
 
-### Trap to Avoid
-- Confusing CLIP (contrastive training, no generation) with DALL-E (generative, uses CLIP as a component)
-- Saying CLIP fine-tunes on task data — zero-shot means no fine-tuning
-- Forgetting temperature: without the learned $\tau$ the gradients are too weak for early training
-- **SigLIP vs CLIP:** SigLIP replaces the softmax-normalised InfoNCE loss with per-pair sigmoid binary cross-entropy — no normalisation over the batch; each (text, image) pair is simply scored as matching or not. Works well at smaller batch sizes and removes hard-negative dependency. Trap: "SigLIP makes batch size irrelevant" — smaller batches still mean fewer negatives per sample; SigLIP is less sensitive but not batch-size-independent
-- **CLIP for retrieval:** embed query with the appropriate encoder and perform cosine-similarity search over a pre-indexed CLIP embedding corpus; supports image-to-image, text-to-image, and cross-modal retrieval from the same index. Trap: "CLIP embeddings can be compared with raw dot product" — CLIP embeddings are L2-normalised; use cosine similarity (equivalently, dot product on unit sphere); unnormalised dot product gives wrong rankings if vectors are not on the unit sphere
+### Traps to Avoid
+
+**"CLIP is a generative model"**
+CLIP is discriminative/contrastive — it scores similarity but does not generate. Generation comes from diffusion models (Ch.4+).
+
+**"CLIP understands spatial relationships"**
+CLIP ignores spatial layout. "Red circle above blue square" ≈ "blue square above red circle" (same objects, different arrangement). For spatial control, use ControlNet (Ch.8).
+
+**"Zero-shot means CLIP was not trained on ImageNet"**
+CLIP was trained on web data that includes ImageNet images. Zero-shot means "no fine-tuning on ImageNet labels", not "never saw those images".
+
+**"The similarity score is a probability"**
+Cosine similarity ∈ [-1, 1], not [0, 1]. To get probabilities, apply softmax over candidate texts.
+
+**"SigLIP vs CLIP"**
+SigLIP replaces InfoNCE (batch-normalised softmax) with per-pair sigmoid loss. Works at smaller batch sizes but still benefits from more negatives. Trap: "SigLIP makes batch size irrelevant" — false; smaller batches still mean fewer negatives.
+
+**"CLIP embeddings can be compared with raw dot product"**
+CLIP embeddings are L2-normalised → cosine similarity = dot product on unit sphere. Unnormalised dot product gives wrong rankings.
 
 ---
 
-## 9 · Progress Check — What Have We Unlocked?
+## 10 · Further Reading
+
+**Papers:**
+- **CLIP** (Radford et al., OpenAI 2021): [Learning Transferable Visual Models From Natural Language Supervision](https://arxiv.org/abs/2103.00020) — the original paper
+- **InfoNCE loss** (van den Oord et al., 2018): [Representation Learning with Contrastive Predictive Coding](https://arxiv.org/abs/1807.03748) — the contrastive loss CLIP uses
+- **OpenCLIP** (Ilharco et al., LAION 2022): [Reproducible scaling laws for contrastive language-image learning](https://arxiv.org/abs/2212.07143) — open reproduction of CLIP at scale
+- **SigLIP** (Zhai et al., Google 2023): [Sigmoid Loss for Language Image Pre-Training](https://arxiv.org/abs/2303.15343) — sigmoid loss alternative to InfoNCE
+
+**Repositories:**
+- **OpenAI CLIP**: [github.com/openai/CLIP](https://github.com/openai/CLIP) — original implementation
+- **OpenCLIP**: [github.com/mlfoundations/open_clip](https://github.com/mlfoundations/open_clip) — scalable open implementation
+- **Hugging Face Transformers**: [CLIPModel](https://huggingface.co/docs/transformers/model_doc/clip) — production-ready API
+
+**Datasets:**
+- **LAION-5B**: 5 billion image-text pairs (largest open CLIP training set)
+- **Conceptual Captions 12M**: smaller curated dataset for research
+
+---
+
+## 11 · Notebook — Hands-On CLIP
+
+**Notebook:** [clip-search-demo.ipynb](notebooks/clip-search-demo.ipynb)
+
+**What you'll build:**
+1. Load pre-trained CLIP (ViT-B/32) from Hugging Face
+2. Encode VisualForge campaign briefs → text embeddings
+3. Encode 100 stock images → image embeddings
+4. Build FAISS index for fast similarity search
+5. Query: "modern office with natural light" → retrieve top 5 matches
+6. Visualize embedding space with t-SNE (text and image embeddings in same plot)
+
+**Hardware:** Runs on laptop CPU (no GPU required). CLIP inference: 15 ms/query.
+
+**Key takeaways:**
+- See CLIP's shared embedding space in action
+- Understand why L2 normalization matters (cosine similarity = dot product)
+- Diagnose failure modes (spatial relationships ignored, counting failures)
+- Experiment with prompt engineering ("a photo of a {object}" vs. "{object}")
+
+---
+
+## 11.5 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #4 (Control)**: ❌ No way to condition generation on text descriptions
@@ -289,9 +584,72 @@ After L2 normalisation, the dot product gives cosine similarity in $[-1, 1]$. It
 
 ---
 
-## 10 · What's Next
+### VisualForge Status — Full Constraint View
 
-→ **[DiffusionModels.md](../diffusion_models/diffusion-models.md)** — CLIP gives PixelSmith a shared image-text space, enabling semantic search (v2). The PixelSmith v3 upgrade requires generation: given noise, produce a plausible image. Diffusion models provide this. You need to understand the forward noising process, the reverse denoising process, and the U-Net architecture before you can understand how CLIP's text encoder slots into Stable Diffusion as a conditioning signal.
+**This is Chapter 3 in the Multimodal AI sequence.** CLIP provides the text-image alignment needed for text-conditioned generation. Here's where each constraint stands after this chapter:
+
+| Constraint | Ch.1 Foundations | Ch.2 ViT | **Ch.3 CLIP (this chapter)** | Target | Next Unlock |
+|------------|------------------|----------|------------------------------|--------|-------------|
+| **#1 Quality** | ❌ No generation | ❌ No generation | ❌ **No generation** | ≥4.0/5.0 | Ch.4 Diffusion |
+| **#2 Speed** | ❌ N/A | ❌ N/A | ❌ **N/A** | <30 sec | Ch.5 Schedulers |
+| **#3 Cost** | ❌ N/A | ✅ ViT on laptop | ✅ **CLIP on laptop** | <$5k hardware | Ch.6 Latent Diffusion |
+| **#4 Control** | ❌ No alignment | ❌ Image only | ⚡ **Text conditioning ready** | <5% unusable | Ch.4+ (text-conditioned diffusion) |
+| **#5 Throughput** | ❌ N/A | ❌ N/A | ❌ **N/A** | 100+ imgs/day | Ch.8 Text-to-Image |
+| **#6 Versatility** | ❌ Pixel space | ⚡ Image embeddings | ⚡ **Text-image search** | 3 modalities | Ch.10 Multimodal LLM |
+
+**Key wins after Chapter 3:**
+- ✅ **Shared embedding space**: Text and images live in same 512-dim space → cosine similarity directly comparable
+- ✅ **Text-image search deployed**: VisualForge designers search 10k stock photos with campaign briefs (17 ms latency)
+- ✅ **Text conditioning architecture validated**: CLIP text encoder ready to plug into diffusion U-Net (Ch.4+)
+
+**What's still blocking:**
+- ❌ **Cannot generate images**: CLIP enables search but not generation → need diffusion models (Ch.4)
+- ❌ **No quality/speed metrics yet**: Can't measure generation quality/speed until we can generate (Ch.4+)
+- ❌ **Constraint #1, #2, #5 remain blocked**: All require generative capability
+
+**VisualForge business impact so far:**
+- **Cost savings**: $3k/month labor (designers no longer manually tag stock images)
+- **Productivity**: Image search 15 seconds instead of 3 hours/week browsing
+- **ROI**: CLIP deployment paid for itself in 1 month
+- **But:** Still cannot replace freelancers (no generation yet) → $600k/year cost remains
+
+---
+
+## 12 · Bridge to Chapter 4 — From Search to Generation
+
+**What CLIP gives you:** A shared text-image embedding space. You can search 10k stock images with "modern office with natural light" and get relevant results in 17 ms.
+
+**What's still missing:** You can search existing images but **cannot generate new images**. VisualForge clients need custom visuals ("woman in coral dress at Parisian café, golden hour") that don't exist in your stock library. Freelancers create these from scratch; to replace them, you need generative capability.
+
+**The blocker:** CLIP is a contrastive model (alignment), not a generative model. It scores similarity but cannot produce pixels.
+
+**Next unlock:**
+
+→ **[Ch.4 Diffusion Models](../diffusion_models/README.md)** — Learn the mathematics of image generation by reversing a noise-injection process. Start with pure Gaussian noise, denoise for 1000 steps, produce a plausible image. This is the foundation for text-to-image generation (Ch.5+), where CLIP's text encoder will condition the denoising process.
+
+**The path forward:**
+```
+Ch.3 CLIP (this chapter) → text-image alignment (search works, generation doesn't)
+ │
+ ▼
+Ch.4 Diffusion Models → unconditional generation (can generate, but no text control)
+ │
+ ▼
+Ch.5 Schedulers → fast sampling (1000 steps → 50 steps, 5 min → 30 sec)
+ │
+ ▼
+Ch.6 Latent Diffusion → efficiency (VAE compression, laptop-scale generation)
+ │
+ ▼
+Ch.7 Guidance → text conditioning (wire CLIP text encoder into U-Net, Stable Diffusion architecture)
+ │
+ ▼
+Ch.8+ → production deployment (ControlNet, fine-tuning, evaluation, local lab)
+```
+
+CLIP is the glue that binds text and images. Diffusion models are the engine that generates pixels. Together, they form the backbone of Stable Diffusion.
+
+---
 
 ## Illustrations
 

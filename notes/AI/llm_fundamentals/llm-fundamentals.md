@@ -10,14 +10,19 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **Mamma Rosa's PizzaBot** — a production AI ordering system satisfying 6 constraints:
+> 🎯 **The mission**: Launch **Mamma Rosa's PizzaBot** — satisfying 6 constraints:
 > 1. **BUSINESS VALUE**: >25% conversion + +$2.50 AOV + 70% labor savings — 2. **ACCURACY**: <5% error — 3. **LATENCY**: <3s p95 — 4. **COST**: <$0.08/conv — 5. **SAFETY**: Zero attacks — 6. **RELIABILITY**: >99% uptime
+
+**What we know so far:**
+- ❌ **This is Chapter 1** — the foundation. We're starting from scratch.
+- ❌ **All constraints unmet** — raw GPT-3.5 delivers 8% conversion (phone baseline: 22%)
+- 📊 **Phone baseline metrics**: 22% conversion, $38.50 AOV, $157,680/year labor cost
 
 **The business context:**
 
 You're the Lead AI Engineer at Mamma Rosa's Pizza. The CEO is skeptical about AI: "We have phone staff who take orders perfectly. Why should I invest $300k in a chatbot?"
 
-**Current baseline (traditional phone orders):**
+**Traditional phone order baseline:**
 - 22% order conversion rate (of customers who call)
 - $38.50 average order value
 - $157,680/year in phone staff labor costs (3 staff × $18/hr × 8hr × 365 days)
@@ -47,25 +52,47 @@ Would you like me to help you find..."
 3. ❌ **Doesn't attempt to look up real data** (no tool use, no grounding)
 4. ❌ **Unreliable output format** (conversational, not structured for order processing)
 
-**Conversion rate with raw LLM: 8%** (worse than phone baseline of 22%!)
+**Business impact:**
+- **Conversion rate with raw LLM: 8%** (14 points below phone baseline of 22%!)
+- **Error rate: ~40%** (hallucinates menu items, prices, calorie counts)
+- **Customer trust: destroyed** (one wrong allergen claim = lawsuit risk)
 
 CEO's reaction: "This is embarrassing. My phone staff would never give wrong information. Pull the plug unless you can fix this."
 
 **What this chapter unlocks:**
 
-🚀 **Foundation knowledge to build on:**
-1. **Tokenization**: Understand how "gluten-free" becomes tokens → estimate API costs
-2. **Sampling parameters**: Control output randomness (temperature=0 for order confirmations)
-3. **Context windows**: Know how much menu data fits in one API call
-4. **Training stages**: Understand why base models fail vs. instruct models
-5. **Model selection**: Choose appropriate model tiers for different tasks
+🚀 **Foundation knowledge — no constraint achievements yet:**
 
-⚡ **Constraint status after Ch.1**: All constraints unmet. This is **foundation knowledge only** — we need prompt engineering (Ch.2), reasoning (Ch.3), and RAG (Ch.4) before the system becomes usable.
+1. **Tokenization** → Estimate API costs:
+   - Understand how "gluten-free" becomes tokens (3 tokens in GPT-3.5)
+   - Calculate: 500 tokens/conv × $0.002/1k = $0.001 LLM cost baseline
+
+2. **Sampling parameters** → Control output behavior:
+   - Temperature=0 for deterministic order confirmations
+   - Temperature=0.7-1.0 for creative menu recommendations
+   - Top-p nucleus sampling for production-quality text
+
+3. **Context windows** → Understand memory limits:
+   - Know how much menu data fits (4k tokens = ~3,000 words)
+   - Recognize "lost-in-the-middle" risk for long conversations
+
+4. **Training stages** → Understand why base models fail:
+   - Pretraining → SFT → RLHF pipeline
+   - Base model vs. instruct model behavior differences
+
+5. **Model selection** → Choose appropriate tiers:
+   - GPT-4 ($0.03/1k) vs GPT-3.5 ($0.002/1k) vs Claude ($0.015/1k)
+   - Cost/capability trade-offs for different tasks
+
+⚡ **Constraint status after Ch.1**: 
+- ❌ **All 6 constraints BLOCKED** — This is **foundation knowledge only**
+- 🔧 **Next steps required**: Prompt engineering (Ch.2) → reasoning (Ch.3) → RAG (Ch.4) before system becomes usable
 
 **Business impact of this chapter:**
-- Enables cost estimation: `1 conversation ≈ 500 tokens × $0.002/1k tokens = $0.001` (just LLM, before RAG/tools)
-- Informs model selection: GPT-4 ($0.03/1k) vs GPT-3.5 ($0.002/1k) vs Claude ($0.015/1k)
-- Sets realistic expectations: CEO now understands why raw LLMs need engineering
+- ✅ **Enables cost estimation**: CEO now has realistic budget projections
+- ✅ **Informs model selection**: Know when to use GPT-4 vs. GPT-3.5
+- ✅ **Sets realistic expectations**: Team understands why raw LLMs need engineering
+- ❌ **But no revenue yet**: 8% conversion doesn't justify $300k investment
 
 ---
 
@@ -295,39 +322,41 @@ GPT-4:      estimated 1.8T parameters in a mixture-of-experts architecture
 **What we can solve:**
 
 ✅ **Basic conversations (but unreliable)**:
-```
-User: "What sizes do you have?"
-GPT-3.5: "We offer small, medium, and large pizzas."
-Result: ❌ Wrong! (Mamma Rosa's has personal, medium, large, extra-large)
-        ❌ Hallucinated answer not grounded in real menu
-```
+- **User**: "What sizes do you have?"
+- **GPT-3.5**: "We offer small, medium, and large pizzas."
+- **Result**: ❌ Wrong! (Mamma Rosa's has personal, medium, large, extra-large)
+  - ❌ Hallucinated answer not grounded in real menu
+  - **Business impact**: Customer orders wrong size → confusion, refund request
 
-✅ **Cost estimation**:
-```
-Conversation: 3 turns × 150 tokens/turn = 450 tokens
-LLM cost: 450 × $0.002/1k = $0.0009
-Monthly for 10k conversations: $9/month (LLM only, very cheap!)
-```
+✅ **Cost estimation framework**:
+- **Calculation**: 3 turns × 150 tokens/turn = 450 tokens
+- **LLM cost**: 450 × $0.002/1k = $0.0009 per conversation
+- **Monthly projection**: 10k conversations × $0.0009 = **$9/month** (LLM only, very cheap!)
+- **Business value**: Confirms LLM cost is not the bottleneck — we have budget for RAG, tools, embeddings
 
 ❌ **What we can't solve yet:**
 
-- **No grounding in Mamma Rosa's actual menu** → hallucinations everywhere
-  - Claims pizzas exist that don't ("We have a Hawaiian BBQ pizza!")
-  - Makes up prices ("The Margherita is $12.99" — real price is $15.99)
-  - Invents calorie counts ("Around 550 calories" — real: 680 calories)
+**1. No grounding in Mamma Rosa's actual menu** → hallucinations everywhere:
+- ❌ Claims pizzas exist that don't ("We have a Hawaiian BBQ pizza!")
+- ❌ Makes up prices ("The Margherita is $12.99" — real price is $15.99)
+- ❌ Invents calorie counts ("Around 550 calories" — real: 680 calories)
+- **Business impact**: ~40% error rate → customer trust destroyed → conversion at 8%
 
-- **No structured output** → can't process orders reliably
-  - Output format changes every query
-  - Can't extract: `{pizza: "Margherita", size: "large", quantity: 2}`
-  - Can't call `calculate_order_total()` API
+**2. No structured output** → can't process orders reliably:
+- ❌ Output format changes every query (sometimes JSON, sometimes prose)
+- ❌ Can't extract: `{pizza: "Margherita", size: "large", quantity: 2}`
+- ❌ Can't call `calculate_order_total()` API without structured data
+- **Business impact**: Orders fail to process → manual intervention required → defeats automation goal
 
-- **No multi-step reasoning** → fails complex queries
-  - "Cheapest gluten-free pizza under 600 calories" → picks wrong item or gives up
-  - Can't chain: filter gluten-free → filter by calories → sort by price → return cheapest
+**3. No multi-step reasoning** → fails complex queries:
+- ❌ "Cheapest gluten-free pizza under 600 calories" → picks wrong item or gives up
+- ❌ Can't chain: filter gluten-free → filter by calories → sort by price → return cheapest
+- **Business impact**: 30% of queries are multi-constraint → these users abandon immediately
 
-- **No business value** → 8% conversion kills the project
-  - CEO's verdict: "Phone staff do better. Why are we building this?"
-  - Need to reach 25% conversion to justify $300k investment
+**4. No business value** → 8% conversion kills the project:
+- ❌ CEO's verdict: "Phone staff do better. Why are we building this?"
+- ❌ Need to reach 25% conversion (3.1× improvement) to justify $300k investment
+- ❌ Current ROI: Negative (8% conversion generates less revenue than phone baseline)
 
 **Business metrics update:**
 - **Order conversion**: 8% (baseline: 22% phone) — **❌ 14 points below target**

@@ -3,7 +3,8 @@
 > **The story.** **Anthropic** announced the **Model Context Protocol** on **25 November 2024** as an open standard built on JSON-RPC 2.0. The motivating problem was the **N×M integration explosion** — every agent had to ship custom adapter code for every data source. MCP defined three reusable primitives — *Resources*, *Tools*, *Prompts* — plus standard transports (stdio for local, SSE/HTTP for remote). Adoption was unusually fast for a protocol: by mid-2025 OpenAI, Microsoft, and Google had all shipped MCP support; Claude Desktop, Cursor, Zed, and VS Code Copilot all spoke MCP natively; and the public registry had passed several thousand servers. **MCP is now the protocol for tool/data integration in multi-agent systems**, the same way HTTP is the protocol for hypertext.
 >
 > **Where you are in the curriculum.** [Ch.1](../message_formats) gave you the message envelope. This chapter answers: **what problem does MCP solve that plain function calling does not, and how does the JSON-RPC 2.0 protocol turn any data source or executable function into something any compliant agent can discover and use without bespoke adapter code?** Master this and the [A2A](../a2a) chapter — agent-to-agent delegation — will compose cleanly with it.
-**Notation.** `MCP` = Model Context Protocol (Anthropic, November 2024). `JSON-RPC 2.0` = the wire transport format (`method`, `params`, `id`, `result` / `error`). `Resource` = read-only data exposed by an MCP server. `Tool` = executable function exposed by an MCP server. `Prompt` = reusable prompt template registered with an MCP server. `SSE` = Server-Sent Events (HTTP streaming transport for remote MCP servers). `stdio` = standard-input/output transport for local in-process MCP servers.
+>
+> **Notation.** `MCP` = Model Context Protocol (Anthropic, November 2024). `JSON-RPC 2.0` = the wire transport format (`method`, `params`, `id`, `result` / `error`). `Resource` = read-only data exposed by an MCP server. `Tool` = executable function exposed by an MCP server. `Prompt` = reusable prompt template registered with an MCP server. `SSE` = Server-Sent Events (HTTP streaming transport for remote MCP servers). `stdio` = standard-input/output transport for local in-process MCP servers.
 
 ---
 
@@ -12,19 +13,44 @@
 > 🎯 **The mission**: Build **OrderFlow** — AI-native B2B purchase order automation satisfying 8 constraints:
 > 1. **THROUGHPUT**: 1,000 POs/day — 2. **LATENCY**: <4hr SLA — 3. **ACCURACY**: <2% error — 4. **SCALABILITY**: 10 agents/PO — 5. **RELIABILITY**: >99.9% uptime — 6. **AUDITABILITY**: Full traceability — 7. **OBSERVABILITY**: Real-time monitoring — 8. **DEPLOYABILITY**: Zero-downtime updates
 
-**After Ch.1**: Decomposed single agent into 8 specialized agents (Intake, Pricing, Negotiation, Legal, Finance, Drafting, Sending, Reconciliation). Error rate dropped 5% → 3.8%. Context overflow eliminated.
+**What we know so far**:
+- ✅ **Ch.1 Message Formats**: Decomposed single agent into 8 specialized agents (Intake, Pricing, Negotiation, Legal, Finance, Drafting, Sending, Reconciliation)
+- ✅ **Context overflow eliminated**: Each agent stays under 4k token budget (50% of 8k limit)
+- ✅ **Error rate improved**: 5% → 3.8% (structured message schemas prevent parsing failures)
+- ⚡ **Current metrics**: 10 POs/day throughput, 36 hours median latency, 3.8% error rate
+- ❌ **But we still can't ground agents in real-time data!** Each agent needs access to ~20 data sources (ERP, pricing APIs, supplier APIs, email, legal templates). Without a standard protocol, that's **8 agents × 20 integrations = 160 bespoke implementations**.
 
-### The Blocking Question This Chapter Solves
+**What's blocking us**:
 
-**"How do 8 agents access ERP, pricing APIs, email without writing 8 × 20 = 160 custom integrations?"**
+🚨 **The N×M Integration Explosion**
 
-Each agent needs access to ~20 data sources. Building custom adapters = **8 agents × 20 integrations = 160 bespoke implementations**. Unmaintainable, untestable, unscalable.
+You're the Lead Architect at OrderFlow. Your 8 agents are working, but they're blind. The Pricing agent needs live supplier quotes — someone hardcoded an HTTP client for TechFurnish's API. Then OfficeDepot. Then 18 other suppliers. The Negotiation agent needs the same data — a different engineer wrote different wrappers. The Finance agent needs ERP access — a third team wrote a third set of adapters.
 
-### What We Unlock in This Chapter
+**Current situation**: Three teams, nine custom wrappers (3 agents × 3 systems), zero reusability. Each wrapper has subtly different error handling. One silently swallows 404s. Another retries infinitely on timeout. The third crashes the agent.
 
-- ✅ Understand MCP protocol: Resources (read-only data), Tools (callable functions), Prompts (templated instructions)
-- ✅ JSON-RPC 2.0 transport: Any agent connects to any data source without custom code
-- ✅ Integration collapse: **160 integrations → 8 MCP clients + 20 MCP servers = 28 components**
+```
+Problems:
+1. ❌ **Integration explosion**: N agents × M tools = N×M bespoke adapters (8 × 20 = 160 for OrderFlow) → **Blocks #4 SCALABILITY**
+2. ❌ **No schema discovery**: Agent code hardcodes API schemas; when supplier API changes, agents break silently → **Blocks #3 ACCURACY**
+3. ❌ **Zero observability**: Custom wrappers don't log tool calls consistently; cannot debug which agent called which supplier → **Blocks #7 OBSERVABILITY**
+```
+
+**Business impact**: You hired 2 engineers for 6 months just to write integration adapters ($180k labor cost). When TechFurnish changed their pricing API, 3 agents broke in production. OrderFlow processed zero POs for 4 hours. The CTO is demanding: **"Why can't we add a new supplier without rewriting half the codebase?"**
+
+**What this chapter unlocks**:
+
+🚀 **Model Context Protocol (MCP) — collapse N×M to N+M**:
+1. **Standard protocol for tool access**: JSON-RPC 2.0 transport → any agent connects to any data source without custom code
+2. **Self-describing servers**: Tools declare their JSON Schema at runtime → agents discover capabilities dynamically, no hardcoded schemas
+3. **Integration collapse**: 160 bespoke integrations → **8 MCP clients + 20 MCP servers = 28 components** (94% reduction)
+
+⚡ **Expected improvements**:
+- **Throughput**: 10 → 10 POs/day (no change yet — still sequential architecture)
+- **Latency**: 36 hours → 36 hours (no change yet — still synchronous)
+- **Error rate**: 3.8% → **3.2%** (agents grounded in real-time ERP data, no hallucinated pricing)
+- **Scalability**: 160 integrations → **28 components** (94% reduction) → **#4 SCALABILITY foundation ✅**
+- **Auditability**: Basic logging → **MCP tool call logging** (partial observability) → **#6 AUDITABILITY improved ⚡**
+- **Observability**: Message structure only → **MCP request/response logged** (standardized format) → **#7 OBSERVABILITY improved ⚡**
 
 ### Progress on the 8 Constraints
 
@@ -43,7 +69,27 @@ Each agent needs access to ~20 data sources. Building custom adapters = **8 agen
 
 ---
 
-## The N×M Integration Problem
+## § 1 · The Core Idea
+
+**Model Context Protocol (MCP)** collapses the N×M integration problem to N+M by defining a standard JSON-RPC 2.0 protocol for agent-tool communication. You write each tool integration once as an MCP server; any compliant agent becomes an MCP client and discovers available tools at runtime without hardcoded schemas. **Integration count scales linearly with agents plus tools, not multiplicatively.**
+
+---
+
+## § 2 · Running Example: PO #2024-1847 Pricing Lookup
+
+Your Pricing agent needs to quote 10 standing desks from TechFurnish and OfficeDepot. Before MCP: you wrote `techfurnish_client.py` with hardcoded HTTP endpoints and response parsing. When TechFurnish changed their API schema, your agent crashed. When you added OfficeDepot, you wrote `officedepot_client.py` — same pattern, different bugs.
+
+With MCP: you write `pricing-mcp-server` once, exposing `get_supplier_quote(supplier_name, item_id, quantity)` as a Tool. Both TechFurnish and OfficeDepot are wrapped behind this single server. Your Pricing agent calls `tools/call` with `{"name": "get_supplier_quote", "arguments": {"supplier_name": "TechFurnish", "item_id": "DESK-001", "quantity": 10}}`. The server returns `{"price": 789, "delivery_days": 14}`. When TechFurnish's API changes, you update the server implementation — zero agent code changes.
+
+**Result**: PO #2024-1847 pricing lookup succeeded in 847ms (real-time supplier API call). Before MCP, this same lookup would have failed silently when TechFurnish changed their schema 3 weeks ago.
+
+---
+
+## § 3 · The Protocol Specification
+
+MCP is built on **JSON-RPC 2.0** — a lightweight remote procedure call protocol using JSON serialization. Every MCP interaction is a request-response pair over stdio (subprocess pipes) or HTTP+SSE (Server-Sent Events) transports.
+
+### The N×M Integration Problem
 
 Without MCP, every integration between an agent and a tool is a custom adapter: the agent team writes a Python wrapper for the ERP, another team writes a different wrapper for the pricing API, and none of them are reusable across agents or reusable by agents built in different frameworks.
 
@@ -58,9 +104,7 @@ Agent B → Pricing adapter                                          ──▶ E
    = N × M adapters                    = N clients + M servers
 ```
 
----
-
-## Protocol Mechanics
+### Protocol Mechanics
 
 MCP is an open standard published by Anthropic (November 2024). It is built on **JSON-RPC 2.0** — a lightweight remote procedure call protocol that uses JSON as its serialisation format and requires no HTTP (though HTTP is supported).
 
@@ -177,6 +221,58 @@ messages = await mcp_client.get_prompt("negotiate_price_prompt",
 
 ---
 
+## § 4 · How It Works — Step by Step
+
+**OrderFlow MCP interaction flow** (Pricing agent queries TechFurnish supplier):
+
+```
+PricingAgent (MCP Client)          pricing-mcp-server          TechFurnish API
+    |                                     |                          |
+    |──1. initialize──────────────────▶  |                          |
+    |◀─────capabilities: {tools}─────────|                          |
+    |                                     |                          |
+    |──2. tools/list──────────────────▶  |                          |
+    |◀─────[get_supplier_quote]──────────|                          |
+    |                                     |                          |
+    |──3. tools/call────────────────────▶|                          |
+    |   {name: "get_supplier_quote",     |──HTTP POST──────────────▶|
+    |    arguments: {supplier: "TechF",  |                          |
+    |                item: "DESK-001",   |◀─────{price: 789}────────|
+    |                qty: 10}}            |                          |
+    |◀─────result: {price: 789}──────────|                          |
+```
+
+**Step-by-step**:
+1. **Handshake**: Agent sends `initialize` with protocol version, server confirms capabilities
+2. **Discovery**: Agent calls `tools/list`, server returns JSON Schema for each tool
+3. **Invocation**: Agent calls `tools/call` with tool name + arguments, server validates against schema and executes
+4. **Response**: Server returns result or error in standard JSON-RPC format
+
+💡 **Key insight**: The agent never hardcoded TechFurnish's API. The server wrapped it. When you add OfficeDepot tomorrow, the Pricing agent's code doesn't change — you just add OfficeDepot logic inside the MCP server.
+
+---
+
+## § 5 · Key Diagrams
+
+*(See illustration at end of chapter)*
+
+---
+
+## § 6 · Production Considerations
+
+| Concern | MCP Solution |
+|---------|-------------|
+| **Latency** | stdio transport: <1ms overhead for local tools; HTTP+SSE: ~10ms for remote servers |
+| **Error handling** | JSON-RPC 2.0 error codes: -32700 (parse error), -32600 (invalid request), -32601 (method not found) |
+| **Authentication** | OAuth 2.0 bearer tokens for HTTP transport; process-level trust for stdio |
+| **Rate limiting** | Server-side: implement token bucket or leaky bucket inside MCP server |
+| **Monitoring** | Every MCP call is a JSON-RPC request → standard middleware can intercept and log |
+| **Deployment** | stdio servers: ship as standalone binaries; HTTP servers: containerize and deploy behind load balancer |
+
+⚠️ **Common trap**: Exposing raw database access as MCP Resources. Instead, expose semantic operations as Tools (e.g., `get_inventory_level(item_id)` not `SELECT * FROM inventory`). This prevents agents from issuing arbitrary SQL.
+
+---
+
 ## MCP vs Plain Function Calling
 
 | Dimension | Plain function calling | MCP |
@@ -189,52 +285,53 @@ messages = await mcp_client.get_prompt("negotiate_price_prompt",
 
 ---
 
-## 2 · Running Example
+## § 7 · Code Skeleton
 
-OrderFlow's tool sprawl had become a maintenance bottleneck: three teams, each owning one agent, each maintaining their own wrappers for the ERP, pricing API, and email service — nine wrappers total, each with subtly different error handling.
-
-The fix: three MCP servers, one per system (ERP, Pricing, Email). All agents become MCP clients. Each team now owns only one server and zero agent-side adapters.
-
-The additional gain: the compliance team added a logging proxy MCP server that sits in front of every tool call and records to the audit database. No agent code was modified — the proxy is just another MCP server that passes calls through.
+*(See implementation details below)*
 
 ---
 
+## § 8 · What Can Go Wrong
 
-## 3 · How It Works
+**1. Tool schema drift**: Server updates tool signature without versioning → clients send old argument shape → validation fails.
+- **Fix**: Version your tools (e.g., `get_supplier_quote_v2`) or use semantic versioning in MCP server manifest. Deprecate old versions gracefully.
 
-> Step-by-step walkthrough of the mechanism.
+**2. stdio deadlock**: Agent writes to server stdin, blocks waiting for response, but server is blocked writing to stdout (buffer full) → both processes hang.
+- **Fix**: Use non-blocking I/O or larger OS pipe buffers. Production: prefer HTTP+SSE transport for concurrent clients.
 
+**3. Exposing raw database access as Resources**: Agent requests `resource://db/inventory/all` and gets 500 MB of JSON → context window explosion.
+- **Fix**: Resources should be semantic, not raw. Expose `resource://inventory/item/{id}` not `resource://db/*`. Rate-limit resource size to <10 KB.
 
-## 4 · Key Diagrams
+**4. No authentication**: HTTP MCP server has no auth → any network client can call `tools/delete_all_orders`.
+- **Fix**: Require OAuth 2.0 bearer tokens for HTTP transport. Validate tokens before processing `tools/call`.
 
-> Add 2–3 diagrams showing the key data flows here.
+**5. Logging proxy breaks observability**: Custom MCP proxy strips `correlation_id` from requests → distributed tracing fails.
+- **Fix**: Proxies must preserve all JSON-RPC fields. Add new fields (e.g., `audit_timestamp`) but never remove existing ones.
 
+---
 
-## 5 · Hyperparameter Dial
-
-> List the key knobs and their effect on behaviour.
-
-
-## 6 · What Can Go Wrong
-
-> 3–5 common failure modes and mitigations.
-
-## 7 · Progress Check — What We Achieved
+## § 9 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR
     Ch1["Ch.1\nMessage Formats"]:::done
-    Ch2["Ch.2\nMCP"]:::done
-    Ch3["Ch.3\nA2A"]:::done
-    Ch4["Ch.4\nEvent-Driven"]:::done
-    Ch5["Ch.5\nShared Memory"]:::done
-    Ch6["Ch.6\nTrust & Sandboxing"]:::done
-    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch2["Ch.2\nMCP"]:::current
+    Ch3["Ch.3\nA2A"]:::upcoming
+    Ch4["Ch.4\nEvent-Driven"]:::upcoming
+    Ch5["Ch.5\nShared Memory"]:::upcoming
+    Ch6["Ch.6\nTrust & Sandboxing"]:::upcoming
+    Ch7["Ch.7\nAgent Frameworks"]:::upcoming
     Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
     classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
+
+✅ **Unlocked capabilities**:
+- ✅ **Standard tool protocol**: Any agent can call any tool via JSON-RPC 2.0 without custom adapter code
+- ✅ **Runtime schema discovery**: Agents discover tool schemas dynamically at connection time (no hardcoded schemas)
+- ✅ **Integration collapse**: 160 bespoke integrations reduced to 28 components (8 MCP clients + 20 MCP servers)
+- ✅ **Real-time data grounding**: Agents now query live ERP inventory, supplier pricing APIs, legal templates (no hallucinated data)
 
 ### Constraint Status After Ch.2
 
@@ -249,11 +346,42 @@ graph LR
 | #7 OBSERVABILITY | Message structure only | MCP tool calls logged | ⚡ **Improved** |
 | #8 DEPLOYABILITY | No automation | No automation | ❌ No change |
 
-### The Win
+### What We Can Solve Now
 
-✅ **Integration collapse**: Reduced 160 bespoke integrations to **28 components** (8 MCP clients + 20 MCP servers). Any agent can now access any data source through JSON-RPC 2.0 protocol.
+✅ **Scenario 1: Add new supplier without rewriting agents**
+```
+Before Ch.2:
+New supplier API → write custom wrapper → update 3 agents → deploy → test → 2 weeks
 
-**Measured impact**: Error rate dropped 3.8% → 3.2% (agents now grounded in real-time ERP inventory, live pricing APIs, actual supplier emails — no hallucinated data).
+After Ch.2:
+New supplier API → add to existing pricing-mcp-server → test server → deploy server → 2 days
+Agents unchanged, automatically discover new supplier via tools/list
+
+Result: ✅ 7× faster supplier onboarding ($14k engineering cost → $2k)
+```
+
+✅ **Scenario 2: Recover from supplier API schema change**
+```
+Before Ch.2:
+TechFurnish changes API → 3 agents crash → emergency hotfix → 4-hour production outage
+
+After Ch.2:
+TechFurnish changes API → update pricing-mcp-server (single file) → agents reconnect → discover new schema → 15-minute fix
+
+Result: ✅ 16× faster recovery (4 hours → 15 minutes), zero agent code changes
+```
+
+✅ **Scenario 3: Compliance audit of tool usage**
+```
+Before Ch.2:
+CFO asks "Which agent approved PO #2024-1847?" → manually grep 8 agent logs → inconsistent formats → 2-hour forensics
+
+After Ch.2:
+Every MCP tools/call logged in standard JSON-RPC format → query audit DB:
+  SELECT * FROM mcp_calls WHERE correlation_id = 'PO-2024-1847' AND tool_name = 'approve_purchase_order'
+
+Result: ✅ Full decision chain reconstructed in 30 seconds
+```
 
 ### MCP Servers Deployed
 
@@ -261,16 +389,29 @@ graph LR
 - `pricing-server`: `get_supplier_quote(item_id, quantity)` (Tool)
 - `email-server`: `send_email()`, `fetch_inbox()` (Tools)
 - `legal-server`: Contract templates, approval policies (Resources)
+- `audit-proxy-server`: Logging proxy that records all tool calls to compliance database
 
 ### What's Still Blocking
 
-**Cross-service agent delegation**: Intake agent (Pod 1) can't delegate to Negotiation agent (Pod 3) across Kubernetes cluster. No standard protocol for agent-to-agent task handoff.
+❌ **Cross-service agent delegation**: Your Intake agent (Kubernetes Pod 1) receives PO #2024-1847. It needs to delegate pricing lookup to the Pricing agent (Pod 3) and negotiation to the Negotiation agent (Pod 5). MCP solves agent-to-tool communication, but you have no protocol for agent-to-agent task handoff. You're still hardcoding HTTP endpoints: `POST http://pricing-agent:8080/lookup`. When you add a 9th agent, you update 8 agent configs. **Constraint #4 SCALABILITY blocked: can't add agents without N² coordination.**
 
-**Next unlock** *(Ch.3 — A2A)*: Agent-to-Agent protocol enables cross-service delegation via Agent Cards, task lifecycle (submitted → working → completed), and SSE streaming.
+❌ **Synchronous bottleneck**: Intake agent calls Pricing agent (847ms supplier API call), waits for response, then calls Negotiation agent (12-second LLM call), waits, then calls Approval agent. Total: 2 min + 5 min + 8 min + 15 min + 2 min + 3 min = **35 minutes best-case, 36 hours with queue time**. **Constraint #1 THROUGHPUT blocked at 10 POs/day** (need 1,000 POs/day).
+
+❌ **No shared state management**: Pricing agent and Negotiation agent both need to update the PO line items. Race condition: both agents read `quantity: 10`, Pricing agent updates to `quantity: 10, price: 789`, Negotiation agent updates to `quantity: 10, price: 749`, last write wins → Pricing agent's work silently lost. **Constraint #3 ACCURACY risk: data corruption in concurrent workflows**.
+
+**Real-world status**: You can now add tools (suppliers, APIs, services) without rewriting agents. Error rate improved 3.8% → 3.2% (agents grounded in real data). But you're still at 10 POs/day throughput with 36-hour latency — agents can't delegate to each other across service boundaries.
+
+**Next up:** [Ch.3 — Agent-to-Agent Protocol (A2A)](../a2a) gives us **agent delegation** — Intake agent discovers and calls Pricing agent via Agent Cards, task lifecycle (submitted → working → completed → failed), and SSE streaming for long-running tasks. Unlocks distributed multi-agent orchestration across Kubernetes cluster.
 
 ---
 
-## 8 · The Math
+## § 10 · Bridge to Chapter 3
+
+MCP collapsed agent-to-tool integration from N×M to N+M, but agent-to-agent coordination is still point-to-point. Ch.3 (A2A) defines the delegation protocol — Agent Cards advertise capabilities, task lifecycle tracks request→response, SSE streams long-running results → **enables hierarchical orchestration without hardcoded agent endpoints**.
+
+---
+
+## § 11 · The Math
 
 ### The N×M Integration Problem
 
@@ -302,7 +443,7 @@ The server returns a result object $r_t(\mathbf{a})$. The MCP protocol guarantee
 
 ---
 
-## Code Skeleton
+## § 12 · Code Skeleton
 
 ```python
 # Educational: minimal MCP client from scratch (stdio transport)
@@ -364,7 +505,7 @@ async def build_orderflow_mcp_agent():
 
 ---
 
-## Where This Reappears
+## § 13 · Where This Reappears
 
 | Chapter | How MCP concepts appear |
 |---------|------------------------|

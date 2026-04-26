@@ -9,14 +9,11 @@
 
 ## 0 · The Challenge — Where We Are
 
-## Animation
-
-> 🎬 *Animation placeholder — needle-builder agent will generate this.*
-
-
 > 🎯 **The mission**: Self-host Llama-3-8B for <$15k/month, replacing $80k OpenAI API costs
 > 
 > **6 Constraints**: #1 Cost (<$15k/mo) • #2 Latency (≤2s) • #3 Throughput (≥10k req/day) • #4 Memory (fit in VRAM) • #5 Quality (≥95% accuracy) • #6 Reliability (>99% uptime)
+
+> 🎬 *Animation placeholder — needle-builder agent will generate this showing constraint #2 (Latency) and #3 (Throughput) moving toward target during this chapter.*
 
 **What we know so far**:
 - ✅ Ch.1-3: RTX 4090 + INT4 quantization → 12,000 req/day throughput ✅
@@ -81,16 +78,16 @@ Engineer: "The problem is **static batching**. We wait until batch=4 fills,
 5. **Autoscaling**: Spin up 2nd GPU during lunch rush, shut down at night → cost-optimized
 
 ⚡ **Expected outcomes**:
-- **Throughput**: 12,000 → 18,000 req/day (batch=8 with PagedAttention) ✅
+- **Throughput**: 12,000 → 22,000 req/day (batch=8 + speculative decoding) ✅
 - **Latency under spike**: 8.7s p95 → 1.8s p95 (continuous batching eliminates queue) ✅
-- **Latency normal load**: 1.2s → 0.9s (speculative decoding 30% speedup)
+- **Latency normal load**: 1.2s → 680ms p95 (continuous batching + PagedAttention + speculative decoding) ✅
 - **VRAM headroom**: 10GB → 8GB (PagedAttention eliminates padding waste)
 - **Cost maintained**: $1,095/month (no additional GPUs needed)
 
 **Constraint status after Ch.5**:
 - #1 (Cost): ✅ **MAINTAINED** ($1,095/month)
-- #2 (Latency): ✅ **VALIDATED UNDER LOAD** (1.8s p95 during spikes, 0.9s normal)
-- #3 (Throughput): ✅ **EXCEEDED** (18,000 req/day, 180% of target)
+- #2 (Latency): ✅ **VALIDATED UNDER LOAD** (680ms p95, 66% better than 2s target)
+- #3 (Throughput): ✅ **EXCEEDED** (22,000 req/day, 220% of target)
 - #4 (Memory): ✅ **OPTIMIZED** (8GB / 24GB = 33% utilization)
 - #5 (Quality): ✅ **MAINTAINED** (96.2% accuracy)
 - #6 (Reliability): ⚡ **IMPROVED** (handles 2× traffic spikes without degradation)
@@ -204,6 +201,8 @@ With PagedAttention (paged allocation):
 
 **Impact**: Same 24GB VRAM budget → batch=4 (16GB KV) → batch=8 (8GB KV with PagedAttention).
 
+![PagedAttention memory layout — Paged allocation eliminates fragmentation, enabling 2× larger batch size](img/pagedattention-memory-layout.png)
+
 ---
 
 ## 5 · Speculative Decoding
@@ -233,6 +232,8 @@ Speculative decoding (Llama-3-1B draft + Llama-3-8B verify):
 - Acceptance rate >70% (if <50%, overhead dominates)
 
 **InferenceBase scenario**: Document extraction has structured output (JSON) → 75% acceptance rate → 30% speedup ✅
+
+![Speculative decoding flow — Llama-3-1B draft model predicts 3 tokens, Llama-3-8B verifies in parallel](img/speculative-decoding-flow.png)
 
 ---
 
@@ -331,6 +332,8 @@ Improvement: 42% better tail latency! ✅
 
 **Test setup**: Llama-3-8B INT4, 1000 requests (avg 150 tokens), spiky arrival (λ=20 req/sec for 50s)
 
+**Test document**: ACME Corp Q3 earnings report (47 pages, 28,000 tokens) — InferenceBase's canonical benchmark document for document extraction workloads
+
 | Configuration | Throughput | p50 Latency | p95 Latency | VRAM |
 |---------------|------------|-------------|-------------|------|
 | Baseline (batch=1, no opt) | 3,800 req/day | 280ms | 450ms | 10GB |
@@ -340,6 +343,8 @@ Improvement: 42% better tail latency! ✅
 | + Speculative decoding | 22,000 req/day ✅ | 320ms | 680ms ✅ | 10GB |
 
 **Winner**: Continuous batching + PagedAttention + speculative decoding → **22,000 req/day, 680ms p95** ✅
+
+![Benchmark results — Throughput and latency improvements from baseline to fully optimized configuration](img/optimization-benchmark-results.png)
 
 ---
 
@@ -601,32 +606,4 @@ Ch.5 validated that continuous batching, PagedAttention, and speculative decodin
 ## Illustrations
 
 ![Inference optimization — Continuous batching timeline, PagedAttention memory savings, speculative decoding acceleration](img/Inference%20Optimization.png)
-
-
-## 14 · Key Diagrams
-
-> Add 2–3 diagrams showing the key data flows or architectural boundaries here.
-
-
-## 15 · The Hyperparameter Dial
-
-> List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
-> effect on the latency/throughput/memory triangle.
-
-
-## 16 · Code Skeleton
-
-### Educational
-
-```python
-# Educational: concept from scratch
-pass
-```
-
-### Production
-
-```python
-# Production: optimized pipeline call
-pass
-```
 

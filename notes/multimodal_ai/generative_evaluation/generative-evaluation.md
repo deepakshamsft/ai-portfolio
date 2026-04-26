@@ -49,33 +49,39 @@
 
 ## 1 · Core Idea
 
-Generative evaluation is the science of measuring the **quality, fidelity, diversity, and alignment** of images produced by a model — without requiring a human judge for every sample.
+**You're the Lead ML Engineer at VisualForge Studio.** You've just generated 100 spring-collection hero images. Before sending them to the creative director, you need to answer: *are they good enough to replace $600k/year of freelancer work?*
 
-Three orthogonal axes to measure:
+Generative evaluation is the science of measuring the **quality, fidelity, diversity, and alignment** of your generated images — without requiring a human judge for every sample.
 
-| Axis | Question | Representative metric |
+Three orthogonal axes you must measure:
+
+| Axis | Your question | Representative metric |
 |------|----------|-----------------------|
-| **Fidelity** | Do generated images look real? | FID ↓ |
-| **Diversity** | Does the model cover the full distribution? | FID ↓, Precision/Recall |
-| **Alignment** | Does the image match its text prompt? | CLIP Score ↑ |
+| **Fidelity** | Do your generated images look real? | FID ↓ |
+| **Diversity** | Does your model cover the full distribution? | FID ↓, Precision/Recall |
+| **Alignment** | Does the output match your text prompt? | CLIP Score ↑ |
 
-No single metric captures all three. Use at least two.
+**Critical insight:** No single metric captures all three. You need at least two to make a defensible decision.
 
 ---
 
 ## 2 · Running Example
 
-**VisualForge campaign evaluation suite.** After generating a batch of 100 spring-collection product images, how do you know if they're good enough to send to the creative director?
+**VisualForge campaign evaluation suite.** You've just generated a batch of 100 spring-collection product images. Before you send them to the creative director, you need objective proof they're ready:
 
-- Do the generated product shots look like real studio photographs? → **FID** against the reference product corpus
+- Do your generated product shots look like real studio photographs? → **FID** against your reference product corpus (500 approved images from past campaigns)
 - Are all VisualForge campaign types represented (product-on-white, lifestyle, brand-pattern)? → **class recall per brief type**
 - Does "Mango leather crossbody bag, white background" produce a bag on white, not a lifestyle shot? → **CLIP Score** (text-image alignment)
+
+💡 **Why this matters:** At 120 images/day throughput, you can't manually review every output. Automated metrics give you a 10-minute quality gate instead of 2 hours of manual inspection.
 
 > 📖 **Educational proxy:** FID math is illustrated using MNIST digit generation (reference = real digits, generated = DDPM output) because it's compact and verifiable. The VisualForge production evaluation (§5) applies the same metrics to campaign image batches.
 
 ---
 
 ## 3 · The Math
+
+**Why evaluation math matters for VisualForge:** You need proof that your AI outputs match freelancer quality before replacing $600k/year of human work. "Looks good" isn't evidence. These metrics give you objective numbers you can defend to the CEO.
 
 ### 3.1 Fréchet Inception Distance (FID)
 
@@ -85,9 +91,16 @@ $$
 \text{FID} = \|\mu_r - \mu_g\|^2 + \text{Tr} \left(\Sigma_r + \Sigma_g - 2 \left(\Sigma_r \Sigma_g\right)^{1/2}\right)
 $$
 
-- Lower = better.
+- **Lower = better** (FID < 50 = production quality for VisualForge campaigns).
 - Measures distance between the *distributions*, not individual images.
 - **Biased at small N** — needs ≥ 5,000 samples for stable estimates (often 50k).
+
+**How you compute it:**
+1. **Generate** $N$ images from your model ($N \geq 5000$, ideally 50k).
+2. **Extract features**: pass each real and generated image through Inception-v3 up to the `mixed_7c` pooling layer → 2048-dim vector.
+3. **Fit Gaussians**: compute $(\mu_r, \Sigma_r)$ on real features, $(\mu_g, \Sigma_g)$ on generated features.
+4. **Compute matrix square root**: $(\Sigma_r \Sigma_g)^{1/2}$ via eigendecomposition.
+5. **Plug into formula above** — result is FID.
 
 ### 3.2 Inception Score (IS)
 
@@ -97,7 +110,7 @@ $$
 \text{IS} = \exp \left(\mathbb{E}_x\bigl[D_\text{KL}(p(y|x)\|p(y))\bigr]\right)
 $$
 
-- Higher = better (sharp images → high $p(y|x)$; diverse images → high entropy $p(y)$).
+- **Higher = better** (sharp images → high $p(y|x)$; diverse images → high entropy $p(y)$).
 - **Does not compare to real images** — a model memorising training data can achieve high IS.
 - Rarely used alone after FID became standard.
 
@@ -111,9 +124,15 @@ $$
 
 where $w = 2.5$ is a scaling constant (originates from CLIPScore paper, Hessel et al. 2021).
 
-- Higher = better.
+- **Higher = better** (>0.25 = prompt-aligned for VisualForge briefs).
 - Reference-free: no real image needed.
 - The CLIP embedding space is **shared** across images and text, so cosine similarity measures semantic alignment.
+
+**How you compute it:**
+1. Encode the prompt with `CLIPTextEncoder` → $\mathbf{t} \in \mathbb{R}^{512}$.
+2. Encode the generated image with `CLIPImageEncoder` → $\mathbf{v} \in \mathbb{R}^{512}$.
+3. Normalise both to unit length.
+4. Score = $2.5 \cdot \max(0, \mathbf{t} \cdot \mathbf{v})$.
 
 ### 3.4 LPIPS (Learned Perceptual Image Patch Similarity)
 
@@ -139,24 +158,52 @@ $$
 \text{Precision} = \frac{1}{|X_g|}\sum_i \mathbf{1}[x_{g,i} \in \text{manifold}(X_r)]
 $$
 
+⚡ **Connection to Constraint #1 (Quality):** HPSv2 score of 4.1/5.0 = exceeds target → freelancer replacement validated.
+
 ---
 
-## 4 · How It Works — Step by Step
+## 4 · Visual Intuition
 
-### Computing FID
+```
+ GENERATIVE EVALUATION LANDSCAPE
+ ─────────────────────────────────
 
-1. **Generate** $N$ images from your model ($N \geq 5000$, ideally 50k).
-2. **Extract features**: pass each real and generated image through Inception-v3 up to the `mixed_7c` pooling layer → 2048-dim vector.
-3. **Fit Gaussians**: compute $(\mu_r, \Sigma_r)$ on real features, $(\mu_g, \Sigma_g)$ on generated features.
-4. **Compute matrix square root**: $(\Sigma_r \Sigma_g)^{1/2}$ via eigendecomposition.
-5. **Plug into formula above** — result is FID.
+ Reference-free                      Reference-based
+ (no real images needed)             (compares to real distribution)
 
-### Computing CLIP Score
+ ┌─────────────────────┐            ┌──────────────────────────────┐
+ │ CLIP Score          │            │ FID (distribution match)     │
+ │ text ↔ image align  │            │ IS (fidelity + diversity)    │
+ │ HPSv2, ImageReward  │            │ Precision / Recall           │
+ │ (human preference)  │            │ LPIPS (pixel-level, per img) │
+ └─────────────────────┘            └──────────────────────────────┘
 
-1. Encode the prompt with `CLIPTextEncoder` → $\mathbf{t} \in \mathbb{R}^{512}$.
-2. Encode the generated image with `CLIPImageEncoder` → $\mathbf{v} \in \mathbb{R}^{512}$.
-3. Normalise both to unit length.
-4. Score = $2.5 \cdot \max(0, \mathbf{t} \cdot \mathbf{v})$.
+ Sample-level                        Distribution-level
+ (per image score)                   (needs thousands of images)
+
+ ┌─────────────────────┐            ┌──────────────────────────────┐
+ │ LPIPS               │            │ FID, IS, Precision/Recall    │
+ │ SSIM, PSNR          │            │ (stable only with N≥5k)      │
+ │ CLIP Score          │            └──────────────────────────────┘
+ └─────────────────────┘
+```
+
+```
+FID BIAS VS SAMPLE COUNT
+─────────────────────────
+FID
+ ↑
+300│ × N=100         ← unstable, don't trust this
+200│ × N=500
+100│ × N=1k
+ 50│ × N=5k          ← starts to stabilise
+ 20│ × N=50k         ← production-grade estimate
+ └───────────────────────────→ N (log scale)
+
+True FID attained only at large N; small N inflates FID.
+```
+
+**Why this matters:** You need to generate ≥5,000 test images to get a reliable FID score. Running FID on 100 samples will give you wildly inconsistent results (±50 FID variance). VisualForge evaluates on 500-image batches = minimum viable N for campaign-level decisions.
 
 ---
 
@@ -217,73 +264,80 @@ print(f"Mean CLIP Score: {sum(clip_scores)/len(clip_scores):.3f} (target >0.25)"
 
 ---
 
-## 6 · The Key Diagrams
+## 6 · Common Failure Modes
 
-```
- GENERATIVE EVALUATION LANDSCAPE
- ─────────────────────────────────
+**Failure-first pattern:** Evaluation metrics can mislead you — here's how they break and what to watch for.
 
- Reference-free Reference-based
- (no real images needed) (compares to real distribution)
+### Failure Mode 1: FID Overfitting
 
- ┌─────────────────────┐ ┌──────────────────────────────┐
- │ CLIP Score │ │ FID (distribution match) │
- │ text ↔ image align │ │ IS (fidelity + diversity) │
- │ HPSv2, ImageReward │ │ Precision / Recall │
- │ (human preference) │ │ LPIPS (pixel-level, per img)│
- └─────────────────────┘ └──────────────────────────────┘
+| What goes wrong | Reality |
+|---------------|---------||
+| "Lower FID is always better" | FID measures *match* to the training distribution; a model overfitting real images can get near-zero FID but zero diversity. You want FID <50, not FID=0. |
 
- Sample-level Distribution-level
- (per image score) (needs thousands of images)
+**Debug:** Compare FID with Precision/Recall. High precision + low recall = overfitting (matches training set but lacks diversity).
 
- ┌─────────────────────┐ ┌──────────────────────────────┐
- │ LPIPS │ │ FID, IS, Precision/Recall │
- │ SSIM, PSNR │ │ (stable only with N≥5k) │
- │ CLIP Score │ └──────────────────────────────┘
- └─────────────────────┘
-```
+### Failure Mode 2: CLIP Score Misalignment
 
-```
-FID BIAS VS SAMPLE COUNT
-─────────────────────────
-FID
- ↑
-300│ × N=100
-200│ × N=500
-100│ × N=1k
- 50│ × N=5k
- 20│ × N=50k ← stabilises here
- └───────────────────────────→ N (log scale)
+| What goes wrong | Reality |
+|---------------|---------||
+| "CLIP Score measures photorealism" | CLIP Score measures text-image alignment, not visual quality. A blurry image with correct colours/objects can score high. |
 
-True FID attained only at large N; small N inflates FID.
-```
+**Debug:** Use CLIP Score + HPSv2 together. CLIP validates prompt adherence; HPSv2 validates human preference for quality.
+
+### Failure Mode 3: Small Sample Bias
+
+| What goes wrong | Reality |
+|---------------|---------||
+| "FID on 1,000 samples is reliable" | FID has O(1/√N) variance; ±10 FID spread is common at N=1k. Production decisions need N≥5k for stable estimates. |
+
+**Debug:** Run FID on 3 independent 1k-sample batches. If spread >±5 FID, increase N.
+
+### Failure Mode 4: Metric Confusion
+
+| What goes wrong | Reality |
+|---------------|---------||
+| "IS is equivalent to FID" | IS doesn't compare to real images at all — it only uses the generator's class distribution. A model memorizing training data can achieve high IS with zero generalization. |
+| "LPIPS = SSIM" | LPIPS uses deep network features (learned); SSIM is a hand-crafted pixel similarity. LPIPS correlates better with human perception. |
+| "CLIP embeddings are perceptually uniform" | CLIP can match text to semantically wrong images if colours/textures align spuriously (e.g., "red apple" → red car if both have red dominant hue). |
 
 ---
 
-## 7 · What Changes at Scale
+## 7 · When to Use This vs Alternatives
 
-| Scale | What matters |
-|-------|-------------|
-| **Research prototyping** | FID on 2k–10k samples, CLIP Score spot-check |
-| **Production model eval** | FID on 50k, human preference study (HPSv2 / ELO) |
-| **T2I leaderboards** | GenEval (compositional), T2I-CompBench, DrawBench |
-| **Video generation** | FVD (Fréchet Video Distance) — temporal extension of FID |
-| **Beyond images** | CLIPScore adapted to audio-text, video-text |
+**Decision framework for VisualForge evaluation:**
 
-Human preference models (HPSv2, ImageReward, PickScore) train a reward model on human pairwise comparisons — better aligned with user perception than automated metrics.
+| Your question | Use this | Not this | Why |
+|--------------|----------|----------|-----|
+| Are generated images photorealistic? | FID vs real corpus | IS | FID compares to real images; IS doesn't |
+| Does output match text prompt? | CLIP Score | FID | CLIP measures text-image alignment; FID measures distribution similarity |
+| Will clients like this? | HPSv2 / ImageReward | FID, CLIP Score | HPSv2 trained on human preferences; automated metrics miss subjective quality |
+| How many samples do I need? | N=5k for FID | N=1k "good enough" | FID variance is O(1/√N); 1k samples = ±10 FID noise |
+| Spot-check 20 images | CLIP Score | FID | FID needs thousands of samples; CLIP works per-image |
+| Compare two models | FID + HPSv2 + CLIP | Any single metric | No metric captures fidelity + diversity + alignment alone |
+
+**VisualForge production stack:**
+- **Batch quality gate (100 images)**: FID <50, CLIP >0.25 → auto-approve
+- **Model A/B test (5k images)**: FID + HPSv2 → choose winning model
+- **Per-brief validation (20 images)**: CLIP Score + manual QA spot-check
 
 ---
 
-## 8 · Common Misconceptions
+## 8 · Connection to Prior Chapters
 
-| Misconception | Reality |
-|---------------|---------|
-| "Lower FID is always better" | FID measures *match* to the training distribution; a model overfitting real images can get near-zero FID but zero diversity |
-| "CLIP Score measures photorealism" | CLIP Score measures text-image alignment, not visual quality |
-| "IS is equivalent to FID" | IS doesn't compare to real images at all — it only uses the generator's class distribution |
-| "FID on 1,000 samples is reliable" | FID has O(1/√N) variance; ±10 FID spread is common at N=1k |
-| "LPIPS = SSIM" | LPIPS uses deep network features (learned); SSIM is a hand-crafted pixel similarity |
-| "CLIP embeddings are perceptually uniform" | CLIP can match text to semantically wrong images if colours/textures align spuriously |
+**This chapter closes the loop on Quality (Constraint #1)** by proving what earlier chapters built:
+
+| Chapter | What it enabled | How evaluation validates it |
+|---------|----------------|-----------------------------|
+| Ch.3 CLIP | Text-image embedding space | CLIP Score uses Ch.3 embeddings to measure prompt adherence → validates that conditioning works |
+| Ch.4 Diffusion | Generative capability | FID compares generated distribution to real → validates that denoising produces realistic outputs |
+| Ch.5 Schedulers | Speed optimization (1000 → 50 steps) | HPSv2 score stays 4.1/5.0 with 50 steps → validates that fewer steps don't degrade quality |
+| Ch.6 Latent Diffusion | Latent space compression | FID on latent-diffusion outputs <50 → validates 8× compression doesn't lose fidelity |
+| Ch.7 Guidance | CFG scale tuning | CLIP Score 0.31 at scale 7.5 → validates that guidance improves alignment |
+| Ch.10 Multimodal LLM | Image understanding for QA | Automated QA pass rate 84% → validates VLM can filter unusable outputs |
+
+**Key unlock:** Before this chapter, you had to trust that your generations "looked good." Now you have objective proof: HPSv2=4.1/5.0 exceeds freelancer baseline (4.0 target). VisualForge can replace $600k/year of human work with confidence.
+
+➡️ **Forward pointer:** Next chapter (Ch.12) optimizes speed (18s → 8s with SDXL-Turbo) while maintaining this 4.1/5.0 quality — evaluation metrics prove the optimization doesn't degrade outputs.
 
 ---
 
@@ -313,7 +367,43 @@ Human preference models (HPSv2, ImageReward, PickScore) train a reward model on 
 
 ---
 
-## 10 · Progress Check — What Have We Unlocked?
+## 10 · Further Reading
+
+### Foundational Papers
+
+- **FID** — Heusel et al. "GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium" (NIPS 2017) | [arxiv.org/abs/1706.08500](https://arxiv.org/abs/1706.08500) — The paper that made FID the standard metric; Fréchet distance formulation and Inception-v3 feature extraction.
+- **Inception Score** — Salimans et al. "Improved Techniques for Training GANs" (2016) | [arxiv.org/abs/1606.03498](https://arxiv.org/abs/1606.03498) — First widely-used automatic metric; explains KL divergence formulation.
+- **CLIP Score** — Hessel et al. "CLIPScore: A Reference-free Evaluation Metric for Image Captioning" (EMNLP 2021) | [arxiv.org/abs/2104.08718](https://arxiv.org/abs/2104.08718) — Adapts CLIP to image generation evaluation; explains 2.5× scaling constant.
+- **HPSv2** — Wu et al. "Human Preference Score v2: A Solid Benchmark for Evaluating Human Preferences of Text-to-Image Synthesis" (2023) | [arxiv.org/abs/2306.09341](https://arxiv.org/abs/2306.09341) — Human preference model trained on pairwise comparisons; correlates better with subjective quality than FID/CLIP.
+
+### Compositional & Advanced Metrics
+
+- **GenEval** — Ghosh et al. "GenEval: An Object-Focused Framework for Evaluating Text-to-Image Alignment" (NeurIPS 2023) | [arxiv.org/abs/2310.11513](https://arxiv.org/abs/2310.11513) — Tests attribute binding, spatial relations, counting.
+- **Precision & Recall** — Kynkäänniemi et al. "Improved Precision and Recall Metric for Assessing Generative Models" (NeurIPS 2019) | [arxiv.org/abs/1904.06991](https://arxiv.org/abs/1904.06991) — Separates fidelity (precision) from diversity (recall).
+- **LPIPS** — Zhang et al. "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric" (CVPR 2018) | [arxiv.org/abs/1801.03924](https://arxiv.org/abs/1801.03924) — Learned perceptual similarity metric.
+
+### Video & Multimodal
+
+- **FVD** — Unterthiner et al. "Towards Accurate Generative Models of Video: A New Metric & Challenges" (2018) | [arxiv.org/abs/1812.01717](https://arxiv.org/abs/1812.01717) — Extends FID to video using I3D features.
+- **VBench** — Huang et al. "VBench: Comprehensive Benchmark Suite for Video Generative Models" (CVPR 2024) | [arxiv.org/abs/2311.17982](https://arxiv.org/abs/2311.17982) — 16-dimensional video evaluation suite.
+
+### Implementations
+
+- **`torchmetrics.image.fid`** — PyTorch implementation of FID | [lightning.ai/docs/torchmetrics](https://lightning.ai/docs/torchmetrics/stable/image/frechet_inception_distance.html)
+- **`clean-fid`** — PyTorch FID with improved feature extraction | [github.com/GaParmar/clean-fid](https://github.com/GaParmar/clean-fid)
+- **`hpsv2`** — Official HPSv2 implementation | [github.com/tgxs002/HPSv2](https://github.com/tgxs002/HPSv2)
+
+---
+
+## 11 · Notebook
+
+→ [`notebook.ipynb`](notebook.ipynb) — Compute FID, CLIP Score, and HPSv2 on a VisualForge campaign batch. Runs on laptop CPU (no GPU required for evaluation metrics).
+
+> **Time estimate:** 10-15 minutes for 500-image batch on laptop CPU.
+
+---
+
+## 11.5 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #1 (Quality)**: ⚡ ~3.9/5.0 via slow/expensive client surveys
@@ -341,9 +431,32 @@ Human preference models (HPSv2, ImageReward, PickScore) train a reward model on 
 
 ---
 
-## 11 · What's Next
+### VisualForge Status — Full Constraint View
 
-→ [LocalDiffusionLab.md](../local_diffusion_lab/local-diffusion-lab.md) — Capstone: combine everything you've built across all 12 chapters into a single local diffusion lab.
+| Constraint | Ch.1 | Ch.3 | Ch.6 | Ch.8 | Ch.10 | Ch.11 (This) | Target |
+|------------|------|------|------|------|-------|--------------|--------|
+| Quality | ❌ | ❌ | ⚡ 3.5 | ⚡ 3.8 | ⚡ 3.9 | ✅ **4.1/5.0** | 4.0/5.0 |
+| Speed | ❌ | ❌ | ✅ 20s | ✅ 18s | ✅ 18s | ✅ 18s | <30s |
+| Cost | ❌ | ❌ | ✅ $2.5k | ✅ $2.5k | ✅ $2.5k | ✅ $2.5k | <$5k |
+| Control | ❌ | ⚡ | ⚡ <15% | ✅ 3% | ✅ 3% | ✅ 3% | <5% |
+| Throughput | ❌ | ❌ | ❌ | ⚡ 80/day | ✅ 120/day | ✅ 120/day | 100+/day |
+| Versatility | ⚡ | ⚡ | ⚡ T2I | ⚡ T2I+Video | ✅ All 3 | ✅ All 3 | 3 modes |
+
+**Legend:** ❌ = Blocked | ⚡ = Foundation laid | ✅ = Target hit
+
+---
+
+## Bridge to Chapter 12
+
+**What's still blocking us?** Nothing critical — all 6 constraints are met! But there's an **optimization opportunity**: your system generates images in ~18 seconds (comfortably under the <30s target), but that leaves overhead for future feature creep. Can you go faster while maintaining 4.1/5.0 quality?
+
+**The bottleneck:** SDXL uses 50 denoising steps. SDXL-Turbo promises 4-step sampling = 8 seconds. Hardware isn't fully optimized (running FP16; could use INT8 quantization). Deployment patterns are ad-hoc (manual Python scripts; should be Docker + ComfyUI workflows).
+
+**Next unlock (Ch.12):** **Local Diffusion Lab (Production Optimization)** — Deploy SDXL-Turbo (4 steps → 8s), quantize to INT8, package as Docker container, set up ComfyUI for client-friendly UI. Final assembly of the 12-chapter VisualForge pipeline → production-ready system.
+
+→ [LocalDiffusionLab.md](../local_diffusion_lab/local-diffusion-lab.md)
+
+---
 
 ## Illustrations
 

@@ -9,11 +9,6 @@
 
 ## 0 · The Challenge — Where We Are
 
-## Animation
-
-> 🎬 *Animation placeholder — needle-builder agent will generate this.*
-
-
 > 🎯 **The mission**: Self-host Llama-3-8B for <$15k/month, replacing $80k OpenAI API costs
 > 
 > **6 Constraints**: #1 Cost (<$15k/mo) • #2 Latency (≤2s) • #3 Throughput (≥10k req/day) • #4 Memory (fit in VRAM) • #5 Quality (≥95% accuracy) • #6 Reliability (>99% uptime)
@@ -86,6 +81,12 @@ Engineer: "That's what I need to validate. INT4 quantization compresses
 - #6 (Reliability): ⚡ **UNKNOWN** (need production deployment)
 
 **Critical breakthrough**: **4 of 6 constraints now met!** Cost, Latency, Throughput, Quality all validated. Ready for serving framework selection (Ch.5-6).
+
+---
+
+## Animation
+
+> 🎬 *Animation placeholder — needle-builder agent will generate this.*
 
 ---
 
@@ -321,21 +322,99 @@ For tasks where INT4 degrades quality too much:
 
 ---
 
-## 10 · The Key Diagram
+## 10 · VRAM Breakdown — FP16 vs INT4
 
-### Quantization Impact: VRAM, Throughput, Quality
+### ASCII Diagram: Memory Allocation Comparison
+
+**FP16 Baseline (22 GB / 24 GB used = 92% utilization)**
 
 ```
-FP16 (baseline)                    INT4 (quantized)
-├─ VRAM: 22 GB / 24 GB (92%)      ├─ VRAM: 10 GB / 24 GB (42%) ✅
-├─ Batch: 1 (KV cache limited)    ├─ Batch: 4 (12 GB free for KV) ✅
-├─ Throughput: 3,000 req/day       ├─ Throughput: 12,000 req/day ✅ (hits target!)
-├─ Latency: 280ms p50              ├─ Latency: 420ms p50 ✅ (still <2s)
-└─ Accuracy: 97.4%                 └─ Accuracy: 96.2% ✅ (still >95%)
+RTX 4090 VRAM (24 GB total)
+┌────────────────────────────────────────────────────────┐
+│ ████████████████████████████████████████████████  ░░░  │
+└────────────────────────────────────────────────────────┘
+ 0 GB                                            22 GB  24 GB
 
-Quantization trade-off:
-  Give up: 1.2% accuracy
-  Gain:   4× throughput, 75% memory savings
+Breakdown:
+┌─────────────────────────────────────────┐
+│ Model Parameters (FP16)     │ 16.0 GB   │ ← 8B params × 2 bytes/param
+├─────────────────────────────────────────┤
+│ KV Cache (batch=1, 2048 seq)│  4.0 GB   │ ← 32 layers × 128 heads × 2048 × 2 bytes
+├─────────────────────────────────────────┤
+│ Activations (forward pass)  │  2.0 GB   │ ← Intermediate tensors during inference
+├─────────────────────────────────────────┤
+│ Available headroom          │  2.0 GB   │ ⚠️ Too small for batch=2 (needs 4 GB KV)
+└─────────────────────────────────────────┘
+  TOTAL USED: 22.0 GB / 24.0 GB (92%)
+
+Bottleneck: Cannot increase batch size → stuck at 3,000 req/day ❌
+```
+
+**INT4 Quantized (10 GB / 24 GB used = 42% utilization)**
+
+```
+RTX 4090 VRAM (24 GB total)
+┌────────────────────────────────────────────────────────┐
+│ ████████████████████  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
+└────────────────────────────────────────────────────────┘
+ 0 GB            10 GB                                   24 GB
+
+Breakdown:
+┌─────────────────────────────────────────┐
+│ Model Parameters (INT4)     │  4.0 GB   │ ← 8B params × 0.5 bytes/param (75% reduction! ✅)
+├─────────────────────────────────────────┤
+│ KV Cache (batch=4, 2048 seq)│  4.0 GB   │ ← Same per-request, but now 4× concurrent
+├─────────────────────────────────────────┤
+│ Activations (forward pass)  │  2.0 GB   │ ← Unchanged (dequantized to FP16 at runtime)
+├─────────────────────────────────────────┤
+│ Available headroom          │ 14.0 GB   │ ✅ Room to grow to batch=8 if needed!
+└─────────────────────────────────────────┘
+  TOTAL USED: 10.0 GB / 24.0 GB (42%)
+
+Unlocked: Batch=4 → 12,000 req/day ✅ (4× throughput improvement!)
+```
+
+### Memory Arithmetic
+
+**FP16 → INT4 Savings Calculation:**
+
+```
+Model parameters:
+  FP16: 8,000,000,000 params × 2 bytes  = 16,000 MB = 16.0 GB
+  INT4: 8,000,000,000 params × 0.5 bytes =  4,000 MB =  4.0 GB
+  Savings: 16.0 - 4.0 = 12.0 GB freed (75% reduction)
+
+KV cache (unchanged — stores activations, not weights):
+  FP16 & INT4: 4.0 GB per batch size
+  
+Batch scaling with freed VRAM:
+  FP16 max batch: (24 GB - 16 GB params - 2 GB activations) / 4 GB KV = 1.5 → batch=1 ❌
+  INT4 max batch: (24 GB - 4 GB params - 2 GB activations) / 4 GB KV = 4.5 → batch=4 ✅
+  
+Throughput impact:
+  FP16: 3,000 req/day @ batch=1
+  INT4: 12,000 req/day @ batch=4 (4× improvement) ✅
+```
+
+### Trade-off Summary
+
+```
+┌─────────────────────┬──────────────┬──────────────┬────────────┐
+│ Metric              │ FP16         │ INT4         │ Change     │
+├─────────────────────┼──────────────┼──────────────┼────────────┤
+│ VRAM (params)       │ 16.0 GB      │  4.0 GB      │ -75% ✅    │
+│ VRAM (total)        │ 22.0 GB      │ 10.0 GB      │ -55% ✅    │
+│ Max batch size      │ 1            │ 4            │  4× ✅     │
+│ Throughput          │ 3,000 req/day│ 12,000 req/day│  4× ✅    │
+│ Latency (p50)       │ 280 ms       │ 420 ms       │ +50% ⚠️   │
+│ Latency (p95)       │ 450 ms       │ 1,200 ms     │ +167% ⚠️  │
+│ Accuracy            │ 97.4%        │ 96.2%        │ -1.2% ⚠️  │
+└─────────────────────┴──────────────┴──────────────┴────────────┘
+
+✅ Wins: 75% memory savings, 4× throughput, hits 10k req/day target
+⚠️ Costs: +140ms p50 latency (but still <2s), -1.2% accuracy (but still >95%)
+
+Verdict: Trade-offs acceptable for business constraints ✅
 ```
 
 ---
@@ -576,35 +655,9 @@ Result: ✅ Acceptable trade-off for 4× throughput gain!
 
 Ch.3 solved inference throughput with INT4 quantization. But what about **training**? Ch.2 showed full fine-tuning needs 104 GB VRAM (optimizer states dominate). Can we fine-tune on RTX 4090 (24 GB) instead of expensive A100s? Ch.4 (Parallelism & Distributed Training) introduces **LoRA** (Low-Rank Adaptation) — freeze base model, only train small adapter weights → 18 GB total (fits on RTX 4090!). Plus **ZeRO optimizer sharding** for full fine-tuning across 4× RTX 4090s.
 
+---
+
 ## Illustrations
 
 ![Quantization — Model compression FP16 → INT4, VRAM savings, batch size gains, quality validation](img/Quantization.png)
-
-
-## 14 · Key Diagrams
-
-> Add 2–3 diagrams showing the key data flows or architectural boundaries here.
-
-
-## 15 · The Hyperparameter Dial
-
-> List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
-> effect on the latency/throughput/memory triangle.
-
-
-## 16 · Code Skeleton
-
-### Educational
-
-```python
-# Educational: concept from scratch
-pass
-```
-
-### Production
-
-```python
-# Production: optimized pipeline call
-pass
-```
 

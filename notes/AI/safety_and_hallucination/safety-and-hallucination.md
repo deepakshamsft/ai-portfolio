@@ -14,7 +14,7 @@
 > 1. **BUSINESS VALUE**: >25% conversion + +$2.50 AOV + 70% labor savings — 2. **ACCURACY**: <5% error — 3. **LATENCY**: <3s p95 — 4. **COST**: <$0.08/conv — 5. **SAFETY**: Zero attacks — 6. **RELIABILITY**: >99% uptime
 
 **What we know so far:**
-- ✅ Ch.1-8: Core targets exceeded! 30% conversion, $40.60 AOV, 2.0s latency, $0.008/conv
+- ✅ Ch.1-8: Core targets exceeded! 30% conversion, $41.00 AOV, 2.0s latency, $0.008/conv
 - ✅ **Quality**: Automated testing, brand voice fine-tuning, regression prevention
 - ⚡ **Current state**: Production-ready system, ready for public launch
 
@@ -435,7 +435,7 @@ Verdict: ✅ PASSED
 
 **Business metrics update:**
 - **Order conversion**: 30% (maintained from Ch.8, target >25% ✅)
-- **Average order value**: $40.60 (maintained from Ch.8, +$2.50 vs. baseline ✅)
+- **Average order value**: $41.00 (maintained from Ch.8, +$2.50 vs. baseline ✅)
 - **Cost per conversation**: $0.010 (up from $0.008, target <$0.08 ✅)
 - **Error rate**: ~5% (maintained, target <5% ✅)
 - **Latency**: 2.2s p95 (up from 2.0s due to validation, target <3s ✅)

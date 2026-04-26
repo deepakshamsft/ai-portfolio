@@ -94,7 +94,11 @@ Still need Ch.6 (orchestration) for proactive upselling to hit >25% conversion a
 
 ## 1. Embeddings Fundamentals: Transforming Data into Vectors
 
-**Embeddings transform text into vectors where meaning becomes measurable** — similar concepts cluster together in high-dimensional space. Modern embedding models are built on **transformer encoder** architectures. Unlike decoder-only models (GPT, Llama) that generate text autoregressively, encoder models process the entire input simultaneously and produce contextual representations for each token.
+**You need embeddings to make "cheapest gluten-free pizza under 600 cal" work** — the menu says "gluten-free crust available," not "gluten free," and keyword search misses it. **Embeddings transform text into vectors where meaning becomes measurable** — similar concepts cluster together in high-dimensional space, so "gluten-free" and "gluten free crust" become neighbors even with different exact wording.
+
+**For PizzaBot:** When a customer asks about "low-calorie options," you need to retrieve menu items that say "480 calories" even though they never use the word "low." That's semantic similarity, and it's what embeddings deliver.
+
+Modern embedding models are built on **transformer encoder** architectures. Unlike decoder-only models (GPT, Llama) that generate text autoregressively, encoder models process the entire input simultaneously and produce contextual representations for each token.
 
 ### How Text Embeddings Are Created
 
@@ -146,9 +150,13 @@ Embedding models are **not** trained to predict tokens. They are trained with **
 
 Where `q` = query embedding, `p⁺` = positive (similar) embedding, `pᵢ⁻` = negative embeddings, and `τ` = temperature parameter.
 
+**In business terms:** This formula is why "gluten-free crust" and "GF option" cluster close together in embedding space — the model learned from millions of (question, answer) pairs that these phrases co-occur in similar contexts. **For PizzaBot:** This training objective is why semantic search works at all — your retrieval quality depends on how well the embedding model was trained with contrastive learning.
+
 ### Dimensionality and Storage Costs
 
-Embedding dimensions represent a tradeoff between **expressiveness**, **storage**, and **computational cost**. Every piece of text passed to a model like `text-embedding-ada-002` is converted into a vector containing exactly **1,536** floating-point values. From a technical perspective, 1,536 dimensions represent a balance between expressiveness and efficiency — the vector is large enough to encode meaningful semantic detail but small enough to store and search efficiently in most systems.
+**For PizzaBot's 500 menu items, storage is cheap — but for a chain with 50,000 SKUs across regions, dimensionality matters.** Embedding dimensions represent a tradeoff between **expressiveness**, **storage**, and **computational cost**. Every piece of text passed to a model like `text-embedding-ada-002` is converted into a vector containing exactly **1,536** floating-point values. From a technical perspective, 1,536 dimensions represent a balance between expressiveness and efficiency — the vector is large enough to encode meaningful semantic detail but small enough to store and search efficiently in most systems.
+
+**Business impact:** If you're embedding 500 menu items × 3 chunks each = 1,500 vectors × 6 KB = **9 MB total storage** (negligible). But at 10,000 locations × 500 items × 3 chunks = 15 million vectors × 6 KB = **90 GB** — now dimensionality and quantization matter for cost.
 
 | Dimensions | Size per Vector (float32) | Example Model |
 | ---------- | ------------------------- | ------------------------------- |
@@ -187,7 +195,9 @@ Using wrong prefixes degrades retrieval quality — always check model documenta
 
 ## 2. Normalization: Why It Matters for Production Systems
 
-**For normalized embeddings, dot product equals cosine similarity** — this is why production systems often normalize embeddings at index time and use dot product at query time.
+**You'll hit this in production when retrieval latency becomes a bottleneck.** For PizzaBot, with 1,500 embedded menu chunks, retrieval takes ~10ms. Scale to 1.5 million chunks (a national restaurant chain), and brute-force cosine similarity becomes a 10-second query — unacceptable.
+
+**For normalized embeddings, dot product equals cosine similarity** — this is why production systems often normalize embeddings at index time and use dot product at query time. **Business payoff:** Dot product is ~2× faster than cosine similarity (one square root elimination), and it enables HNSW/IVF index optimizations that wouldn't work otherwise (see Ch.5 Vector DBs).
 
 ### L2 Normalization
 
@@ -219,11 +229,17 @@ Many embedding models output normalized vectors by default — check your model'
 
 **Interview-critical insight:** For normalized vectors: `d² = 2(1 - cos(θ))`, meaning Euclidean and cosine become equivalent. This means `argmin L2 == argmax dot product` when vectors are unit-length. This is how FAISS, Milvus, pgvector, and Pinecone support cosine search internally — they normalize vectors and use inner product search.
 
+**For PizzaBot:** Your prototype uses cosine similarity directly. When you move to production scale (Ch.5), you'll switch to normalized vectors + dot product + HNSW index to hit the <3s latency constraint.
+
 ***
 
 ## 3. Embeddings Beyond Text: Images and Audio
 
-While text embeddings are the primary focus of most RAG systems, the concept extends to other modalities.
+**PizzaBot doesn't need image embeddings yet** — but if Mamma Rosa's marketing team wants to add "show me pizzas that look like this photo" or "find menu items matching this Instagram post," you'll need multimodal embeddings. For now, this is optional depth; skip to § 4 if you're focused on the core RAG pipeline.
+
+> 📖 **Optional: Multimodal Embeddings for Future Features**
+> 
+> While text embeddings are the primary focus of most RAG systems, the concept extends to other modalities. If your roadmap includes visual search ("show me pizzas that look like this") or audio transcription search ("find the training video where we explain gluten-free prep"), you'll need these techniques.
 
 ### Image Embeddings (CLIP and Multimodal Models)
 
@@ -332,6 +348,8 @@ Each chunk is fed into an embedding model to produce a vector representation. Th
 
 ## 6. Query-Time Pipeline: From Question to Answer
 
+**This is where latency matters.** When a customer asks "gluten-free options under $15," they expect a response in 2-3 seconds. Your query pipeline must: embed the query (∼50ms), search the index (∼200ms for 1,500 chunks, ∼2s for 1.5M chunks without optimization), and generate an answer (∼1s). **Total budget: <3s p95** to avoid abandonment.
+
 When a user asks a question, the query pipeline activates:
 
 **Step 1 — Query Embedding:** The user's query is processed by the **same** embedding model used at ingestion time to produce a query vector. This step happens in real time and must be low-latency. Engineering considerations include:
@@ -339,6 +357,8 @@ When a user asks a question, the query pipeline activates:
 * **Batching:** Aggregating multiple concurrent queries into one batch for the embedding model to increase throughput
 * **Caching:** Storing embeddings for frequently repeated queries (though cache hit rates in open-ended Q\&A tend to be low)
 * **Embeddings must be regenerated when:** source document changes, embedding model changes, chunking strategy changes, or model fine-tuning occurs
+
+**For PizzaBot:** Query embedding costs ~$0.000012 per query (12 tokens × $0.02 / 1M tokens with `text-embedding-3-small`). At 10,000 daily queries, that's **$0.12/day** — negligible. Latency is the real constraint: OpenAI's API typically returns embeddings in 30-50ms, well within your <3s p95 budget.
 
 > ### ⚠️ Critical Constraint: Query and Document Embeddings Must Use the Exact Same Model
 >
@@ -373,7 +393,9 @@ When a user asks a question, the query pipeline activates:
 
 ## 7. Why Chunking Is Required
 
-Chunking for RAG is the process of breaking large documents into smaller, manageable pieces before converting them into embeddings for retrieval. It might sound like a minor preprocessing step, but it is actually one of the biggest levers available to improve a RAG system's performance.
+**You can't embed Mamma Rosa's entire 50-page menu PDF as one vector** — `text-embedding-ada-002` has an 8,191 token limit, and your menu is 15,000+ tokens. Even if it fit, a single vector averaging over "Margherita nutrition facts" + "delivery zones" + "allergen warnings" + "pricing tiers" would dilute every query.
+
+Chunking for RAG is the process of breaking large documents into smaller, manageable pieces before converting them into embeddings for retrieval. It might sound like a minor preprocessing step, but it is actually one of the biggest levers available to improve a RAG system's performance — **a well-tuned chunking strategy can improve retrieval accuracy by 40%** compared to naive approaches.
 
 ### Three Fundamental Reasons Chunking Is Necessary
 
@@ -381,9 +403,13 @@ Chunking for RAG is the process of breaking large documents into smaller, manage
 
 Embedding models have maximum input lengths — commonly 512 to 8,192 tokens. OpenAI's `text-embedding-ada-002` accepts a maximum of **8,191 tokens**. Source documents routinely exceed these limits. A 20-page technical document might contain 15,000+ tokens — physically impossible to embed in a single pass. Chunking ensures each piece fits within model constraints.
 
+**For PizzaBot:** Your menu PDF is ~15,000 tokens. Your FAQ doc is ~8,000 tokens. Your allergen CSV is ~3,000 tokens. Without chunking, you can't even start the ingestion pipeline.
+
 **2. Semantic Dilution Problem**
 
 Embedding models produce **a single fixed-size vector** regardless of input length. A 200-word chunk and a 2,000-word chunk both become one vector. This means **larger chunks can dilute specific information**, while smaller chunks may lose important context.
+
+**For PizzaBot:** If you embed the entire menu as one chunk, the query "gluten-free options" retrieves a vector that averages over 500 items — the model can't tell if gluten-free Margherita is more relevant than regular Pepperoni. **You need item-level granularity** to get precise retrieval.
 
 A common source of inaccurate answers lies in a structural conflict within the traditional "chunk-embed-retrieve" pipeline: using a single-granularity, fixed-size text chunk to perform two inherently conflicting tasks — **semantic matching (recall)**, where smaller chunks (100–256 tokens) are needed for precise similarity search, and **context understanding (utilization)**, where larger chunks (1,024+ tokens) are needed for coherent LLM generation. This creates a difficult tradeoff between "precise but fragmented" and "complete but vague".
 
@@ -391,11 +417,15 @@ A common source of inaccurate answers lies in a structural conflict within the t
 
 When a retrieval system underperforms, most developers immediately blame the embedding model or the vector database. But the real issue is often hiding in plain sight — even a perfect retrieval system fails if it searches over poorly prepared data. Chunks need to accomplish two things simultaneously: they must be easy for vector search to find, and they must give the LLM enough context to generate useful answers.
 
+**For PizzaBot:** You debugged a 12% error rate for two weeks, suspecting the embedding model. Turns out the issue was chunking — you split the menu at arbitrary 500-character boundaries, so "Margherita (Large): $14.99" got separated from "920 calories." Queries about calorie counts retrieved the wrong chunks. **Fixing chunking to respect item boundaries dropped errors from 12% → 5%** — no model changes needed.
+
 ***
 
 ## 8. Chunking Strategies
 
-There is no single best approach. Each strategy trades off context preservation against retrieval precision in different ways.
+**Your choice here determines whether you hit the 5% error target or stay stuck at 10-15%.** There is no single best approach. Each strategy trades off context preservation against retrieval precision in different ways.
+
+**For PizzaBot:** Start with recursive character splitting (respects paragraph boundaries), then test semantic chunking if your budget allows (2-3 percentage point recall improvement). Don't use fixed-size chunking — it will cut menu items in half.
 
 ### Fixed-Size Chunking
 
@@ -406,6 +436,8 @@ The simplest method: split text into uniform segments based on character, word, 
 The **default choice for about 80% of RAG applications**. It uses a hierarchy of separators to find natural boundaries, attempting splits at paragraph breaks first, then sentences, then spaces. LangChain's `RecursiveCharacterTextSplitter` is the most common implementation, with default separators of `["\n\n", "\n", " ", ""]`.
 
 In Chroma's research, **recursive splitting achieved 88 to 89% recall with 400-token chunks** using `text-embedding-3-large`.
+
+**For PizzaBot:** Your menu JSON has natural boundaries (one item per object), your FAQ has section headers ("### Refund Policy"), and your allergen CSV has row boundaries. Recursive splitting respects all of these — fixed-size chunking doesn't.
 
 ### Sentence-Based Chunking
 
@@ -424,6 +456,8 @@ This approach can improve recall by **2 to 3 percentage points** over recursive 
 
 **Cost tradeoff:** Every sentence needs its own embedding. For a 10,000-word document, you might generate 200 to 300 embeddings just for the chunking step — expensive if using API-based embedding services.
 
+**For PizzaBot:** Your menu is only 15,000 tokens → ~500 sentences → ~$0.01 in embedding costs for semantic chunking (negligible). If the 2-3 point recall improvement drops your error rate from 6% → 4%, that's **+2% conversion** → +$20/day revenue → **$600/month ROI** for a one-time $0.01 cost. Do it.
+
 ### Agentic Chunking
 
 The newest approach: let an LLM analyze each document and decide where to split it. The model can understand semantic meaning, identify topic transitions, and respect content structure like section headings and step-by-step instructions. It produces the highest-quality chunks but is also the **slowest and most expensive** method — you're making an LLM call for document segmentation before you even start the retrieval pipeline.
@@ -432,7 +466,16 @@ The newest approach: let an LLM analyze each document and decide where to split 
 
 ## 9. Chunk Size Selection
 
+**Your error rate depends on getting chunk size right.** Too small (128 tokens), and "Margherita: Large, $14.99, 920 cal" gets split into 3 chunks — the calorie query retrieves the wrong one. Too large (2,048 tokens), and the embedding averages over 10 menu items — similarity scores become mushy, retrieval precision drops.
+
 The optimal chunk size isn't a single magic number — it depends on document types, query patterns, and what you're trying to accomplish. Research from multiple sources points to a general sweet spot between **128 and 512 tokens** for most use cases.
+
+**For PizzaBot:** You tested 256, 400, and 512 tokens on 100 test queries. Results:
+- 256 tokens: 89% recall, but many chunks missing context ("Margherita" without price)
+- 400 tokens: 91% recall, best balance
+- 512 tokens: 90% recall (slightly worse — chunks too generic)
+
+**Winner: 400 tokens.** This is your production setting.
 
 ### Size Recommendations by Query Type
 
@@ -499,11 +542,15 @@ Overlap is not always beneficial. For very short, self-contained documents (like
 
 ## 11. Advanced Chunking and Retrieval Techniques
 
+**These techniques are for when recursive splitting + 400-token chunks + 15% overlap plateaus at 88% recall and you need 92%.** For most production systems (including PizzaBot's current scale), the techniques in § 8-10 are sufficient. Read this section when you're optimizing the last 5% of retrieval quality.
+
 ### Late Chunking
 
 Traditional chunking embeds each chunk independently, which means each piece loses context from the rest of the document. **Late chunking flips this:** embed the entire document first, then segment the token-level embeddings into chunks afterward. This preserves global context within each chunk's embedding without requiring extra LLM calls. Research shows late chunking works particularly well as documents approach **8,000 tokens** in length.
 
 **Tradeoff:** It requires embedding models that support long context windows, and you process more tokens upfront.
+
+**For PizzaBot:** Your FAQ doc is ~8,000 tokens — a good candidate for late chunking. But test it against recursive splitting first; the complexity might not be worth the gain.
 
 ### Contextual Retrieval
 
@@ -546,7 +593,9 @@ This token-level interaction allows ColBERT to identify documents where many que
 
 ## 12. Choosing the Right Chunking Strategy: Decision Framework
 
-For most applications, start with `RecursiveCharacterTextSplitter` at **400 to 512 tokens** with **10 to 20% overlap**. This provides a solid baseline that you can optimize from.
+**Don't guess — your error rate depends on this choice.** For most applications, start with `RecursiveCharacterTextSplitter` at **400 to 512 tokens** with **10 to 20% overlap**. This provides a solid baseline that you can optimize from.
+
+**For PizzaBot:** You started with fixed-size 500-character chunks (naive), saw 12% error rate, switched to recursive 400-token chunks (respects item boundaries), error rate dropped to 5%. That's the difference between "acceptable prototype" and "production-ready system."
 
 ### Decision Tree
 
@@ -558,7 +607,7 @@ For most applications, start with `RecursiveCharacterTextSplitter` at **400 to 5
 
 ### Evaluation Methodology
 
-Don't guess — measure:
+**Don't guess — measure.** Your CEO wants proof that RAG reduces errors from 10% → 5%. You need quantitative evidence.
 
 1. **Create a test dataset:** 50 to 100 representative documents with 20 to 30 realistic queries. Include edge cases from expected usage
 2. **Define success metrics:** **Recall\@k** measures whether relevant chunks appear in your top k results. **Precision** measures how many retrieved chunks are actually useful. **MRR** (Mean Reciprocal Rank) shows how highly relevant results rank
@@ -566,15 +615,27 @@ Don't guess — measure:
 4. **Evaluate with humans and LLMs:** Automated metrics catch obvious problems. Human review catches things metrics miss, like whether the retrieved context actually enables good answers
 5. **Monitor in production:** The queries you designed for might not match real user behavior. Track retrieval performance over time and iterate
 
+**For PizzaBot:** You created a test set of 100 queries (50 from customer support logs, 50 synthetic edge cases). Measured recall@5 for three chunking strategies:
+- Fixed 500-char: 78% recall (failed on multi-item queries)
+- Recursive 400-token: 91% recall (production choice)
+- Semantic chunking: 93% recall (2 point gain, but 3× slower ingestion)
+
+You picked recursive for production (fast, good enough), and documented semantic chunking as a future optimization if error rate plateaus.
+
 ### Common Chunking Mistakes
 
-Based on production RAG systems, these are the most common errors:
+**You'll make at least 2 of these 5 mistakes in your first RAG implementation.** Based on production RAG systems, these are the most common errors:
 
 * **Using only default settings** without testing alternatives — might be costing 20% retrieval accuracy
+  - **PizzaBot mistake:** Used default LangChain 500-char chunks for 2 weeks, never tested alternatives. Error rate stuck at 12%. Spent 1 hour testing 256/400/512 tokens → found 400 works best → error rate dropped to 5%.
 * **Ignoring document structure** — naive character splitting doesn't care if it breaks a sentence mid-word or separates a heading from its content
+  - **PizzaBot mistake:** Fixed-size chunking split "Margherita (Large): $14.99" and "920 calories" into different chunks. Queries about calorie counts retrieved the wrong data.
 * **Zero overlap** — boundary misses are a real problem
+  - **PizzaBot mistake:** No overlap meant if a query about "gluten-free crust options" landed at a chunk boundary, it missed half the relevant text. Adding 15% overlap fixed it.
 * **Over-chunking everything** — not all documents need chunking. Documents under 200,000 tokens might work better stuffed directly into the prompt
+  - **PizzaBot note:** Your 3-line FAQ entries don't need chunking. Embed each Q&A pair as one chunk.
 * **No metadata** — without tracking which document each chunk came from, you lose the ability to filter, deduplicate, and cite
+  - **PizzaBot mistake:** Couldn't tell if retrieved chunk came from menu, allergens, or FAQ. Added `source` metadata field → now can filter "only search menu" for price queries.
 
 ***
 
@@ -655,22 +716,34 @@ results = client.search(
 
 ## 14. The Anisotropy Problem
 
+**You'll notice this when debugging "why did the model retrieve this irrelevant chunk?"** — sometimes chunks with 0.7 cosine similarity are less relevant than chunks with 0.65 similarity, because the embedding space isn't uniformly distributed.
+
 Embedding spaces often exhibit **anisotropy** — embeddings cluster in a narrow cone rather than uniformly filling the space. This can cause:
 
 * Similarity thresholds to be misleading: a 0.7 cosine similarity might only indicate weak relatedness
 * Over-reliance on absolute similarity values rather than relative ranking
 
+**For PizzaBot:** Don't set hard cutoffs like "only return chunks with similarity > 0.75" — instead, always return top-k and let relative ranking decide. If the best match is 0.62, that's still the best you've got.
+
 **Mitigations** include:
 
 * **Whitening:** Transform embeddings to have unit covariance (can improve retrieval)
 * **Model choice:** Some models are explicitly trained to reduce anisotropy
-* **Relative ranking:** Focus on relative similarity rather than absolute values
+* **Relative ranking:** Focus on relative similarity rather than absolute values (this is what you should use)
 
 ***
 
 ## 15. Quantization of Embeddings
 
+**PizzaBot's prototype doesn't need quantization** — 9 MB of float32 embeddings fits comfortably in RAM. But when you scale to a national chain (90 GB of embeddings), quantization becomes critical for cost control.
+
 Full-precision embeddings (float32) consume significant storage and memory. **Quantization** reduces precision to shrink memory footprint and accelerate similarity computation, with controllable quality tradeoffs:
+
+**Business case for PizzaBot at scale:**
+- 90 GB float32 embeddings → **$180/month in vector DB storage** (AWS pricing)
+- 22.5 GB int8 embeddings → **$45/month** (4× reduction)
+- **Savings: $135/month** with <2% recall degradation
+- At 10,000 daily queries, this is **$1.35 saved per 1,000 queries** — small but adds up
 
 | Precision | Bytes per Dimension | Relative Size | Use Case |
 | ----------- | ------------------- | --------------- | -------------------------------- |
@@ -701,7 +774,9 @@ The PizzaBot RAG corpus is a small but complete example for illustrating every d
 
 ## 17. Summary: Key Engineering Decisions
 
-A well-tuned chunking strategy can improve retrieval accuracy by **40%** compared to naive approaches. The difference between a good and bad chunking strategy can mean a 40% improvement in retrieval accuracy, according to recent benchmarks. Getting this right makes everything downstream improve.
+**These are the 8 decisions that determined whether PizzaBot hit the 5% error target or stayed stuck at 10-15%.** A well-tuned chunking strategy can improve retrieval accuracy by **40%** compared to naive approaches. The difference between a good and bad chunking strategy can mean a 40% improvement in retrieval accuracy, according to recent benchmarks. Getting this right makes everything downstream improve.
+
+**Your production checklist:**
 
 | Decision | Default Recommendation | When to Deviate |
 | --------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
@@ -714,12 +789,18 @@ A well-tuned chunking strategy can improve retrieval accuracy by **40%** compare
 | **Metadata** | Always attach document\_id, chunk\_id, position, source | Add domain-specific fields as needed |
 | **Re-ranking** | Add if baseline recall is insufficient | ColBERT for token-level precision; cross-encoder for highest accuracy |
 
-**The key takeaways from production experience:**
+**The key takeaways from production experience (yours and ours):**
 
-* Start with recursive splitting at 400 to 512 tokens and 10 to 20% overlap
-* Match chunk size to query type: smaller for facts, larger for analysis
-* Always test on your actual data and measure with your real queries
-* Consider advanced techniques like contextual retrieval or late chunking when basic approaches plateau
+* Start with recursive splitting at 400 to 512 tokens and 10 to 20% overlap **(PizzaBot: 400 tokens, 15% overlap)**
+* Match chunk size to query type: smaller for facts, larger for analysis **(PizzaBot: 400 tokens for menu items, 300 for FAQ)**
+* Always test on your actual data and measure with your real queries **(PizzaBot: 100 test queries from support logs)**
+* Consider advanced techniques like contextual retrieval or late chunking when basic approaches plateau **(PizzaBot: recursive splitting was enough to hit 91% recall)**
+
+**Cost-benefit reality check:**
+- Spending 4 hours testing chunking strategies → **saved 2 months of debugging "why is RAG inaccurate?"**
+- Error rate improvement (12% → 5%) → **+3% conversion** → **+$900/month revenue**
+- Payback period for RAG implementation: **34.6 months** (still high, need Ch.6 orchestration for upselling)
+- But accuracy target **achieved** → CEO approved continued funding
 
 ---
 
@@ -877,7 +958,15 @@ Result: ✅ Correct! No price hallucination!
 
 ## What RAG Can't Fix — When to Reach for Fine-Tuning
 
+**You spent 3 weeks tuning RAG and still have a 5% error rate.** Before investing another month in advanced chunking strategies, check if the problem is actually RAG's job to solve.
+
 RAG solves a *knowledge* problem: the model doesn't have certain facts, so you supply them at inference time. It does not solve *behaviour* problems — how the model reasons, formats its output, or expresses a personality.
+
+**For PizzaBot:** Your 5% error rate breaks down as:
+- 3% menu fact errors → **RAG can fix** (better chunking, hybrid search)
+- 2% tone/format errors → **Fine-tuning can fix** (model ignores "always mention price + calories" instruction)
+
+Don't waste time improving RAG for the 2% that need fine-tuning.
 
 ```
 RAG fixes                           Fine-tuning fixes
@@ -891,7 +980,28 @@ RAG fixes                           Fine-tuning fixes
 
 **The test:** put the correct answer in the context and ask the model again. If it still fails, that is a behaviour problem — RAG won't help, fine-tuning will. If it succeeds with the context but fails without it, that is a knowledge problem — RAG is the right tool.
 
+**For PizzaBot diagnosis:**
+```
+Error: Bot says "Margherita: $12.99" (wrong price, actual: $14.99)
+
+Test 1: Add correct price to context manually
+  Prompt: "[CONTEXT: Margherita (Large): $14.99] What's the price of a large Margherita?"
+  Response: "$12.99"
+  → Model ignores retrieved context → **Fine-tuning problem** (teach model to follow context)
+
+Error: Bot says "Margherita is $14.99" but actual menu says $12.99 (retrieval fetched wrong item)
+
+Test 1: Add correct price to context manually
+  Prompt: "[CONTEXT: Margherita (Large): $12.99] What's the price of a large Margherita?"
+  Response: "$12.99"
+  → Model uses context correctly → **RAG problem** (improve chunking or retrieval)
+```
+
 **They are composable.** A fine-tuned model can sit behind a RAG pipeline. The fine-tune teaches the model *how to behave*; RAG tells it *what to say* for each query.
+
+**For PizzaBot roadmap:**
+- Ch.4 (this chapter): RAG fixes knowledge gaps → 5% error rate ✅
+- Ch.8 (Fine-Tuning): LoRA fixes tone/format issues → 3% error rate → +$2.50 AOV from better upselling
 
 > Details, LoRA math, and the full decision framework: [FineTuning.md](../fine_tuning/fine-tuning.md)
 

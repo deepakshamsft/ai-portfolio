@@ -1,8 +1,10 @@
 # Evaluating AI Systems — Measuring What Actually Matters
 
-> **The story.** Translation evaluation was the trailhead. **BLEU** (Papineni et al., IBM, **2002**) gave us the first widely-adopted automatic n-gram overlap metric — useful but famously brittle. **ROUGE** (Lin, 2004) followed for summarisation; **BERTScore** (Zhang et al., 2019) replaced n-gram overlap with embedding similarity. The LLM era forced a rethink because outputs are now free-form, multi-paragraph, and don't have one correct answer. The breakthrough was **LLM-as-judge**: **Zheng et al.'s "Judging LLM-as-a-Judge"** (NeurIPS 2023, the **MT-Bench** paper) showed that GPT-4 agrees with human raters ~80% of the time — cheap and scalable enough to evaluate a fleet of agents. **RAGAS** (Es et al., 2023) productised this for RAG pipelines (faithfulness, answer relevancy, context precision/recall). **TruLens** (TruEra, 2023) and **DeepEval** (Confident AI, 2024) built it into developer tooling. By 2024 the standard production stack was: unit tests for retrievers, LLM-judge for generators, golden datasets curated from production traces.
+> **The story.** Translation evaluation was the trailhead. **BLEU** (Papineni et al., IBM, **2002**) gave us the first widely-adopted automatic n-gram overlap metric — useful but famously brittle. **ROUGE** (Lin, 2004) followed for summarisation; **BERTScore** (Zhang et al., 2019) replaced n-gram overlap with embedding similarity. The LLM era forced a rethink because outputs are now free-form, multi-paragraph, and don't have one correct answer. The breakthrough was **LLM-as-judge**: **Zheng et al.'s "Judging LLM-as-a-Judge"** (NeurIPS 2023, the **MT-Bench** paper) showed that GPT-4 agrees with human raters ~80% of the time — cheap and scalable enough to evaluate a fleet of agents. **RAGAS** (Es et al., 2023) productised this for RAG pipelines (faithfulness, answer relevancy, context precision/recall). **TruLens** (TruEra, 2023) and **DeepEval** (Confident AI, 2024) built it into developer tooling. By 2024 the standard production stack was: unit tests for retrievers, LLM-judge for generators, golden datasets curated from production traces. Today, every time you deploy a prompt change to PizzaBot, an automated test suite validates faithfulness before production.
 >
-> **Where you are in the curriculum.** ML had its [own metrics chapter](../../ml/02_classification/ch03_metrics). AI needs one too. Accuracy, RMSE, and AUC work for supervised ML because you have ground-truth labels. AI systems — RAG pipelines, reasoning agents, chatbots — produce free-form text where "correctness" is fuzzy, context-dependent, and often requires another LLM to evaluate. This document covers the evaluation frameworks, metrics, and practices that distinguish production AI systems from demos.
+> **Where you are.** Ch.1 (LLM Fundamentals) gave you 8% conversion with raw GPT-3.5. Ch.2 (Prompt Engineering) reached 12% via structured prompts. Ch.3 (CoT Reasoning) hit 15% with step-by-step planning. Ch.4 (RAG & Embeddings) achieved 18% and <5% error via grounded retrieval ✅. Ch.5 (Vector DBs) maintained 18% with faster search. Ch.6 (ReAct & Semantic Kernel) unlocked **28% conversion** via tool orchestration + proactive upselling — beating the 22% phone baseline! But every prompt change risks regression without automated testing. ML had its [own metrics chapter](../../ml/02_classification/ch03_metrics) for supervised learning. AI needs one too — because "correctness" in free-form text is fuzzy, context-dependent, and often requires another LLM to evaluate.
+>
+> **Business context.** You're the Lead AI Engineer at Mamma Rosa's Pizza. Current status: **28% conversion** (target >25% ✅), **+$2.50 AOV** (✅), **~5% error** (✅), **2.5s latency** (✅), **$0.015/conv** (✅). All core targets hit! But the CEO won't ship without automated testing: "One bad regression could wipe out all your conversion gains." You're deploying 2-3 prompt iterations per day, manually testing 3-5 queries each time, and suffering 2-3 regressions per week from changes that "looked fine" in manual tests. No A/B testing framework. No production monitoring. No way to prove a new model version (GPT-4o → GPT-4o-mini) maintains quality. This chapter builds the testing infrastructure that lets you iterate fast without breaking production.
 >
 > **Notation.** $F \in [0,1]$ — faithfulness (how well the answer is grounded in retrieved context); $P_c \in [0,1]$ — context precision; $R_c \in [0,1]$ — context recall; $R_a \in [0,1]$ — answer relevancy; $\bar{\rho}$ — mean pairwise agreement between judge scores (inter-rater reliability).
 
@@ -483,16 +485,22 @@ Result: ✅ Proactive alerting caught issue!
 - **Development velocity**: 2 prompt iterations/day → **10+ iterations/day** (safe to experiment) ✅
 - **Time to detect regressions**: 24 hours (customer complaints) → **<2 minutes** (pre-commit tests) ✅
 
+**❌ What we can't solve yet:**
+- **Brand voice inconsistency**: Bot sometimes says "Awesome choice!" (too casual) vs. "Excellent selection" (too formal) — no way to enforce consistent tone without fine-tuning
+- **Cost optimization limits**: $0.015/conv is great, but 80% is GPT-4 API calls for answer generation — can't reduce further with current architecture
+- **Latency floor**: 2.5s p95 is excellent, but can't break below 2s without model optimization (KV caching, quantization)
+- **Adversarial attacks**: No systematic testing for prompt injection or jailbreak attempts
+
 **Why this chapter was critical:**
 
-Ch.7 is the **quality assurance gate** — no business improvements, but essential for production reliability:
+Ch.7 is the **quality assurance gate** — no business metric improvements, but essential for production reliability:
 1. **Regression prevention**: Every code change validated before production
 2. **Fast iteration**: Safe experimentation without fear of breaking production
 3. **Data-driven decisions**: A/B testing framework enables evidence-based optimization
 4. **Proactive monitoring**: Catch issues before customers complain
 5. **Compliance**: Automated testing required for enterprise deployment
 
-**Next chapter**: [Fine-Tuning](../fine_tuning) adapts model behavior for brand voice consistency → **30% conversion, $0.008/conv, 2.0s latency**.
+**Next chapter**: [Fine-Tuning](../fine_tuning) tackles brand voice consistency and cost reduction via LoRA adapters → **30% conversion, $0.008/conv** (50% cost reduction), consistent Mamma Rosa's tone in every response.
 
 **Key interview concepts from this chapter:**
 
@@ -507,9 +515,15 @@ Ch.7 is the **quality assurance gate** — no business improvements, but essenti
 
 ---
 
-## 10 · Bridge
+## 10 · Bridge to Chapter 8
 
-Evaluating AI Systems provided the measurement layer that closes the loop on every other AI note — RAG pipelines, reasoning agents, and retrieval systems all need evaluation to move from demo to production. `FineTuning.md` shows the next natural step once evaluation reveals a systematic capability gap that prompt engineering and RAG cannot close.
+Ch.7 unlocked automated testing and regression prevention. But the evaluation suite revealed three systematic gaps:
+
+1. **Brand voice drift**: RAGAS scores 0.95 faithfulness, but tone varies ("Awesome!" vs. "Excellent") — prompt engineering can't enforce consistent style
+2. **Cost floor**: $0.015/conv is 80% GPT-4 API calls — RAG and caching already optimized, need model-level optimization
+3. **Upsell quality**: A/B testing shows garlic bread upsells work, but conversion gains plateau — need smarter, context-aware suggestions
+
+These aren't retrieval problems (RAG already solves those). They're **generation problems** — the model itself needs adaptation. Chapter 8 (Fine-Tuning) tackles this via **LoRA adapters**: train a lightweight layer on Mamma Rosa's brand voice + successful upsell patterns. Expected impact: **30% conversion** (consistent tone builds trust), **$0.008/conv** (50% cost reduction via smaller fine-tuned model), **2.0s latency** (faster inference).
 
 > *A system you cannot measure is a system you cannot improve. Build the eval suite before you build the application — not after.*
 

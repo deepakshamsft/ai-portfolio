@@ -12,7 +12,12 @@
 > 🎯 **The mission**: Build **OrderFlow** — AI-native B2B purchase order automation satisfying 8 constraints:
 > 1. **THROUGHPUT**: 1,000 POs/day — 2. **LATENCY**: <4hr SLA — 3. **ACCURACY**: <2% error — 4. **SCALABILITY**: 10 agents/PO — 5. **RELIABILITY**: >99.9% uptime — 6. **AUDITABILITY**: Full traceability — 7. **OBSERVABILITY**: Real-time monitoring — 8. **DEPLOYABILITY**: Zero-downtime updates
 
-**Manual baseline**: 3 procurement specialists processing 50 POs/day @ $420k/year labor cost. 36-hour median latency, 5% error rate.
+**What we know so far**:
+  ✅ This is Chapter 1 — the starting point. We're beginning from manual baseline.
+  ✅ **Manual baseline**: 3 procurement specialists processing 50 POs/day @ $420k/year labor cost. 36-hour median latency, 5% error rate.
+  ❌ But we can't automate this yet — no agent architecture exists.
+
+**What's blocking us**:
 
 ### The Blocking Question This Chapter Solves
 
@@ -188,66 +193,198 @@ Each agent sees only what it needs (structured payload from previous agent). No 
 ---
 
 
-## 3 · How It Works
+## 3 · How It Works — Step by Step
 
-> Step-by-step walkthrough of the mechanism.
+**PO #2024-1847 message flow with structured handoff:**
+
+```
+Step 1: Orchestrator → IntakeAgent
+Message: {"role": "user", "content": "Parse PO request: 10 standing desks, budget $8,000..."}
+IntakeAgent processes → returns structured payload:
+{
+  "po_id": "2024-1847",
+  "items": [{"name": "standing desk", "quantity": 10}],
+  "budget_usd": 8000,
+  "preferred_suppliers": ["TechFurnish", "OfficeDepot"]
+}
+
+Step 2: Orchestrator → PricingAgent
+Message: {"role": "user", "content": <IntakeAgent result>}
+PricingAgent queries suppliers → returns:
+{
+  "quotes": [
+    {"supplier": "TechFurnish", "unit_price_usd": 789, "total": 7890},
+    {"supplier": "OfficeDepot", "unit_price_usd": 842, "total": 8420}
+  ],
+  "recommendation": "TechFurnish"
+}
+
+Step 3: Orchestrator → NegotiationAgent
+Message: {"role": "user", "content": <PricingAgent result>}
+NegotiationAgent negotiates → returns:
+{
+  "agreed_price_usd": 749,
+  "discount_pct": 5,
+  "delivery_days": 21,
+  "supplier_id": "TechFurnish"
+}
+
+Step 4–8: Continue pipeline (Legal, Finance, Drafting, Sending, Reconciliation)
+```
+
+**Key mechanism**: Each agent receives only the structured output from the previous agent, not the full conversation history. Total token cost: ~15k tokens across 8 agents (vs. 64k+ with full history passthrough).
 
 
 ## 4 · Key Diagrams
 
-> Add 2–3 diagrams showing the key data flows here.
+### Message Envelope Anatomy
+
+```
+OpenAI Chat Completions Message Format:
+┌─────────────────────────────────────────────────────┐
+│ role: "system" | "user" | "assistant" | "tool"     │
+│ content: string or null                             │
+│ tool_calls: [{id, type, function: {name, args}}]    │  (assistant only)
+│ tool_call_id: string                                │  (tool only)
+│ name: string (optional agent identifier)            │
+└─────────────────────────────────────────────────────┘
+```
+
+### Three Handoff Strategies — Token Cost Comparison
+
+```
+Agent Chain: A → B → C (each agent accumulates 2k tokens internally)
+
+Strategy 1 — Full History Passthrough:
+  Agent A: 2k tokens
+  Agent B: 2k (own) + 2k (A's history) = 4k tokens
+  Agent C: 2k (own) + 2k (A) + 2k (B) = 6k tokens
+  Total: 12k tokens (grows O(n²))
+
+Strategy 2 — Structured Handoff:
+  Agent A: 2k tokens → returns 200-token payload
+  Agent B: 2k tokens → returns 200-token payload
+  Agent C: 2k tokens → returns 200-token payload
+  Total: 6k tokens (grows O(n))
+
+Strategy 3 — Shared Store:
+  Each agent: 2k tokens (reads/writes to external store)
+  Total: 6k tokens + store I/O latency
+```
+
+### Context Window Management
+
+```
+8k Token Context Window Allocation:
+┌────────────────────────────────────────┐ ← 8,192 tokens (hard limit)
+│  System prompt: 800 tokens             │
+│  Task payload: 500 tokens              │
+│  Agent reasoning: 2,200 tokens         │
+│  Tool calls + responses: 1,500 tokens  │
+│  ────────────────────────────────────  │
+│  Used: 5,000 tokens (61%)              │ ✅ Safe (< 80%)
+│  ────────────────────────────────────  │
+│  Reserved for output: 1,600 tokens     │ (20% buffer)
+│  ────────────────────────────────────  │
+│  Headroom: 1,592 tokens                │
+└────────────────────────────────────────┘
+
+If usage exceeds 80% → trim oldest messages, keep system + recent context
+```
 
 
-## 5 · Hyperparameter Dial
+## 5 · Production Considerations
 
-> List the key knobs and their effect on behaviour.
+**Context budget per agent** — 3k–4k tokens (50% of 8k limit) allows headroom for complex reasoning without overflow. Lower = faster but less capable; higher = more capable but risks overflow on long tasks.
+
+**Handoff strategy selection**:
+- **Full history** (Strategy 1): Use only when audit compliance requires reconstructing full reasoning chain (financial, medical, legal domains). Cost: O(n²) token growth.
+- **Structured payload** (Strategy 2): Default for production. Minimal token cost, deterministic output schema. Requires upfront schema design.
+- **Shared store** (Strategy 3): Use when >5 agents need access to same state, or when async event-driven (Ch.4). Adds latency and consistency concerns.
+
+**Trimming policy** — Preserve system message + most recent 3–5 turns. Never trim current task context. Log trimmed messages to external store for audit.
+
+**Message serialization** — Use JSON for structured payloads. Validate schemas at agent boundaries to catch type errors early. Consider Protocol Buffers for high-throughput systems (reduces token count by ~30%).
+
+**Error handling** — If agent exceeds context budget mid-task, checkpoint current state, trim history, and resume. Don't fail the entire PO — graceful degradation is better than total failure.
 
 
 ## 6 · What Can Go Wrong
 
-> 3–5 common failure modes and mitigations.
+**1. Context overflow mid-task** — Agent exceeds 8k token limit before completing negotiation. Symptoms: incomplete responses, hallucinated data, abrupt termination.
+   - **Fix**: Implement proactive trimming at 80% usage threshold. Log trimmed content to external store for audit reconstruction.
 
-## 7 · Progress Check — What We Achieved
+**2. Lost context after trimming** — Agent forgets critical approval threshold after oldest messages are dropped. Next agent makes wrong decision.
+   - **Fix**: Never trim the system prompt or current task payload. Preserve "pinned" messages (approval rules, PO ID, budget) using message metadata flags.
+
+**3. Schema mismatch between agents** — PricingAgent returns `unit_cost` but NegotiationAgent expects `unit_price_usd`. Pipeline breaks with KeyError.
+   - **Fix**: Define shared schema types (Pydantic models) at orchestrator level. Validate payloads at every handoff boundary. Fail fast with clear error messages.
+
+**4. Token cost explosion with full history** — 5-agent pipeline passes full history → 40k tokens → $0.08/PO → unsustainable at scale.
+   - **Fix**: Switch to structured handoff (Strategy 2) for production. Reserve full history for audit-only traces stored externally, not passed in context.
+
+**5. Audit trail gaps with structured handoff** — Compliance audit asks "Why did NegotiationAgent accept this price?" Structured payload has result but not reasoning.
+   - **Fix**: Log every agent's full message history to database with PO correlation ID. Query logs for audit reconstruction. Context passes only results; logs preserve reasoning.
+
+## 9 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR
-    Ch1["Ch.1\nMessage Formats"]:::done
-    Ch2["Ch.2\nMCP"]:::done
-    Ch3["Ch.3\nA2A"]:::done
-    Ch4["Ch.4\nEvent-Driven"]:::done
-    Ch5["Ch.5\nShared Memory"]:::done
-    Ch6["Ch.6\nTrust & Sandboxing"]:::done
-    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch1["Ch.1\nMessage Formats"]:::current
+    Ch2["Ch.2\nMCP"]:::upcoming
+    Ch3["Ch.3\nA2A"]:::upcoming
+    Ch4["Ch.4\nEvent-Driven"]:::upcoming
+    Ch5["Ch.5\nShared Memory"]:::upcoming
+    Ch6["Ch.6\nTrust & Sandboxing"]:::upcoming
+    Ch7["Ch.7\nAgent Frameworks"]:::upcoming
     Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
     classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
-### Constraint Status After Ch.1
+✅ **Unlocked capabilities**:
+- ✅ **Multi-agent decomposition**: Split single monolithic agent into 8 specialized agents (Intake, Pricing, Negotiation, Legal, Finance, Drafting, Sending, Reconciliation)
+- ✅ **Context budget management**: Each agent operates within 3k–4k token budget (50% of 8k limit), no overflow on largest POs
+- ✅ **Structured message passing**: Defined OpenAI-compatible message envelope (`role`, `content`, `tool_calls`) as lingua franca for agent communication
+- ✅ **Three handoff strategies**: Full history (audit), structured payload (production), shared store (async) — choose based on requirements
 
-| Constraint | Before | After Ch.1 | Change |
-|------------|--------|------------|--------|
-| #1 THROUGHPUT | 10 POs/day (context overflow) | Still 10 POs/day | ❌ No change |
-| #2 LATENCY | 36 hours median | 36 hours median | ❌ No change |
-| #3 ACCURACY | 5% error (hallucinated suppliers) | **3.8% error** | ⚡ **24% better** (context overflow eliminated) |
-| #4 SCALABILITY | Single agent, 16k tokens → overflow | **8 agents, 3k tokens each** | ✅ **FOUNDATION COMPLETE** |
-| #5 RELIABILITY | No retry logic | No retry logic | ❌ No change |
-| #6 AUDITABILITY | None | Structured payloads logged | ⚡ **Basic logging** |
-| #7 OBSERVABILITY | None | Message structure enables tracing | ⚡ **Foundation laid** |
-| #8 DEPLOYABILITY | Monolith | Still monolith | ❌ No change |
+❌ **Still can't solve**:
+- ❌ **Tool integration**: 8 agents × 20 data sources = 160 custom integrations required (ERP, pricing APIs, supplier email, legal templates) → **Need Ch.2 (MCP) for protocol-based tool access**
+- ❌ **Agent coordination**: Orchestrator still calls agents sequentially → 35-minute critical path + queue delays = 36-hour SLA → **Need Ch.4 (Event-Driven) for async parallelism**
+- ❌ **Throughput bottleneck**: Sequential processing limits to 10 POs/day (vs. 1,000 target) → **Need Ch.4 for concurrency**
 
-### The Win
+**Progress toward constraints**:
 
-✅ **Eliminated context overflow** by decomposing single agent into 8 specialized agents (Intake, Pricing, Negotiation, Legal, Finance, Drafting, Sending, Reconciliation), each under 4k tokens (50% of budget).
+| Constraint | Status | Current State |
+|------------|--------|---------------|
+| #1 THROUGHPUT | ❌ **BLOCKED** | 10 POs/day (context overflow eliminated, but still sequential) — Target: 1,000 POs/day |
+| #2 LATENCY | ❌ **BLOCKED** | 36 hours median (manual baseline unchanged) — Target: <4 hours |
+| #3 ACCURACY | ⚡ **IMPROVED** | 5% → **3.8% error rate** (hallucination eliminated via context management) — Target: <2% |
+| #4 SCALABILITY | ✅ **FOUNDATION COMPLETE** | 8 agents, 3k tokens each, no context overflow — Target: 10 agents/PO ✅ |
+| #5 RELIABILITY | ❌ **BLOCKED** | No retry logic, no graceful degradation — Target: >99.9% uptime |
+| #6 AUDITABILITY | ⚡ **FOUNDATION LAID** | Structured payloads logged (but no correlation IDs or distributed tracing) — Target: Full traceability |
+| #7 OBSERVABILITY | ⚡ **FOUNDATION LAID** | Message schema enables future tracing infrastructure — Target: Real-time monitoring |
+| #8 DEPLOYABILITY | ❌ **BLOCKED** | Monolithic orchestrator, no containerization — Target: Zero-downtime updates |
 
-**Measured impact**: Error rate dropped from 5% → 3.8% (hallucination errors eliminated). Can now process arbitrarily complex POs without context overflow.
+**What we can solve now**:
 
-### What's Still Blocking
+✅ **Complex PO processing without context overflow**:
+```
+Before Ch.1:
+Single agent hits 8k token limit after 3 supplier negotiations
+→ PO #2024-1847 stuck, agent hallucinates supplier names
 
-**The integration explosion**: 8 agents need access to 20 data sources (ERP inventory, pricing APIs, supplier emails, legal templates, approval workflows). Building custom adapters = **8 × 20 = 160 integrations**. Unmaintainable.
+After Ch.1:
+8 specialized agents, each <4k tokens
+→ PO #2024-1847 completes full lifecycle without overflow
 
-**Next unlock** *(Ch.2 — MCP)*: Model Context Protocol collapses 160 integrations to **8 clients + 20 servers = 28 components**. Any agent connects to any data source through a shared protocol.
+Result: ✅ Context overflow eliminated (Constraint #4 foundation complete)
+```
+
+**Real-world status**: We can now decompose agent workflows to avoid context limits, but we can't yet connect agents to real data sources (ERP, pricing APIs) or process POs concurrently.
+
+**Next up:** [Ch.2 — Model Context Protocol (MCP)](../mcp) gives us **standardized tool integration** — collapses 8 agents × 20 systems = 160 integrations to 8 + 20 = 28 components.
 
 ---
 
@@ -288,7 +425,7 @@ where $k$ is chosen such that $\sum_{i \in \text{keep}} |m_i| \leq B$.
 
 ---
 
-## Code Skeleton
+## 7 · Code Skeleton
 
 ```python
 # Educational: message handoff strategies from scratch
@@ -346,6 +483,16 @@ class AgentContext(BaseModel):
     def to_openai(self) -> list:
         return [m.model_dump(exclude_none=True) for m in self.messages]
 ```
+
+---
+
+## 10 · Bridge to Chapter 2
+
+Ch.1 established **structured message passing** between agents — the OpenAI message envelope (`role`, `content`, `tool_calls`) as the lingua franca, three handoff strategies (full history, structured payload, shared store), and context budget management to avoid overflow. We decomposed single monolithic agent into 8 specialists, each operating within 3k-4k token budget.
+
+But the 8 agents can't access real data yet. PricingAgent needs supplier APIs. InventoryAgent needs ERP. NegotiationAgent needs email. Building custom integrations = **8 agents × 20 systems = 160 bespoke adapters** — unmaintainable.
+
+Ch.2 ([Model Context Protocol](../mcp)) solves the **N×M integration explosion** → **standardized tool protocol** collapses 160 integrations to **8 + 20 = 28 components**. Any agent can call any tool (ERP, pricing APIs, email) through one shared protocol. MCP wraps this chapter's message envelope in a transport layer (stdio/HTTP) and defines a tool discovery handshake. **Expected outcome**: Agents can finally query real data sources without custom integration code.
 
 ---
 

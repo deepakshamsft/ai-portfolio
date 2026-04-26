@@ -2,8 +2,9 @@
 
 > **The story.** Three frameworks define the multi-agent landscape in 2026, and each one started with a different design instinct. **AutoGen** (Microsoft Research, **September 2023**) made conversational multi-agent debate the primitive — agents talk to each other in a group chat and the orchestrator referees turn-taking. **LangGraph** (LangChain Inc., **January 2024**) treated multi-agent coordination as a *state machine*, with explicit nodes, edges, and graph state — the right model when control flow needs to be auditable and resumable. **Microsoft Semantic Kernel** (open-sourced May 2023, AgentGroupChat 2024) added .NET-native plugins, telemetry, and enterprise-grade observability around the same agent loop. **CrewAI** (2024) and **OpenAI Swarm** (October 2024) added lighter-weight role-based variants. The frameworks look superficially interchangeable until you try to express a workflow that doesn't fit — then the underlying execution model dictates everything.
 >
-> **Where you are in the curriculum.** [Ch.1](../message_formats)–[Ch.6](../trust_and_sandboxing) gave you the primitives: messages, tools, agent-to-agent calls, event bus, blackboard, trust. This chapter shows how three production frameworks compose those primitives differently — and how to pick the one whose execution model matches your actual control-flow requirements. Picking wrong costs more to undo than it would have cost to understand the tradeoffs upfront.
-**Notation.** `orchestrator` = the coordinating agent that decomposes tasks and dispatches subtasks to workers. `worker` = a specialist agent that executes one delegated subtask. `state machine` = execution model expressing agent control flow as explicit nodes, edges, and shared graph state (LangGraph model). `group chat` = execution model where agents take turns in a managed conversation refereed by an orchestrator (AutoGen model). `plugin` = a type-safe function registered with a kernel for automatic invocation (Semantic Kernel model).
+> **Where you are in the curriculum.** [Ch.1](../message_formats)–[Ch.6](../trust_and_sandboxing) gave you the primitives: messages, tools, agent-to-agent calls, event bus, blackboard, trust. By Ch.6 you achieved: **1,200 POs/day throughput**, **4.5hr median latency**, **1.6% error rate**, **8 agents/PO**, sandboxed execution, full event audit trail. But: custom Python orchestration (900 lines), no observability framework, cannot checkpoint/resume, no A/B testing of strategies. This chapter shows how three production frameworks compose those primitives differently — and how to pick the one whose execution model matches your actual control-flow requirements. Picking wrong costs more to undo than it would have cost to understand the tradeoffs upfront.
+>
+> **Notation in this chapter.** `orchestrator` = the coordinating agent that decomposes tasks and dispatches subtasks to workers. `worker` = a specialist agent that executes one delegated subtask. `state machine` = execution model expressing agent control flow as explicit nodes, edges, and shared graph state (LangGraph model). `group chat` = execution model where agents take turns in a managed conversation refereed by an orchestrator (AutoGen model). `plugin` = a type-safe function registered with a kernel for automatic invocation (Semantic Kernel model). `checkpoint` = persisted graph state enabling resume-on-failure. `thread_id` = unique identifier for a graph execution run.
 
 ---
 
@@ -41,6 +42,12 @@ Team has built custom Python orchestration (900 lines). Hard to maintain, no obs
 | #8 DEPLOYABILITY | ✅ **TARGET HIT!** | Docker/K8s deployment + blue-green rollout + <5 min rollback + Terraform IaC |
 
 **All 8 constraints achieved!** 🎉
+
+---
+
+## 1 · The Core Idea
+
+Three production frameworks — AutoGen, LangGraph, Semantic Kernel — each impose a different execution model on multi-agent coordination. **AutoGen treats agents as conversational partners** (emergent turn-taking via group chat). **LangGraph treats coordination as a state machine** (explicit nodes, edges, deterministic flow). **Semantic Kernel treats agents as enterprise-grade plugins** (filter hooks, telemetry, compliance). The right choice depends on whether your control flow is fixed (LangGraph), emergent (AutoGen), or needs enterprise observability (SK). Picking wrong costs more to undo than it would have cost to understand the tradeoffs upfront.
 
 ---
 
@@ -371,7 +378,338 @@ def build_orderflow_graph() -> StateGraph:
 
 ---
 
-## Where This Reappears
+## 4 · How It Works — OrderFlow Deployment Step-by-Step
+
+**The migration path:** You've built OrderFlow's custom orchestration (Ch.1–Ch.6 proof-of-concept). Production requires checkpointing, observability, human-in-the-loop. You're evaluating three frameworks.
+
+### Step 1: Map your control flow requirements
+
+```
+OrderFlow PO lifecycle (fixed sequence — compliance requirement):
+  1. Intake        ← Parse email request
+  2. Inventory     ← Check stock availability  
+  3. Pricing       ← Query 2+ suppliers
+  4. Negotiation   ← Get discount (conditional: skip if price < $15/unit)
+  5. Approval      ← Human checkpoint if >$100k
+  6. Drafting      ← Generate PO document
+  7. Sending       ← Email to supplier
+  8. Reconciliation← Wait for confirmation
+```
+
+**Your requirements:**
+- **Deterministic order:** Inventory must precede negotiation (business rule)
+- **Conditional branching:** Skip negotiation on low-value items
+- **Human-in-the-loop:** Block at approval node for CFO review >$100k
+- **Resume-on-failure:** If Negotiation agent crashes at 2am, resume from that node (don't restart from intake)
+- **Audit trail:** Reconstruct: which agent ran? when? what was the state?
+
+**This maps to:** LangGraph (explicit state machine, checkpointing, `interrupt_before` for human approval).
+
+### Step 2: Build the LangGraph state schema
+
+You define the state that flows through every node:
+
+```python
+from typing import TypedDict, Annotated
+from langgraph.graph import StateGraph, END
+
+class POState(TypedDict):
+    po_id: str
+    requester_email: str
+    items: list[dict]  # [{"sku": "...", "quantity": 10}]
+    inventory_status: str  # "available" | "out_of_stock"
+    pricing: dict  # {"TechFurnish": 749.0, "OfficeDepot": 842.0}
+    selected_supplier: str
+    final_price: float
+    approved: bool
+    po_document_url: str
+    messages: Annotated[list, "append-only message log"]
+```
+
+Every node reads from and writes to this shared state. LangGraph guarantees no node sees stale state (it is the blackboard from Ch.5, but framework-managed).
+
+### Step 3: Define nodes as functions
+
+You implement each node as a function that transforms state:
+
+```python
+def intake_node(state: POState) -> POState:
+    # Call IntakeAgent from Ch.1
+    parsed = intake_agent.parse_email(state["requester_email"])
+    return {**state, "items": parsed["items"], "messages": state["messages"] + ["intake_done"]}
+
+def inventory_node(state: POState) -> POState:
+    # Call InventoryAgent via MCP (Ch.2)
+    status = inventory_mcp.check_availability(state["items"])
+    return {**state, "inventory_status": status, "messages": state["messages"] + ["inventory_checked"]}
+
+def route_after_inventory(state: POState) -> str:
+    # Conditional edge: if out of stock, go to rejection; else continue
+    return "pricing" if state["inventory_status"] == "available" else "reject"
+```
+
+### Step 4: Build the graph
+
+You wire the nodes together with explicit edges:
+
+```python
+workflow = StateGraph(POState)
+workflow.add_node("intake", intake_node)
+workflow.add_node("inventory", inventory_node)
+workflow.add_node("pricing", pricing_node)
+workflow.add_node("negotiation", negotiation_node)
+workflow.add_node("approval", approval_node)
+workflow.add_node("drafting", drafting_node)
+workflow.add_node("reject", reject_node)
+
+workflow.set_entry_point("intake")
+workflow.add_edge("intake", "inventory")
+workflow.add_conditional_edges("inventory", route_after_inventory)
+workflow.add_edge("pricing", "negotiation")
+workflow.add_edge("negotiation", "approval")
+workflow.add_edge("approval", "drafting")
+workflow.add_edge("drafting", END)
+workflow.add_edge("reject", END)
+```
+
+### Step 5: Add checkpointing
+
+You add a Postgres-backed checkpointer for production:
+
+```python
+from langgraph.checkpoint.postgres import PostgresSaver
+
+checkpointer = PostgresSaver(conn_string=os.environ["POSTGRES_URL"])
+app = workflow.compile(checkpointer=checkpointer)
+```
+
+Now: if negotiation node crashes, the framework saves state after pricing. On retry, execution resumes from negotiation (not from intake). **4.5hr → 3.2hr latency improvement:** eliminated retry overhead.
+
+### Step 6: Add human-in-the-loop
+
+You configure the graph to pause at the approval node:
+
+```python
+app = workflow.compile(
+    checkpointer=checkpointer,
+    interrupt_before=["approval"]  # Block here until human confirms
+)
+
+# Run the graph
+config = {"configurable": {"thread_id": "PO-2024-1847"}}
+for event in app.stream(initial_state, config):
+    print(event)
+
+# Graph pauses at approval. CFO reviews, then:
+app.update_state(config, {"approved": True}, as_node="approval")
+
+# Graph resumes from approval → drafting → END
+```
+
+### Step 7: Deploy with observability
+
+You enable LangSmith tracing for full visibility:
+
+```python
+import os
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_API_KEY"] = "..."
+
+app = workflow.compile(checkpointer=checkpointer)
+```
+
+Every graph run now sends traces to LangSmith:
+- Which nodes executed? (intake → inventory → pricing → negotiation → approval → drafting)
+- What was the state at each node?
+- How many tokens did each LLM call use?
+- What was the latency per node?
+
+This satisfies **Constraint #7 (Observability)**.
+
+---
+
+## 5 · Production Considerations
+
+### Checkpointing Strategy
+
+**The problem:** LangGraph checkpoints after every node by default. For a 7-node graph with 1,000 POs/day:
+- 7,000 checkpoint writes/day to Postgres
+- Each write: ~2ms latency + 500 bytes serialized state
+- Total overhead: 14 seconds + 3.5 MB/day
+
+**The optimization:** Checkpoint only before expensive/risky nodes:
+```python
+app = workflow.compile(
+    checkpointer=checkpointer,
+    interrupt_before=["approval"],  # human checkpoint
+    checkpoint_after=["negotiation", "drafting"]  # expensive nodes
+)
+```
+
+Now: 3 checkpoints per PO instead of 7 → 6-second latency savings per PO → **1.7 hours saved per day** at 1,000 POs/day.
+
+### Thread ID Strategy
+
+**The trap:** Use PO ID as thread ID. Problem: if you retry the same PO, LangGraph resumes from the last checkpoint instead of starting fresh.
+
+**The fix:** `thread_id = f"{po_id}-{attempt_number}"` or `thread_id = f"{po_id}-{uuid.uuid4()}"`.
+
+### Human-in-the-Loop Timeout
+
+**The problem:** Approval node blocks waiting for CFO. If CFO is on vacation, PO is stuck for 2 weeks.
+
+**The fix:** Add a timeout + escalation:
+```python
+def approval_node(state: POState) -> POState:
+    if state["final_price"] > 100_000:
+        # Block for human approval (framework handles this via interrupt_before)
+        # But: add application-level timeout in the caller
+        pass
+    else:
+        # Auto-approve
+        return {**state, "approved": True}
+
+# In orchestration:
+import asyncio
+try:
+    result = await asyncio.wait_for(
+        app.astream(state, config),
+        timeout=3600  # 1 hour timeout
+    )
+except asyncio.TimeoutError:
+    # Escalate to VP or auto-approve with risk flag
+    app.update_state(config, {"approved": True, "risk_flag": "timeout_approval"}, as_node="approval")
+```
+
+### A/B Testing Negotiation Strategies
+
+**The scenario:** Team wants to test two negotiation approaches:
+- **Strategy A (aggressive):** Ask for 15% discount immediately
+- **Strategy B (relationship):** Build rapport, then ask for 8% discount
+
+**The implementation:**
+```python
+def negotiation_node_A(state: POState) -> POState:
+    result = aggressive_negotiation_agent.run(state["po_id"])
+    return {**state, "final_price": result["price"], "strategy": "A"}
+
+def negotiation_node_B(state: POState) -> POState:
+    result = relationship_negotiation_agent.run(state["po_id"])
+    return {**state, "final_price": result["price"], "strategy": "B"}
+
+# Deploy two graphs:
+workflow_A = StateGraph(POState)
+workflow_A.add_node("negotiation", negotiation_node_A)
+app_A = workflow_A.compile(checkpointer=checkpointer)
+
+workflow_B = StateGraph(POState)
+workflow_B.add_node("negotiation", negotiation_node_B)
+app_B = workflow_B.compile(checkpointer=checkpointer)
+
+# Route 50% traffic to each:
+import random
+app = app_A if random.random() < 0.5 else app_B
+```
+
+**Results after 2 weeks:**
+- Strategy A: 12% average discount, 8% supplier rejection rate
+- Strategy B: 9% average discount, 2% supplier rejection rate
+- **Winner:** Strategy B (lower rejection rate → fewer fallback POs → lower latency)
+
+### Deployment Architecture
+
+```
+Kubernetes Cluster
+├── LangGraph Service (10 replicas)
+│   ├── Docker image: orderflow-langgraph:v2.4.1
+│   ├── Env: LANGCHAIN_API_KEY, POSTGRES_URL
+│   └── Health check: GET /health
+├── Postgres (checkpointer)
+│   ├── Provisioned IOPS: 10,000 (handle 1,000 POs/day × 3 checkpoints)
+│   └── Backup: hourly snapshots
+├── Redis (message bus from Ch.4)
+└── MCP Servers (ERP, Pricing APIs, Email)
+
+Traffic Flow:
+  Requester email → Intake API → LangGraph Service → Postgres (checkpoint)
+                                                    → Redis (publish PO events)
+                                                    → MCP Servers (tool calls)
+
+Blue-Green Deployment:
+  1. Deploy v2.4.2 to 'green' environment
+  2. Route 10% traffic to green (canary)
+  3. Monitor error rate for 1 hour
+  4. If error rate < 2%, route 100% to green
+  5. If error rate > 2%, rollback: route 100% to blue
+  Rollback time: kubectl rollout undo → <5 minutes ✅
+```
+
+---
+
+## 6 · What Can Go Wrong
+
+### 1. **State schema drift**
+
+**The trap:** Add a new field to `POState` (e.g., `supplier_rating: float`). Existing checkpoints in Postgres use the old schema. LangGraph tries to resume from an old checkpoint → deserialization fails → PO stuck.
+
+**The fix:** Version your state schema:
+```python
+class POState(TypedDict):
+    schema_version: int  # increment on breaking changes
+    po_id: str
+    # ...
+
+# In each node:
+def pricing_node(state: POState) -> POState:
+    if state.get("schema_version", 1) < 2:
+        # Migrate old state to new schema
+        state = {**state, "schema_version": 2, "supplier_rating": 0.0}
+    # ...
+```
+
+### 2. **Checkpointer unavailable**
+
+**The trap:** Postgres is down. LangGraph cannot save checkpoints → every PO restart from intake → 3.2hr latency → 36hr latency regression.
+
+**The fix:** Fallback checkpointer:
+```python
+from langgraph.checkpoint.memory import MemorySaver
+try:
+    checkpointer = PostgresSaver(conn_string=os.environ["POSTGRES_URL"])
+except Exception:
+    checkpointer = MemorySaver()  # In-memory fallback (no resume across restarts)
+```
+
+### 3. **Human-in-the-loop abandonment**
+
+**The trap:** CFO blocks approval node, then forgets to approve. PO stuck indefinitely → SLA missed.
+
+**The fix:** Application-level timeout + escalation (see § 5 Production Considerations).
+
+### 4. **Thread ID collision**
+
+**The trap:** Two POs with same ID processed simultaneously (retry scenario). Both use `thread_id = po_id`. LangGraph checkpoint writes collide → state corruption.
+
+**The fix:** `thread_id = f"{po_id}-{uuid.uuid4()}"` (unique per run).
+
+### 5. **Observability cost explosion**
+
+**The trap:** LangSmith charges per trace. At 1,000 POs/day × 7 nodes × $0.001/trace = $7/day = $2,555/year. Your CFO sees the bill: "Why are we paying for logging?"
+
+**The fix:** Sample traces in production:
+```python
+import random
+if random.random() < 0.1:  # 10% sampling
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+else:
+    os.environ["LANGCHAIN_TRACING_V2"] = "false"
+```
+
+Now: $255/year (90% cost reduction, still get visibility into 100 POs/day).
+
+---
+
+## 7 · Where This Reappears
 
 | Chapter | How agent framework concepts appear |
 |---------|-------------------------------------|
@@ -382,26 +720,6 @@ def build_orderflow_graph() -> StateGraph:
 | **Ch.6 — Trust & Sandboxing** | LangGraph's `interrupt_before` mechanism implements human-in-the-loop approval nodes (the trust checkpoint pattern from Ch.6) |
 
 ---
-
-
-## 4 · How It Works
-
-> Step-by-step walkthrough of the mechanism.
-
-
-## 5 · Key Diagrams
-
-> Add 2–3 diagrams showing the key data flows here.
-
-
-## 6 · Hyperparameter Dial
-
-> List the key knobs and their effect on behaviour.
-
-
-## 7 · What Can Go Wrong
-
-> 3–5 common failure modes and mitigations.
 
 ## 8 · Progress Check — What We Achieved
 
@@ -529,6 +847,34 @@ In all three, MCP tools appear as callables that the agent framework can invoke.
 ## This is the Final Chapter in the Track
 
 ← Return to [README](../README.md) for the full reading path and cross-track connections.
+
+---
+
+## 9 · Bridge — The Track Complete
+
+Ch.1 gave you message schemas. Ch.2 gave you MCP for universal tool access. Ch.3 gave you A2A for hierarchical delegation. Ch.4 gave you async pub/sub for throughput. Ch.5 gave you blackboard for shared state. Ch.6 gave you sandboxing for trust. Ch.7 gave you production orchestration. **All 8 constraints achieved:** 1,200 POs/day, 3.2hr latency, 1.6% error, 99.95% uptime, full observability, <5 min rollback.
+
+**OrderFlow is production-ready.** 🎉
+
+**What you've built:**
+- Distributed multi-agent system processing 24× more POs than manual baseline
+- 11× faster than 36-hour manual SLA
+- 68% error reduction (5% → 1.6%)
+- $12.46M/year savings
+- 0.27-month payback period
+
+**The multi-agent design patterns you've mastered:**
+- Structured message passing (avoid freeform string hell)
+- Protocol-first tool integration (MCP collapses N×M integrations)
+- Hierarchical agent delegation (A2A for loose coupling)
+- Async event-driven coordination (20× throughput)
+- Shared memory with consistency guarantees (CRDT/event sourcing)
+- Trust boundaries and sandboxing (defend against prompt injection)
+- Production orchestration with checkpointing (LangGraph for resume-on-failure)
+
+**Next steps:** Apply these patterns to your domain. Every system that coordinates multiple LLMs faces these same challenges — context overflow, N×M integrations, synchronous bottlenecks, race conditions, prompt injection, operational observability. The frameworks change. The principles remain.
+
+---
 
 ## Illustrations
 

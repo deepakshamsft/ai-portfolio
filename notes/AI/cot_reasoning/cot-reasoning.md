@@ -1,8 +1,10 @@
 ﻿# Chain-of-Thought Reasoning — How LLMs Think Out Loud
 
-> **The story.** In **January 2022**, **Jason Wei** and colleagues at Google published *"Chain-of-Thought Prompting Elicits Reasoning in Large Language Models."* The trick was almost embarrassingly simple: ask the model to *show its work* before giving the final answer, and accuracy on multi-step arithmetic and commonsense reasoning jumped by 10–40 points — but only on models above ~62 B parameters, where the ability seemed to *emerge*. **Self-Consistency** (Wang et al., Google, **March 2022**) sampled multiple chains and took the majority vote, squeezing out more accuracy. **Tree of Thoughts** (Yao et al., Princeton + DeepMind, **May 2023**) generalised the chain to a search tree. The big jump came in **September 2024** with OpenAI's **o1** model: instead of prompting CoT, OpenAI *trained* the model with reinforcement learning to produce long internal reasoning traces before answering — "reasoning tokens" that the user never sees. **DeepSeek-R1** (Jan 2025) replicated the recipe openly. Every "reasoning" model from 2024 onwards is a CoT descendant.
+> **The story.** In **January 2022**, **Jason Wei** and colleagues at Google published *"Chain-of-Thought Prompting Elicits Reasoning in Large Language Models."* The trick was almost embarrassingly simple: ask the model to *show its work* before giving the final answer, and accuracy on multi-step arithmetic and commonsense reasoning jumped by 10–40 points — but only on models above ~62 B parameters, where the ability seemed to *emerge*. **Self-Consistency** (Wang et al., Google, **March 2022**) sampled multiple chains and took the majority vote, squeezing out more accuracy. **Tree of Thoughts** (Yao et al., Princeton + DeepMind, **May 2023**) generalised the chain to a search tree. The big jump came in **September 2024** with OpenAI's **o1** model: instead of prompting CoT, OpenAI *trained* the model with reinforcement learning to produce long internal reasoning traces before answering — "reasoning tokens" that the user never sees. **DeepSeek-R1** (Jan 2025) replicated the recipe openly. Every "reasoning" model from 2024 onwards is a CoT descendant. Today, every time PizzaBot decomposes a multi-constraint query ("cheapest gluten-free under 600 cal"), it's using CoT to bridge from natural language to tool calls.
 >
-> **Where you are in the curriculum.** This document is the foundation for [ReAct](../react_and_semantic_kernel) and every agent in the [Multi-Agent track](../../multi_agent_ai). The action language an agent uses is just CoT plus tool calls; the failure modes (unfaithful reasoning, hallucinated observations, sycophancy) are CoT failure modes. Read this before any agent doc.
+> **Where you are.** Ch.1 (LLM Fundamentals) taught tokenization and sampling → but raw GPT-3.5 gave 15% error rate. Ch.2 (Prompt Engineering) added system prompts and few-shot → 12% conversion, but multi-step queries failed completely ("cheapest gluten-free pizza under 600 cal" → wrong answer). This chapter unlocks step-by-step reasoning that connects language to tool execution.
+>
+> **Business context.** Current status: **12% conversion** (target: >25%, phone baseline: 22%), **~15% error rate** (target: <5%), **$0.002/conv** (target: <$0.08). CEO question: "Your bot just recommended gluten to a gluten-intolerant customer. That's a lawsuit waiting to happen. Can you make it reason through multi-step queries correctly?"
 >
 > **Notation.** $K$ — number of independent CoT chains sampled in self-consistency; $\hat{a}$ — majority-vote final answer; $d$ — draft depth in speculative decoding; $\alpha$ — acceptance rate of speculative tokens; $C_K = K \cdot \bar{t}$ — total token cost of self-consistency ($\bar{t}$ = mean tokens per chain).
 
@@ -20,17 +22,18 @@ User: "What's the cheapest gluten-free pizza under 600 calories that you can del
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **Mamma Rosa's PizzaBot** — a production AI ordering system satisfying 6 constraints:
+> 🎯 **The mission**: Launch **Mamma Rosa's PizzaBot** — satisfying 6 constraints:
 > 1. **BUSINESS VALUE**: >25% conversion + +$2.50 AOV + 70% labor savings — 2. **ACCURACY**: <5% error — 3. **LATENCY**: <3s p95 — 4. **COST**: <$0.08/conv — 5. **SAFETY**: Zero attacks — 6. **RELIABILITY**: >99% uptime
 
 **What we know so far:**
-- ✅ Ch.1: LLM fundamentals (tokenization, sampling, training stages)
-- ✅ Ch.2: Prompt engineering (system prompts, few-shot, structured output)
-- ⚡ **Current metrics**: 12% conversion (up from 8%), ~15% error rate, $0.002/conv, 60% order completion
+- ✅ Ch.1: LLM fundamentals (tokenization, sampling, training) → 8% conversion with raw GPT-3.5
+- ✅ Ch.2: Prompt engineering (system prompts, few-shot, structured output) → 12% conversion
+- ❌ **But multi-step queries fail completely** — bot jumps to answer without reasoning steps
+- 📊 **Current business metrics**: 12% conversion (phone baseline: 22%), $38.10 AOV (baseline: $38.50), $0.002/conv, ~15% error rate
 
 **What's blocking us:**
 
-🚨 **Multi-constraint queries fail completely — no step-by-step reasoning**
+🚨 **Complex multi-constraint queries fail — no step-by-step reasoning**
 
 **Test scenario: Complex menu query**
 ```
@@ -98,12 +101,17 @@ Bot needs to:
 - **Conversion**: 12% → ~15% (complex queries now work, improving trust)
 - **Safety**: Catches allergen mismatches in reasoning trace ("Wait, Margherita isn't gluten-free")
 - **Cost**: $0.002 → $0.004/conv (longer outputs for reasoning steps, but still well below $0.08 target)
+  - Input: ~150 tokens (system prompt) + 20 tokens (query) = 170 tokens × $0.015/1M = $0.000003
+  - Output: ~200 tokens (with reasoning) × $0.06/1M = $0.000012
+  - Total: $0.000015/query (2× queries per conversation) = **$0.00003/conv** (was $0.000015)
 - **Complex query success**: 65% → 85% (up from 65%)
 
+⚡ **Constraint #2 ACCURACY [PARTIAL PROGRESS]**: Error rate 15% → ~10% (target: <5%). Still need RAG (Ch.4) for menu grounding.
+
 **Constraint status after Ch.3**: 
-- #1 (Business Value): 15% conversion — still below target but improving
+- #1 (Business Value): 15% conversion — still below 22% phone baseline
 - #2 (Accuracy): 10% error — major improvement, but need RAG (Ch.4) to hit <5%
-- #4 (Cost): $0.004/conv — still excellent headroom
+- #4 (Cost): $0.00003/conv — still excellent headroom (target: <$0.08)
 
 Still need Ch.4 (RAG) for real menu grounding to eliminate remaining hallucinations and hit <5% error target.
 
@@ -351,7 +359,9 @@ Chain-of-Thought prompting elicits step-by-step reasoning in a **linear chain**.
 *   **Tree of Thoughts (ToT)** explores multiple reasoning paths simultaneously using tree search (BFS/DFS). Each intermediate thought is evaluated for promise, allowing the agent to **backtrack** from unproductive branches.
 *   **Graph of Thoughts (GoT)** generalizes planning to arbitrary directed graphs, enabling aggregation of partial solutions, refinement loops, and non-linear information flow.
 
-**Practical implication:** For the SEA→YVR example — a task with clearly independent sub-tasks — a simple linear ReAct loop or a Plan-and-Execute approach is sufficient. ToT and GoT become valuable for tasks requiring **exploration** (e.g., puzzle-solving, creative writing, or problems with uncertain intermediate steps where backtracking is beneficial).
+**Practical implication for PizzaBot:** For most menu queries — tasks with clearly independent sub-tasks (filter allergens → filter calories → check availability) — a simple linear ReAct loop is sufficient. ToT and GoT become valuable for tasks requiring **exploration** (e.g., "suggest a dinner for 4 people with mixed dietary restrictions under $60" where multiple meal combinations need to be explored and evaluated, or creative menu descriptions where backtracking from unproductive phrasing is beneficial).
+
+**Business impact:** Linear CoT handles 85% of PizzaBot queries. Advanced structures add 2-5× cost (multiple reasoning branches) for marginal accuracy gains. Deploy only for high-value queries where exploration is essential.
 
 ***
 
@@ -359,7 +369,7 @@ Chain-of-Thought prompting elicits step-by-step reasoning in a **linear chain**.
 
 **Reasoning tokens** are tokens the model generates internally to work through a problem before producing the visible response. This is a concrete engineering mechanism that enables internal planning without exposing intermediate thoughts to the user.
 
-**Why this matters for the bridging logic:** When the agent processes a query like the SEA→YVR train example, the model may spend a significant portion of its token budget on internal reasoning (working out the plan, evaluating which tools to call) and a smaller portion on the visible answer. The user never sees the internal deliberation — only the final, polished response.
+**Why this matters for the bridging logic:** When the agent processes a PizzaBot query like "cheapest gluten-free pizza under 600 calories", the model may spend a significant portion of its token budget on internal reasoning (working out the plan, evaluating which filters to apply, deciding which tools to call) and a smaller portion on the visible answer. The user never sees the internal deliberation — only the final, polished response.
 
 **Important:** Whether reasoning is visible or hidden does **not** change the tool-execution bridge described in Section 3. Tools still require a structured action token sequence, and the host program still executes the tool call and appends observations.
 
@@ -367,20 +377,35 @@ Chain-of-Thought prompting elicits step-by-step reasoning in a **linear chain**.
 
 ## 9 · CoT in Production: What It Looks Like in Practice
 
-A concrete example of how CoT manifests in production systems comes from the Copilot Studio WebChat implementation. When an agent processes a user message, it may execute several internal steps (calls to tools, intermediate reasoning, etc.), and these are now logged. In the historical transcript view, under a given user query, you might see a sequence like:
+**For PizzaBot**, showing CoT reasoning in the UI has concrete business implications:
 
-*   **Thought 1:** "Formulate search query" (Complete, took 1.2s)
-*   **Tool Action:** Bing Search (with the query it ran)
-*   **Thought 2:** "Summarize search results" (Complete, took 3.4s)
-*   **(Final answer presented to user)**
+**Scenario: Multi-constraint query**
+```
+User: "Cheapest gluten-free pizza under 600 calories"
 
-These appear in the Activity transcript under that turn, giving full visibility into the agent's execution after the fact.
+PizzaBot UI shows:
+  ✓ Step 1: Finding gluten-free pizzas... (0.8s)
+  ✓ Step 2: Checking calorie counts... (0.5s)  
+  ✓ Step 3: Verifying availability... (0.6s)
+  ✓ Step 4: Comparing prices... (0.3s)
+  
+  "Veggie Garden with gluten-free crust, $14.99, 540 calories, available in 35 min"
+```
 
-This demonstrates that **the same mechanism used to show why a tool was invoked or to display tool results is now used to show the thought leading to a tool invocation**.
+**Business impact of visible CoT:**
+- **Trust building**: Customers see the bot actually checked allergen data (reduces "did it really check?" anxiety)
+- **Perceived accuracy**: 4-step process signals thoroughness (A/B test: +8% conversion vs. instant answer)
+- **Debugging**: Support team can verify which step failed when orders go wrong
+- **Cost**: +200 tokens per query (was 170, now 370) = $0.000056/query (still well below $0.08 target)
 
-UX research on CoT visibility found that most users **don't want to read reasoning continuously**; they check the final answer first and use CoT as a verification backstop when something looks off. In agentic workflows, users prefer a **clear step structure (often \~4–6 steps) plus brief rationale**, more like a plan than a transcript of raw model thought.
+**UX research findings** (from production agent deployments like Copilot Studio WebChat):
+- Most users **don't want to read reasoning continuously** — they check the final answer first
+- CoT is used as a **verification backstop** when something looks suspicious
+- Users prefer **clear step structure (4–6 steps) + brief rationale**, not raw model thought transcripts
 
 **Tradeoff:** Showing CoT increases user trust for complex multi-step tasks, but unscoped or unfiltered reasoning can create overload, slow perceived performance, and reduce clarity. This is one motivation behind hidden reasoning tokens — keeping the scratchpad internal while returning only a short explanation.
+
+**PizzaBot decision:** Show 4-6 high-level steps for complex queries (multi-constraint, availability checks), hide internal reasoning for simple queries ("What sizes do you have?").
 
 ***
 
@@ -389,7 +414,7 @@ UX research on CoT visibility found that most users **don't want to read reasoni
 Here is a simplified pseudo-code of the **planner-executor loop**, illustrating how the agent handles a query by deciding on actions step by step and updating its context:
 
 ```python
-state = extract_state(user_input)      # e.g., origin=SEA, destination=YVR, time=4h
+state = extract_state(user_input)      # e.g., query="cheapest gluten-free under 600 cal"
 history = []
 
 while True:
@@ -413,20 +438,20 @@ while True:
     state = update_state(state, observation)
 ```
 
-**How this maps to the SEA→YVR example:**
+**How this maps to the PizzaBot multi-constraint query:**
 
 | Loop | `thought`                                     | `action`                                       | `observation`               |
 | ---- | --------------------------------------------- | ---------------------------------------------- | --------------------------- |
-| 1    | "I need the distance between SEA and YVR"     | `RouteDistance("SEA", "YVR")`                  | `DISTANCE_KM`               |
-| 2    | "Now I need the train type and its max speed" | `WebSearch("train SEA to YVR type max speed")` | `TRAIN_TYPE, MAX_SPEED_KMH` |
-| 3    | "I can now calculate average speed"           | `Calculator("DISTANCE_KM / 4")`                | `AVG_SPEED`                 |
-| 4    | "I have all the information to answer"        | `FINAL_ANSWER`                                 | *(generates response)*      |
+| 1    | "I need gluten-free pizzas from the menu"     | `retrieve_from_rag("gluten-free pizzas")`                  | `[Veggie Garden (GF), Margherita (regular only)]`               |
+| 2    | "Now I need calorie counts for GF options" | `retrieve_from_rag("Veggie Garden gluten-free calories")` | `Veggie Garden GF: 540 cal, $14.99` |
+| 3    | "540 < 600, qualifies. Check availability"           | `check_item_availability(store_id=nearest, item="Veggie Garden GF")`                | `{available: true, eta: 35min}`                 |
+| 4    | "Available! This is the cheapest option"        | `FINAL_ANSWER`                                   | *(generates response)*      |
 
 **Key properties of this loop:**
 
-*   **Dynamic planning:** The plan is not fixed upfront. If the distance lookup returned an error, the agent could re-plan (e.g., try a different search query).
+*   **Dynamic planning:** The plan is not fixed upfront. If `retrieve_from_rag()` returned no results, the agent could re-plan (e.g., try a broader search query or ask for clarification).
 *   **Stateful context:** Each iteration has access to the full history of prior thoughts, actions, and observations. The LLM leverages this accumulated state to make increasingly informed decisions.
-*   **Termination condition:** The agent decides when to stop based on its assessment of whether the gathered information is sufficient. There is no hardcoded step count — the loop runs until the LLM's planning function concludes that the goal is met.
+*   **Termination condition:** The agent decides when to stop based on its assessment of whether the gathered information is sufficient. There is no hardcoded step count — the loop runs until the LLM's planning function concludes that the goal is met (all constraints satisfied: gluten-free ✅, <600 cal ✅, available ✅, cheapest ✅).
 
 ***
 
@@ -434,27 +459,33 @@ while True:
 
 Understanding the bridging logic has a direct impact on how you architect agentic systems:
 
-| Traditional Dev Thinking                  | Agentic Thinking                                     |
-| ----------------------------------------- | ---------------------------------------------------- |
-| `if (needDistance) CallDistanceAPI();`    | Provide state + tools → let model choose next action |
-| Imperative orchestration (hardcoded flow) | Token-space policy (model decides dynamically)       |
-| Finite state machine / decision tree      | Context-conditioned action selection                 |
+| Traditional Dev Thinking                  | Agentic Thinking                                     | PizzaBot Example |
+| ----------------------------------------- | ---------------------------------------------------- | ---------------- |
+| `if (needDistance) CallDistanceAPI();`    | Provide state + tools → let model choose next action | Provide menu tools → let LLM decide which to call |
+| Imperative orchestration (hardcoded flow) | Token-space policy (model decides dynamically)       | No hardcoded "step 1: check allergens, step 2: check calories" — LLM plans |
+| Finite state machine / decision tree      | Context-conditioned action selection                 | Model adapts to query complexity (1 step for "What sizes?" vs. 4 steps for multi-constraint) |
 
-You are **not** writing:
-
-```csharp
-if (needDistance) CallDistanceAPI();
+**Traditional approach (hardcoded):**
+```python
+if "gluten-free" in query and "calories" in query:
+    results = retrieve_from_rag("gluten-free")
+    filtered = [r for r in results if r.calories < extract_calorie_limit(query)]
+    sorted_results = sorted(filtered, key=lambda x: x.price)
+    return sorted_results[0]
 ```
 
-You are writing:
-
-```text
-STATE + TOOLS + TASK → choose next action
+**Agentic approach (token-space policy):**
+```python
+STATE + TOOLS + TASK → LLM chooses next action
+# LLM outputs: {"action": "retrieve_from_rag", "args": {"query": "gluten-free pizzas"}}
+# Host executes tool, appends observation
+# LLM outputs: {"action": "retrieve_from_rag", "args": {"query": "calorie counts"}}
+# ... continues until FINAL_ANSWER
 ```
-
-And letting **token probability act as the policy.**
 
 **The intelligence in the agent emerges from the interplay of the LLM's learned knowledge and the sandboxed execution of tools dictated by the LLM's outputs**, all made possible by constraining the format of the model's responses to bridge the gap between text and action.
+
+**Business advantage for PizzaBot:** Traditional approach breaks when query changes ("cheapest *vegan* under 600 cal"). Agentic approach adapts without code changes — just add vegan filter to tool schema.
 
 ***
 
@@ -499,12 +530,12 @@ Planning is **emergent behavior** from:
 
 | Constraint | Status | Current State |
 |------------|--------|---------------|
-| #1 BUSINESS VALUE | ❌ **IMPROVING** | 15% conversion (up from 12%, target >25%, phone baseline 22%) — Complex queries now work! |
-| #2 ACCURACY | ⚡ **SIGNIFICANT PROGRESS** | ~10% error rate (down from 15%, target <5%) — Multi-step reasoning reduces logic errors |
-| #3 LATENCY | ⚡ **ACCEPTABLE** | 3-5s p95 (target <3s) — CoT adds ~1s latency, but shows working which builds trust |
-| #4 COST | ⚡ **ON TRACK** | $0.004/conv (up from $0.002, target <$0.08) — CoT doubles token count but still cheap |
-| #5 SAFETY | ⚡ **IMPROVED** | Reasoning traces catch allergen errors ("Wait, that's not gluten-free!") before answering |
-| #6 RELIABILITY | ❌ **BLOCKED** | No error handling yet, need orchestration layer (Ch.6) |
+| #1 BUSINESS VALUE | ❌ | 15% conversion (target: >25%, phone baseline: 22%), $38.10 AOV (baseline: $38.50), no labor savings yet — Complex queries now work but still below phone baseline |
+| #2 ACCURACY | ⚡ | ~10% error rate (down from 15%, target: <5%) measured on 1,000 test queries — Multi-step reasoning reduces logic errors, but still hallucinates menu items. Need RAG (Ch.4). |
+| #3 LATENCY | ⚡ | 2.5s p95 (target: <3s) measured on 500 conversations — CoT adds ~0.5s but acceptable. Within target! |
+| #4 COST | ✅ | $0.00003/conv (target: <$0.08) — Input: 170 tokens × $0.015/1M + Output: 200 tokens × $0.06/1M = $0.000015/query × 2 queries = $0.00003/conv. Huge headroom for RAG overhead. |
+| #5 SAFETY | ⚡ | Reasoning traces catch some allergen errors before answering (10/12 caught in testing) — Improved but need guardrails (Ch.9) |
+| #6 RELIABILITY | ❌ | No error handling yet — tool failures cause crashes. Need orchestration layer (Ch.6) |
 
 **What we can solve:**
 
@@ -541,15 +572,21 @@ Answer: "The cheapest gluten-free pizza under 600 calories is the Veggie Garden
 Result: ✅ Correct! Complex query solved with multi-step reasoning!
 ```
 
-**Business metrics update:**
-- **Order conversion**: 15% (up from 12%, baseline 22%) — **Improving! Complex queries now work**
-- **Average order value**: $38.10 (baseline $38.50) — Slightly below (no upselling yet)
-- **Cost per conversation**: $0.004 (target <$0.08) — Still excellent headroom for RAG overhead
-- **Error rate**: ~10% (target <5%) — **Major improvement, but need RAG for final push**
-- **Complex query success**: 85% (up from 65%) — **Multi-step reasoning works!**
-- **Safety incidents**: 0 in 500 test conversations (reasoning catches allergen errors)
+❌ **What we can't solve yet:**
+- **Menu hallucinations still occur**: Model can plan "retrieve_from_rag()" but doesn't actually execute it — reasoning is still from parametric memory, not real menu data. Need Ch.4 (RAG) to ground answers in actual menu corpus.
+- **No proactive upselling**: Can answer questions but can't suggest "Would you like garlic bread with that?" Need Ch.6 (ReAct & Semantic Kernel) for tool orchestration.
+- **Slow responses at scale**: Single-threaded reasoning loop. No vector search optimization. Need Ch.5 (Vector DBs) for fast retrieval.
+- **No error handling**: If `check_item_availability()` fails, bot crashes. Need Ch.6 for graceful degradation.
 
-**Next chapter**: [RAG & Embeddings](../rag_and_embeddings) connects the reasoning chain to real menu retrieval. CoT currently says "Action: retrieve_from_rag()" but doesn't execute it. Ch.4 makes that tool call real, grounding all answers in actual menu data → **<5% error rate, 18% conversion**.
+**Business metrics update:**
+- **Order conversion**: 15% (up from 12%, baseline: 22%) — **Improving! Complex queries now work but still below phone baseline**
+- **Average order value**: $38.10 (baseline: $38.50) — Slightly below (no upselling yet, need ReAct tools in Ch.6)
+- **Cost per conversation**: $0.00003 (target: <$0.08) — **Huge headroom!** 2,666× under target, room for RAG overhead
+- **Error rate**: ~10% (target: <5%) measured on 1,000 held-out test queries — **Major improvement, but need RAG (Ch.4) for final push to <5%**
+- **Complex query success**: 85% (up from 65%) — **Multi-step reasoning works!**
+- **Safety incidents**: 2 in 500 test conversations (reasoning caught 10/12 allergen errors) — Need systematic guardrails (Ch.9)
+
+**Next chapter**: [RAG & Embeddings](../rag_and_embeddings) connects the reasoning chain to real menu retrieval. CoT currently says "Action: retrieve_from_rag()" but doesn't actually execute it — still reasoning from parametric memory. Ch.4 makes that tool call real, grounding all answers in actual menu data → **<5% error rate (Constraint #2 ✅), 18% conversion**.
 
 ---
 

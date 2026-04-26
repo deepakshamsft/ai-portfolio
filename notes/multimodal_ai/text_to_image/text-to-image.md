@@ -132,7 +132,9 @@ The main U-Net decoder then assembles the spatially-guided features into the out
 
 Key property: ControlNet requires **no retraining of the main U-Net**. Only the cloned encoder's weights are trained on (image, control, prompt) triplets.
 
-## 4 · How It Works — Step by Step
+---
+
+## 4 · Visual Intuition
 
 ### img2img Workflow
 
@@ -224,46 +226,156 @@ image.save("vf_product_45deg.png")
 
 ---
 
-## 6 · The Key Diagrams
+## 6 · Common Failure Modes
 
-```
-img2img vs. text-to-image vs. inpainting:
+### 1. ControlNet Overfitting to Edge Map
 
- text-to-image: N(0,I) ─── [DDIM 20 steps] ──▶ image
- (full 1000 steps of noise)
+**Symptom**: Generated image looks like a photocopy of the edge map; no creative interpretation.
 
- img2img (s=0.5): real_img ─[add noise 500 steps]─▶ z_t=500
- ─── [DDIM 10 steps] ──▶ image
- (structure preserved; details changed)
+**Cause**: `controlnet_conditioning_scale=1.0` with very detailed edge map.
 
- inpainting: real_img + mask
- at each step: paste original pixels outside mask
- at each step: free diffusion inside mask
+**Fix**: Lower scale to 0.6–0.8, or use a looser edge detection threshold (e.g., Canny `low_threshold=50` instead of 100).
 
+**VisualForge example**: Product sketch was too detailed → generated bag looked flat. Solution: simplified sketch + scale=0.7 → natural lighting and texture preserved.
 
-Strength dial in img2img:
- s=0.1 ████░░░░░░ (10% noise, minor changes)
- s=0.5 █████░░░░░ (50% noise, moderate changes)
- s=0.9 █████████░ (90% noise, major changes)
- s=1.0 ██████████ (100% noise, identical to text-to-image)
-```
+### 2. Inpainting Seam Artifacts
 
-## 7 · What Changes at Scale
+**Symptom**: Visible boundary between masked and unmasked regions.
 
-- **SDXL** separates prompt into `prompt` (coarse, for base model) and `prompt_2` (fine, for refiner model), allowing two-stage generation at full resolution
-- **IP-Adapter** extends the idea of ControlNet to use a reference *image* as the conditioning signal instead of a structural map — enables style or identity transfer
-- **LoRA** (Low-Rank Adaptation): fine-tune SD on 5–20 subject images by adding tiny rank-decomposition matrices to U-Net attention layers. Captures person/object identity without full fine-tuning cost
-- **Textual Inversion**: optimise a new token embedding vector (not the weights) to represent a novel concept. Simpler but less capable than LoRA
+**Cause**: Hard-edged mask; model can't blend smoothly.
 
-## 8 · Common Misconceptions
+**Fix**: Use feathered/soft mask edges (Gaussian blur radius 5–10 pixels), or increase `strength` slightly to allow more diffusion near boundaries.
 
-| Misconception | Reality |
-|---------------|---------|
-| "Negative prompts erase concepts" | They steer *away* from the negative concept using CFG; they don't remove tokens from the model's vocabulary |
-| "Higher strength = always better in img2img" | High strength (>0.9) ignores the input image almost entirely; lower strength preserves structure |
-| "ControlNet requires a new base SD model" | It works as an add-on to any SD checkpoint; the base model is not modified |
-| "Prompt length doesn't matter" | 77 token limit is real — SD truncates silently at 77 bpe tokens |
-| "Inpainting always generates seamless results" | Hard edges in the mask cause seam artefacts; soft/feathered masks help; latent-space inpainting is smoother than pixel-space |
+**VisualForge example**: Changing product color left halo around edges. Solution: 8px feathered mask → seamless transition.
+
+### 3. img2img Ignores Input Image (High Strength)
+
+**Symptom**: `strength=0.9` produces output unrelated to input.
+
+**Cause**: Too much noise added; original structure is destroyed.
+
+**Fix**: Use `strength=0.4–0.7` range for style transfer while preserving composition.
+
+**VisualForge example**: Transforming day scene to night with `strength=0.9` changed building architecture. Solution: `strength=0.5` preserved structure, only changed lighting.
+
+### 4. Negative Prompt Doesn't Remove Unwanted Elements
+
+**Symptom**: "No watermark" in negative prompt, but watermarks still appear.
+
+**Cause**: Negative prompts steer sampling away from concepts, but can't guarantee absence if the positive prompt or random seed strongly favor them.
+
+**Fix**: 
+- Remove ambiguous terms from positive prompt
+- Increase negative prompt weight (some UIs support `(watermark:1.5)`)
+- Try different seeds (randomness can override guidance)
+
+**VisualForge example**: "No text" in negative prompt didn't prevent text generation. Solution: Added "clean, minimal, professional photography" to positive prompt → reduced text artifacts from 40% to 5%.
+
+### 5. 77-Token Truncation Silently Cuts Prompt
+
+**Symptom**: Model ignores concepts mentioned late in a long prompt.
+
+**Cause**: CLIP tokenizer has 77-token limit; text beyond that is discarded.
+
+**Fix**: 
+- Keep prompts under 77 tokens (~50-60 words)
+- Put most important concepts first
+- Use SDXL's dual-prompt system (`prompt` + `prompt_2`) for longer descriptions
+
+**VisualForge example**: "...professional studio lighting, bokeh background, award-winning photography" was truncated. Solution: moved "professional studio lighting" to beginning → lighting quality improved from 3.2/5.0 to 4.1/5.0.
+
+### 6. ControlNet + Negative Prompt Conflict
+
+**Symptom**: ControlNet structural guidance fights with negative prompt steering.
+
+**Cause**: Edge map may contain structure that negative prompt tries to suppress (e.g., edge map has complex background, negative prompt says "simple background").
+
+**Fix**: Ensure edge map and prompts are aligned — simplify edge map or adjust negative prompt.
+
+**VisualForge example**: Edge map included cluttered background, negative prompt said "clean white background" → model produced incoherent result. Solution: removed background from edge map before feeding to ControlNet.
+
+---
+
+## 7 · When to Use This vs Alternatives
+
+### Text-to-Image (this chapter) vs Text-to-Video (Ch.9)
+
+**Use text-to-image when:**
+- Single static visual needed (hero image, product shot, banner)
+- <30 second generation time required
+- No temporal consistency needed
+
+**Use text-to-video when:**
+- Motion or transformation is key (product demo, animation)
+- Client needs social media video content
+- Willing to accept 5–10× longer generation time
+
+**VisualForge decision**: 85% of briefs are static images → text-to-image is primary workflow. Video reserved for hero campaigns.
+
+### ControlNet vs img2img vs Textual Inversion vs LoRA
+
+| Technique | Use Case | Training Required | Constraint Addressed |
+|-----------|----------|-------------------|----------------------|
+| **ControlNet** | Enforce spatial structure (pose, edges, depth) | No (pretrained) | #4 Control (composition) |
+| **img2img** | Transform existing image (style transfer, refinement) | No | #2 Speed (faster than full generation) |
+| **LoRA** | Capture specific style/subject (brand identity, person) | Yes (~15 min, 15 images) | #1 Quality (brand consistency) |
+| **Textual Inversion** | Define new token for single concept | Yes (~10 min, 5 images) | #1 Quality (concept learning) |
+
+**VisualForge strategy:**
+- ControlNet: All product shots (guarantees 45° angle, white background)
+- img2img: Style transfer for client reference photos
+- LoRA: Fine-tune on brand style guide (15 reference images) for campaign consistency
+- Textual Inversion: Not used (LoRA more capable for same training cost)
+
+### Inpainting vs Full Regeneration
+
+**Use inpainting when:**
+- 90% of image is correct, small region needs change (product color, background element)
+- Client requested minor edit after approval
+- Faster than regenerating entire image (10s vs 18s)
+
+**Use full regeneration when:**
+- Major compositional change needed
+- Multiple regions need coordination
+- First generation attempt
+
+**VisualForge metric**: 40% of client revisions are inpainting-eligible → saves 8s per revision → 10% throughput increase.
+
+### SDXL vs Stable Diffusion 1.5
+
+**Use SDXL when:**
+- Quality target ≥4.0/5.0 (SDXL native resolution 1024×1024)
+- Dual-prompt system needed (long descriptions)
+- Client needs photorealism
+
+**Use SD 1.5 when:**
+- Speed critical (<10s generation time)
+- Lower resolution acceptable (512×512)
+- Large ecosystem of community LoRAs available
+
+**VisualForge choice**: SDXL for hero images (quality priority), SD 1.5 Turbo for batch variations (speed priority).
+
+---
+
+## 8 · Connection to Prior Chapters
+
+**From [Ch.3 CLIP](../clip/)**: Text embeddings from CLIP text encoder are the conditioning signal for all prompts in this chapter. Without CLIP's text-image alignment, prompt engineering wouldn't work.
+
+**From [Ch.4 Diffusion Models](../diffusion_models/)**: The forward/reverse diffusion process is the foundation. img2img starts at step $t_{\text{start}} < T$ instead of $t = T$.
+
+**From [Ch.5 Schedulers](../schedulers/)**: DDIM/DPM-Solver schedulers enable 20-step generation. Without schedulers, ControlNet would take 5 minutes instead of 18 seconds.
+
+**From [Ch.6 Latent Diffusion](../latent_diffusion/)**: VAE latent space compression enables real-time generation. Pixel-space ControlNet would be 8× slower.
+
+**From [Ch.7 Guidance & Conditioning](../guidance_conditioning/)**: Classifier-free guidance (CFG) is extended by negative prompts. CFG scale 7.5 is standard for all workflows in this chapter.
+
+**To [Ch.9 Text-to-Video](../text_to_video/)**: ControlNet's spatial conditioning extends to temporal domain. AnimateDiff adds temporal attention → 16-frame video clips.
+
+**To [Ch.10 Multimodal LLMs](../multimodal_llms/)**: Generated images need QA verification. VLMs like LLaVA check if output matches client brief.
+
+**To [Ch.11 Evaluation](../evaluation/)**: ControlNet improves composition → measurable via FID, CLIP score, human preference (HPSv2). Evaluation chapter quantifies what "95% success rate" means.
+
+---
 
 ## 9 · Interview Checklist
 
@@ -282,7 +394,70 @@ Strength dial in img2img:
 
 ---
 
-## 10 · Progress Check — What Have We Unlocked?
+## 10 · Further Reading
+
+### Papers
+
+- **DALL·E** (Ramesh et al., 2021) — First mainstream text-to-image model
+  - [arXiv](https://arxiv.org/abs/2102.12092)
+- **DALL·E 2** (Ramesh et al., 2022) — Diffusion + CLIP guidance
+  - [arXiv](https://arxiv.org/abs/2204.06125)
+- **Stable Diffusion** (Rombach et al., 2022) — Latent diffusion with open weights
+  - [arXiv](https://arxiv.org/abs/2112.10752)
+  - [GitHub](https://github.com/CompVis/stable-diffusion)
+- **ControlNet** (Zhang et al., 2023) — Spatial conditioning for diffusion
+  - [arXiv](https://arxiv.org/abs/2302.05543)
+  - [GitHub](https://github.com/lllyasviel/ControlNet)
+- **SDXL** (Podell et al., 2023) — Dual-stage high-resolution generation
+  - [arXiv](https://arxiv.org/abs/2307.01952)
+- **LoRA** (Hu et al., 2021) — Low-rank adaptation for efficient fine-tuning
+  - [arXiv](https://arxiv.org/abs/2106.09685)
+
+### Code & Tools
+
+- **Diffusers library** (Hugging Face) — Production-grade API for SD, SDXL, ControlNet
+  - [GitHub](https://github.com/huggingface/diffusers)
+  - [Docs](https://huggingface.co/docs/diffusers/)
+- **AUTOMATIC1111 WebUI** — Most popular SD interface
+  - [GitHub](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
+- **ComfyUI** — Node-based workflow UI for advanced pipelines
+  - [GitHub](https://github.com/comfyanonymous/ComfyUI)
+- **Civitai** — Community model marketplace (LoRAs, checkpoints)
+  - [Website](https://civitai.com/)
+- **ControlNet models** — Pretrained ControlNet weights (Canny, depth, pose, etc.)
+  - [Hugging Face](https://huggingface.co/lllyasviel)
+
+### Tutorials
+
+- **Prompt engineering guide** — Best practices for SD prompts
+  - [Stable Diffusion Prompt Book](https://openart.ai/promptbook)
+- **ControlNet tutorial** — Step-by-step ControlNet workflows
+  - [Hugging Face blog](https://huggingface.co/blog/controlnet)
+- **LoRA training guide** — Fine-tune SD on custom subjects
+  - [Hugging Face training docs](https://huggingface.co/docs/diffusers/training/lora)
+
+---
+
+## 11 · Notebook
+
+> 📖 **Executable walkthrough**: [text-to-image.ipynb](text-to-image.ipynb)
+>
+> **What you'll build**:
+> 1. **Prompt engineering**: Compare token order and weighting effects on CLIP embeddings
+> 2. **Negative prompts**: Subtract unwanted concepts ("blurry", "watermark")
+> 3. **img2img**: Transform sketch → photorealistic render with strength=0.7
+> 4. **Inpainting**: Edit product color in existing image (masked region only)
+> 5. **ControlNet**: Generate product shot at 45° angle using Canny edge map
+>
+> **VisualForge brief**: Generate 5 variations of spring collection hero image with ControlNet pose consistency.
+>
+> **Hardware**: Runs on CPU (5 min/image) or CUDA GPU (18 sec/image). ControlNet adds ~2 sec overhead.
+>
+> **Dependencies**: `diffusers`, `transformers`, `torch`, `controlnet_aux`, `opencv-python`
+
+---
+
+## 11.5 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #4 (Control)**: ⚡ <15% unusable, text alone cannot guarantee composition
@@ -312,9 +487,32 @@ Strength dial in img2img:
 
 ---
 
-## 11 · What's Next
+### VisualForge Status — Full Constraint View
 
-[TextToVideo.md](../text_to_video/text-to-video.md) — add a temporal dimension. Generating consistent motion is the key unsolved challenge in T2V.
+| Constraint | Ch.1 | Ch.2 | Ch.3 | Ch.4 | Ch.5 | Ch.6 | Ch.7 | Ch.8 (This) | Target |
+|------------|------|------|------|------|------|------|------|-------------|--------|
+| Quality | ❌ | ❌ | ❌ | ⚡ 3.0 | ⚡ 3.2 | ⚡ 3.5 | ⚡ 3.8 | ⚡ 3.8/5.0 | 4.0/5.0 |
+| Speed | ❌ | ❌ | ❌ | ❌ 5min | ⚡ 60s | ✅ 20s | ✅ 20s | ✅ 18s | <30s |
+| Cost | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ $2.5k | ✅ $2.5k | ✅ $2.5k | <$5k |
+| Control | ❌ | ❌ | ⚡ | ⚡ 40% | ⚡ 25% | ⚡ 15% | ⚡ 10% | ✅ 3% | <5% |
+| Throughput | ❌ | ❌ | ❌ | ❌ 10 | ❌ 15 | ⚡ 40 | ⚡ 60 | ⚡ 80/day | 100+/day |
+| Versatility | ❌ | ⚡ | ⚡ | ⚡ | ⚡ | ⚡ T2I | ⚡ T2I | ⚡ T2I prod | 3 modalities |
+
+---
+
+## Bridge to Chapter 9
+
+**What's next**: Your ControlNet pipeline hits the quality and control targets — 95% first-try success rate on static images. But clients now want **video content** for social media: 15-second product demos, hero animations, before/after transformations.
+
+**The blocker**: Text-to-image generates one frame at a time. Applying it frame-by-frame produces flickering, inconsistent motion. **Temporal coherence** is the missing piece.
+
+**The unlock in [Ch.9 Text-to-Video](../text_to_video/)**: AnimateDiff extends Stable Diffusion with **temporal attention layers** and **motion modules** trained on video datasets. You'll learn:
+- How temporal self-attention enforces frame-to-frame consistency
+- Why motion modules are trained separately from the base diffusion model
+- How to generate 16-frame 512×512 clips in ~3 minutes
+- How VisualForge reaches **Constraint #6 (Versatility)**: Text→Image ✅, Text→Video ⚡, Image Understanding (Ch.10)
+
+Let's add the temporal dimension.
 
 ## Illustrations
 

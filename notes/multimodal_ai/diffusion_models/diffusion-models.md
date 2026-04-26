@@ -136,7 +136,7 @@ The cosine schedule (improved DDPM, 2021) became the standard because the linear
 
 ---
 
-## 4 · How It Works — Step by Step
+## 4 · Visual Intuition
 
 **Training:**
 1. Sample $x_0$ from training set (a real image)
@@ -154,6 +154,52 @@ The cosine schedule (improved DDPM, 2021) became the standard because the linear
  - Compute posterior mean $\boldsymbol{\mu}$
  - Sample $x_{t-1} = \boldsymbol{\mu} + \sqrt{\tilde{\beta}_t} \cdot z$
 3. Return $x_0$ — the generated image
+
+---
+
+### Forward and Reverse Processes
+
+```
+FORWARD PROCESS (fixed, no learnable parameters)
+
+x₀ ─────q────▶ x₁ ─────q────▶ x₂ ─────q────▶ ... ─────q────▶ xₜ
+[clean] [small noise] [more noise] [pure noise]
+
+q(x_t | x_{t-1}) = N(√(1-βt)·x_{t-1}, βt·I)
+
+
+REVERSE PROCESS (learned by U-Net)
+
+xₜ ──pθ──▶ x_{t-1} ──pθ──▶ x_{t-2} ──pθ──▶ ... ──pθ──▶ x₀
+[pure noise] [generated image]
+
+pθ(x_{t-1}|x_t) = N(μθ(x_t,t), β̃t·I)
+```
+
+### U-Net Architecture
+
+```
+Input: (x_t, t) ← noisy image + timestep embedding
+
+ ┌────────────────────────────────────────────────────┐
+ │ Encoder (downsampling) │
+ │ ResBlock → ResBlock → Downsample → ... │
+ │ Spatial: 64×64 → 32×32 → 16×16 → 8×8 │
+ │ Attention at 16×16 and 8×8 (for larger models) │
+ └───────────────────────┬────────────────────────────┘
+ │
+ ┌────────────────────────▼────────────────────────────┐
+ │ Bottleneck: ResBlock + Self-Attention + ResBlock │
+ └───────────────────────┬────────────────────────────┘
+ │
+ ┌────────────────────────▼────────────────────────────┐
+ │ Decoder (upsampling) │
+ │ Upsample → ResBlock (+ skip from encoder) → ... │
+ │ Skip connections preserve spatial detail │
+ └───────────────────────┬────────────────────────────┘
+ │
+ Output: ε̂ ← predicted noise, same shape as input
+```
 
 ---
 
@@ -209,55 +255,103 @@ for i, img in enumerate(results.images):
 
 ---
 
-## 6 · The Key Diagrams
+## 6 · Common Failure Modes
 
-### Forward and Reverse Processes
+### 1. Pure Noise Output (Undertrained Model)
 
-```
-FORWARD PROCESS (fixed, no learnable parameters)
+**Symptom**: Generated images look like random static, no coherent structure.
 
-x₀ ─────q────▶ x₁ ─────q────▶ x₂ ─────q────▶ ... ─────q────▶ xₜ
-[clean] [small noise] [more noise] [pure noise]
+**Cause**: U-Net hasn't learned to denoise effectively. At $t=1$, the model predicts random noise instead of removing the final noise layer.
 
-q(x_t | x_{t-1}) = N(√(1-βt)·x_{t-1}, βt·I)
+**Fix**: Train longer. On MNIST, expect coherent digits after ~5 epochs. On high-resolution datasets (ImageNet), expect weeks of training.
 
-
-REVERSE PROCESS (learned by U-Net)
-
-xₜ ──pθ──▶ x_{t-1} ──pθ──▶ x_{t-2} ──pθ──▶ ... ──pθ──▶ x₀
-[pure noise] [generated image]
-
-pθ(x_{t-1}|x_t) = N(μθ(x_t,t), β̃t·I)
-```
-
-### U-Net Architecture
-
-```
-Input: (x_t, t) ← noisy image + timestep embedding
-
- ┌────────────────────────────────────────────────────┐
- │ Encoder (downsampling) │
- │ ResBlock → ResBlock → Downsample → ... │
- │ Spatial: 64×64 → 32×32 → 16×16 → 8×8 │
- │ Attention at 16×16 and 8×8 (for larger models) │
- └───────────────────────┬────────────────────────────┘
- │
- ┌────────────────────────▼────────────────────────────┐
- │ Bottleneck: ResBlock + Self-Attention + ResBlock │
- └───────────────────────┬────────────────────────────┘
- │
- ┌────────────────────────▼────────────────────────────┐
- │ Decoder (upsampling) │
- │ Upsample → ResBlock (+ skip from encoder) → ... │
- │ Skip connections preserve spatial detail │
- └───────────────────────┬────────────────────────────┘
- │
- Output: ε̂ ← predicted noise, same shape as input
-```
+**VisualForge context**: Early training runs produced pure noise → wasted 3 days of GPU time before realizing learning rate was 10× too high.
 
 ---
 
-## 7 · What Changes at Scale
+### 2. Mode Collapse (All Outputs Similar)
+
+**Symptom**: Every generated image looks nearly identical, regardless of random seed.
+
+**Cause**: Model memorizes a single "safe" output that minimizes loss across many training examples.
+
+**Fix**: Increase model capacity (more U-Net channels), increase training data diversity, check for data leakage (same image repeated in training set).
+
+**VisualForge context**: Product-on-white training collapsed to generating the same white rectangle → discovered training set had 40% duplicate images from photographer's burst mode.
+
+---
+
+### 3. Checkerboard Artifacts
+
+**Symptom**: Generated images have visible grid patterns, especially in flat regions.
+
+**Cause**: Upsampling layers in U-Net decoder use nearest-neighbor or bilinear interpolation → creates aliasing.
+
+**Fix**: Use transposed convolution with careful kernel size (e.g., 4×4 with stride 2), or use PixelShuffle upsampling.
+
+**VisualForge context**: Spring collection images had visible 8×8 grid artifacts in sky regions → switched to transposed conv, artifacts disappeared.
+
+---
+
+### 4. Exploding Loss / NaN Gradients
+
+**Symptom**: Training loss suddenly jumps to infinity or becomes NaN.
+
+**Cause**: Learning rate too high, or numerical instability in noise prediction at high noise levels (near $t=T$).
+
+**Fix**: Reduce learning rate (try 1e-4 → 1e-5), enable gradient clipping (`clip_grad_norm=1.0`), use mixed precision (fp16) carefully.
+
+**VisualForge context**: First DDPM training run crashed after 2 hours with NaN loss → added gradient clipping, stable training resumed.
+
+---
+
+### 5. Slow Sampling (5+ Minutes Per Image)
+
+**Symptom**: Generation takes 1000 forward passes through U-Net → unusable for client review.
+
+**Not actually a failure**: DDPM is correct but inefficient. The solution is not in this chapter.
+
+**Fix**: Next chapter (Schedulers) introduces DDIM and DPM-Solver → 20-50 steps instead of 1000 → 20× speedup.
+
+**VisualForge context**: This was the primary blocker preventing production deployment. Chapter 5 solves it.
+
+---
+
+## 7 · When to Use This vs Alternatives
+
+### Use DDPM When:
+
+1. **You need stable, deterministic training**
+   - GANs require adversarial game balancing (generator vs discriminator) → mode collapse, training instability
+   - DDPM is just MSE loss on noise prediction → train like any supervised model
+   - **VisualForge decision**: Tried StyleGAN2 first → 3 weeks of hyperparameter tuning, still unstable. Switched to DDPM → stable training in 2 days.
+
+2. **You need diverse outputs**
+   - VAE posteriors are typically Gaussian with fixed variance → limited diversity
+   - DDPM samples from learned distribution → high diversity without mode collapse
+   - **VisualForge result**: 100 "spring collection hero" generations → 97 unique compositions (vs 40 unique with VAE)
+
+3. **You have compute budget for multi-step generation**
+   - DDPM requires 20-1000 forward passes (depending on scheduler)
+   - GANs generate in 1 forward pass
+   - **VisualForge tradeoff**: 8 seconds/image (DDPM + DDIM scheduler) acceptable for client reviews; 0.5 seconds (GAN) would be nice but quality gap too large
+
+---
+
+### Use Alternatives When:
+
+| Alternative | When to use | When NOT to use |
+|-------------|-------------|-----------------|
+| **GAN (StyleGAN3)** | Real-time generation (video games, live filters), single-domain mastery (faces only) | Multi-domain generation, stable training required, text conditioning |
+| **VAE** | Fast approximate generation, learned latent space for editing | High-quality photorealism, diverse outputs |
+| **Autoregressive (PixelCNN)** | Exact likelihood needed (research), small images | High-resolution images (too slow), production systems |
+| **Flow-based (Glow)** | Exact likelihood + fast sampling | Memory-intensive (requires storing all activations) |
+
+**Current state (2024)**: Diffusion models dominate image generation. GANs are used only in niche cases (real-time video, face generation). VAEs are used as compression layers (Stable Diffusion's VAE), not as standalone generative models.
+
+---
+
+### Scale Comparison: MNIST → Production
 
 | Aspect | MNIST DDPM (this chapter) | Production (Stable Diffusion) |
 |--------|--------------------------|-------------------------------|
@@ -269,17 +363,59 @@ Input: (x_t, t) ← noisy image + timestep embedding
 | Training time | 5 minutes CPU | Weeks on 256+ A100s |
 | Conditioning | Unconditional | Text via cross-attention (CLIP encoder) |
 
-**Why 1000 steps?** The MSE loss over the full Step 5 trajectory gives a very smooth optimisation landscape. You can use fewer steps at inference with DDIM (Chapter 6) — but training still requires 1000 steps to learn a good noise predictor at every noise level.
+**Why 1000 steps?** The MSE loss over the full trajectory gives a very smooth optimization landscape. You can use fewer steps at inference with DDIM (Chapter 5) — but training still requires 1000 steps to learn a good noise predictor at every noise level.
 
 ---
 
-## 8 · Common Misconceptions
+## 8 · Connection to Prior Chapters
+
+### From Chapter 1 (Multimodal Foundations)
+
+**What we had**: Understanding that images and text live in separate embedding spaces.
+
+**What we lacked**: A way to *generate* images, not just embed them.
+
+**What this chapter adds**: The forward/reverse diffusion framework → we can now generate new images by learning to denoise Gaussian noise.
+
+---
+
+### From Chapter 2 (Vision Transformers)
+
+**What we had**: ViT architecture for encoding images into embeddings.
+
+**What we lacked**: ViTs encode, they don't generate.
+
+**What this chapter adds**: U-Net architecture (convolutional + attention) specialized for denoising → spatial structure preservation needed for pixel-level generation.
+
+---
+
+### From Chapter 3 (CLIP)
+
+**What we had**: Text and image embeddings aligned in shared space → we can search for images matching text.
+
+**What we lacked**: CLIP retrieves existing images, doesn't create new ones.
+
+**What this chapter adds**: DDPM generates entirely new images. The bridge: next chapter (Latent Diffusion) will condition DDPM on CLIP text embeddings → text→image generation.
+
+---
+
+### To Chapter 5 (Schedulers)
+
+**What we have now**: DDPM generates coherent images but requires 1000 denoising steps → 5 minutes per image.
+
+**What we still need**: Faster sampling without retraining the model.
+
+**What next chapter adds**: DDIM and DPM-Solver reinterpret the diffusion process as an ODE → solve it in 20-50 steps → 20× speedup → <30 seconds per image (hitting **Constraint #2 SPEED**).
+
+---
+
+### Common Misconceptions (Clarified Here)
 
 **"The U-Net predicts the clean image $x_0$"**
-It predicts the noise $\boldsymbol{\epsilon}$. You can reparameterise to predict $x_0$ (x-prediction parameterisation), but the standard DDPM paper and most implementations use noise prediction. The two are mathematically equivalent given $x_t$, but noise prediction tends to train more stably.
+It predicts the noise $\boldsymbol{\epsilon}$. You can reparameterize to predict $x_0$ (x-prediction parameterization), but the standard DDPM paper and most implementations use noise prediction. The two are mathematically equivalent given $x_t$, but noise prediction tends to train more stably.
 
 **"Diffusion models are slow because they need 1000 steps"**
-Training requires 1000 steps. Inference with DDIM or DPM-Solver can generate images in 20–50 steps with nearly identical quality. Chapter 6 covers this in full.
+*Training* requires 1000 steps. *Inference* with DDIM or DPM-Solver can generate images in 20–50 steps with nearly identical quality. Chapter 5 covers this in full.
 
 **"More noise steps always means better quality"**
 Beyond a certain threshold (typically T=1000), adding more steps gives diminishing returns. The quality is determined primarily by the U-Net capacity, training data, and loss weighting — not just T.
@@ -311,39 +447,137 @@ GANs are faster at inference but harder to train (mode collapse, training instab
 
 ---
 
-## 10 · Progress Check — What Have We Unlocked?
+## 10 · Further Reading
+
+### Foundational Papers
+
+1. **Sohl-Dickstein et al. (2015)** — *"Deep Unsupervised Learning using Nonequilibrium Thermodynamics"*
+   - Original diffusion models paper (ICML 2015)
+   - Introduced forward/reverse process, but didn't achieve strong image quality
+   - https://arxiv.org/abs/1503.03585
+
+2. **Ho, Jain, Abbeel (2020)** — *"Denoising Diffusion Probabilistic Models (DDPM)"*
+   - The breakthrough paper that made diffusion practical
+   - Simplified training objective: predict noise, not image
+   - https://arxiv.org/abs/2006.11239
+
+3. **Song, Ermon (2020)** — *"Score-Based Generative Modeling through Stochastic Differential Equations"*
+   - Continuous-time interpretation of diffusion (score matching)
+   - Unified DDPM and score-based models
+   - https://arxiv.org/abs/2011.13456
+
+---
+
+### Implementation Guides
+
+- **Hugging Face Diffusers**: Official library for diffusion models
+  - https://github.com/huggingface/diffusers
+  - `diffusers` Python package (used in § 5 Production Example)
+
+- **Annotated DDPM**: Line-by-line PyTorch walkthrough
+  - https://nn.labml.ai/diffusion/ddpm/
+  - Educational implementation showing every step
+
+- **Stable Diffusion Code**: Production implementation
+  - https://github.com/CompVis/stable-diffusion
+  - See how DDPM scales to text→image generation
+
+---
+
+### VisualForge Engineering Notes
+
+**What we actually use in production**:
+- Training objective: DDPM (this chapter)
+- Sampling method: DDIM 20-step (Chapter 5)
+- Latent space: VAE compression (Chapter 6)
+- Text conditioning: CLIP + cross-attention (Chapter 6)
+
+**What we don't use**:
+- Raw DDPM 1000-step sampling (too slow)
+- Score-based SDE formulation (mathematically elegant, no practical advantage)
+- Continuous-time diffusion (research-only, no production benefit)
+
+---
+
+## 11 · Notebook
+
+> 📓 **Interactive notebook**: [diffusion_models_mnist.ipynb](../notebooks/diffusion_models_mnist.ipynb)
+
+**What you'll implement**:
+1. Forward process: Add noise to MNIST digits across 1000 steps
+2. U-Net architecture: Build a small denoising network (CPU-trainable)
+3. Training loop: Minimize MSE between predicted noise and actual noise
+4. Sampling: Generate new digits from pure Gaussian noise
+
+**Runtime**: ~10 minutes on CPU (MNIST is small enough for demonstration)
+
+**Expected output**: After 5 epochs, you should see coherent handwritten digits generated from random noise.
+
+> ⚠️ **This is an educational notebook** — MNIST digits, not VisualForge product images. The production pipeline (§ 5) uses pretrained Stable Diffusion models. This notebook shows the mechanism; production uses the scaling.
+
+---
+
+## 11.5 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #1 (Quality)**: ❌ Cannot generate images
 - **Constraint #2 (Speed)**: ❌ No generation pipeline
+- **Constraint #4 (Control)**: ❌ No way to specify what to generate
+- **Constraint #6 (Versatility)**: ⚡ Can search/embed images (Ch.3 CLIP), but not create new ones
 - **VisualForge Status**: Can only search existing images, not create new ones
 
 ### After This Chapter
-- **Constraint #1 (Quality)**: ⚡ **3.0/5.0** → DDPM generates coherent images (MNIST proof-of-concept)
-- **Constraint #2 (Speed)**: ❌ **5 minutes per image** → 1000 denoising steps = too slow
+- **Constraint #1 (Quality)**: ⚡ **~3.0/5.0** → DDPM generates coherent images (MNIST proof-of-concept validates mechanism)
+- **Constraint #2 (Speed)**: ❌ **~5 minutes per image** → 1000 denoising steps on laptop CPU (unusable for client reviews)
+- **Constraint #4 (Control)**: ⚡ **~40% unusable** → Random sampling, no text conditioning yet
+- **Constraint #6 (Versatility)**: ⚡ **Text→Image partial** → Can generate images, but not from text descriptions
 - **VisualForge Status**: Generation works but unusable (5 min vs <30s target)
 
 ---
 
 ### Key Wins
 
-1. **Forward process**: Analytically jump to any noisy step $t$ in closed form: $x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon$
-2. **Reverse process**: U-Net learns to predict noise $\epsilon_\theta(x_t, t)$, not the image directly → more stable than GANs
-3. **Proof-of-concept**: DDPM generates plausible MNIST digits → generative capability validated
+1. **Forward process**: Analytically jump to any noisy step $t$ in closed form: $x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon$ → enables efficient training
+2. **Reverse process**: U-Net learns to predict noise $\epsilon_\theta(x_t, t)$, not the image directly → more stable training than GANs (no mode collapse)
+3. **Proof-of-concept**: DDPM generates plausible MNIST digits → generative capability validated, ready to scale
+4. **Training stability**: Simple MSE loss, no adversarial game → deterministic training, reproducible results
 
 ---
 
 ### What's Still Blocking Production?
 
-**Speed bottleneck**: 1000 denoising steps = **5 minutes per image** on laptop. Clients need <30 seconds for real-time review calls. 1000 steps were needed for *training* (fine-grained gradients), but inference can skip steps if we solve the underlying ODE more efficiently.
+**Speed bottleneck**: 1000 denoising steps = **5 minutes per image** on laptop. Clients need <30 seconds for real-time review calls. The client sits on Zoom waiting while you generate variations — 5 minutes per iteration is unusable. 1000 steps were needed for *training* (smooth loss landscape), but inference can skip steps if we solve the underlying ODE more efficiently.
 
-**Next unlock (Ch.5)**: **Schedulers (DDIM, DPM-Solver)** — reduce steps from 1000 → 20-50 without retraining, achieving 30-60s generation (20× speedup).
+**Next unlock (Ch.5)**: **Schedulers (DDIM, DPM-Solver)** — reinterpret diffusion as ODE, solve in 20-50 steps without retraining → 30-60s generation (20× speedup, hitting **Constraint #2 target**).
 
 ---
 
-## 11 · What's Next
+### VisualForge Status — Full Constraint View
 
-→ **[GuidanceConditioning.md](../guidance_conditioning/guidance-conditioning.md)** — PixelSmith v3 generates unconditional MNIST images. PixelSmith v4 will generate images from text prompts. The bridge is **guidance**: conditioning the denoising process on an additional signal (a text embedding from CLIP) so that the final image reflects your prompt. This requires classifier-free guidance (CFG) — the mechanism that makes "guidance scale 7.5" produce sharper, more prompt-aligned images than "guidance scale 1.0".
+| Constraint | Ch.1 | Ch.2 | Ch.3 | Ch.4 (This) | Target |
+|------------|------|------|------|-------------|--------|
+| Quality | ❌ | ❌ | ❌ | ⚡ 3.0/5.0 | 4.0/5.0 |
+| Speed | ❌ | ❌ | ❌ | ❌ 5 min | <30s |
+| Cost | ❌ | ❌ | ❌ | ❌ | <$5k |
+| Control | ❌ | ❌ | ⚡ Text search | ⚡ 40% unusable | <5% |
+| Throughput | ❌ | ❌ | ❌ | ❌ ~10/day | 100+/day |
+| Versatility | ❌ | ⚡ Embeddings | ⚡ Search | ⚡ Generate | 3 modalities |
+
+**Legend**: ❌ Not addressed | ⚡ Foundation laid | ✅ Target hit
+
+---
+
+## Bridge to Chapter 5
+
+**What we proved**: Diffusion models can generate coherent images. The forward→reverse process works. Training is stable. Quality at proof-of-concept level (MNIST digits) validates the mechanism.
+
+**What's broken**: 1000 denoising steps = **5 minutes per 28×28 MNIST digit**. Scaling to 512×512 VisualForge product images = 20+ minutes. The client hangs up the call. You lose the contract.
+
+**The insight**: DDPM training requires 1000 steps to learn fine-grained noise prediction at every noise level. But *sampling* doesn't need to visit every step — we're solving a continuous ODE, and ODEs can be solved with adaptive step sizes. DDIM (Denoising Diffusion Implicit Models) reinterprets the noise schedule as an ODE and skips 95% of the steps.
+
+**Next chapter**: **Schedulers** — DDIM, DPM-Solver, and the engineering that makes diffusion fast enough for production. 1000 steps → 50 steps → 20 steps. 5 minutes → 30 seconds → 8 seconds. The same trained model, just smarter sampling.
+
+→ **[Schedulers](../schedulers/schedulers.md)** — Fast sampling without retraining.
 
 ## Illustrations
 

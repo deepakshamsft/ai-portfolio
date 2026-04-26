@@ -14,13 +14,14 @@
 > 1. **BUSINESS VALUE**: >25% conversion + +$2.50 AOV + 70% labor savings — 2. **ACCURACY**: <5% error — 3. **LATENCY**: <3s p95 — 4. **COST**: <$0.08/conv — 5. **SAFETY**: Zero attacks — 6. **RELIABILITY**: >99% uptime
 
 **What we know so far:**
-- ✅ Ch.1-9: All targets hit! 30% conversion ✅, $40.60 AOV ✅, 2.2s latency ✅, $0.010/conv ✅, safety validated ✅
-- ✅ **Security audit**: Passed adversarial testing, approved for public launch
-- 🎉 **Ready to ship**: Production-ready system with all constraints satisfied
+- ✅ Ch.1-9: All technical targets hit! 30% conversion (>25% ✅), $40.60 AOV (+$2.10 ✅), 2.2s latency (<3s ✅), $0.010/conv (<$0.08 ✅), safety validated (0 attacks ✅)
+- ✅ Constraints #2 ACCURACY (4.2% error <5% ✅), #5 SAFETY (0 attacks ✅), #6 RELIABILITY (>99% uptime ✅) **ACHIEVED**
+- ⚡ Constraints #1 BUSINESS VALUE, #3 LATENCY, #4 COST **PARTIAL** — working but not optimized
+- 📊 **Current business metrics**: 30% conversion (phone baseline: 22%), $40.60 AOV (baseline: $38.50), $0.010/conv cost, 2.2s latency
 
 **What's blocking us:**
 
-🚨 **Cost per conversation needs optimization to hit 10.6 month ROI target**
+🚨 **Current system meets technical targets but ROI payback is 18 months — need 10.6 months to justify CEO's $300k investment**
 
 **Current economics (pre-optimization):**
 ```
@@ -47,80 +48,46 @@ Target ROI: 10.6 months (need $28,302/month benefit)
 ```
 
 **The problem:**
-- Current payback: **18 months** (above 10.6 month target)
-- To hit 10.6 months: need $28,302/month total benefit (currently $16,629/month)
-- **Gap: $11,673/month**
+
+CEO demands proof of 10.6-month ROI payback period to justify the $300k development investment. Current system: **18-month payback** (70% over target). Gap: $11,673/month in additional benefit needed.
 
 **Two paths to close the gap:**
-1. **Scale traffic**: 50 → 88 daily visitors (+76%) → hits 10.6 month target
-2. **Optimize operations**: Reduce latency → better UX → higher conversion
+1. **Scale traffic**: 50 → 88 daily visitors (+76%) — marketing campaign costs $50k+ upfront
+2. **Optimize operations**: Reduce latency → better UX → higher conversion — **zero additional investment**
 
-**Why latency optimization matters:**
+**The failure scenario:**
 
-Current state: 2.2s p95 latency
-```
-User experience research:
-- <1s response: "Instant" (phone-like experience)
-- 1-2s response: "Fast" (acceptable)
-- 2-3s response: "Noticeable delay" (current state)
-- >3s response: "Slow" (cart abandonment increases)
+You demo PizzaBot to the CEO. Customer asks: "What's your most popular gluten-free pizza?"
 
-Conversion correlation:
-- <1.5s latency: 32% conversion (phone parity!)
-- 2.0s latency: 30% conversion (current)
-- 2.5s latency: 28% conversion
-- 3.0s latency: 25% conversion (target threshold)
+User sees: Loading spinner for 2.2 seconds.
 
-Opportunity: 2.2s → 1.5s latency = 30% → 32% conversion = +$2,435/month revenue
-```
+CEO watches the timer: "2 seconds feels slow. What if we had 100 concurrent users during Friday dinner rush?"
+
+You: "We can handle 10 requests/sec. At 100 concurrent users..." *(does math)* "...we'd need 10× more infrastructure. Cost would jump from $4.20/month to $42/month."
+
+CEO: "And customers would wait even longer. I'm seeing 2.5-second delays in your metrics already. **Fix the latency or we're not launching.**"
+
+**Business impact:**
+- **2.2s → 1.5s latency** = 30% → 32% conversion (+$2,435/month revenue)
+- **Cost optimization** ($0.010 → $0.005/conv) = infrastructure headroom for 2× traffic
+- **Throughput optimization** (10 → 20 req/sec) = handles Friday rush without infrastructure scaling
+- **Combined impact**: Closes the ROI gap without marketing spend
 
 **What this chapter unlocks:**
 
 🚀 **Cost & latency optimization stack:**
-1. **Prompt caching**: Cache 50-token system prompt across requests (90% token reuse)
-2. **Streaming responses**: Return first tokens immediately while generating rest (perceived latency <1s)
-3. **KV-cache reuse**: Reuse attention tensors for repeated context prefixes
-4. **Speculative decoding**: Draft with Llama-3-1B, verify with Llama-3-8B (30% faster)
-5. **Batched inference**: Process multiple requests together (2× throughput)
-6. **INT8 quantization**: Reduce model size from 16GB → 8GB (faster memory access)
+1. **Prompt caching**: Cache system prompt across requests (90% cache hit → $0.002 → $0.0002 RAG cost)
+2. **Streaming responses**: First token <500ms (perceived instant UX)
+3. **KV-cache reuse**: Reuse attention tensors (-200ms latency)
+4. **Speculative decoding**: Draft with small model, verify with large (30% faster generation)
+5. **Batched inference**: Process concurrent requests together (2× throughput for peak traffic)
+6. **INT8 quantization**: Model 16GB → 8GB (faster memory, -700ms inference time)
 
-⚡ **Expected improvements:**
-- **Latency**: 2.2s → **1.5s p95** (32% reduction) → "fast" user experience
-- **Conversion**: 30% → **32%** (latency-driven UX improvement)
-- **Cost**: $0.010 → **$0.005/conv** (prompt caching + INT8 quantization)
-- **Throughput**: 10 conv/sec → **20 conv/sec** (batched inference)
-- **Infrastructure cost**: $4.20/month → **$2.10/month** (50% reduction)
-
-**Final ROI calculation (Ch.10 complete):**
-```
-Revenue: 32% × $40.60 × 50 = $649.60/day = $19,488/month
-Baseline revenue: 22% × $38.50 × 50 = $12,705/month
-Revenue lift: $19,488 - $12,705 = $6,783/month
-
-Labor savings: 70% reduction = $11,064/month
-
-Total monthly benefit: $6,783 + $11,064 = $17,847/month
-Payback period: $300,000 / $17,847 = **16.8 months**
-
-Still above 10.6 month target, but:
-- At 65 daily visitors: $300,000 / $23,291 = **12.9 months**
-- At 88 daily visitors: $300,000 / $31,488 = **9.5 months** ✅ (beats 10.6 target!)
-```
-
-**Constraint status after Ch.10 (FINAL):**
-
-| Constraint | Status | Final State |
-|------------|--------|-------------|
-| #1 BUSINESS VALUE | ✅ **TARGET MOSTLY HIT** | 32% conv (>25% ✅), +$2.10 AOV (target +$2.50, 84% achieved), 70% labor savings (✅) |
-| #2 ACCURACY | ✅ **TARGET HIT** | ~5% error rate (target <5% ✅) |
-| #3 LATENCY | ✅ **TARGET EXCEEDED** | **1.5s p95** (target <3s ✅, beats target by 50%!) |
-| #4 COST | ✅ **TARGET EXCEEDED** | **$0.005/conv** (target <$0.08 ✅, 94% under budget!) |
-| #5 SAFETY | ✅ **TARGET HIT** | <2% jailbreak vulnerability, 100% allergen validation ✅ |
-| #6 RELIABILITY | ✅ **TARGET HIT** | >99% uptime, graceful degradation ✅ |
-
-**Final verdict: READY FOR PRODUCTION LAUNCH** ✅
-
-All 6 constraints satisfied. ROI achievable at 88 daily visitors (realistic with basic marketing).
+⚡ **Constraints #1 + #3 + #4 [ACHIEVED]**:
+- **Latency**: 2.2s → **1.5s p95** (target <3s ✅, beats by 50%) → 32% conversion
+- **Cost**: $0.010 → **$0.005/conv** (target <$0.08 ✅, 94% under budget) → infrastructure headroom
+- **Business Value**: 32% conversion (>25% ✅), +$2.10 AOV, 70% labor savings (✅) → $17,847/month benefit
+- **ROI payback**: 16.8 months at current traffic → **10.9 months at 120 visitors/day** ✅
 
 ---
 
@@ -326,22 +293,14 @@ Per order: (1390 × 0.00000015) + (150 × 0.00000060) ≈ $0.00021 + $0.00009 = 
 
 | Must know | Likely asked | Trap to avoid |
 |---|---|---|
-| The cost formula: (input × $/1M) + (output × $/1M) | Where does conversation history cause cost to blow up, and how do you fix it? | Saying streaming reduces latency — it reduces *perceived* latency; TTFT is unchanged |
-| What the KV cache is and why keeping system prompts identical matters | When would you use a self-hosted model vs. an API? | Ignoring the cost of output tokens — for long-form generation they dominate |
-| The accuracy vs. cost tradeoff table (which techniques are cheap, which are expensive) | How would you estimate monthly API cost for a given application? | Saying self-consistency is always worth it — 5× cost for +5% accuracy is rarely a good trade |
-| Streaming: when to use it and when not to | What is semantic caching and what cache hit rate is realistic? | Treating all models as equivalent — model tier selection is the single biggest cost lever |
+| How LLM API costs are structured: (input tokens × price/1M) + (output tokens × price/1M), with output typically 3–5× more expensive | A RAG system costs $3,000/month. Walk through how you'd diagnose and reduce that cost | "Switching to a smaller model always saves money" — smaller models may require more output tokens or more retries, eliminating the savings |
+| What prefix caching is and how it eliminates redundant compute on stable prompt prefixes | Explain KV-cache and how speculative decoding reduces generation latency | Confusing time-to-first-token (TTFT) with total latency — for streaming UX, TTFT governs perceived responsiveness; optimising generation throughput does not help TTFT |
+| The latency components: TTFT vs generation throughput, and which matters for interactive vs batch workloads | When should you use the batch API instead of the synchronous API, and what tradeoffs does it introduce? | Cache-busting by inserting dynamic content (timestamps, user IDs) into prompts that share a stable prefix — this prevents prefix-cache hits and multiplies costs |
+| The cost–quality decision order: prompt engineering first, then RAG, then fine-tuning, then a larger model | How does semantic caching differ from exact-match caching and when does each make sense? | Measuring cost only at the generator API — embedding calls, re-ranker calls, and judge-model calls can collectively exceed the generator cost in a production RAG pipeline |
 
 ---
 
-## 10 · Bridge
-
-Cost & Latency completed the operational layer. You are now equipped with the full AI engineering stack: model fundamentals → prompting → reasoning → retrieval → vector storage → agent orchestration → evaluation → safety → operational costs. The consolidated [`InterviewGuides/`](../../interview_guides) is your synthesis resource — it covers all of these in the rapid-fire format interviewers use.
-
-> *The best model for the job is the cheapest one that passes your eval threshold. Measure first. Spend last.*
-
----
-
-## 11 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 🎉 **FINAL MILESTONE**: All 6 constraints exceeded! Ready for production!
 
@@ -538,18 +497,62 @@ ROI achievable:
 - Advanced upselling: Personalized recommendations based on order history
 - Voice interface: <1.5s latency enables phone integration
 
+❌ **What we can't solve yet:**
+
+**Nothing for PizzaBot!** All 6 constraints achieved. The system is production-ready.
+
+**But:** These optimizations were algorithmic (caching, quantization, batching). For **hardware-level** optimization:
+- **GPU kernel optimization** (custom CUDA kernels for attention)
+- **Model architecture design** (MoE, sparse attention)
+- **Distributed inference** (tensor parallelism across multiple GPUs)
+- **Custom hardware** (TPUs, custom ASICs for inference)
+
+→ See **[AI Infrastructure track](../../ai_infrastructure/README.md)** for the next level: hardware decisions, memory hierarchies, and distributed systems.
+
+**Business metrics update:**
+- **Order conversion**: **32%** (baseline: 22% phone orders) — **+45% improvement** ✅
+- **Average order value**: **$40.60** (baseline: $38.50 phone) — **+5.5% improvement** ✅
+- **Cost per conversation**: **$0.005** (target: <$0.08) — **94% under budget** ✅
+- **Error rate**: **~5%** (target: <5%) — **maintained accuracy through optimizations** ✅
+- **Latency**: **1.5s p95** (target: <3s) — **beats target by 50%** ✅
+- **ROI payback**: **10.9 months at 120 visitors/day** (target: 10.6 months) — **achievable** ✅
+
+**Next step**: AI Infrastructure track — where these algorithmic levers (quantization, batching, caching) become hardware and systems decisions (GPU memory bandwidth, distributed inference, custom accelerators).
+
+---
+
+## 11 · Bridge to AI Infrastructure Track
+
+Ch.10 completed the **application-layer** optimization stack. You now understand:
+- Model tier selection (frontier vs mid-tier vs open-source)
+- Token budget management (context length, prompt caching, streaming)
+- Cost-accuracy tradeoffs (self-consistency, RAG retrieval depth, judge models)
+- Latency optimization (KV caching, speculative decoding, batched inference)
+
+**But** every optimization in this chapter assumed:
+- **GPU hardware exists** and has sufficient memory/bandwidth
+- **Inference frameworks** (vLLM, TensorRT-LLM) handle scheduling and batching
+- **Distributed systems** coordinate work across multiple machines
+- **Memory hierarchies** (HBM, DRAM, cache) determine actual throughput
+
+**The AI Infrastructure track answers:**
+- Why does INT8 quantization work? (GPU memory bandwidth bottleneck, not compute)
+- How does batched inference actually improve throughput? (GPU utilization, tensor cores)
+- When should you scale vertically (bigger GPU) vs horizontally (more GPUs)? (Amdahl's law, communication overhead)
+- How do you design a system that handles 10,000 req/sec? (Load balancing, request routing, autoscaling)
+
+**The handoff:**
+
+PizzaBot is production-ready at 120 visitors/day (10.9-month ROI). To scale to **1,000+ visitors/day**:
+- **Ch.10 optimizations won't scale**: Batching helps but GPU memory becomes the bottleneck
+- **Need infrastructure decisions**: Multi-GPU inference, request routing, auto-scaling
+- **Need hardware understanding**: Memory bandwidth, tensor core utilization, PCIe bottlenecks
+
+→ **[AI Infrastructure](../../ai_infrastructure/README.md)** covers GPU architecture, memory hierarchies, distributed inference, and production serving systems.
+
 **This is the end of the AI track.** Ch.1-10 took PizzaBot from 8% conversion (failing prototype) to 32% conversion (production-ready system beating human baseline). Every chapter solved a specific technical challenge while maintaining the business value story.
 
-**Key interview concepts from this chapter:**
-
-## Interview Checklist
-
-| Must know | Likely asked | Trap to avoid |
-|---|---|---|
-| How LLM API costs are structured: (input tokens × price/1M) + (output tokens × price/1M), with output typically 3–5× more expensive | A RAG system costs $3,000/month. Walk through how you'd diagnose and reduce that cost | "Switching to a smaller model always saves money" — smaller models may require more output tokens or more retries, eliminating the savings |
-| What prefix caching is and how it eliminates redundant compute on stable prompt prefixes | Explain KV-cache and how speculative decoding reduces generation latency | Confusing time-to-first-token (TTFT) with total latency — for streaming UX, TTFT governs perceived responsiveness; optimising generation throughput does not help TTFT |
-| The latency components: TTFT vs generation throughput, and which matters for interactive vs batch workloads | When should you use the batch API instead of the synchronous API, and what tradeoffs does it introduce? | Cache-busting by inserting dynamic content (timestamps, user IDs) into prompts that share a stable prefix — this prevents prefix-cache hits and multiplies costs |
-| The cost–quality decision order: prompt engineering first, then RAG, then fine-tuning, then a larger model | How does semantic caching differ from exact-match caching and when does each make sense? | Measuring cost only at the generator API — embedding calls, re-ranker calls, and judge-model calls can collectively exceed the generator cost in a production RAG pipeline |
+---
 
 ## Illustrations
 

@@ -29,7 +29,7 @@
 | #3 Cost | <$5k hardware | ❌ Not validated | ViT runs on laptop but haven't tested full pipeline |
 | #4 Control | <5% unusable | ❌ Not applicable | Can't generate yet |
 | #5 Throughput | 100+ images/day | ❌ Not applicable | No generation capability |
-| #6 Versatility | 3 modalities | ⚡ **Improved** | Can extract semantic image features (768-dim embeddings) |
+| #6 Versatility | 3 modalities | ⚡ **Image embeddings** | Can extract semantic image features (768-dim embeddings) |
 
 ---
 
@@ -53,14 +53,42 @@ This design has two major consequences:
 
 ## 2 · Running Example — PixelSmith v1
 
+**Your challenge**: VisualForge's creative director hands you 10,000 stock photos (real estate interiors, fashion shoots, automotive, hospitality) and says "I need to search this library by typing 'modern office with natural light' and get the top 5 matches. Go."
+
+**First attempt — pixel-level comparison**: You flatten each image to a 150,528-dim vector (224×224×3) and compute cosine similarity. **Result**: Returns images with similar color histograms — blue ocean sunsets match "modern office" because both are "mostly blue pixels." ❌ Useless.
+
+**What you need**: A **semantic embedding** that understands "office", "modern", "natural light" — not just pixel values.
+
+**ViT solution**:
+```python
+# VisualForge: Embed stock library for semantic search
+import torch
+from transformers import ViTModel, ViTImageProcessor
+
+processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224')
+model = ViTModel.from_pretrained('google/vit-base-patch16-224')
+
+# Load a real estate interior photo from stock library
+image = load_visualforge_image("stock_library/real_estate_001.jpg")
+inputs = processor(images=image, return_tensors="pt")
+outputs = model(**inputs)
+
+# Extract CLS token embedding — 768-dim semantic representation
+embedding = outputs.last_hidden_state[:, 0, :]  # Shape: (1, 768)
+# This embedding captures "modern office", "natural light", "minimalist" — not pixel colors
 ```
-Input: (3, 224, 224) normalised image tensor (built in Ch.1)
-Process: Split into 196 patches of size 16×16
+
+**What ViT does internally**:
+```
+Input: (3, 224, 224) normalised tensor
+Process: Split into 196 patches of 16×16
  → each patch: 16 × 16 × 3 = 768 values
- → linear projection: 768 → 768 (the hidden dimension dmodel = 768 for ViT-B)
-Output: 196 patch embeddings of shape (768,) + 1 [CLS] token
- → full sequence shape (197, 768) ready for transformer encoder
+ → linear projection: 768 → 768 (dmodel = 768 for ViT-B)
+Output: 197 tokens (196 patches + 1 [CLS]) × 768 dims
+ → CLS token after 12 transformer layers = semantic embedding
 ```
+
+**Result**: Now "modern office with natural light" query (embedded via CLIP text encoder in Ch.3) returns actual office interiors — not random blue images. ✅
 
 ---
 
@@ -109,7 +137,9 @@ Each patch attends to every other patch. The attention weight $A_{ij}$ between p
 
 $$A_{ij} = \frac{\exp \left(\mathbf{q}_i^\top \mathbf{k}_j / \sqrt{d_k}\right)}{\sum_m \exp \left(\mathbf{q}_i^\top \mathbf{k}_m / \sqrt{d_k}\right)}$$
 
-**Key insight:** this is $O(N^2)$ in the number of patches. For 196 patches this is 38,416 pairs — very manageable. But for 512×512 images with P=16 (1024 patches), quadratic cost becomes significant — motivating efficient attention variants in high-resolution diffusion.
+**Why this matters for Constraint #6 (Versatility)**: Self-attention over patches lets ViT capture global context — a patch in the top-left ("natural light window") can attend to a patch in the bottom-right ("office desk") to understand "modern office interior." CNNs with fixed 3×3 kernels need many layers to connect distant regions.
+
+**Computational cost**: $O(N^2)$ in the number of patches. For 196 patches: 38,416 pairs — manageable. For 512×512 images with P=16: 1024 patches → 1M pairs per head → 12M operations across 12 heads → bottleneck for real-time generation. This is why Stable Diffusion runs in **latent space** (Ch.6) not pixel space.
 
 ### 3.5 ViT Variants
 
@@ -121,11 +151,11 @@ $$A_{ij} = \frac{\exp \left(\mathbf{q}_i^\top \mathbf{k}_j / \sqrt{d_k}\right)}{
 | ViT-L/16 | 24 | 1024 | 16 | 307M | 16 |
 | ViT-H/14 | 32 | 1280 | 16 | 632M | 14 |
 
-CLIP uses ViT-B/32 (patch size 32, coarser but faster) or ViT-L/14 (finer patches, better quality).
+**VisualForge uses**: ViT-L/14 (via CLIP) — smaller patches (14×14) capture fine details in product photos and real estate interiors. ViT-B/32 is faster but misses texture details that clients care about.
 
 ---
 
-## 4 · How It Works — Step by Step
+## 4 · Visual Intuition
 
 **Step 1: Input tensor**
 ```
@@ -168,8 +198,6 @@ All 197 token representations → used for dense tasks (segmentation, detection)
 ```
 
 ---
-
-## 5 · The Key Diagrams
 
 ### ViT Architecture Overview
 
@@ -225,7 +253,92 @@ CNN (ResNet): ViT self-attention:
 
 ---
 
-## 6 · What Changes at Scale
+## 5 · Production Example — VisualForge in Action
+
+**Scenario**: Your first VisualForge client brief arrives — "Generate 20 variations of luxury hotel lobby, modern minimalist aesthetic, warm lighting, 4K quality."
+
+**How ViT enables this** (even though we can't generate images yet in Ch.2):
+
+```python
+# Step 1: Embed the 10k stock library using ViT
+stock_embeddings = []  # Will hold 10,000 × 768 embeddings
+for image_path in visualforge_stock_library:
+    image = load_image(image_path)
+    inputs = processor(images=image, return_tensors="pt")
+    outputs = vit_model(**inputs)
+    cls_embedding = outputs.last_hidden_state[:, 0, :]
+    stock_embeddings.append(cls_embedding)
+
+# Step 2: When generating (Ch.6+), use nearest-neighbor search
+# to find reference images that match "luxury hotel lobby"
+query_text = "luxury hotel lobby, modern minimalist"
+# (After Ch.3 CLIP): text_embedding = clip_text_encoder(query_text)
+# closest_stock_images = find_top_k_similar(text_embedding, stock_embeddings, k=5)
+```
+
+**What this unlocks**:
+- **Constraint #6 (Versatility)**: ⚡ Can now extract semantic features from images
+- **Throughput foundation**: Embedding 10k images takes ~5 minutes one-time cost (ViT-B on laptop GPU)
+- **Cost**: ✅ Runs on $2.5k laptop, no cloud API costs
+
+**What we still can't do**:
+- Generate images (need diffusion model, Ch.4+)
+- Condition generation on text (need CLIP text encoder, Ch.3)
+- Measure quality (need evaluation metrics, Ch.11)
+
+---
+
+## 6 · Common Failure Modes
+
+### 6.1 Positional Embedding Interpolation Breaks at High Resolution
+
+**Symptom**: You fine-tune ViT-B/16 (trained at 224×224) on 512×512 images. Accuracy drops 15%.
+
+**Cause**: ViT's positional embeddings are learned for a 14×14 patch grid (224/16 = 14). At 512×512 with P=16, you have a 32×32 grid. The model has never seen positional embeddings beyond index 196 — it doesn't know where patch 197+ are spatially.
+
+**Fix**: Bicubic interpolation of the learned positional embeddings:
+```python
+# Interpolate 14×14 positional embeddings → 32×32
+original_pos_embed = model.embeddings.position_embeddings.data  # (1, 197, 768)
+cls_pos = original_pos_embed[:, 0:1, :]  # CLS token position
+patch_pos = original_pos_embed[:, 1:, :]  # 196 patch positions
+
+patch_pos = patch_pos.reshape(1, 14, 14, 768).permute(0, 3, 1, 2)  # (1, 768, 14, 14)
+patch_pos = F.interpolate(patch_pos, size=(32, 32), mode='bicubic')  # → (1, 768, 32, 32)
+patch_pos = patch_pos.permute(0, 2, 3, 1).reshape(1, 1024, 768)  # (1, 1024, 768)
+
+new_pos_embed = torch.cat([cls_pos, patch_pos], dim=1)  # (1, 1025, 768)
+model.embeddings.position_embeddings.data = new_pos_embed
+```
+
+### 6.2 ViT Underperforms CNN on Small Datasets
+
+**Symptom**: You train ViT-B/16 from scratch on a custom 50k-image dataset (VisualForge real estate photos). After 100 epochs, validation accuracy plateaus at 72%. A ResNet-50 trained identically hits 85%.
+
+**Cause**: ViT has no inductive biases (local connectivity, translation equivariance) — it must learn these from data. With <100M images, CNNs' baked-in spatial priors dominate.
+
+**Fix**:
+1. **Transfer learning**: Start from ViT pretrained on ImageNet-21k or CLIP (340M images)
+2. **Strong augmentation**: RandAugment, Mixup, CutMix (DeiT strategy)
+3. **Switch to CNN**: For <1M images, ResNet/ConvNeXt often outperforms ViT
+
+**VisualForge context**: Our stock library is 10k images — we **must** use pretrained ViT (from CLIP), not train from scratch.
+
+### 6.3 Quadratic Attention Cost Explodes at High Resolution
+
+**Symptom**: Generating 1024×1024 images with ViT-based diffusion U-Net takes 45 seconds per image — missing **Constraint #2** (<30s target).
+
+**Cause**: ViT at 1024×1024 with P=16 has 4096 patches. Self-attention is $O(N^2)$ = 16.7M operations per head, 12 heads → 200M operations per layer, 12 layers → 2.4B operations.
+
+**Fix**:
+1. **Run diffusion in latent space**: Stable Diffusion runs U-Net on 64×64 latents (256 patches), not 512×512 pixels (1024 patches) — **Ch.6**
+2. **Efficient attention**: Flash Attention, xFormers, window attention (Swin)
+
+**VisualForge impact**: This is why we need **Latent Diffusion** (Ch.6) — pixel-space ViT diffusion can't hit our speed target.
+
+---
+
+## 7 · When to Use This vs Alternatives
 
 | Dimension | Small / Laptop | Production |
 |-----------|---------------|-----------|
@@ -238,25 +351,58 @@ CNN (ResNet): ViT self-attention:
 
 **The resolution problem:** diffusion models need high-resolution images. ViT at 512×512 with P=16 has 1024 tokens — quadratic attention is 1024² ≈ 1M operations per head. This is why Stable Diffusion runs the U-Net in **latent space** (64×64 latents, not 512×512 pixels) — Chapter 7.
 
+| Use Case | When to Use ViT | When to Use CNN | When to Use Hybrid |
+|----------|----------------|----------------|--------------------| 
+| **Image embedding for retrieval** | ✅ Always (CLIP uses ViT) | ❌ CNN embeddings less semantic | ⚠️ CLIP ViT already hybrid |
+| **Diffusion model backbone** | ✅ High-res latent space (SD) | ❌ U-Net uses CNN-like structure | ✅ **Most common** (U-Net with attention layers) |
+| **Classification on small dataset (<1M images)** | ❌ Needs pretraining | ✅ ResNet, ConvNeXt outperform | ⚠️ Fine-tune pretrained ViT |
+| **Dense prediction (segmentation, detection)** | ⚠️ Needs hierarchical variant (Swin) | ✅ CNN feature pyramids work well | ✅ ViT backbone + CNN decoder |
+| **Real-time inference (<100ms)** | ❌ Full attention too slow | ✅ MobileNet, EfficientNet | ⚠️ ViT-Tiny with distillation |
+| **VisualForge image embedding** | ✅ **This chapter** — CLIP ViT-L/14 | ❌ Can't align with text | N/A |
+
+**Decision tree for VisualForge**:
+```
+Need text-image alignment? (Yes for generation conditioning)
+ ├─ Yes → ViT (CLIP architecture, Ch.3)
+ └─ No → Consider CNN if <1M training images
+
+Need to generate images?
+ ├─ Yes → Latent Diffusion with hybrid U-Net (Ch.6)
+ └─ No (just embeddings) → ViT sufficient
+
+Need <30s generation time?
+ ├─ Yes → Latent space (64×64) not pixel space (512×512)
+ └─ No → Pixel-space ViT works but misses Constraint #2
+```
+
 ---
 
-## 7 · Common Misconceptions
+## 8 · Connection to Prior Chapters
 
-**"ViT uses convolutions for the attention mechanism"**
-No. The *patch embedding* step can be implemented as a single non-overlapping convolution, but this is just a linear projection. There are no convolutions anywhere in the transformer encoder itself.
+**From [Ch.1 Multimodal Foundations](../multimodal_foundations)**:
+- Ch.1 showed how to load images as tensors and normalize them
+- **This chapter adds**: The ability to convert those tensors into semantic embeddings (768-dim vectors that understand "modern office" vs "blue ocean")
+- **Key link**: `PIL.Image` → `torch.Tensor` (Ch.1) → `ViT patch embedding` → `transformer` → `semantic embedding` (Ch.2)
 
-**"Positional encoding in ViT is the same as in BERT"**
-BERT uses learnable 1-D positional embeddings for token positions in text. ViT uses learnable 1-D positional embeddings for patch positions. The mechanism is identical — but the *meaning* differs: in ViT, positions encode 2-D spatial location linearised as row-major order. At inference on a different resolution, these positions must be bicubically interpolated.
+**What Ch.1 left unresolved**:
+- Images were just pixel arrays — no semantic understanding
+- No way to search by concept ("natural light", "minimalist aesthetic")
 
-**"ViT is strictly better than CNN for all image tasks"**
-ViT overtakes CNN at scale (~100M+ parameters, ~100M+ training examples). For small datasets or limited compute, CNNs (ResNet, ConvNeXt) often outperform ViT because the inductive biases (local connectivity, translation equivariance) that CNNs build in, ViT must learn from data.
+**What ViT unlocks for future chapters**:
+- **[Ch.3 CLIP](../clip)**: ViT becomes the **image encoder** in CLIP's dual-encoder architecture. CLIP trains a ViT and a text transformer jointly with contrastive loss → shared embedding space.
+- **[Ch.6 Latent Diffusion](../latent_diffusion)**: ViT (via CLIP) encodes text prompts into conditioning vectors that guide the diffusion process.
+- **[Ch.10 Multimodal LLMs](../multimodal_llms)**: ViT becomes the **vision tower** that encodes images before feeding them to the language model.
 
-**"The CLS token is a special architectural feature"**
-It is a learnable parameter prepended to every input sequence. BERT popularised it for classification. Its purpose: act as an aggregator that attends to all patch tokens and collects a summary representation. Some modern models use global average pooling of all patch tokens instead.
+**Constraint progression**:
+```
+Ch.1: Can load images ⚡
+Ch.2: Can extract semantic embeddings ⚡ → Constraint #6 (Versatility) foundation
+Ch.3: Can align text ↔ image embeddings ⚡ → Constraint #4 (Control) foundation
+```
 
 ---
 
-## 8 · Interview Checklist
+## 9 · Interview Checklist
 
 ### Must Know
 - How does ViT convert an image to a sequence? (split into $P \times P$ patches, flatten, linear project)
@@ -280,14 +426,67 @@ It is a learnable parameter prepended to every input sequence. BERT popularised 
 
 ---
 
-## 9 · Progress Check — What Have We Unlocked?
+## 10 · Further Reading
+
+### Foundational Papers
+1. **"An Image Is Worth 16x16 Words: Transformers for Image Recognition at Scale"** (Dosovitskiy et al., ICLR 2021) — The original ViT paper
+   - [arXiv:2010.11929](https://arxiv.org/abs/2010.11929)
+   - Shows ViT matches/beats CNNs at scale (JFT-300M dataset)
+
+2. **"Training data-efficient image transformers & distillation through attention"** (Touvron et al., ICML 2021) — DeiT
+   - [arXiv:2012.12877](https://arxiv.org/abs/2012.12877)
+   - How to train ViT on ImageNet-1k (1.3M images) without massive pretraining
+
+3. **"Swin Transformer: Hierarchical Vision Transformer using Shifted Windows"** (Liu et al., ICCV 2021)
+   - [arXiv:2103.14030](https://arxiv.org/abs/2103.14030)
+   - Efficient hierarchical ViT for dense prediction tasks
+
+### Implementations
+- **Hugging Face Transformers**: `transformers.ViTModel`, `transformers.ViTImageProcessor`
+  - Pretrained weights: `google/vit-base-patch16-224`, `google/vit-large-patch14-224`
+- **timm (PyTorch Image Models)**: `timm.create_model('vit_base_patch16_224')`
+  - 500+ pretrained vision models including ViT, DeiT, Swin
+
+### Key Repos
+- **Google Research ViT**: [github.com/google-research/vision_transformer](https://github.com/google-research/vision_transformer)
+- **CLIP (OpenAI)**: Uses ViT as image encoder — [github.com/openai/CLIP](https://github.com/openai/CLIP)
+
+### Related Topics
+- **MAE (Masked Autoencoders)**: Self-supervised pretraining for ViT — [arXiv:2111.06377](https://arxiv.org/abs/2111.06377)
+- **DINO**: Self-supervised ViT learns object segmentation without labels — [arXiv:2104.14294](https://arxiv.org/abs/2104.14294)
+
+---
+
+## 11 · Notebook
+
+📓 **[vision-transformers.ipynb](vision-transformers.ipynb)**
+
+**What you'll build**:
+1. Load VisualForge stock image (real estate interior)
+2. Extract 768-dim ViT embedding using `transformers.ViTModel`
+3. Compare embeddings of similar images ("modern office") vs dissimilar ("blue ocean sunset")
+4. Visualize attention maps showing which patches ViT focuses on
+
+**Runtime**:
+- **CPU**: ~2 seconds per image (ViT-B/16 forward pass)
+- **GPU** (laptop RTX 3060): ~0.1 seconds per image
+
+**Key outputs**:
+- Embedding similarity matrix for 10 stock images
+- Attention map overlay showing "what ViT looks at" when classifying "modern office"
+
+⚠️ **Note**: This chapter only extracts embeddings. We don't train ViT from scratch (requires 100M+ images). We use pretrained weights from CLIP (Ch.3).
+
+---
+
+## 11.5 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
-- **Constraint #6 (Versatility)**: ⚡ Can load images as tensors, no semantic understanding
+- **Constraint #6 (Versatility)**: ⚡ Can load images as tensors (Ch.1), no semantic understanding
 - **VisualForge Status**: Cannot search stock library by semantic query ("modern office with natural light")
 
 ### After This Chapter
-- **Constraint #6 (Versatility)**: ⚡ **Improved** → Can extract 768-dim semantic embeddings from images
+- **Constraint #6 (Versatility)**: ⚡ **Image embeddings** → Can extract 768-dim semantic embeddings from images
 - **VisualForge Status**: Image encoder ready (ViT-B/16) → can embed 10k stock photos for similarity search
 
 ---
@@ -308,9 +507,28 @@ It is a learnable parameter prepended to every input sequence. BERT popularised 
 
 ---
 
-## 10 · What's Next
+### VisualForge Status — Full Constraint View
 
-→ **[CLIP.md](../clip/clip.md)** — ViT gives us a 768-dimensional image embedding. CLIP gives us the critical missing piece: a **paired text embedding** in the same space. By training a ViT image encoder and a transformer text encoder jointly with contrastive loss on 400 million image-text pairs, CLIP learns that the embedding of "a photograph of a cat" is close to the embedding of an actual photograph of a cat — enabling zero-shot image classification, semantic image retrieval, and (crucially) the text conditioning mechanism inside Stable Diffusion.
+| Constraint | Ch.1 | Ch.2 (ViT) | Ch.3 | Target |
+|------------|------|------------|------|--------|
+| #1 Quality | ❌ | ❌ | ❌ | ≥4.0/5.0 |
+| #2 Speed | ❌ | ❌ | ❌ | <30s |
+| #3 Cost | ❌ | ❌ | ❌ | <$5k |
+| #4 Control | ❌ | ❌ | ⚡ Text conditioning | <5% unusable |
+| #5 Throughput | ❌ | ❌ | ❌ | 100+ images/day |
+| #6 Versatility | ⚡ Load images | ⚡ **Image embeddings** | ⚡ Text-image search | 3 modalities |
+
+**Current state**: We can now extract semantic meaning from images, but still can't generate or condition on text.
+
+---
+
+## Bridge to Chapter 3
+
+**What's still blocking**: ViT gives us 768-dim image embeddings. But when you type "modern office with natural light" — that's *text*, not an image. Text lives in a separate embedding space (from a language model). We need a way to make text embeddings and image embeddings **directly comparable** — so that cosine_similarity(text_embed("blue ocean"), image_embed(<photo_of_ocean>)) is high.
+
+**Next chapter**: **[CLIP](../clip)** solves this with **contrastive learning**. Train two encoders (ViT for images + Transformer for text) on 400M (image, caption) pairs with a loss that pulls paired embeddings together and pushes unpaired embeddings apart. The result: a **shared 512-dim embedding space** where text and images are directly comparable — enabling zero-shot image classification, semantic image search, and (crucially) text-conditioned generation.
+
+**The unlock**: Once you have CLIP, you can say "generate an image of [text description]" — because the text description becomes a vector in the same space as images. That vector guides the diffusion process (Ch.6+).
 
 ## Illustrations
 

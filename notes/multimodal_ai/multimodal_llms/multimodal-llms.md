@@ -109,26 +109,68 @@ For interleaved documents (text...image...text...image...):
 
 Flamingo (DeepMind, 2022) uses "gated cross-attention" dense layers inserted every $k$ LLM layers to inject visual features. The gating prevents early training instability.
 
-## 4 · How It Works — Step by Step
+## 4 · Visual Intuition — How It Works Step by Step
 
-### LLaVA-1.5 Inference
+### The Core Flow
 
-1. Image → CLIP ViT-L/14 → 576 visual tokens (each 1024-dim)
-2. 576 × 1024 → two-layer MLP → 576 × 4096 (LLaMA-2 7B dimension)
-3. Tokenise instruction: "Describe this image" → token IDs → LLaMA-2 embedding layer → `[N_text × 4096]`
-4. Concatenate: `[576 visual tokens | N_text text tokens]`
-5. LLaMA-2 decoder autoregressively generates response tokens
-6. Each response token can attend to all 576 visual tokens + all previous tokens
+A multimodal LLM connects vision to language through three stages: **encode** (image → visual tokens), **project** (visual space → LLM space), **generate** (autoregressive text output attending over visual + text tokens).
 
-### BLIP-2 Inference
+**LLaVA Architecture:**
 
-1. Image → ViT-g/14 (1.2B params, frozen) → 256 visual tokens
-2. Q-Former (12 layers, 32 query tokens) → 32 compressed visual tokens
-3. Linear projection → 32 × 4096 (LLM dimension)
-4. FlanT5-XL or OPT-6.7B receives the 32 visual tokens as a soft prompt prefix
-5. Decode response
+```
+ 224×224 image
+ │
+ [ViT-L/14, FROZEN]
+ │
+ 576 × 1024 visual tokens
+ │
+ [Linear Projection / 2-layer MLP, TRAINED]
+ │
+ 576 × 4096 visual tokens (in LLaMA-2 embed space)
+ │ ┌──────────────────────────┐
+ └────────▶│ LLaMA-2 7B (TRAINED) │◀──── "Question: What's in the photo?"
+ │ [32 transformer layers] │
+ └──────────────────────────┘
+ │
+ "A cat sitting on..."
+```
 
-Why fewer tokens? The LLM's KV-cache memory scales quadratically with sequence length. 32 tokens instead of 256 saves 64× memory at the visual prefix.
+**BLIP-2 Architecture:**
+
+```
+ image → [ViT-g, FROZEN] → 256 tokens
+ │
+ [Q-Former, TRAINED] ← 32 learnable query tokens
+ │
+ 32 × d_q tokens (compressed)
+ │
+ [Linear, TRAINED]
+ │
+ 32 × d_LLM tokens
+ │
+ [FlanT5 / OPT, FROZEN or TRAINED]
+ │
+ text response
+```
+
+### LLaVA-1.5 Inference — Step by Step
+
+1. **Image → CLIP ViT-L/14** → 576 visual tokens (each 1024-dim)
+2. **576 × 1024 → two-layer MLP** → 576 × 4096 (LLaMA-2 7B dimension)
+3. **Tokenise instruction**: "Describe this image" → token IDs → LLaMA-2 embedding layer → `[N_text × 4096]`
+4. **Concatenate**: `[576 visual tokens | N_text text tokens]`
+5. **LLaMA-2 decoder** autoregressively generates response tokens
+6. **Each response token** can attend to all 576 visual tokens + all previous tokens
+
+### BLIP-2 Inference — Step by Step
+
+1. **Image → ViT-g/14** (1.2B params, frozen) → 256 visual tokens
+2. **Q-Former** (12 layers, 32 query tokens) → 32 compressed visual tokens
+3. **Linear projection** → 32 × 4096 (LLM dimension)
+4. **FlanT5-XL or OPT-6.7B** receives the 32 visual tokens as a soft prompt prefix
+5. **Decode response**
+
+💡 **Insight:** Why fewer tokens? The LLM's KV-cache memory scales quadratically with sequence length. 32 tokens instead of 256 saves 64× memory at the visual prefix — critical for long document understanding.
 
 ---
 
@@ -184,48 +226,188 @@ print(result)
 | Product in focus | 89% ⚡ | Auto-reject; add sharpness prompt |
 | No logos/watermarks | 99% ✅ | Flag for legal review if fail |
 
+## 6 · Common Failure Modes
+
+### 1. Visual Hallucination — "I see things that aren't there"
+
+**Symptom**: The model describes objects, text, or details not present in the image.
+
+**Example**: Product image shows a blue sneaker. VLM captions: "Red running shoe with white laces and Nike swoosh logo." (Wrong color, hallucinated logo.)
+
+**Why it happens**: The LLM's strong language prior overpowers weak visual grounding. If visual tokens are noisy or the projection layer undertrained, the LLM defaults to plausible-sounding but incorrect descriptions.
+
+**Fix**:
+- Use higher-resolution vision encoder (336px → 448px)
+- Train projection layer longer (LLaVA-1.5: 1 epoch visual instruction tuning → 3 epochs)
+- Use grounding-augmented training data (bounding boxes, OCR annotations)
+
+**VisualForge impact**: 8% of QA checks initially returned "yes, background is white" for non-white backgrounds. Retraining with VisualForge-specific product images reduced false positives to 2%.
+
 ---
 
-## 6 · The Key Diagrams
+### 2. Spatial Reasoning Failures — "Left? Right? I'm confused."
 
-```
-LLaVA Architecture:
+**Symptom**: Model fails to correctly answer "Is the product on the left or right?" or "How many items are visible?"
 
- 224×224 image
- │
- [ViT-L/14, FROZEN]
- │
- 576 × 1024 visual tokens
- │
- [Linear Projection / 2-layer MLP, TRAINED]
- │
- 576 × 4096 visual tokens (in LLaMA-2 embed space)
- │ ┌──────────────────────────┐
- └────────▶│ LLaMA-2 7B (TRAINED) │◀──── "Question: What's in the photo?"
- │ [32 transformer layers] │
- └──────────────────────────┘
- │
- "A cat sitting on..."
+**Example**: Two products side-by-side. Question: "Which product is on the left?" VLM: "The one on the right." (Incorrect.)
 
+**Why it happens**: ViT patch embeddings lose fine-grained spatial information. The model sees "two products" but struggles with relative positioning.
 
-BLIP-2 Architecture:
+**Fix**:
+- Add spatial position embeddings (coordinate tokens)
+- Use Chain-of-Thought prompting: "First, identify the products. Then, determine their positions."
+- Fine-tune on spatial reasoning datasets (e.g., GQA, CLEVR)
 
- image → [ViT-g, FROZEN] → 256 tokens
- │
- [Q-Former, TRAINED] ← 32 learnable query tokens
- │
- 32 × d_q tokens (compressed)
- │
- [Linear, TRAINED]
- │
- 32 × d_LLM tokens
- │
- [FlanT5 / OPT, FROZEN or TRAINED]
- │
- text response
-```
+**VisualForge impact**: Spatial questions initially 65% accurate. Adding CoT prompting improved to 82%.
 
-## 7 · What Changes at Scale
+---
+
+### 3. Small Text / OCR Failures — "I can't read that"
+
+**Symptom**: Model cannot read small text, price tags, or labels in product images.
+
+**Example**: Product has visible price tag "$49.99". Question: "What's the price?" VLM: "I cannot see a price in this image."
+
+**Why it happens**: Vision encoder resolution too low (224px), or model not trained on OCR-heavy datasets.
+
+**Fix**:
+- Use higher-resolution encoder (448px or variable resolution like Qwen2-VL)
+- Train on document understanding datasets (DocVQA, TextVQA)
+- Preprocess image: crop to text region before VLM inference
+
+**VisualForge impact**: OCR capability not critical for initial workflow (QA focuses on composition, not text). Flagged for future if clients need automatic price/SKU verification.
+
+---
+
+### 4. Long Context Degradation — "I forgot the beginning"
+
+**Symptom**: With multiple images + long conversation history, model forgets earlier visual context.
+
+**Example**: Show 5 product variants, then ask: "Which of these 5 had the blue background?" VLM: "I don't see 5 products."
+
+**Why it happens**: LLM context window fills up (576 visual tokens × 5 images = 2880 tokens). Older tokens get evicted or attention diffuses.
+
+**Fix**:
+- Use models with longer context windows (Gemini 1.5 Pro: 1M tokens)
+- Use Q-Former compression (576 tokens → 32 tokens per image)
+- Summarize earlier images into text before adding new ones
+
+**VisualForge impact**: VisualForge QA processes one image at a time, so not yet a bottleneck. Future batch-review feature will need this.
+
+---
+
+## 7 · When to Use This vs Alternatives
+
+### Use Multimodal LLM (VLM) when:
+
+| Scenario | Why VLM wins |
+|----------|--------------|
+| **Visual QA** | "Is this image campaign-ready?" → Yes/No + reasoning |
+| **Image captioning at scale** | Generate descriptions for 1000+ product images overnight |
+| **Document understanding** | Extract data from invoices, receipts, forms (if OCR-trained) |
+| **Visual grounding** | "Show me where the defect is" → bounding box + explanation |
+| **Multimodal RAG** | Retrieve documents (PDFs with images) and answer questions about them |
+
+### Use alternatives when:
+
+| Scenario | Better alternative | Why |
+|----------|-------------------|-----|
+| **Pure generation** | Latent diffusion (SDXL) | VLMs understand images but don't generate them (except via API calls) |
+| **Real-time object detection** | YOLO, Faster R-CNN | VLMs are slower, overkill for simple bounding-box tasks |
+| **Pixel-level segmentation** | SAM (Segment Anything) | VLMs output text, not masks |
+| **Video generation** | AnimateDiff, Stable Video Diffusion | VLMs analyze video but don't create it |
+| **High-throughput classification** | EfficientNet, ViT classifier | VLMs too slow (seconds/image) for real-time labeling |
+
+**VisualForge decision**: Use VLM (LLaVA) for **QA workflow** (understanding), not generation. Generation stays with SDXL + ControlNet. VLM adds **automated verification** without replacing the core pipeline.
+
+---
+
+## 8 · Connection to Prior Chapters
+
+### What You Already Learned
+
+| Chapter | What it gave you | How it connects to VLMs |
+|---------|-----------------|------------------------|
+| [Vision Transformers](../vision_transformers) | ViT architecture: image → patch embeddings → transformer | **VLMs use ViT as the vision encoder** (frozen or fine-tuned) |
+| [CLIP](../clip) | Contrastive pretraining: aligned text-image embeddings | **VLMs inherit CLIP's vision encoder** (already trained on 400M image-text pairs) |
+| [Text-to-Image](../text_to_image) | Stable Diffusion pipeline: text → latent → image | **VLMs provide the inverse**: image → text (understanding, not generation) |
+| [LLM Fundamentals](../../ai/llm_fundamentals) | Transformer decoder, autoregressive generation, tokenization | **VLMs extend LLMs** by adding visual tokens to the input sequence |
+
+### The Bridge
+
+**Ch.1-3 (Vision foundations)**: You learned to encode images (ViT), align text and images (CLIP), and search multimodal data.
+
+**Ch.4-9 (Generation)**: You learned to generate images (diffusion), videos (AnimateDiff), with precise control (ControlNet, LoRA).
+
+**Ch.10 (This chapter)**: You learned to **understand** generated outputs — close the loop with automated QA.
+
+**What's new here**: Connecting vision encoder → LLM decoder via projection layer. Enables **visual reasoning** (not just embedding retrieval).
+
+**What's still missing**: Objective quality metrics. VLM can caption an image, but can't say "this is 4.2/5.0 quality." That's [Ch.11 Generative Evaluation](../generative_evaluation).
+
+---
+
+## 9 · Interview Checklist
+
+### Must Know
+- **General MLLM recipe**: vision encoder → alignment layer → LLM
+- **Difference between LLaVA and BLIP-2**: LLaVA uses linear projection (576 tokens), BLIP-2 uses Q-Former (32 tokens)
+- **Visual instruction tuning**: freeze ViT, train projection + LLM on (image, instruction, answer) triples
+
+### Likely Asked
+- *"How would you add vision to LLaMA-3?"*  
+  → Attach a CLIP or SigLIP ViT, project visual tokens to LLaMA's embed dimension with an MLP, fine-tune on instruction-following visual QA data (e.g., LLaVA-style)
+
+- *"What is the Q-Former and when would you use it?"*  
+  → A cross-attention transformer that compresses many visual tokens into few learnable query outputs; use when the LLM has short context limits or when visual compression is needed
+
+- *"Why freeze the ViT during initial training?"*  
+  → Prevents catastrophic interference; the ViT's features are already strong from CLIP pretraining; frozen ViT lets you focus the compute budget on learning the alignment
+
+- *"How would you debug visual hallucination?"*  
+  → Check if projection layer is undertrained; increase visual instruction tuning epochs; use higher-resolution vision encoder; add grounding annotations to training data
+
+### Common Traps to Avoid
+
+- **Don't say MLLMs "see" images the way humans do** — they process a sequence of numerical patch embeddings; their spatial understanding is learned from training data, not built-in.
+
+- **Don't assume perfect spatial reasoning** — Spatial relationships (left/right, counting) are still a known weakness; CoT prompting helps.
+
+- **Don't assume freezing ViT is always optimal** — LLaVA-1.5 and newer models often fine-tune the ViT end-to-end for higher accuracy.
+
+- **Don't assume Q-Former always wins** — LLaVA-1.5 with a simple MLP outperformed many Q-Former models at 7B scale; simplicity can win.
+
+- **Don't assume more visual tokens = better** — Longer context → slower generation, higher memory; there's a quality/cost trade-off.
+
+- **Don't assume perfect OCR** — OCR capability varies widely; models trained on document datasets (DocVQA) are much better at reading small text.
+
+---
+
+## 10 · Further Reading
+
+### Foundational Papers
+
+- **LLaVA** (Liu et al., 2023): [Visual Instruction Tuning](https://arxiv.org/abs/2304.08485)  
+  *The paper that proved you can match GPT-4V with academic-budget training. Single MLP projection, LLaMA backbone, trained on 150K instruction-following examples.*
+
+- **LLaVA-1.5** (Liu et al., 2023): [Improved Baselines with Visual Instruction Tuning](https://arxiv.org/abs/2310.03744)  
+  *Higher resolution (336px), MLP instead of linear, better data mix. State-of-the-art open VLM at 7B/13B scale.*
+
+- **BLIP-2** (Li et al., 2023): [Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models](https://arxiv.org/abs/2301.12597)  
+  *Introduced the Q-Former. Showed you can connect frozen ViT + frozen LLM with a tiny trainable bridge.*
+
+- **InstructBLIP** (Dai et al., 2023): [InstructBLIP: Towards General-purpose Vision-Language Models with Instruction Tuning](https://arxiv.org/abs/2305.06500)  
+  *Applies instruction tuning to BLIP-2. Better zero-shot generalization on VQA tasks.*
+
+### Key Comparisons
+
+- **Qwen2-VL** (Alibaba, 2024): [Qwen2-VL Technical Report](https://arxiv.org/abs/2409.12191)  
+  *Variable-resolution vision encoder (NaViT). Handles images from 224px to 1024px without resizing. Strong OCR.*
+
+- **Llama-3.2 Vision** (Meta, 2024): [The Llama 3 Herd of Models](https://arxiv.org/abs/2407.21783)  
+  *Meta's official vision extension to LLaMA-3. Cross-attention adapter, trained on diverse data (charts, diagrams, scientific figures).*
+
+**Model Comparison Table:**
 
 | Model | Vision encoder | Connector | LLM backbone | Open? |
 |-------|---------------|-----------|-------------|-------|
@@ -238,36 +420,59 @@ BLIP-2 Architecture:
 | Llama-3.2 Vision | CLIP-ViT | Cross-attention | LLaMA-3.2 | Yes |
 | Qwen2-VL | NaViT (variable res) | MLP | Qwen2-7B | Yes |
 
-Key trend: higher resolution vision encoders (336px → 448px → variable), larger LLMs, and more diverse training data (charts, OCR, medical images).
+*Trend: Higher resolution vision encoders (336px → 448px → variable), larger LLMs, and more diverse training data (charts, OCR, medical images).*
 
-## 8 · Common Misconceptions
+### Techniques
 
-| Misconception | Reality |
-|---------------|---------|
-| "MLLMs understand spatial relationships perfectly" | Spatial reasoning (left/right, counting) is still a known weakness; CoT prompting helps |
-| "Freezing the ViT is optimal" | LLaVA-1.5 and newer models often fine-tune the ViT end-to-end for higher accuracy |
-| "Q-Former always outperforms linear projection" | LLaVA-1.5 with a simple MLP outperformed many Q-Former models at 7B scale; simplicity can win |
-| "More visual tokens = always better" | Longer context → slower generation, higher memory; there's a quality/cost trade-off |
-| "Multimodal models can read small text in images" | OCR capability varies widely; models trained on document datasets (DocVQA) are much better at this |
+- **Flamingo** (DeepMind, 2022): [Tackling Multiple Tasks with a Single Visual Language Model](https://arxiv.org/abs/2204.14198)  
+  *Interleaved text-image inputs. Gated cross-attention layers. Pioneered few-shot in-context learning for vision.*
 
-## 9 · Interview Checklist
+- **CogVLM** (Tsinghua, 2023): [Visual Expert for Large Language Models](https://arxiv.org/abs/2311.03079)  
+  *Adds a "visual expert" branch to each LLM layer. Allows deep visual-text interaction without modifying LLM weights.*
 
-### Must Know
-- General MLLM recipe: vision encoder → alignment layer → LLM
-- Difference between LLaVA (linear projection, 576 tokens) and BLIP-2 (Q-Former, 32 tokens)
-- Visual instruction tuning: freeze ViT, train projection + LLM on (image, instruction, answer) triples
+### Benchmarks
 
-### Likely Asked
-- *"How would you add vision to LLaMA-3?"* — Attach a CLIP or SigLIP ViT, project visual tokens to LLaMA's embed dimension with an MLP, fine-tune on instruction-following visual QA data
-- *"What is the Q-Former and when would you use it?"* — A cross-attention transformer that compresses many visual tokens into few learnable query outputs; use when the LLM has short context limits or when visual compression is needed
-- *"Why freeze the ViT during initial training?"* — Prevents catastrophic interference; the ViT's features are already strong; frozen ViT lets you focus the compute budget on learning the alignment
-
-### Trap to Avoid
-- Don't say MLLMs "see" images the way humans do — they process a sequence of numerical patch embeddings; their spatial understanding is learned from training data, not built-in.
+- **MMMU** (Multi-discipline Multimodal Understanding): College-level exam questions with images
+- **MMBench**: Comprehensive VLM benchmark (perception, reasoning, OCR)
+- **VQAv2**: Classic visual question answering dataset
+- **TextVQA / DocVQA**: OCR-heavy benchmarks for document understanding
 
 ---
 
-## 10 · Progress Check — What Have We Unlocked?
+## 11 · Notebook
+
+> **🔗 Executable notebook**: [multimodal_llms.ipynb](multimodal_llms.ipynb)
+
+**What's inside**:
+
+1. **Mini VLM from scratch** (educational proxy):
+   - Pretrained ViT (torchvision) → linear projection → tiny GPT decoder
+   - Train on 10-class visual QA dataset ("What digit is this?" → "Seven")
+   - CPU-runnable, results in 5 minutes
+
+2. **LLaVA inference** (VisualForge production):
+   - Load `llava-hf/llava-v1.6-mistral-7b-hf` from Hugging Face
+   - Product QA workflow: load 512×512 generated image → ask campaign-brief questions
+   - **Example outputs**:
+     - "Is the background white?" → "Yes"
+     - "Is the product centered?" → "Yes"
+     - "What product category is this?" → "Running shoe"
+
+3. **Automated batch QA**:
+   - Process 100 generated images → VLM checks 4 questions per image
+   - Flag images with any "No" answer → manual review
+   - Measure: % auto-approved (target: 85%)
+
+**Runtime estimates**:
+- Mini VLM training: ~5 minutes (CPU)
+- LLaVA inference: ~2 seconds per image (RTX 4090), ~8 seconds (CPU)
+- Batch QA (100 images): ~3 minutes (GPU), ~13 minutes (CPU)
+
+⚠️ **GPU note**: LLaVA-7B runs on CPU but is slow (8s/image). RTX 3060 or better recommended for production throughput.
+
+---
+
+## 11.5 · Progress Check — What Have We Unlocked?
 
 ### Before This Chapter
 - **Constraint #5 (Throughput)**: ⚡ ~85 images/day, bottlenecked by 100% manual QA
@@ -283,9 +488,10 @@ Key trend: higher resolution vision encoders (336px → 448px → variable), lar
 
 ### Key Wins
 
-1. **Automated QA workflow**: LLaVA captions image → "smartphone on wooden surface with soft lighting" → auto-check vs brief
-2. **Visual question answering**: "Is the product centered?" → Yes/No → flag off-center outputs
-3. **Throughput unlocked**: Auto-QA reduces human review from 100% → 15% → **120 images/day achieved**
+1. **Automated QA workflow**: LLaVA checks image against client brief (\"Is background white?\" \"Is product centered?\") → reduces manual review from 100% → 15%
+2. **Visual question answering**: \"Is the product centered?\" → Yes/No → flag off-center outputs for regeneration
+3. **Throughput unlocked**: Auto-QA removes QA bottleneck → **120 images/day achieved** (target: 100+)
+4. **Third modality enabled**: Text→Image (generation) + Text→Video (animation) + Image→Text (understanding) → full multimodal pipeline
 
 ---
 
@@ -293,13 +499,41 @@ Key trend: higher resolution vision encoders (336px → 448px → variable), lar
 
 **Objective measurement**: Client surveys report **~3.9/5.0 quality**, but manual surveys are slow and expensive. Need automated, objective metrics to track quality improvements over time and validate A/B tests.
 
-**Next unlock (Ch.11)**: **Generative Evaluation** — FID (distribution similarity to real images), CLIP Score (text-image alignment), HPSv2 (predicts human preference scores). Run on 500-image test set → measure quality objectively.
+**Next unlock**: **Ch.11 Generative Evaluation** — FID (distribution similarity), CLIP Score (text-image alignment), HPSv2 (predicts human preference). Measure quality objectively on 500-image test set.
 
 ---
 
-## 11 · What's Next
+### VisualForge Status — Full Constraint View
 
-[GenerativeEvaluation.md](../generative_evaluation/generative-evaluation.md) — how do you measure the quality of generated images and video? FID, IS, CLIP Score, and human preference models.
+| Constraint | Ch.1 | Ch.3 | Ch.6 | Ch.8 | Ch.9 | **Ch.10** | Target |
+|------------|------|------|------|------|------|-----------|--------|
+| **Quality** | ❌ | ❌ | ⚡ 3.5 | ⚡ 3.8 | ⚡ 3.8 | **⚡ 3.9** | 4.0/5.0 |
+| **Speed** | ❌ | ❌ | ✅ 20s | ✅ 18s | ✅ 18s | **✅ 18s** | <30s |
+| **Cost** | ❌ | ❌ | ✅ $2.5k | ✅ $2.5k | ✅ $2.5k | **✅ $2.5k** | <$5k |
+| **Control** | ❌ | ⚡ 15% | ⚡ 10% | ✅ 3% | ✅ 3% | **✅ 3%** | <5% |
+| **Throughput** | ❌ | ❌ | ❌ | ⚡ 80/day | ⚡ 85/day | **✅ 120/day** | 100+/day |
+| **Versatility** | ⚡ | ⚡ | ⚡ T→I | ⚡ T→I | ⚡ T→I+V | **✅ All 3** | 3 modalities |
+
+**Legend**: ❌ Not addressed | ⚡ Partial progress | ✅ Target hit
+
+---
+
+## Bridge to Chapter 11 — Generative Evaluation
+
+You've built the full VisualForge generation + QA pipeline. You're generating 120 images/day, auto-approving 85%, hitting speed and throughput targets.
+
+**What's still unmeasured**: Quality is "~3.9/5.0" from client surveys, but you need:
+- **Real-time feedback**: Know immediately if a change improves quality
+- **Objective metrics**: Replace "looks good to me" with quantitative scores
+- **A/B test validation**: "Does this new sampler maintain quality?"
+
+**The missing piece**: **Generative evaluation metrics** — FID (compares distribution of generated vs. real images), CLIP Score (measures text-image alignment), HPSv2 (predicts human preference scores). Run on 500-image test set → track quality objectively, hit the **4.0/5.0 target**.
+
+**Next**: [Ch.11 Generative Evaluation](../generative_evaluation/generative-evaluation.md) — measure quality without client surveys.
+
+---
+
+---
 
 ## Illustrations
 

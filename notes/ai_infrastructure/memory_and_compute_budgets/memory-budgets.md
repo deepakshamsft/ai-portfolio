@@ -26,21 +26,21 @@
 
 🚨 **Cannot order hardware without confirming model fits in VRAM**
 
-**Current situation**: Engineer preparing budget justification for CEO
+**Current situation**: You're preparing the budget justification for the CEO
 
 ```
-Engineer calculates:
+You calculate:
 "Llama-3-8B has 8 billion parameters.
  8 billion × 2 bytes/param (FP16) = 16 GB for model weights.
  RTX 4090 has 24 GB VRAM.
  24 GB - 16 GB = 8 GB free.
  Should be plenty of headroom!"
 
-[Orders RTX 4090, deploys model...]
+[You order the RTX 4090 and deploy the model...]
 
 First inference request → CUDA OOM error: "Out of memory"
 
-Engineer: "Wait, what? I calculated 16GB for the model... where did the other 8GB go?"
+You: "Wait, what? I calculated 16GB for the model... where did the other 8GB go?"
 ```
 
 **Problems**:
@@ -51,10 +51,10 @@ Engineer: "Wait, what? I calculated 16GB for the model... where did the other 8G
 5. ❌ **No safety margin**: Running at 100% VRAM utilization = fragmentation issues, OOM on long sequences
 
 **Business impact**:
-- **Wrong GPU purchase = $50k mistake**: If we buy RTX 4090 (24GB) but actually need A100 (80GB), we burn $8k + weeks of delay
-- **Throughput limited by batch size**: If we can only batch=1, throughput caps at 3,000 req/day (30% of 10k target)
-- **Cannot fine-tune**: If training needs 80GB, we have no path to improve quality beyond base Llama-3-8B
-- CEO: "I need exact numbers. Tell me: does it fit yes or no? And what's the maximum batch size?"
+- **Wrong GPU purchase = $50k mistake**: If you buy RTX 4090 (24GB) but actually need A100 (80GB), you burn $8k + weeks of delay
+- **Throughput limited by batch size**: If you can only batch=1, throughput caps at 3,000 req/day (30% of 10k target)
+- **Cannot fine-tune**: If training needs 80GB, you have no path to improve quality beyond base Llama-3-8B
+- CEO: "I need exact numbers. Does it fit yes or no? And what's the maximum batch size?"
 
 **What this chapter unlocks**:
 
@@ -261,22 +261,19 @@ Conclusion: Fits on A100 80GB (80 - 64.5 = 15.5 GB margin)
 ### VRAM Breakdown: Llama-3-8B Inference vs Training
 
 ```
-                    INFERENCE (FP16)              TRAINING (FP16/FP32)
-RTX 4090 24GB      │                             │
-                   │  Params: 16GB               │  Params: 16GB (FP16)
-                   │  KV Cache: 4GB (batch=1)    │  Optimizer: 64GB (FP32)
-                   │  Activations: 2GB           │  Gradients: 16GB (FP16)
-                   │  FREE: 2GB ✅               │  Activations: 8GB
-                   │                             │  TOTAL: 104GB ❌
-                   │                             │  → Needs A100 80GB × 2
-                   │
-                   
-                    INFERENCE (INT4)
-                   │  Params: 4GB (-75%)
-                   │  KV Cache: 16GB (batch=4)
-                   │  Activations: 2GB
-                   │  FREE: 2GB ✅
-                   │  → Enables batch=4!
+INFERENCE (FP16)                      INFERENCE (INT4)                      TRAINING (FP16/FP32)
+─────────────────                     ─────────────────                     ────────────────────
+RTX 4090 24GB │                       RTX 4090 24GB │                       A100 80GB × 2 │
+              │                                     │                                       │
+Params:     16GB ████████████████      Params:     4GB ████                Params:     16GB (FP16)
+KV Cache:    4GB ████ (batch=1)       KV Cache:  16GB ████████████████    Optimizer:  64GB (FP32)
+Activations: 2GB ██                    Activations: 2GB ██                  Gradients:  16GB (FP16)
+             ─────                                 ─────                   Activations:  8GB
+Total:      22GB (92% utilization)    Total:     22GB (92% utilization)                ─────
+Free:        2GB ✅                    Free:       2GB ✅                   Total:     104GB ❌
+             ↓                                      ↓                                    ↓
+Batch max:    1 (limited!)            Batch max:   4 (4× throughput!)     Requires: 2× A100 80GB
+Throughput: 3k req/day ❌             Throughput: 12k req/day ✅          or gradient checkpointing
 ```
 
 ---
@@ -291,7 +288,9 @@ RTX 4090 24GB      │                             │
 
 ---
 
-## The Hyperparameter Dial
+---
+
+## 11.5 · The Hyperparameter Dial
 
 Three knobs control VRAM. Each can be turned independently, but they interact through the total budget constraint.
 
@@ -335,7 +334,7 @@ Precision affects parameter memory and KV cache simultaneously:
 
 ---
 
-## Code Skeleton
+## 11.6 · Code Skeleton
 
 ```python
 # Educational: VRAM budget calculator from scratch
@@ -391,7 +390,7 @@ def preflight_vram_check(required_gb: float, safety_margin_gb: float = 2.0) -> b
 
 ---
 
-## Where This Reappears
+## 11.7 · Where This Reappears
 
 | Chapter | How memory budget concepts appear |
 |---------|------------------------------------|
@@ -429,11 +428,11 @@ def preflight_vram_check(required_gb: float, safety_margin_gb: float = 2.0) -> b
 ✅ **Confirm hardware purchase with exact VRAM breakdown**:
 ```
 Before Ch.2:
-Engineer: "8B params × 2 bytes = 16GB. RTX 4090 has 24GB. Should fit!"
-[Orders GPU, deploys → OOM error]
+You: "8B params × 2 bytes = 16GB. RTX 4090 has 24GB. Should fit!"
+[Order GPU, deploy → OOM error]
 
 After Ch.2:
-Engineer calculates:
+You calculate:
 "Parameters: 16GB
  KV cache (batch=1, seq=2048): 4GB
  Activations: 2GB
@@ -443,8 +442,8 @@ Engineer calculates:
  Conclusion: Fits for batch=1 only. Need quantization (Ch.3) to enable batching."
 
 CEO: "So we CAN use RTX 4090, but throughput will be limited?"
-Engineer: "Correct. We'll hit 3,000 req/day at batch=1. To reach 10k target,
-          we need INT4 quantization (Ch.3) to free VRAM for batch=4."
+You: "Correct. We'll hit 3,000 req/day at batch=1. To reach 10k target,
+      we need INT4 quantization (Ch.3) to free VRAM for batch=4."
 
 Result: ✅ Confident hardware purchase + clear roadmap to hit throughput target!
 ```
@@ -472,7 +471,7 @@ Result: ✅ Can fine-tune without exceeding $15k/month budget!
 ```
 CEO: "Can we batch 10 requests at once for efficiency?"
 
-Engineer: "Let me calculate:
+You: "Let me calculate:
  batch=10, seq=2048:
  KV cache = 2 × 32 layers × 4096 dim × 2048 seq × 10 batch × 2 bytes
           = 40 GB for KV cache alone!
@@ -518,32 +517,4 @@ Ch.2 confirmed the model fits — but revealed a critical bottleneck: **batch=1 
 ## Illustrations
 
 ![Memory budgets — VRAM breakdown for inference vs training, KV cache scaling, batch size limits](img/Memory%20Budgets.png)
-
-
-## 14 · Key Diagrams
-
-> Add 2–3 diagrams showing the key data flows or architectural boundaries here.
-
-
-## 15 · The Hyperparameter Dial
-
-> List 3–5 dials (batch size, precision, parallelism strategy, etc.) and their
-> effect on the latency/throughput/memory triangle.
-
-
-## 16 · Code Skeleton
-
-### Educational
-
-```python
-# Educational: concept from scratch
-pass
-```
-
-### Production
-
-```python
-# Production: optimized pipeline call
-pass
-```
 

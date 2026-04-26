@@ -1,6 +1,27 @@
 # Authoring Guide — Multimodal AI Grand Challenge
 
 > **Purpose**: This guide defines the template for authoring Multimodal AI chapters using the **VisualForge Studio** Grand Challenge as the unifying thread.
+>
+> **📚 Updated:** Now includes comprehensive pedagogical patterns, voice & register rules, and conformance checklist from ML track standards.
+
+<!-- LLM-STYLE-FINGERPRINT-V1
+canonical_chapters: ["notes/multimodal_ai/ch03_clip/README.md", "notes/multimodal_ai/ch06_latent_diffusion/README.md"]
+voice: second_person_practitioner
+register: technical_but_conversational
+formula_motivation: required_before_each_formula
+numerical_walkthroughs: visualforge_briefs_with_explicit_generation_parameters
+dataset: visualforge_campaign_types_only_no_generic_examples
+failure_first_pedagogy: true
+callout_system: {insight:"💡", warning:"⚠️", constraint:"⚡", optional_depth:"📖", forward_pointer:"➡️"}
+mermaid_color_palette: {primary:"#1e3a8a", success:"#15803d", caution:"#b45309", danger:"#b91c1c", info:"#1d4ed8"}
+image_background: dark_facecolor_1a1a2e_for_generated_plots
+section_template: [story_header, challenge_0, animation, core_idea_1, running_example_2, math_3, visual_intuition_4, production_example_5, failure_modes_6, when_to_use_7, connection_to_prior_8, interview_9, further_reading_10, notebook_11, progress_check_11_5, bridge_N1]
+math_style: scalar_first_then_vector_generalization
+ascii_diagram_style: diffusion_pipelines_and_attention_mechanisms
+forward_backward_links: every_concept_links_to_where_it_was_introduced_and_where_it_reappears
+conformance_check: compare_new_chapter_against_canonical_chapters_before_publishing
+red_lines: [no_formula_without_verbal_explanation, no_concept_without_visualforge_grounding, no_section_without_forward_backward_context, no_generation_example_without_visualforge_brief_type, no_quality_claim_without_metric, no_gpu_notebook_cell_without_time_estimate, no_gpu_supplement_without_presence_guard, no_magic_hyperparameter_without_failure_case]
+-->
 
 ---
 
@@ -627,3 +648,599 @@ In addition to the universal red lines:
 3. **No GPU notebook cell without a time estimate** — always comment expected runtime on RTX 4090 and Colab T4
 4. **No GPU supplement cell without the GPU presence guard** — chapter 1, cell 1, always
 5. **No magic hyperparameter without the failure case** — if you recommend `guidance_scale=7.5`, show what 1.0 and 15.0 look like first
+
+---
+
+## Jupyter Notebook Template
+
+Each notebook mirrors the README exactly — same sections, same order. The notebook adds:
+- **Runnable cells**: every code block in the README is a cell in the notebook
+- **Visual outputs**: `matplotlib` / `seaborn` plots that generate the diagrams described in the README
+- **Exercises**: 2–3 cells at the end where the reader changes a hyperparameter and re-runs
+
+Cell structure per notebook:
+
+```
+[markdown] Chapter title + one-liner
+[markdown] ## Core Idea
+[markdown] ## Running Example — VisualForge Brief
+[code]     Load the pipeline and set up VisualForge parameters
+[markdown] ## The Math
+[code]     Implement the math (numpy where practical, diffusers/torch for full models)
+[markdown] ## Visual Intuition
+[code]     Generate visualization showing the concept
+[markdown] ## Production Example
+[code]     Run VisualForge brief through the pipeline
+[code]     Plotting the key diagram (generation comparison, metric chart, etc.)
+[markdown] ## Common Failure Modes
+[code]     Demonstrate one of the traps (bad CFG scale, insufficient steps, etc.)
+[markdown] ## Exercises
+[code]     Exercise scaffolds (partially filled, ask reader to modify hyperparameters)
+```
+
+**GPU supplement notebooks** (for GPU-intensive chapters like diffusion, ControlNet, video generation):
+- Place in `notebook_supplement.ipynb`
+- **Cell 1 must always be GPU presence guard** (see GPU Supplement Notebook Conventions above)
+- All generation cells include runtime estimates: `# ~8s on RTX 4090 / ~45s on Colab T4`
+- Memory cleanup before heavy operations: `torch.cuda.empty_cache()`
+
+---
+
+## Pedagogical Patterns & Teaching DNA
+
+> **Source:** Extracted from cross-chapter analysis and adapted from ML track standards. These are the implicit techniques that make chapters effective, beyond the explicit style rules.
+
+### 1. Narrative Architecture Patterns
+
+#### Pattern A: **Failure-First Discovery Arc**
+
+**Rule:** New concepts emerge from concrete breakdowns, never as a priori lists.
+
+**Implementation:**
+```
+Act 1: Simple approach → Show where it breaks (with exact metrics)
+Act 2: First fix → Show what IT breaks (new failure mode)
+Act 3: Refined solution → Resolves tension
+Act 4: Decision framework (when to use which)
+```
+
+**Example from MultimodalAI Diffusion:**
+- DDPM (1000 steps) → Works but 2min/image → Too slow for client iteration
+- Try DDIM (50 steps) → 30s/image → Still not fast enough
+- DPM++ Solver (20 steps) → 8s/image ✅ → But quality drops slightly at very low steps
+- Decision: 20–30 steps for production (8–12s), 50 steps for hero assets (30s)
+
+**Anti-pattern:** Listing schedulers in a table without demonstrating speed/quality tradeoffs.
+
+#### Pattern B: **Historical Hook → Production Stakes**
+
+**Rule:** Every chapter opens with real person + real year + real problem, then immediately connects to current production mission.
+
+**Template:**
+```markdown
+> **The story:** [Name] ([Year]) solved [specific problem] using [this technique]. 
+> [One sentence on lasting impact]. [One sentence connecting to reader's daily work].
+>
+> **Where you are:** Ch.[N-1] achieved [specific metric]. This chapter fixes [named blocker].
+```
+
+**Example from MultimodalAI:**
+> Ho et al. (2020) introduced Denoising Diffusion Probabilistic Models → DALL-E 2 (2022) → Stable Diffusion (2022) → "Every time VisualForge generates a spring collection hero image, this machinery runs 20–50 times to remove noise step by step" → VisualForge Studio mission
+
+**Why effective:** Establishes recent lineage (authority) + contemporary relevance + production stakes in 3 sentences.
+
+#### Pattern C: **Victory-First Structure** (Advanced)
+
+**When to use:** For chapters where anxiety about "will this work?" might distract from "how does it work?"
+
+**Structure:** Open with success (4.1/5.0 quality achieved!), then backtrack to show the journey. Reduces cognitive anxiety, allows focus on mechanics.
+
+**Example:** Ch.11 Evaluation opens with "HPSv2 score 4.1/5.0 ✅" before explaining FID, CLIP score, and automated metrics.
+
+**Contrast with:** Standard structure (build suspense, reveal success at end). Victory-first works when the journey IS the learning goal.
+
+#### Pattern D: **Three-Act Dramatic Structure**
+
+**For:** Chapters introducing competing methods (DDPM vs DDIM vs DPM++, CLIP vs BLIP)
+
+**Structure:**
+- **Act 1:** Problem discovered (slow generation, poor text alignment)
+- **Act 2:** Solution tested (DDIM works, CLIP aligns well)
+- **Act 3:** Solution refined (DPM++ for speed, CLIP for production)
+
+**Why effective:** Converts technical comparison into narrative with rising tension.
+
+---
+
+### 2. Concept Introduction Mechanics
+
+#### Mechanism A: **Problem→Cost→Solution Pattern**
+
+**Rule:** Every new technique appears AFTER showing:
+1. The problem (specific failure case with metrics)
+2. The cost of ignoring it (production impact or client question)
+3. The solution (formula/algorithm that resolves it)
+
+**Example from MultimodalAI CFG:**
+1. **Problem:** CFG scale 1.0 → model ignores text prompt, generates random images
+2. **Cost:** "Client brief: 'floral dress, café'. Output: man in suit, office. 15 unusable generations."
+3. **Solution:** CFG scale 7.5 → `ε̂ = ε_uncond + 7.5(ε_cond - ε_uncond)` → prompt adherence
+
+**Anti-pattern:** "Here's classifier-free guidance, a technique for..." (solution before problem).
+
+#### Mechanism B: **"The Match Is Exact" Validation Loop**
+
+**Rule:** After introducing any formula, immediately prove it works with hand-computable numbers or visible output.
+
+**Template:**
+```markdown
+1. Formula in LaTeX
+2. Toy example (small noise schedule, 4-dimensional embeddings)
+3. Hand calculation step-by-step
+4. Vector/tensor equivalent
+5. Confirmation: "The match is exact" or visual match (before/after images)
+```
+
+**Example from MultimodalAI CLIP:**
+```
+Manual: cos_sim(text_embed, img_embed) = 0.89
+Tensor: F.cosine_similarity(text_tensor, img_tensor) = 0.89
+"The match is exact."
+
+Visual: "Spring dress, café" → retrieves correct image from 1000 candidates
+```
+
+**Why effective:** Builds trust before moving to abstraction. Readers verify the math themselves.
+
+#### Mechanism C: **Comparative Tables Before Formulas**
+
+**Rule:** Show side-by-side behavior BEFORE explaining the underlying math.
+
+**Example from MultimodalAI Schedulers:**
+
+| Scheduler | Steps | Generation Time (RTX 4090) | Quality (HPSv2) | Status |
+|-----------|-------|---------------------------|-----------------|--------|
+| DDPM | 1000 | 2min | 4.0/5.0 | Too slow |
+| DDIM | 50 | 30s | 3.9/5.0 | ✅ Target hit |
+| DPM++ 2M | 20 | 8s | 3.8/5.0 | ✅ Production sweet spot |
+| DDIM 10 steps | 10 | 4s | 3.2/5.0 | Too fast, quality drops |
+
+**Then** explain why (ODE vs SDE, sampling trajectory, distillation).
+
+**Why effective:** Pattern recognition precedes explanation. Readers see speed/quality tradeoff before hearing theory.
+
+#### Mechanism D: **Delayed Complexity with Forward Pointers**
+
+**Rule:** Present minimum viable depth for current task, then explicitly defer deeper treatment.
+
+**Template:**
+```markdown
+> ➡️ **[Topic] goes deeper in [Chapter].** This chapter covers [what's needed now]. 
+> For [advanced topic] — [specific capability] — see [link]. For now: [continue with current concept].
+```
+
+**Example from MultimodalAI:**
+> "⚡ Attention mechanisms go deeper in Ch.8 Vision Transformers. This chapter uses CLIP's text encoder as a black box. For multi-head self-attention and positional encoding — see Ch.8. For now: treat the text encoder as a function that maps 'floral dress' → 768-dim vector."
+
+**Why effective:** Prevents derailment while acknowledging deeper material exists. Readers know where to go later.
+
+---
+
+### 3. Scaffolding Techniques
+
+#### Technique A: **Concrete Numerical Anchors**
+
+**Rule:** Every abstract concept needs a permanent numerical reference point.
+
+**Examples:**
+- **8s/image** (Ch.6 DPM++ target) — mentioned 10+ times across Ch.6-12
+- **$2.5k laptop** (hardware budget) — the VisualForge cost constraint anchor
+- **4.1/5.0 HPSv2** (quality target achieved) — the quality metric anchor
+- **120 images/day** (throughput unlocked) — the production capacity anchor
+
+**Pattern:** Use EXACT numbers, not ranges. "8s" not "around 10s". Creates falsifiable, traceable claims.
+
+#### Technique B: **3-5 Generation Examples**
+
+**Rule:** Before showing full production results, demonstrate on hand-verifiable subset.
+
+**Standard format:**
+```markdown
+| Brief | CFG Scale | Generation Time | Quality (visual) | Usable? |
+|-------|-----------|----------------|------------------|---------|
+| "Spring dress, café" | 1.0 | 8s | Ignores prompt, random scene | ❌ |
+| "Spring dress, café" | 7.5 | 8s | Matches brief, photorealistic | ✅ |
+| "Spring dress, café" | 15.0 | 8s | Over-saturated, artifacts | ❌ |
+```
+
+**Then:** Show full production batch (20 briefs × 5 variations = 100 images in 13 minutes).
+
+**Why 3-5?** Small enough to verify visually, large enough to show patterns (not just edge cases).
+
+#### Technique C: **Dimensional Continuity**
+
+**Rule:** When generalizing from scalar to vector/tensor, show structural identity.
+
+**Template:**
+```markdown
+Ch.[N-1] (scalar):  formula_scalar
+Ch.[N] (vector):    formula_vector   ← SAME STRUCTURE, different notation
+```
+
+**Example from MultimodalAI:**
+```
+Ch.3 (single timestep):  x_1 = √(1-β_1) x_0 + √β_1 ε
+Ch.4 (full schedule):     x_t = √ᾱ_t x_0 + √(1-ᾱ_t) ε   ← cumulative product replaces single step
+```
+
+**Why effective:** Reduces cognitive load. "You already know this, just generalized over time."
+
+#### Technique D: **Progressive Disclosure Layers**
+
+**Rule:** Build complexity in named, stackable layers.
+
+**Example from MultimodalAI Diffusion:**
+1. **Layer 1:** Forward diffusion (add noise) — understand the data corruption process
+2. **Layer 2:** Reverse diffusion (denoise) — learn to undo the corruption
+3. **Layer 3:** Text conditioning (CLIP embeddings) — steer the denoising
+4. **Layer 4:** Classifier-free guidance (CFG) — control prompt adherence strength
+5. **Layer 5:** Latent space (VAE compression) — make it fast enough for production
+
+**Each layer builds on but doesn't replace the previous.** Like stacking lenses on a microscope.
+
+---
+
+### 4. Intuition-Building Devices
+
+#### Device A: **Metaphors with Precise Mapping**
+
+**Rule:** Analogies must map each element explicitly, not just evoke vague similarity.
+
+**Example from MultimodalAI Diffusion:**
+- **Metaphor:** "Denoising is like sculpting from marble"
+- **Mapping:**
+  - Marble block → pure Gaussian noise (starting point)
+  - Sculptor's vision → text prompt (CLIP embedding)
+  - Chisel strokes → denoising steps (UNet predictions)
+  - Gradual reveal → 1000 steps → 50 steps → 20 steps (faster chiseling)
+  - Final sculpture → generated image
+
+**Anti-pattern:** "Diffusion is like reversing entropy" with no further elaboration.
+
+#### Device B: **Try-It-First Exploration**
+
+**Rule:** For key concepts, let readers manipulate before explaining.
+
+**Example from MultimodalAI CFG:**
+> "Before any formulas: here's a slider — CFG scale 1.0 to 15.0. Same prompt ('spring dress, café'). Watch how the model responds." 
+> Shows interactive GIF with CFG scale slider, prompt adherence changing live.
+
+**Then:** "Scale 1.0 ignores you. Scale 7.5 listens. Scale 15.0 over-listens (artifacts). Now let's see the math that makes this happen."
+
+**Why effective:** Tactile experience → limitation exposure → algorithmic necessity. Motivation earned.
+
+#### Device C: **Geometric Visualizations with Narrative**
+
+**Rule:** Every visualization needs a caption that interprets it, not just describes it.
+
+**Example from MultimodalAI:**
+> ![Forward diffusion timeline](img/ch03-diffusion-timeline.png)
+> "Forward: clean image → blurry → unrecognizable → pure noise (1000 steps). Reverse: noise → shapes → details → photorealistic (20 steps with DPM++)."
+
+**Pattern:** Image + one-sentence insight that tells reader WHAT TO SEE, not just what's shown.
+
+#### Device D: **Calculus Intuition Precedes Formulas**
+
+**Rule:** For derivative-heavy content, build visual intuition before symbolic manipulation.
+
+**Example from MultimodalAI:**
+- **First:** Animation showing noise schedule as a curve β_t from 0 to 1
+- **Then:** "Zoom into any point on the curve — the arc looks straight. That locally-straight segment determines how much noise to add at step t."
+- **Finally:** Formal ELBO derivation 300 lines later in `> 📖 Optional` box
+
+**Why effective:** Derivatives become ZOOMING IN, not abstract slope calculations.
+
+---
+
+### 5. Voice & Tone Engineering
+
+#### Voice Rule A: **Practitioner Confession + Academic Rigor**
+
+**Mix these modes fluidly:**
+- **Confession:** "Prompt engineering = staring at generated images, tweaking words, praying for photorealism" (Ch.7)
+- **Rigor:** Mathematical proofs in `> 📖 Optional` boxes with paper citations
+- **Tutorial:** "Fix: Use `enable_model_cpu_offload()` to fit 12GB VRAM"
+
+**Why effective:** Signals "this is for practitioners who also need to justify decisions." LaTeX for advisors, code for teammates, confessions for peers.
+
+#### Voice Rule B: **Tone Shifts by Section Function**
+
+Map tone to pedagogical purpose:
+
+| Section Type | Tone | Example |
+|--------------|------|---------|
+| Historical intro | Authoritative narrator | "Ho et al. (2020), Rombach et al. (2022)..." |
+| Mission setup | Direct practitioner | "You're the Lead ML Engineer. The client wants 20 variations by tomorrow." |
+| Concept explanation | Patient teacher | "Three questions every diffusion step answers:" |
+| Failure moments | Conspiratorial peer | "Look at the output: CFG scale 1.0 — completely ignores your prompt" |
+| Resolution | Confident guide | "Rule: CFG scale 7.5 for photorealism, 5.0 for artistic, 10.0+ for stylized" |
+
+#### Voice Rule C: **Dry Humor at Failure/Resolution Moments**
+
+**When:** Humor appears at:
+1. **Failure modes** — makes mistakes memorable
+2. **Resolution moments** — celebrates insight
+
+**When NOT:** During setup, math derivation, or code walkthroughs.
+
+**Examples:**
+- Failure: "Unconditioned diffusion produces beautiful, meaningless noise. A human child could do the same. The client is not paying for noise." (Ch.4)
+- Resolution: "The model now obsessively tries to match your text prompt — sometimes too obsessively (CFG > 15 = over-saturation)" (Ch.5)
+
+**Pattern:** Irony, understatement, or mild personification. Never jokes or puns.
+
+#### Voice Rule D: **Emoji-Driven Scanning**
+
+**Purpose:** Let readers triage sections visually before reading text.
+
+**System:**
+- 💡 = Key insight (power users skim these first)
+- ⚠️ = Common trap (practitioners jump here when debugging)
+- ⚡ = VisualForge constraint advancement (tracks quest progress)
+- 📖 = Optional depth (safe to skip)
+- ➡️ = Forward pointer (where this reappears)
+
+**Rule:** No other emoji as inline callouts. (✅❌🎯 are structural markers for Challenge/Progress sections only.)
+
+---
+
+### 6. Engagement Hooks
+
+#### Hook A: **Production Crises**
+
+**Pattern:** Frame every concept as response to stakeholder question you CAN'T YET ANSWER.
+
+**Example from MultimodalAI:**
+- Client: "Can you generate 100 variations by tomorrow morning?"
+- You: "...at 2 minutes per image, that's 3.3 hours. If one batch fails, we miss the deadline."
+- Client: "So no, you can't guarantee it."
+- **Solution:** DPM++ scheduler → 8s/image → 100 images in 13 minutes with buffer
+
+**Why effective:** Converts math chapter into career survival training.
+
+#### Hook B: **Surprising Results**
+
+**Rule:** Highlight outcomes that contradict naive intuition.
+
+**Examples:**
+- "CFG scale 1.0 completely ignores your prompt — the model generates whatever it learned, not what you asked for" (Ch.5)
+- "Latent diffusion is 8× faster than pixel diffusion, but quality is higher (compressed space = easier to learn)" (Ch.6)
+- "More denoising steps ≠ better quality after 50 steps (diminishing returns, longer generation time)" (Ch.6)
+
+**Pattern:** State intuitive expectation → show opposite result → explain why.
+
+#### Hook C: **Numerical Shock Value**
+
+**Technique:** Write out full time/cost for dramatic effect.
+
+**Example from MultimodalAI:**
+> "2 minutes per image × 100 variations = 3.3 hours. Miss one client deadline = $50k lost contract."
+> "Freelancer: $600k/year. VisualForge hardware: $2.5k one-time. Payback in 2.5 months."
+
+**Why effective:** Scale becomes visceral, not abstract.
+
+#### Hook D: **Constraint Gamification**
+
+**System:** The 6 VisualForge constraints act as a quest dashboard.
+
+**Format:** Revisit this table every chapter:
+
+| Constraint | Status | Evidence |
+|------------|--------|----------|
+| #1 QUALITY | ✅ **ACHIEVED** | 4.1/5.0 HPSv2 |
+| #2 SPEED | ✅ **ACHIEVED** | 8s/image < 30s target |
+| #3 COST | ✅ **ACHIEVED** | $2.5k laptop, no cloud |
+| #4 CONTROL | ✅ **ACHIEVED** | 3% unusable < 5% target |
+| #5 THROUGHPUT | ✅ **ACHIEVED** | 120 images/day > 100 target |
+| #6 VERSATILITY | ✅ **ACHIEVED** | Text→Image + Video + Understanding |
+
+**Why effective:** Orange/green shifts signal tangible progress. Creates long-term momentum across chapters.
+
+---
+
+### 7. Conceptual Chunking
+
+#### Chunking Rule A: **1-2 Scrolls Per Concept**
+
+**Target:** 100-200 lines for major sections, 50-100 for subsections.
+
+**Why:** Matches attention span. Readers can complete a concept unit without losing context.
+
+**Pattern observed:**
+- Setup sections (§0-1): 50-100 lines (fast)
+- Core mechanics (§3-5): 200-400 lines (detailed, but subdivided with #### headers)
+- Consolidation (§8-11): 100-150 lines (fast)
+
+**U-shaped pacing:** Fast open → detailed middle → fast close.
+
+#### Chunking Rule B: **Visual Rhythm**
+
+**Rule:** No more than ~100 lines of text without visual break.
+
+**Rhythm:**
+```
+Text block (80 lines)
+↓
+Code block or table (20 lines)
+↓
+Text block (60 lines)
+↓
+Mermaid diagram (30 lines)
+↓
+Text block (90 lines)
+↓
+Generation comparison GIF + caption (10 lines)
+```
+
+**Why effective:** Resets attention, provides processing time, accommodates different learning modes.
+
+#### Chunking Rule C: **Explicit Boundary Markers**
+
+**System:**
+- `---` horizontal rules between acts
+- `> 💡` insight callouts mark concept payoffs
+- `> ⚠️` warning callouts flag common traps
+- `####` subsection headers for digestible units within major sections
+
+**Frequency:** ~1 visual break per 50-80 lines.
+
+---
+
+### 8. Validation Loops
+
+#### Validation A: **"The Match Is Exact" Confirmations**
+
+**Rule:** After any hand calculation, verify against vectorized/library result.
+
+**Template:**
+```markdown
+**Manual calculation:** [step-by-step arithmetic] = X.XXX
+**Tensor equivalent:** [torch/numpy code] = X.XXX
+**Confirmation:** "The match is exact."
+
+OR (for generation):
+
+**Expected:** "Spring dress, café, golden hour"
+**Generated:** [image showing spring dress in café setting at golden hour]
+**Confirmation:** "Visual match confirmed — prompt adherence achieved."
+```
+
+**Why effective:** Closes trust loop. Readers don't just accept formulas — they witness them work.
+
+#### Validation B: **Step-by-Step Generation Tables**
+
+**For:** Generation walkthroughs (denoising steps, CFG ablation, etc.)
+
+**Structure:**
+- **Step 1:** Full table (timestep, noise level, predicted noise, denoised image)
+- **Step 50:** Same table structure, numbers/images change
+- **Comparison:** "Visual quality: x_50 (recognizable shapes) → x_0 (photorealistic)"
+
+**Why effective:** Repetition with variation. Same structure builds schema, changing values show learning.
+
+#### Validation C: **Before/After Constraint Tracking**
+
+**Rule:** Every chapter updates the 6-constraint progress table.
+
+**Example progression:**
+- Ch.1: All ❌ (no generation capability yet)
+- Ch.4: #1 ⚡ (can generate but quality low), #2 ❌ (too slow)
+- Ch.6: #1 ⚡ (quality improving), #2 ✅ (speed target hit!)
+- Ch.11: All ✅ (mission complete!)
+
+**Why effective:** Gamification. Orange→green shifts feel like quest completion.
+
+#### Validation D: **Executable Code, Not Aspirational**
+
+**Rule:** Every code block must be copy-paste runnable OR explicitly marked as pseudocode.
+
+**Pattern:**
+```python
+# ✅ COMPLETE — runs as-is (with GPU)
+from diffusers import StableDiffusionXLPipeline
+pipe = StableDiffusionXLPipeline.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0").to("cuda")
+image = pipe("spring dress, café, golden hour", num_inference_steps=20).images[0]
+```
+
+vs
+
+```python
+# Conceptual structure (not runnable — educational)
+for t in reversed(range(T)):
+    noise_pred = unet(latent, t, text_emb)
+    latent = remove_noise(latent, noise_pred, t)
+```
+
+**Why effective:** Readers can verify claims themselves. Trust through falsifiability.
+
+---
+
+### Anti-Patterns (What NOT to Do)
+
+❌ **Listing methods without demonstrating failure**  
+Example: "Here are five schedulers: DDPM, DDIM, DPM++, PNDM, LMS" (table without motivation)
+
+❌ **Formulas without verbal glossing**  
+Example: Dropping LaTeX block with no "In English:" follow-up paragraph
+
+❌ **Vague improvement claims**  
+Example: "The model got faster" instead of "2min → 8s (15× speedup)"
+
+❌ **Academic register**  
+Example: "We demonstrate that...", "It can be shown that...", "In this section we will discuss..."
+
+❌ **Generic prompts for walkthroughs**  
+Example: Using "a photo of a dog" instead of VisualForge campaign briefs
+
+❌ **Improvised emoji**  
+Example: Using 🔍🎯✨🚀 as inline callouts (only 💡⚠️⚡📖➡️ allowed)
+
+❌ **Topic-label section headings**  
+Example: "## 3 · Math" instead of "## 3 · Math — How CFG Scale Controls Prompt Adherence"
+
+❌ **Skipping numerical/visual verification**  
+Example: Showing formula, then immediately generalizing without showing 3-generation example
+
+❌ **GPU notebook without runtime estimates**  
+Example: `image = pipe(prompt)` without comment like `# ~8s on RTX 4090`
+
+❌ **Quality claim without metric**  
+Example: "The images look better now" instead of "HPSv2 score improved from 3.5 to 4.1"
+
+---
+
+###Conformance Checklist for New or Revised Chapters
+
+Before publishing any chapter, verify each item:
+
+- [ ] LLM Style Fingerprint present at top of file
+- [ ] Story header: real person, real year, real problem — and a bridge to the practitioner's daily work
+- [ ] §0 Challenge: specific numbers (generation time, quality score, constraint status), named gap, named unlock
+- [ ] Every formula: verbally glossed within 3 lines
+- [ ] Every formula: scalar/simple form shown first, vector/tensor form second
+- [ ] Every non-trivial formula: demonstrated on a 3–5 generation example with explicit parameters
+- [ ] Failure-first pedagogy: new concepts introduced because the simpler one broke, not listed a priori
+- [ ] Optional depth: full derivations behind `> 📖 Optional` callout boxes with paper citations
+- [ ] Forward/backward links: every concept links to where it was introduced and where it reappears
+- [ ] Callout boxes: only `💡 ⚠️ ⚡ 📖 ➡️` — no improvised emoji
+- [ ] Mermaid diagrams: colour palette respected (dark blue / dark green / amber / dark red)
+- [ ] Images: dark background for charts, purposeful (not decorative), descriptive alt-text
+- [ ] Needle GIF: chapter-level progress animation present under `## Animation`
+- [ ] Code: standard variable naming (`prompt`, `guidance_scale`, `num_inference_steps`, `image`, etc.)
+- [ ] Code: Educational vs Production labels for manual loops vs pipeline calls
+- [ ] GPU notebooks: GPU presence guard at cell 1, runtime estimates on all generation cells
+- [ ] Progress Check (§11.5): ✅/❌ bullets with specific numbers + constraint table + diagram
+- [ ] Common Failure Modes (§6): 3–5 traps with Fix + diagnostic guidance
+- [ ] Bridge section: one clause what this chapter established + one clause what next chapter adds
+- [ ] Voice: second person, no academic register, dry humour once per major section maximum
+- [ ] Section headings: descriptive (state the conclusion, not just the topic)
+- [ ] Examples: VisualForge campaign briefs only — no generic "a photo of a dog" prompts
+- [ ] Metrics: all quality claims backed by HPSv2, FID, CLIP score, or visual comparison
+- [ ] Hyperparameters: show failure cases (e.g., CFG 1.0, 7.5, 15.0) before recommending sweet spot
+
+---
+
+## How to Use This Document
+
+1. Open this file to check MultimodalAI track conventions and standards.
+2. Pick a chapter to author or review.
+3. Use the Chapter Structure Template (§"Chapter Structure Template" above) — don't invent new structures.
+4. Keep the VisualForge scenario in focus: every example should tie back to the production mission.
+5. After completing a chapter, use the Conformance Checklist before publishing.
+6. Cross-reference canonical chapters (Ch.3 CLIP, Ch.6 Latent Diffusion) when unsure about style.
+
+---
+
+## Final Reminder
+
+The Grand Challenge is not a distraction from learning — **it is the motivation**. Readers want to know: "Why does this math matter? What can I build with it?" VisualForge Studio shows them: $600k/year savings, 40× faster turnaround, 2.5-month payback. That's the story they'll remember.

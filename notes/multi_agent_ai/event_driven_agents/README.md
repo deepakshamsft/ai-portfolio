@@ -12,20 +12,95 @@
 > 🎯 **The mission**: Build **OrderFlow** — AI-native B2B purchase order automation satisfying 8 constraints:
 > 1. **THROUGHPUT**: 1,000 POs/day — 2. **LATENCY**: <4hr SLA — 3. **ACCURACY**: <2% error — 4. **SCALABILITY**: 10 agents/PO — 5. **RELIABILITY**: >99.9% uptime — 6. **AUDITABILITY**: Full traceability — 7. **OBSERVABILITY**: Real-time monitoring — 8. **DEPLOYABILITY**: Zero-downtime updates
 
-**After Ch.3**: Agents distributed across 3 Kubernetes pods, cross-service delegation via A2A. Throughput: 24 POs/day (2.4% of target). Error rate: 3.2%.
+**What we know so far**:
+- ✅ **Ch.1 (Message Formats)**: Structured agent message schemas prevent context overflow — single-agent 8k token limit → multi-agent decomposition foundation
+- ✅ **Ch.2 (MCP)**: Tool integration protocol collapses N×M to N+M — 10 agents × 15 systems = 150 hardcoded clients → 25 MCP connections
+- ✅ **Ch.3 (A2A)**: Agents distributed across 3 Kubernetes pods, cross-service delegation via A2A protocol
+- ⚡ **Current metrics**: Throughput 24 POs/day (2.4% of target), Latency 36hr median, Error rate 3.2%, 8 agents across 3 pods
+- ❌ **But you still can't process 1,000 POs/day!** Synchronous orchestrator threads block waiting for supplier responses.
 
-### The Blocking Question This Chapter Solves
+**What's blocking us**:
 
-**"How do we handle 1,000 POs/day without blocking orchestrator threads?"**
+🚨 **Your synchronous orchestrator is the bottleneck — and it just failed in production.**
 
-Synchronous A2A: Intake agent waits 1-2 hours for Negotiation agent → orchestrator thread blocks → max throughput = 3 threads × 8hr = **24 POs/day** (2.4% of 1,000 target). Need async pub/sub to decouple producer from consumer.
+**The incident**: PO #2024-1847 (Sarah Chen's 10 standing desks) arrived at 09:15. Your Intake agent parsed it, delegated to Pricing agent via A2A at 09:17. TechFurnish's API took 47 minutes to respond with a quote. Your orchestrator thread waited. So did PO #2024-1848, #2024-1849, and 237 others in the queue behind it. By 14:30, you had 240 POs queued, orchestrator memory at 92%, and your on-call phone ringing.
 
-### What We Unlock in This Chapter
+**Problems**:
+1. ❌ **Synchronous blocking kills throughput**: Intake agent waits 1-2 hours for Negotiation agent → orchestrator thread blocks → max throughput = 3 threads × 8hr = **24 POs/day** (2.4% of 1,000 target). Blocks **#1 THROUGHPUT**.
+2. ❌ **Queue buildup destroys latency**: 240 POs in queue × 35 min/PO = **140 hours queuing delay**. Sarah's desk order from Tuesday morning won't start processing until Friday. Blocks **#2 LATENCY**.
+3. ❌ **Cascading failures**: One slow supplier API (TechFurnish timeout) stalls the entire pipeline — no PO can proceed while the orchestrator waits. Blocks **#5 RELIABILITY**.
 
-- ✅ Async pub/sub messaging: Agents publish events to message bus (Kafka, Azure Service Bus, NATS)
-- ✅ Decoupled orchestration: Intake agent publishes `order.received` → Pricing agent subscribes, processes async
-- ✅ Throughput scaling: **50 concurrent POs in-flight × 20 POs/hr = 1,000 POs/day capacity**
-- ✅ Dead-letter queues: Failed messages route to human review (don't block pipeline)
+**Business impact**: At 24 POs/day capacity, you're processing **600 POs/month** — but the business needs **22,000 POs/month**. The gap: **21,400 POs/month unprocessed** = $64M/month in delayed procurement = equipment downtime, missed production schedules, manual fallback at $420k/year labor cost.
+
+**What this chapter unlocks**:
+
+🚀 **Async event-driven messaging decouples producers from consumers**:
+1. **Message bus replaces synchronous orchestrator**: Agents publish events to Azure Service Bus / Kafka — no blocking waits
+2. **Independent scaling per agent type**: 3× Inventory agents, 8× Negotiation agents (the bottleneck), 2× Approval agents — each scales to load
+3. **Dead-letter queues for graceful degradation**: Failed messages route to human review (0.2% failure rate) — don't block the pipeline
+
+⚡ **Expected improvements**:
+- **Throughput**: 24 POs/day (synchronous) → **1,200 POs/day** (50 concurrent POs × 20 POs/hr) — **50× improvement, exceeds 1,000 target** ✅
+- **Latency**: 36hr median (queue buildup) → **8hr median** (async eliminates queueing) — **4.5× faster** (still not at <4hr target)
+- **Reliability**: Single failure stalls pipeline → **DLQ captures 0.2% failures, all recoverable** — **production-grade resilience**
+- **Constraint #1 THROUGHPUT**: ✅ **ACHIEVED** (1,200 POs/day measured in load test)
+
+**Constraint status after Ch.4**: 
+- #1 (Throughput): ⚡ **ACHIEVED** — 1,200 POs/day (120% of 1,000 target)
+- #2 (Latency): ⚡ **IMPROVED** — 8hr median (still not at <4hr target, need Ch.5 shared memory to eliminate redundant work)
+- #3 (Accuracy): ⚡ **STABLE** — 3.2% error (maintained from Ch.3)
+- #4 (Scalability): ✅ **DISTRIBUTED** — 50 concurrent POs × 8 agents each = 400 agent instances in-flight
+- #5 (Reliability): ⚡ **IMPROVED** — DLQ captures failures, no cascade
+- #6 (Auditability): ⚡ **STABLE** — Correlation IDs link events to POs
+- #7 (Observability): ⚡ **IMPROVED** — Message bus metrics (throughput, lag), but no distributed tracing yet
+- #8 (Deployability): ❌ **BLOCKED** — No deployment automation (Ch.7)
+
+---
+
+## 1 · The Core Idea
+
+**When agent tasks take minutes or hours, synchronous request-response becomes a queue-buildup disaster.** Event-driven messaging decouples producers from consumers: agents publish events to a message bus, subscribers process asynchronously. The orchestrator disappears — replaced by the topology of subscriptions. Throughput scales with message bus capacity (thousands/sec), not orchestrator thread count (3-10).
+
+---
+
+## 2 · Running Example: PO #2024-1847 Lifecycle
+
+Sarah Chen's standing desk order arrives as an email at 09:15. You're the Lead Architect at OrderFlow. Your synchronous A2A system from Ch.3 just failed on this PO — here's what happened, and how you rebuild it with event-driven messaging.
+
+**Before (Ch.3 synchronous — failed)**:
+```
+09:15  Sarah's email arrives → Intake agent parses → publishes to orchestrator queue
+09:17  Orchestrator thread #1 picks up PO #2024-1847
+09:17  Orchestrator → A2A call to Pricing agent: "Get quotes for 10 standing desks"
+09:18  Pricing agent → TechFurnish API: "Quote request"
+       [TechFurnish API takes 47 minutes to respond — their database is slow today]
+10:04  TechFurnish → Pricing agent: "$789/desk"
+10:04  Pricing agent → Orchestrator: "Best quote: TechFurnish $789/desk"
+10:04  Orchestrator → A2A call to Negotiation agent: "Negotiate with TechFurnish"
+       [Orchestrator thread #1 has been blocked for 47 minutes waiting]
+       [POs #2024-1848 through #2024-2087 are queued, waiting for thread #1]
+```
+Orchestrator thread count: **3 threads**. PO processing time: **35 min/PO** (when suppliers are fast). Max throughput: **3 threads × 60 min/hr ÷ 35 min/PO = 5 POs/hr = 24 POs/day** (assumes 8-hour workday, ignores queue buildup). Actual throughput when TechFurnish is slow: **1 PO every 47 minutes = 10 POs/day**.
+
+**After (Ch.4 event-driven — success)**:
+```
+09:15  Sarah's email → Intake agent → publishes event: {"topic": "order.received", "po_id": "2024-1847", "items": [...]}
+09:15  [Message bus] → Pricing agent (consumer) picks up "order.received" event
+09:16  Pricing agent → TechFurnish API: "Quote request"
+       [Pricing agent returns immediately — does not block any orchestrator]
+       [Other Pricing agent replicas (8 total) process POs #2024-1848, #2024-1849, ...]
+10:03  TechFurnish → Pricing agent: "$789/desk"
+10:03  Pricing agent → publishes event: {"topic": "quote.completed", "po_id": "2024-1847", "quote": ...}
+10:03  [Message bus] → Negotiation agent picks up "quote.completed" event
+10:03  Negotiation agent → negotiates with TechFurnish → publishes "negotiation.completed"
+10:18  Approval agent → auto-approves ($7,490 < $10k threshold) → publishes "po.approved"
+10:20  Drafting agent → sends PO to TechFurnish → publishes "po.sent"
+```
+No orchestrator thread blocked. **50 concurrent POs in-flight** at any moment (limited only by message bus throughput, not thread count). **20 POs/hr throughput = 1,000 POs/day** (assumes 50-hour work week for the system, no downtime). TechFurnish's slow response affects only PO #2024-1847's latency — does not stall the pipeline.
+
+---
+
+## 3 · The Architecture
 
 ### Progress on the 8 Constraints
 
@@ -42,9 +117,7 @@ Synchronous A2A: Intake agent waits 1-2 hours for Negotiation agent → orchestr
 
 **What's still blocking**: Pricing agent doesn't see negotiation context → quotes wrong delivery terms. Approval agent doesn't know negotiation history → asks redundant questions. *(Ch.5 — SharedMemory solves this.)*
 
----
-
-## Where Synchronous Stops Working
+### Where Synchronous Stops Working
 
 A synchronous orchestrator is effectively a state machine that blocks. The orchestrator calls Agent A, waits, gets a result, calls Agent B, waits. While waiting, the orchestrator thread (or async coroutine) holds state in memory and cannot serve another task.
 
@@ -61,9 +134,7 @@ It breaks when:
 
 The solution is to decouple producers from consumers using a **message bus**.
 
----
-
-## The Async Pub/Sub Model for Agents
+### The Async Pub/Sub Model for Agents
 
 ```
                     ┌────────────────────────────────────┐
@@ -80,9 +151,7 @@ Intake Service ────▶│  Topic: "negotiation.completed"     │──�
 
 Key shift in mental model: **agents do not call each other**. Each agent publishes an event to the bus when it completes work. Any agent that cares about that event subscribes to it. The orchestrator is replaced by the topology of subscriptions.
 
----
-
-## Message Structure and Correlation
+### Message Structure and Correlation
 
 Every message in an event-driven agent system needs at minimum:
 
@@ -107,9 +176,7 @@ Every message in an event-driven agent system needs at minimum:
 - **`causation_id`**: Enables distributed tracing across the agent chain — if a message triggers another message, causation_id points back. This is how you reconstruct the full execution graph in a trace viewer.
 - **`schema_version`**: Agents evolve independently. A consumer must be able to ignore fields it does not understand, and must be resilient to minor schema changes without breaking. Versioning the schema makes that explicit.
 
----
-
-## Dead-Letter Queues
+### Dead-Letter Queues
 
 A dead-letter queue (DLQ) is where messages land when processing fails after all retry attempts. Every agent subscription should have a DLQ.
 
@@ -124,9 +191,7 @@ subscription_config = {
 
 **Why DLQs matter for agents:** A model that hallucinates an invalid tool call will cause a message to fail. Without a DLQ, failed messages either block the queue (stalling all subsequent tasks) or are silently discarded. With a DLQ, failed messages accumulate in a separate queue where a human-review agent (or a monitoring alert) can inspect them.
 
----
-
-## Delivery Guarantees and Idempotency
+### Delivery Guarantees and Idempotency
 
 | Guarantee | What it means | Agent implication |
 |-----------|---------------|-------------------|
@@ -147,9 +212,7 @@ async def handle_send_po_email(message: Message):
     await dedup_store.set(message.message_id, ttl_seconds=86400)
 ```
 
----
-
-## Fan-Out and Fan-In
+### Fan-Out and Fan-In
 
 **Fan-out:** One event triggers multiple agents simultaneously.
 
@@ -179,9 +242,7 @@ async def aggregate_pre_checks(correlation_id: str, result: dict):
 
 The aggregator listens to a shared topic, accumulates partial results in a store (see Ch.5 — Shared Memory), and publishes a single downstream event when all parallel results have landed.
 
----
-
-## Message Bus Options
+### Message Bus Options
 
 | Bus | When to choose it |
 |-----|-------------------|
@@ -194,17 +255,50 @@ The aggregator listens to a shared topic, accumulates partial results in a store
 
 ---
 
-## 2 · Running Example
+## 4 · How It Works — Step by Step
 
-OrderFlow's synchronous pipeline hit its ceiling on day 3 of a high-demand period: 240 POs in the queue, the orchestrator running 240 blocking coroutines, memory at 92%, and supplier response times averaging 37 minutes.
+You're rebuilding OrderFlow's pipeline after the synchronous failure. Here's how you convert each agent to an event-driven consumer:
 
-The rebuild: each agent was converted to a queue consumer. The orchestrator became a thin coordinator that published `order.received` and watched for `po.complete`. Each specialist agent ran as an independently scaled container pool — inventory check agents at ×3 replicas, negotiation agents at ×8 replicas (the bottleneck).
+**Step 1: Deploy the message bus**
 
-When a negotiation agent crashed mid-task, the message was automatically re-delivered to another negotiation agent replica after the lock timeout. No task was lost. The crashed agent's partial work was visible in the shared PO record in Redis (see Ch.5).
+You provision Azure Service Bus with three topics:
+- `order.received` — Intake agent publishes when email parsed
+- `quote.completed` — Pricing agent publishes when quotes gathered
+- `po.approved` — Approval agent publishes when PO approved
+
+Each topic has a dead-letter queue (`order.received/$DeadLetterQueue`, etc.) for failed messages.
+
+**Step 2: Convert agents to consumers**
+
+Each agent becomes a consumer group listening to one topic:
+- **Pricing agent** (8 replicas) subscribes to `order.received` → processes `po_id` → publishes to `quote.completed`
+- **Negotiation agent** (8 replicas) subscribes to `quote.completed` → negotiates → publishes to `negotiation.completed`
+- **Approval agent** (2 replicas) subscribes to `negotiation.completed` → checks thresholds → publishes to `po.approved`
+
+No agent calls another agent. The message bus routes events.
+
+**Step 3: Implement idempotency**
+
+Each agent checks a Redis deduplication store before processing:
+```python
+if await redis.exists(f"processed:{message.message_id}"):
+    logger.info(f"Duplicate message {message.message_id} — skipping")
+    await bus.acknowledge(message)
+    return
+```
+This prevents duplicate email sends, duplicate PO submissions, duplicate approval notifications.
+
+**Step 4: Configure dead-letter routing**
+
+If a message fails 3 times (e.g., Pricing agent can't parse item description), Azure Service Bus automatically moves it to the DLQ. You deploy a **Human Review Agent** that subscribes to all DLQs and publishes failed POs to a Slack channel for manual intervention.
+
+**Step 5: Scale to load**
+
+You run a load test: 1,200 POs submitted over 24 hours. Negotiation agent CPU hits 80% → you scale to 12 replicas via Kubernetes Horizontal Pod Autoscaler. Throughput stabilizes at **1,200 POs/day** with **8hr median latency**.
 
 ---
 
-## 3 · The Math
+## 5 · The Key Formulas
 
 ### Little's Law for Agent Queues
 
@@ -232,7 +326,7 @@ For supplier quote collection (fan-out $k=4$ suppliers): $T_{\text{fanout}} = \m
 
 ---
 
-## Code Skeleton
+## 6 · Code Skeleton
 
 ```python
 # Educational: minimal async pub/sub from scratch
@@ -288,7 +382,31 @@ async def consume_events(stream: str, group: str, consumer: str, handler):
 
 ---
 
-## Where This Reappears
+## 7 · What Can Go Wrong
+
+⚠️ **Trap 1: No idempotency → duplicate actions**
+- **Problem**: At-least-once delivery means messages can be processed twice. Without deduplication, you send duplicate emails, charge cards twice, submit duplicate POs.
+- **Fix**: Store `message_id` in Redis with 24-hour TTL. Check before executing non-idempotent actions.
+
+⚠️ **Trap 2: Message ordering lost across agents**
+- **Problem**: Pricing agent publishes "quote.completed" for PO #2024-1847. Negotiation agent publishes "negotiation.completed". But what if negotiation completes *before* the pricing agent's message is consumed by downstream agents? The approval agent sees negotiation results before it sees the quote.
+- **Fix**: Use **Azure Service Bus sessions** (per-PO FIFO ordering) or **Kafka partition keys** (route all messages for one PO to same partition).
+
+⚠️ **Trap 3: Dead-letter queue grows unbounded**
+- **Problem**: A model change causes 2% of POs to fail parsing. 20 POs/day × 30 days = 600 POs in DLQ. No one notices until the business complains about missing POs.
+- **Fix**: Set up **DLQ depth alerts** (PagerDuty alert when DLQ depth > 50). Deploy a Human Review Agent that processes DLQ messages daily.
+
+⚠️ **Trap 4: Message payload too large**
+- **Problem**: Pricing agent publishes full supplier catalog (5 MB JSON) in `quote.completed` event. Azure Service Bus max message size: **256 KB**. Message rejected.
+- **Fix**: Store large payloads in **blob storage** (Azure Blob, S3). Publish only a **reference** in the message: `{"quote_blob_url": "https://..."}`. Consumer fetches blob on demand.
+
+⚠️ **Trap 5: Fan-in without timeout → stuck workflows**
+- **Problem**: You fan out to 4 suppliers. 3 respond within 10 seconds. 1 supplier times out after 60 seconds. Your aggregator waits forever for the 4th response.
+- **Fix**: Set a **fan-in timeout** (e.g., 30 seconds). After timeout, aggregator publishes results from the 3 responders + marks the 4th as "timeout". The downstream agent proceeds with partial data.
+
+---
+
+## 8 · Where This Reappears
 
 | Chapter | How event-driven patterns appear |
 |---------|----------------------------------|
@@ -300,44 +418,32 @@ async def consume_events(stream: str, group: str, consumer: str, handler):
 
 ---
 
+## 9 · Progress Check — What We Can Solve Now
 
-## 4 · How It Works
+✅ **Unlocked capabilities**:
+- ✅ **Async event-driven messaging**: Agents publish to Azure Service Bus — no blocking orchestrator threads
+- ✅ **Independent agent scaling**: 3× Inventory, 8× Negotiation, 2× Approval agents — each scales to load
+- ✅ **Dead-letter queues**: Failed messages (0.2% rate) route to human review — don't block pipeline
+- ✅ **Fan-out parallelism**: One `order.received` event triggers 4 parallel supplier quote requests — results merged via aggregator
+- ✅ **Idempotency**: Redis deduplication prevents duplicate email sends, duplicate PO submissions
+- ⚡ **Constraint #1 THROUGHPUT**: ✅ **ACHIEVED!** 1,200 POs/day measured in load test (120% of 1,000 target)
 
-> Step-by-step walkthrough of the mechanism.
-
-
-## 5 · Key Diagrams
-
-> Add 2–3 diagrams showing the key data flows here.
-
-
-## 6 · Hyperparameter Dial
-
-> List the key knobs and their effect on behaviour.
-
-
-## 7 · What Can Go Wrong
-
-> 3–5 common failure modes and mitigations.
-
-## 8 · Progress Check — What We Achieved
+**Progress toward constraints**:
 
 ```mermaid
 graph LR
     Ch1["Ch.1\nMessage Formats"]:::done
     Ch2["Ch.2\nMCP"]:::done
     Ch3["Ch.3\nA2A"]:::done
-    Ch4["Ch.4\nEvent-Driven"]:::done
-    Ch5["Ch.5\nShared Memory"]:::done
-    Ch6["Ch.6\nTrust & Sandboxing"]:::done
-    Ch7["Ch.7\nAgent Frameworks"]:::done
+    Ch4["Ch.4\nEvent-Driven"]:::current
+    Ch5["Ch.5\nShared Memory"]:::upcoming
+    Ch6["Ch.6\nTrust & Sandboxing"]:::upcoming
+    Ch7["Ch.7\nAgent Frameworks"]:::upcoming
     Ch1 --> Ch2 --> Ch3 --> Ch4 --> Ch5 --> Ch6 --> Ch7
     classDef done fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     classDef current fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     classDef upcoming fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
-
-### Constraint Status After Ch.4
 
 | Constraint | Before | After Ch.4 | Change |
 |------------|--------|------------|--------|
@@ -350,32 +456,45 @@ graph LR
 | #7 OBSERVABILITY | Task status queryable | **Message bus metrics** (throughput, lag) | ⚡ **Improved** |
 | #8 DEPLOYABILITY | No automation | No automation | ❌ No change |
 
-### The Win
+**What you can solve now**:
 
-✅ **1,000 POs/day achieved!** Async pub/sub decoupled orchestrator from agent execution time. 50 concurrent POs in-flight × 20 POs/hr = **1,200 POs/day capacity** (120% of target).
-
-**Measured impact**:
-- Throughput: 24 → 1,200 POs/day (50× improvement)
-- Latency: 36hr → 8hr median (4.5× faster)
-- Reliability: DLQ captures 0.2% failures → all recoverable
-
-### Architecture Shift
-
+✅ **High-volume PO processing**:
 ```
-Before (Ch.3 synchronous):
-Intake ──blocks 1 hr──▶ Negotiation ──blocks 30 min──▶ Drafting
-Max throughput: 3 orchestrator threads × 8 hr = 24 POs/day
+Before Ch.4:
+Synchronous orchestrator: 3 threads × 8hr = 24 POs/day (2.4% of target)
+Queue buildup: 240 POs waiting, 36hr median latency
+Single supplier timeout stalls entire pipeline
 
-After (Ch.4 async):
-Intake ─publish─▶ Bus ─subscribe─▶ Negotiation ─publish─▶ Bus ─subscribe─▶ Drafting
-Max throughput: 50 concurrent POs × 20 POs/hr = 1,000 POs/day ✅
+After Ch.4:
+Async message bus: 50 concurrent POs × 20 POs/hr = 1,200 POs/day ✅
+8hr median latency (4.5× faster)
+DLQ captures 0.2% failures → all recoverable
+
+Result: ✅ Throughput constraint achieved (120% of 1,000 POs/day target)
 ```
 
-### What's Still Blocking
+✅ **Graceful degradation on supplier timeouts**:
+```
+Before: TechFurnish API timeout → entire pipeline stalls → no POs processed
+After: TechFurnish timeout → message moved to DLQ → other POs continue → human review agent notified
+Result: ✅ Reliability improved (0.2% failure rate, no cascading failures)
+```
 
-**Cross-agent context blindness**: Pricing agent doesn't see negotiation results → quotes wrong delivery terms. Approval agent doesn't know negotiation history → asks redundant questions. Each agent operates in isolation.
+**What you still can't solve**:
 
-**Next unlock** *(Ch.5 — SharedMemory)*: Blackboard architecture (shared Redis store) gives all agents visibility into full PO context. Pricing agent reads `order:PO-4812:negotiation` → instant access to agreed terms.
+- ❌ **Cross-agent context blindness**: Pricing agent doesn't see negotiation results → quotes wrong delivery terms. Approval agent doesn't know negotiation history → asks redundant questions. Each agent operates in isolation. → **Need Ch.5 (Shared Memory) for blackboard architecture — shared Redis store gives all agents visibility into full PO context**
+- ❌ **<4hr latency target**: Current 8hr median (4.5× faster than 36hr, but still double target). Agents repeat work (Pricing agent re-fetches quotes already cached by Negotiation agent). → **Need Ch.5 for shared cache to eliminate redundant API calls**
+- ❌ **Zero-downtime deployment**: Manual kubectl apply → brief downtime → rollback requires re-deploying previous image. → **Need Ch.7 (Agent Frameworks) for blue-green deployment + health checks**
+
+**Real-world status**: You can now process 1,200 POs/day (target achieved ✅), but latency is 8hr median (need 4hr) and agents can't share context (need shared memory).
+
+**Next up**: Ch.5 (Shared Memory & Blackboard Architectures) gives you **Redis-backed shared state** — Pricing agent writes quotes, Negotiation agent reads them → eliminates redundant API calls → **target: <4hr latency** ✅
+
+---
+
+## 10 · Bridge to Ch.5
+
+Ch.4 unlocked **1,000 POs/day throughput** (120% of target ✅) via async messaging, but agents operate in isolation — Pricing agent can't see what Negotiation agent learned, Approval agent can't see what Pricing agent quoted → redundant API calls, repeated work, 8hr median latency (2× the <4hr target). Ch.5 (**Shared Memory & Blackboard Architectures**) introduces a **Redis-backed blackboard** where all agents read/write shared PO state → Pricing agent writes `order:2024-1847:quotes`, Negotiation agent reads it → **eliminates redundant work** → **<4hr latency target** ✅.
 
 ---
 
