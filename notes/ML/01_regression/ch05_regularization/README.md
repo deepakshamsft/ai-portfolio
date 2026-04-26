@@ -68,69 +68,6 @@ flowchart LR
 
 ---
 
-## The Regularization Discovery Arc
-
-> Same SmartVal AI. Same California Housing data. Same team. Three evenings of experiments that finally broke through the $40k wall.
-
-### Act 1 — The Overfitting Trap
-
-The Ch.4 engineer was proud: degree-2 polynomial expansion with 44 features, MAE = $48k on test. Good progress toward $40k target. Then the senior engineer asked one question:
-
-> "What's the training MAE?"
-
-The answer: $42k. A $6k train-test gap. On 16,512 training examples, that gap means the model is memorizing noise.
-
-The culprit: features like `Population × AveBedrms` (weight = +0.21) and `AveOccup²` (weight = −0.18). They captured correlations in the training set that don't exist in reality. The degree-2 expansion had given the model too much freedom and too little discipline.
-
-**First instinct: remove the suspicious features manually.** That's VIF analysis — but with 44 polynomial features, the VIF matrix has 44 rows. Manual pruning would take days and would be wrong anyway (VIF tells you about correlation, not predictive value). What's needed is a mathematical editor.
-
-### Act 2 — Ridge: The Shrinkage Surgeon
-
-Add a penalty $\lambda \sum w_j^2$ to the loss. The model now pays a cost for every large weight — it has to *earn* each learned value with a proportional improvement in fit.
-
-At $\lambda = 0.01$: weights shrink moderately; test MAE drops from $48k to $44k — progress, but not enough.  
-At $\lambda = 1.0$: the sweet spot. Here's what happens to the five weights we tracked:
-
-| Feature | OLS (λ=0) | Ridge λ=0.1 | Ridge λ=1.0 | Ridge λ=100 |
-|---------|-----------|------------|-------------|-------------|
-| `MedInc` | +0.68 | +0.65 | +0.61 | +0.21 |
-| `Latitude` | −0.42 | −0.40 | −0.38 | −0.14 |
-| `AveRooms × AveBedrms` | +0.29 | +0.19 | +0.09 | +0.01 |
-| `Population × AveBedrms` | +0.21 | +0.12 | +0.06 | +0.00 |
-| `AveOccup²` | −0.18 | −0.10 | −0.07 | −0.00 |
-
-**Test MAE:** $48k → $44k → **$38k** ✅ → $56k (overpenalized)
-
-Notice what Ridge does and doesn't do. At λ=1.0, the noise terms (`Population × AveBedrms`, `AveOccup²`) shrink to near-zero — effectively harmless. But they're not exactly zero. If you asked "how many features does this model use?", the answer is still 44. Ridge made every feature smaller; it didn't make any features disappear.
-
-That turns out to matter when someone asks: "Can you explain your model? Which features drive the prediction?"
-
-### Act 3 — Lasso: The Feature Eliminator
-
-The L1 penalty $\lambda \sum |w_j|$ has the same goal as Ridge — discourage large weights — but a different geometry. The L1 diamond-shaped constraint region has corners that sit on the coordinate axes. When the optimization hits a corner, exactly one weight is zero.
-
-At $\lambda = 0.001$, Lasso zeros out 12 of the 44 features:
-- All four of the `×Population` cross-terms → zeroed
-- `AveBedrms²`, `HouseAge × AveOccup` → zeroed
-- `AveOccup²`, `AveBedrms × AveOccup` → zeroed
-- Remaining: 32 features with non-zero weights
-
-Test MAE = $39k — slightly worse than Ridge's $38k. But now the model is **sparse**: only 32 features matter. A data scientist can print the non-zero weights and discuss each one.
-
-**The structural insight:** Lasso didn't learn *better* features — it was forced to commit. When a model can't have everything, it learns which features are non-negotiable. `MedInc`, `Latitude`, and their polynomial terms were kept. The occupation and bedroom cross-terms were cut.
-
-**The two outcomes compared:**
-
-| Method | Features | MAE | Train−Test gap | Best for |
-|--------|----------|-----|----------------|---------|
-| OLS poly (Ch.4) | 44/44 | $48k | $6k (overfitting!) | — nothing |
-| **Ridge α=1.0** | 44/44 | **$38k** | <$1k ✅ | Correlated features, stability |
-| **Lasso α=0.001** | 32/44 | $39k | <$1k ✅ | Interpretability, feature selection |
-
-The target is achieved. The overfitting gap closed. The model is now explainable.
-
----
-
 ## 1 · Core Idea
 
 Regularization adds a **penalty term** to the loss function that discourages large weights:
@@ -163,26 +100,71 @@ $$L_\text{total} = \underbrace{\text{MSE}}_{\text{fit the data}} + \underbrace{\
 
 ## 2 · Running Example: How Ridge and Lasso Behave on California Housing
 
-**The question:** Which of the 44 polynomial features truly matter?
+**The scenario:** Ch.4 expanded 8 features to 44 polynomial features. Training MAE = $42k, test MAE = $48k — a $6k gap signals overfitting. Let's trace how regularization fixes this on 3 actual districts.
 
-**Before regularization (Ch.4):**
-- 44 features, all with non-zero weights
-- MAE = $48k, but training MAE = $42k → $6k train-test gap (overfitting)
+### The Data (3 California Housing Districts)
 
-**After regularization:**
-- **Ridge (α=1.0)**: All 44 weights shrunk but non-zero → **$38k MAE** ✅
-- **Lasso (α=0.001)**: 12 weights zeroed → 32 active features → $39k MAE ✅
+| District | MedInc | Latitude | AveRooms | AveBedrms | True Value | Ch.4 Prediction | Error |
+|----------|--------|----------|----------|-----------|------------|-----------------|-------|
+| #1 (SF) | 8.32 | 37.88 | 6.98 | 1.02 | $452k | $485k | +$33k |
+| #2 (Inland) | 2.56 | 36.14 | 4.11 | 1.05 | $125k | $98k | −$27k |
+| #3 (Coastal) | 6.10 | 34.05 | 5.24 | 1.01 | $310k | $352k | +$42k |
+
+**Problem:** Ch.4's polynomial model has 44 features, including noise terms like:
+- `AveRooms × AveBedrms` (weight = +0.29 in OLS)
+- `Population × AveBedrms` (weight = +0.21)
+- `AveOccup²` (weight = −0.18)
+
+These features capture training-set correlations that don't generalize. District #1's large error (+$33k) comes partly from noise features amplifying random variations.
+
+### How Ridge (L2) Fixes This
+
+**Ridge with λ = 1.0** shrinks all 44 weights but keeps them non-zero:
+
+| Feature | OLS Weight | Ridge Weight | Change |
+|---------|------------|--------------|--------|
+| `MedInc` | +0.68 | +0.61 | −10% (signal preserved) |
+| `Latitude` | −0.42 | −0.38 | −10% |
+| `AveRooms × AveBedrms` | +0.29 | +0.09 | **−69%** (noise suppressed) |
+| `Population × AveBedrms` | +0.21 | +0.06 | **−71%** |
+| `AveOccup²` | −0.18 | −0.07 | **−61%** |
+
+**New predictions with Ridge:**
+
+| District | True Value | Ridge Prediction | Error | Improvement |
+|----------|------------|------------------|-------|-------------|
+| #1 (SF) | $452k | $467k | +$15k | $33k → $15k ✅ |
+| #2 (Inland) | $125k | $112k | −$13k | $27k → $13k ✅ |
+| #3 (Coastal) | $310k | $325k | +$15k | $42k → $15k ✅ |
+
+**Test MAE:** $48k → **$38k** (Ridge shrinks noise → better generalization)
+
+### How Lasso (L1) Fixes This Differently
+
+**Lasso with λ = 0.001** zeros out 12 of 44 features completely:
+
+| Feature | OLS Weight | Lasso Weight | Status |
+|---------|------------|--------------|--------|
+| `MedInc` | +0.68 | +0.65 | ✅ Kept |
+| `Latitude` | −0.42 | −0.38 | ✅ Kept |
+| `AveRooms × AveBedrms` | +0.29 | +0.06 | ⚠️ Shrunk |
+| `Population × AveBedrms` | +0.21 | **0.00** | ❌ Zeroed |
+| `AveOccup²` | −0.18 | **0.00** | ❌ Zeroed |
+
+**Result:** Only 32 features remain active. The model is now **sparse** — easier to interpret, slightly worse accuracy.
+
+**Test MAE:** $48k → $39k (Lasso kills noise → automatic feature selection)
 
 ### Three Key Patterns
 
 **1. Signal strength determines survival:**  
-Features with strong correlation to the target (`MedInc`, `Latitude`, `Longitude`) resist shrinkage in both Ridge and Lasso. Weak features shrink dramatically or hit zero.
+Strong features (`MedInc`, `Latitude`) resist shrinkage in both Ridge and Lasso. Weak features (`Population × AveBedrms`) shrink dramatically or hit zero.
 
 **2. Multicollinearity gets resolved differently:**  
-When `AveRooms` and `AveBedrms` are correlated (ρ = 0.85), Ridge **distributes** weight across both, while Lasso **picks one arbitrarily** and zeros the other. Ridge is more stable for correlated features.
+When `AveRooms` and `AveBedrms` are correlated (ρ = 0.85), Ridge **distributes** weight across both, while Lasso **picks one arbitrarily** and zeros the other.
 
 **3. Noise features collapse:**  
-Cross-terms like `Population × AveBedrms` and `HouseAge × AveOccup` lack domain justification. Ridge shrinks them to near-zero; Lasso eliminates them completely.
+Cross-terms like `Population × AveBedrms` lack domain justification. Ridge shrinks them to near-zero; Lasso eliminates them completely.
 
 **The trade-off:** Ridge achieved the $38k target while keeping all 44 features (safer for production). Lasso achieved $39k with only 32 features (better for interpretability).
 
@@ -277,21 +259,18 @@ flowchart TD
 
 ## 4 · Key Diagrams: Weight Shrinkage and Convergence Paths
 
-### Weight Shrinkage Across λ Values
+### Weight Shrinkage: Ridge vs Lasso
 
-**Ridge** smoothly shrinks all weights as λ increases, but never reaches exactly zero:
-
-![Ridge shrinkage animation](img/ch05-ridge-shrinkage.gif)
-
-**Lasso** creates hard zeros at different λ thresholds — automatic feature selection:
-
-![Lasso zeroing animation](img/ch05-lasso-zeroing.gif)
-
-**Side-by-side comparison** showing the fundamental difference:
+The fundamental difference between Ridge (L2) and Lasso (L1) is how they treat weak features:
 
 ![Ridge vs Lasso comparison](img/ch05-ridge-vs-lasso.gif)
 
-*Ridge (left) keeps all features active even at high λ. Lasso (right) progressively eliminates features. Red ✗ marks zeroed features.*
+*Ridge (left) keeps all features active even at high λ, shrinking them smoothly toward zero. Lasso (right) progressively eliminates features at specific λ thresholds. Red ✗ marks zeroed features. This shows why Lasso is called a "feature selection" method.*
+
+**Key observations:**
+- **Ridge:** All 44 features stay non-zero across the entire λ range — even at λ=1000, weights are tiny but present
+- **Lasso:** Features hit exact zero at different thresholds — automatic feature selection happens progressively
+- **The geometry:** Ridge's L2 ball is smooth; Lasso's L1 diamond has corners on the axes where weights become exactly zero
 
 ### Weight Evolution During Optimization
 
