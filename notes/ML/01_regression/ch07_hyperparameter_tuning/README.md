@@ -75,7 +75,7 @@ flowchart LR
 
 ![Chapter animation](img/ch07-hyperparameter-tuning-needle.gif)
 
-## 1 · Linear Model Regularization Tuning
+## 1 · Ridge α Must Be Tuned on Log Scale
 
 ### Ridge α — The Most Important Dial
 
@@ -174,7 +174,7 @@ If you split train/test once and pick the best (degree, α) from that single tes
 
 ---
 
-## 2 · Polynomial Regression Tuning
+## 2 · Degree and α Are Coupled Parameters
 
 ### Degree Selection
 
@@ -234,7 +234,7 @@ Decision trees alone rarely beat regularized linear models, but they're the buil
 
 ---
 
-## 4 · XGBoost for Regression
+## 4 · XGBoost Captures Non-Linear Interactions Automatically
 
 XGBoost (eXtreme Gradient Boosting) builds an ensemble of decision trees sequentially. It's the **most competitive model for tabular data** and has a larger hyperparameter space.
 
@@ -382,7 +382,7 @@ xgb_cv.fit(X_train, y_train)
 
 ---
 
-## 5 · Tuning Strategies
+## 5 · Random Search Beats Grid in High Dimensions
 
 ### Grid Search — Exhaustive but Expensive
 
@@ -635,9 +635,6 @@ flowchart TD
 ```python
 # ❌ WRONG: Optimizing RMSE when business cares about MAE
 grid_cv = GridSearchCV(pipe, params, scoring='neg_mean_squared_error')
-
-# ✅ RIGHT: Use the business metric
-grid_cv = GridSearchCV(pipe, params, scoring='neg_mean_absolute_error')
 ```
 
 RMSE and MAE can disagree on which model is best:
@@ -645,6 +642,8 @@ RMSE and MAE can disagree on which model is best:
 - Model B: MAE=$37k, RMSE=$48k (uniform errors)
 
 If business cares about typical error → optimize MAE. If large errors are catastrophic → optimize RMSE.
+
+**Fix:** Use `scoring='neg_mean_absolute_error'` to match business goal.
 
 ### Pitfall 2: Over-Tuning Polynomial Degree
 
@@ -657,7 +656,7 @@ Degree is a discrete hyperparameter with massive impact:
 | 3 | 164 | $120k (overfit!) | $37k (regularization saves it) |
 | 4 | 494 | Explodes | $39k (diminishing returns) |
 
-**Lesson:** Never tune degree without also tuning α. They're coupled parameters.
+**Fix:** Never tune degree without also tuning α in the same parameter grid — they're coupled parameters.
 
 ### Pitfall 3: Not Tuning Regularization Jointly with Feature Engineering
 
@@ -665,14 +664,9 @@ Degree is a discrete hyperparameter with massive impact:
 # ❌ WRONG: Tune degree first, THEN tune α separately
 best_degree = grid_search_degree(...)  # degree=3
 best_alpha = grid_search_alpha(degree=3, ...)  # α=10
-
-# ✅ RIGHT: Tune both simultaneously
-param_grid = {
-    'poly__degree': [1, 2, 3],
-    'model__alpha': np.logspace(-3, 3, 7)
-}
-# Finds the JOINT optimum, not two independent optima
 ```
+
+**Fix:** Tune both simultaneously in a joint parameter grid — `{'poly__degree': [1, 2, 3], 'model__alpha': np.logspace(-3, 3, 7)}` finds the true optimum, not two independent optima.
 
 ### Pitfall 4: Data Leakage in Cross-Validation
 
@@ -680,14 +674,9 @@ param_grid = {
 # ❌ WRONG: Fit scaler on full data, then cross-validate
 X_scaled = StandardScaler().fit_transform(X)  # Leaks test info!
 cross_val_score(model, X_scaled, y, cv=5)
-
-# ✅ RIGHT: Scale inside the pipeline (each fold independently)
-pipe = Pipeline([
-    ('scaler', StandardScaler()),
-    ('model', Ridge())
-])
-cross_val_score(pipe, X, y, cv=5)  # Scaler fit on train fold only
 ```
+
+**Fix:** Scale inside the pipeline so each fold fits the scaler independently — `Pipeline([('scaler', StandardScaler()), ('model', Ridge())])` ensures the scaler only sees training fold data.
 
 ### Diagnostic Flowchart
 
@@ -974,7 +963,7 @@ Ch.4 added MedInc² and MedInc×Latitude to capture the coastal premium. But wha
 Ridge and XGBoost produce one real number per prediction. A neural net's output layer can be any shape: produce a house value AND a market segment (regression + classification) simultaneously, in a single forward pass, with shared feature representations.
 
 **The bridge in one line:**  
-A single neuron — $z = \sigma(\mathbf{w}^\top\mathbf{x} + b)$ — is exactly linear regression with a non-linearity $\sigma$ glued to the output. Stack 3 layers of these neurons, and the model can approximate any continuous function (Universal Approximation Theorem). The training loop (forward pass → loss → gradient → weight update) is *identical* to what you built in Ch.1.
+A single neuron — $z = \sigma(\mathbf{w}^\top\mathbf{x} + b)$ — is exactly linear regression with a non-linearity $\sigma$ glued to the output. Three stacked layers give the Universal Approximation Theorem: your network can fit any continuous function. The training loop (forward pass → loss → gradient → weight update) is *identical* to what you built in Ch.1.
 
 **Everything in the regression track was preparation:**
 

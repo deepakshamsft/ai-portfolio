@@ -31,6 +31,8 @@ You can't answer any of those questions from Ch.2's output. You have weights, bu
 - Which feature *pairs* are **stronger together** than the sum of their parts (joint permutation, interaction uplift)
 - A **bar chart** and **heatmap** you can hand to any stakeholder
 
+> ⚡ **Constraint #4 — Interpretability unlocked:** You can now explain to the compliance officer *which* features drive SmartVal predictions, *why* certain weight pairs are unstable (AveRooms/AveBedrms collinearity), and *which* feature is safe to drop (Population). This is the foundation for explainable valuation decisions required by lending regulations.
+
 This does not change the MAE. It changes your understanding of *why* you're at \$55k and what levers exist to push lower.
 
 ---
@@ -104,17 +106,17 @@ This is the core reason the rankings diverge. The full diagnostic tool for measu
 
 ### 3.1 Filter Methods — Feature-Target Relationship Assessment
 
-Before diving into the three model-dependent methods (Methods 1-3), let's establish the foundation. **Filter methods** assess features using only their statistical relationship with the target — no model is trained. Two complementary tools cover the space: **Pearson correlation** for straight-line relationships, and **Mutual Information** for any shape.
+Before diving into the three model-dependent methods (Methods 1-3), you need the foundation. **You use filter methods** to assess features based purely on their statistical relationship with the target — no model training required. Two complementary tools cover the space: **Pearson correlation** for straight-line relationships, and **Mutual Information** for any shape.
 
 These metrics are the building blocks for Method 1 (Univariate R²) and provide the "first pass" signal check that guides all subsequent feature selection decisions.
 
-> 🔍 **Scope note:** This section covers **relationship filters** — metrics that measure feature→target association. **Quality filters** like Variance Threshold (which drop degenerate features regardless of their relationship to the target) are covered later alongside multicollinearity diagnostics, since both address feature quality and redundancy rather than predictive signal.
+> 💡 **What this section covers:** **Relationship filters** — metrics that measure feature→target association. **Quality filters** like Variance Threshold (which drop degenerate features regardless of their relationship to the target) are covered later alongside multicollinearity diagnostics, since both address feature quality and redundancy rather than predictive signal.
 
 #### 3.1.1 Pearson Correlation — The Ruler
 
-> 💡 **Think of it as: The Ruler.** Pearson asks "if I draw a straight line through the data, how tightly do the points cluster around it?" It cares about *direction* — if $X$ rises, does $Y$ rise too (positive) or fall (negative)? The score lives in $[{-1}, +1]$: 0 means no linear relationship, ±1 means a perfect line. The catch: **it only sees straight lines.** Bend the data into a U and the ruler reads zero, even though the pattern is obvious.
->
-> **When to reach for it:** Use Pearson as the first pass for Linear Regression. A feature with |ρ| > 0.3 is a prime candidate for a linear model. Always plot the scatter first — a curve or cluster that Pearson misses will be visible immediately.
+**Think of it as: The Ruler.** Pearson asks "if I draw a straight line through the data, how tightly do the points cluster around it?" It cares about *direction* — if $X$ rises, does $Y$ rise too (positive) or fall (negative)? The score lives in $[{-1}, +1]$: 0 means no linear relationship, ±1 means a perfect line. The catch: **it only sees straight lines.** Bend the data into a U and the ruler reads zero, even though the pattern is obvious.
+
+**When you reach for it:** Use Pearson as the first pass for Linear Regression. A feature with |ρ| > 0.3 is a prime candidate for a linear model. Always plot the scatter first — a curve or cluster that Pearson misses will be visible immediately.
 
 > 📖 **Need the formula intuition first?** [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) walks through covariance and Pearson from scratch — signed rectangles, unit-cancellation, and why $R^2 = \rho^2$ — with animated diagrams. Come back here once the formula feels grounded.
 
@@ -128,9 +130,9 @@ where $\rho$ (rho) is the correlation coefficient, $x_{ij}$ is the value of feat
 
 #### 3.1.2 Mutual Information — The Detective's Clue
 
-> 🔍 **Think of it as: The Detective's Clue.** MI asks "if I tell you the value of $X$, how much easier does it become to guess $Y$?" It doesn't care about *shape* — a straight line, a U, a wave, or a cluster all register as long as $X$ gives you information about $Y$. The score lives in $[0, \infty)$: 0 means $X$ tells you nothing; higher means a stronger link of any shape.
->
-> **When to reach for it:** Use MI as a general "first pass" when working with tree-based models (Random Forest, XGBoost) or when you suspect non-linear patterns. It finds hidden relationships that Pearson would miss entirely — the model architecture then determines whether those relationships get exploited.
+**Think of it as: The Detective's Clue.** MI asks "if I tell you the value of $X$, how much easier does it become to guess $Y$?" It doesn't care about *shape* — a straight line, a U, a wave, or a cluster all register as long as $X$ gives you information about $Y$. The score lives in $[0, \infty)$: 0 means $X$ tells you nothing; higher means a stronger link of any shape.
+
+**When you reach for it:** Use MI as a general "first pass" when working with tree-based models (Random Forest, XGBoost) or when you suspect non-linear patterns. It finds hidden relationships that Pearson would miss entirely — the model architecture then determines whether those relationships get exploited.
 
 > 📖 **Want the full information-theoretic foundation?** [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) covers covariance and Pearson for linear relationships. Mutual Information extends the same "how do two things relate?" question to *any* shape. Both are measuring association — Pearson with a straight ruler, MI with a magnifying glass.
 
@@ -480,7 +482,7 @@ That is not the end of the story.
 
 ---
 
-### 3.3 Feature Scaling
+### 3.3 · Feature Scaling — Why Raw Weights Are Uninterpretable
 
 Before comparing weights across features you need a common unit. Raw weights are unit-dependent: a weight of +0.40 for `MedInc` (measured in steps of $10k) and −0.000014 for `Population` (measured per person) look 28,000× apart — but that gap is almost entirely a scale artefact, not an importance signal.
 
@@ -771,9 +773,9 @@ The side-by-side bar chart makes the ranking reversal concrete:
 
 ### 3.8 Variance Threshold — Dropping Near-Constant Features
 
-> ⚙️ **Why this comes after Methods 1-3:** Unlike Pearson/MI (§ 3.1, which measure feature→target relationships), Variance Threshold is a **quality filter** — it checks whether a feature varies at all, independent of the target. Group it with multicollinearity diagnostics because both address feature quality and redundancy rather than predictive signal.
+**Why this comes after Methods 1-3:** Unlike Pearson/MI (§ 3.1, which measure feature→target relationships), Variance Threshold is a **quality filter** — it checks whether a feature varies at all, independent of the target. You group it with multicollinearity diagnostics because both address feature quality and redundancy rather than predictive signal.
 
-A feature that barely changes gives the model nothing to latch onto — it's like trying to predict house prices using a column that says "2.00" for every district. Before testing for multicollinearity, drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
+A feature that barely changes gives the model nothing to latch onto — it's like trying to predict house prices using a column that says "2.00" for every district. Before testing for multicollinearity, you drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
 
 $$\text{Var}(x_j) = \frac{1}{n}\sum_{i=1}^{n}(x_{ij} - \bar{x}_j)^2$$
 
@@ -827,7 +829,9 @@ The target column (`MedHouseVal`) shows that only MedInc has substantial direct 
 
 ---
 
-### 3.10 Variance Inflation Factor (VIF)
+### 3.10 · Variance Inflation Factor (VIF) — When Collinearity Makes Weights Unreliable
+
+> ⚡ **Constraint #4 — Interpretability:** VIF is your diagnostic for deciding whether standardised weights are trustworthy enough to hand to a compliance officer or stakeholder. High VIF (> 5) means the weight is unstable across training runs — not acceptable for regulated decisions.
 
 VIF measures how much a feature's weight blows up due to correlation with other features:
 
@@ -1347,7 +1351,7 @@ flowchart TD
 - **Feature audit complete**: MedInc and location (Lat/Lon) confirmed as the dominant joint signal; AveBedrms and Population confirmed as near-redundant
 - **Multicollinearity diagnosed**: AveRooms/AveBedrms (VIF ≈ 7) and Lat/Lon (VIF ≈ 3.4–3.5) identified; remedies mapped to Ch.5
 - **Reliability of Ch.2 MAE confirmed**: The \$55k figure is stable across standardization choices and feature orderings; it is not an artifact of a lucky weight configuration
-- **Compliance-ready narrative**: Can now tell the SmartVal AI compliance officer which 3 features drive 95% of predictive power and why the 2 weak features (AveBedrms, Population) will be regularized in Ch.5
+- ⚡ **Constraint #4 (Interpretability) ✅ Achieved:** Can now tell the SmartVal AI compliance officer which 3 features drive 95% of predictive power and why the 2 weak features (AveBedrms, Population) will be regularized in Ch.5. Weight instability from collinearity is diagnosed and remedies are mapped.
 
 ❌ **Still can't solve:**
 - ❌ **MAE unchanged at \$55k** — Feature importance is a *diagnostic*, not a fix. No new features were added; no non-linearity was captured.

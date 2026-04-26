@@ -169,7 +169,7 @@ flowchart LR
     
     style POLY fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style SCALE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIT fill:#7c2d12,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style FIT fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
 1. **PolynomialFeatures**: Compute x², x³, x×y **once** and store as new columns (one-time cost)
@@ -246,7 +246,7 @@ Same California Housing dataset. The key observation from Ch.2 residuals:
 
 ---
 
-## 3 · Building Intuition
+## 3 · Building Intuition — Why Linear Math Produces Non-Linear Results
 
 ### 3.1 · The Linear Math, Non-Linear Result
 
@@ -529,7 +529,7 @@ for name, w in top_features:
 
 **Overfit at degree ≥ 5:** With $d = 8$ features, degree 5 creates $\binom{13}{5} - 1 = 1286$ polynomial features. The model memorises the 16,512 training rows almost exactly (train MAE → $5k) but generalises poorly on the 4,128 test rows (test MAE → $65k).
 
-**Diagnostic:** Plot train MAE and test MAE vs degree 1–8. The test curve is U-shaped; pick the degree at the bottom.
+**Fix:** Plot train MAE and test MAE vs degree 1–8. The test curve is U-shaped; pick the degree at the bottom.
 
 ```
 Train MAE (always ↓):  70k → 55k → 42k → 30k → 18k → 10k → 6k → 4k
@@ -549,7 +549,7 @@ After `PolynomialFeatures(degree=2)`, the feature ranges become:
 
 Without `StandardScaler`, gradient descent chases `AveBedrms²` (large scale) while nearly ignoring `MedInc` (small original scale). The weight for the dominant feature grows explosively and the others starve.
 
-**Rule:** Always `StandardScaler` **after** `PolynomialFeatures`, never before:
+**Fix:** Always `StandardScaler` **after** `PolynomialFeatures`, never before:
 
 ```python
 Pipeline([

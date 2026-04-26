@@ -40,13 +40,13 @@ The **linear regression baseline** — fit $\hat{y} = wx + b$ to predict median 
 
 ![Chapter animation](img/ch01-linear-regression-needle.gif)
 
-## 1 · Core Idea
+## 1 · Linear Regression Fits a Line by Minimizing Squared Errors
 
 Linear regression fits a straight line (or hyperplane) through data by finding the weights that minimise the average squared error between predictions and true values. It is the foundational building block — every neural network you will see in later chapters is just many linear regressions stacked with non-linearities between them.
 
 ---
 
-## 2 · Running Example
+## 2 · Predicting California House Values from Median Income Alone
 
 You're a data scientist at a real estate platform. Your first task: build a model that estimates the median house value for a California district given its median income. One input, one output, one line. It sounds simple — and it is — but it contains every idea that scales to 100-layer networks: a parameterised function, a loss that measures error, and an optimiser that corrects the weights.
 
@@ -98,9 +98,9 @@ Sections 4–6 explain the math behind each step. Come back to this map when the
 
 ---
 
-## 4 · Math
+## 4 · The Math Defines a Parameterized Linear Function and a Quadratic Loss
 
-### 4.1 · The Model
+### 4.1 · The Model is a Weighted Sum Plus Bias
 
 For a single feature:
 
@@ -129,7 +129,7 @@ In short: $w$ says *how fast* prices rise with income; $b$ says *where the line 
 
 The model has **no non-linearity** — it can only produce straight-line predictions. This is both the power (interpretable, fast) and the limitation (can't fit curves).
 
-### 4.2 · The Normal Equation
+### 4.2 · The Normal Equation Solves for Weights in One Matrix Operation
 
 > 📖 **Closed-form solution:** When data is small and noise is Gaussian, you can solve for weights algebraically rather than iterating. The full derivation — setting $\nabla L = 0$ and solving the resulting linear system — lives in [MathUnderTheHood ch05 — Matrices](../../../math_under_the_hood/ch05_matrices). For this chapter, gradient descent is the focus because it scales to every model we build later.
 
@@ -940,7 +940,7 @@ For Ch.1's single-feature model: `w ≈ 0.60` after standardisation. With only o
 
 ---
 
-## 7 · Key Diagrams
+## 7 · Diagrams Reveal the Loss Bowl, Gradient Paths, and Convergence Dynamics
 
 ### Loss Landscape
 
@@ -1028,7 +1028,7 @@ This is the matrix form you see in production code: `(2/n) * X.T @ error` — ea
 
 ---
 
-## 8 · Code Skeleton
+## 8 · Fifteen Lines Fit, Predict, and Evaluate the Baseline Model
 
 ```python
 import numpy as np
@@ -1145,7 +1145,7 @@ flowchart TD
 
 ---
 
-## 10 · Hyperparameter Summary
+## 10 · Learning Rate is the Critical Dial — It Controls Convergence Speed and Stability
 
 | Dial | Too low | Sweet spot | Too high |
 |---|---|---|---|

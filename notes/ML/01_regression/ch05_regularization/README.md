@@ -161,7 +161,7 @@ $$L_\text{total} = \underbrace{\text{MSE}}_{\text{fit the data}} + \underbrace{\
 
 ---
 
-## 2 · Running Example
+## 2 · Running Example: How Ridge and Lasso Behave on California Housing
 
 **The question:** Which of the 44 polynomial features truly matter?
 
@@ -194,7 +194,7 @@ $$L_\text{total} = \underbrace{\text{MSE}}_{\text{fit the data}} + \underbrace{\
 
 ---
 
-## 3 · Math
+## 3 · Math: How L1 Kills Weights and L2 Shrinks Them
 
 ### 3.1 · Ridge Regression (L2 Penalty)
 
@@ -274,7 +274,7 @@ flowchart TD
 
 
 
-## 4 · Key Diagrams
+## 4 · Key Diagrams: Weight Shrinkage and Convergence Paths
 
 ### How Regularization Shrinks Weights
 
@@ -370,7 +370,7 @@ Every modern ML framework has a "regularization dial" — Ridge/Lasso taught you
 
 ---
 
-## 6 · Code Skeleton
+## 6 · Code Skeleton: GridSearchCV Finds λ Automatically
 
 ```python
 import numpy as np

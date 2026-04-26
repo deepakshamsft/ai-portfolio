@@ -13,16 +13,16 @@
 > 💡 **The mission**: Launch **SmartVal AI** — a production home valuation system satisfying 5 constraints:
 > 1. **ACCURACY**: <$40k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
 
-**What we know so far:**
+**What you've achieved so far:**
 - ✅ Ch.1: Single feature → $70k MAE
 - ✅ Ch.2: All 8 features → $55k MAE
 - ✅ Ch.4: Polynomial features → $48k MAE
 - ✅ Ch.5: Regularization → $38k MAE ← **Target achieved!**
-- ❌ **But how confident are we in that $38k number?**
+- ❌ **But how confident are you in that $38k number?**
 
 **What's blocking SmartVal AI from production:**
 
-⚠️ **We have one number ($38k MAE) and zero confidence:**
+⚠️ **You have one number ($38k MAE) and zero confidence:**
 
 **The production reality check:**
 - Model reports $38k MAE on test set → CTO asks "can you guarantee <$40k?"
@@ -78,7 +78,7 @@ flowchart LR
 
 ---
 
-## 1 · The Metrics Journey — How Our Numbers Evolved
+## 1 · The Metrics Journey — Your Model's Evolution
 
 > This is the story the numbers alone don't tell. Follow SmartVal AI from Ch.1 to Ch.6 and watch how every metric moved — not just MAE.
 
@@ -101,7 +101,7 @@ flowchart LR
 
 **2. Ch.4→Ch.5: R² barely moved (0.67→0.68) but MAE dropped $10k.** Regularization doesn't just change variance explained globally — it changes *which* predictions are wrong. Ridge eliminated catastrophic underestimates that unpenalized polynomial was chasing as noise.
 
-**3. The $38k is actually $36k–$40k in reality.** Single split reported $38k. Cross-validation gives honest answer: $38k ± $2k. Some folds hit $40k — exactly on target boundary. **This changes the CTO conversation from "we hit target" to "we typically hit target with known risk."**
+**3. The $38k is actually $36k–$40k in reality.** Single split reported $38k. Cross-validation gives honest answer: $38k ± $2k. Some folds hit $40k — exactly on target boundary. **This changes the CTO conversation from "you hit target" to "you typically hit target with known risk."**
 
 ---
 
@@ -142,7 +142,7 @@ Same MAE, but RMSE reveals Model B has one catastrophic prediction. **RMSE ≥ M
 
 $$R^2 = 1 - \frac{\sum(y_i - \hat{y}_i)^2}{\sum(y_i - \bar{y})^2}$$
 
-**In English:** "What fraction of the variance in house values does our model explain?"  
+**In English:** "What fraction of the variance in house values does the model explain?"  
 $R^2 = 0.75$ → "The model explains 75% of house value variation."
 
 **Properties:**
@@ -176,7 +176,7 @@ flowchart TD
 
 ---
 
-## 3 · Residual Diagnostics
+## 3 · Residual Diagnostics — Where Your Model Fails
 
 Residuals $e_i = y_i - \hat{y}_i$ are the fingerprints of model failure. Plotting them reveals patterns that aggregate metrics hide.
 
@@ -206,7 +206,7 @@ Compares residual distribution against theoretical normal distribution:
 
 ---
 
-## 4 · Learning Curves
+## 4 · Learning Curves — Diagnosing Bias vs Variance
 
 Plot train and validation MAE as a function of **training set size**:
 
@@ -223,7 +223,7 @@ Plot train and validation MAE as a function of **training set size**:
 
 ---
 
-## 5 · Cross-Validation for Regression
+## 5 · Cross-Validation — From Lucky Split to Confidence Interval
 
 A single train-test split is unreliable. **K-fold cross-validation** uses every sample for both training and testing:
 
@@ -241,11 +241,11 @@ print(f"CV MAE: ${cv_maes.mean():,.0f} ± ${cv_maes.std():,.0f}")
 
 **Key point:** `scoring='neg_mean_absolute_error'` (negative because sklearn maximizes by convention).
 
-**Key insight from CV:** Our Ch.5 model reports $38k ± $2k across 5 folds. Fold 2 hits $40k — exactly on the target boundary. **This means 1 in 5 real-world deployment scenarios puts us at risk of missing the target.** Without CV, we'd never know.
+**Key insight from CV:** The Ch.5 model reports $38k ± $2k across 5 folds. Fold 2 hits $40k — exactly on the target boundary. **This means 1 in 5 real-world deployment scenarios puts you at risk of missing the target.** Without CV, you'd never know.
 
 **What CV reveals that single split hides:**
 - **Model stability**: Weights vary slightly between folds but MAE stays within $2k band
-- **Lucky vs unlucky splits**: Our single test split ($38k) was slightly lucky; average is $38.2k
+- **Lucky vs unlucky splits**: Your single test split ($38k) was slightly lucky; average is $38.2k
 - **Confidence for CTO**: Can now say "95% confident MAE is between $36k-$40k" instead of "MAE is $38k"
 
 **The California Housing equivalent** (actual sklearn output from 5-fold CV on full Ridge pipeline):
@@ -258,11 +258,11 @@ CV MAE: $38,214 ± $1,843
   Fold 5: $37,716
 ```
 
-**Production implication:** Fold 2's $40k result means ~20% of random data partitions will push us to the target boundary. SmartVal needs either:
+**Production implication:** Fold 2's $40k result means ~20% of random data partitions will push you to the target boundary. SmartVal needs either:
 1. Tighter regularization (α=1.5 instead of 1.0) to guarantee <$39k across ALL folds
 2. Accept 20% risk and monitor real-world MAE with online metrics
 
-**Why this matters more than the math:** The hand-worked CV mechanics (computing slopes, intercepts for each fold) teach you *how* CV works. But the *why* is business-critical: **CV transforms "we hit the target" into "we typically hit the target with known variance."** That's the difference between shipping with confidence vs shipping with fingers crossed.
+**Why this matters more than the math:** The hand-worked CV mechanics (computing slopes, intercepts for each fold) teach you *how* CV works. But the *why* is business-critical: **CV transforms "you hit the target" into "you typically hit the target with known variance."** That's the difference between shipping with confidence vs shipping with fingers crossed.
 
 ---
 
@@ -292,30 +292,30 @@ flowchart TD
 **Rule of thumb:**
 - RMSE / MAE ratio close to 1 → errors are uniform (all similar size)
 - RMSE / MAE ratio >> 1 → errors are variable (some very large)
-- Our model: RMSE/MAE ≈ 1.37 → moderate variability, some large errors on expensive homes
+- This model: RMSE/MAE ≈ 1.37 → moderate variability, some large errors on expensive homes
 
 ---
 
-## 7 · Prediction Intervals and Confidence Bands
+## 7 · Prediction Intervals — Quantifying Uncertainty
 
 A point prediction of "$380k" is incomplete. Stakeholders need: **"$380k ± $45k with 95% confidence."**
 
 ### How Confidence Is Calculated
 
-**What "95% confidence" means:** If we built this model 100 times on different samples from the same population, approximately 95 of those models would produce intervals that contain the true value.
+**What "95% confidence" means:** If you built this model 100 times on different samples from the same population, approximately 95 of those models would produce intervals that contain the true value.
 
 **Where the 1.96 comes from:** Under the assumption that residuals follow a normal distribution:
 - 68% of values fall within ±1 standard deviation
 - 95% of values fall within ±1.96 standard deviations
 - 99.7% of values fall within ±3 standard deviations
 
-For a 95% confidence interval, we use $z_{0.975} = 1.96$ (the z-score that leaves 2.5% in each tail of the normal distribution).
+For a 95% confidence interval, use $z_{0.975} = 1.96$ (the z-score that leaves 2.5% in each tail of the normal distribution).
 
-**The calculation:** If RMSE = $52k (our standard deviation of prediction errors), then:
+**The calculation:** If RMSE = $52k (the standard deviation of prediction errors), then:
 
 $$\text{95\% interval} = \hat{y} \pm 1.96 \times \text{RMSE} = \hat{y} \pm 1.96 \times 52\text{k} = \hat{y} \pm 102\text{k}$$
 
-This means: "We're 95% confident the true house value lies within ±$102k of our prediction."
+This means: "You're 95% confident the true house value lies within ±$102k of your prediction."
 
 ### Bootstrap Prediction Intervals (Non-Parametric Alternative)
 
@@ -513,12 +513,12 @@ print("Gap at full data:", f"${val_mae[-1]-train_mae[-1]:,.0f}")
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What You Can Solve Now
 
 ⚡ **SmartVal AI production readiness update:**
 
-**Before Ch.6:** "We hit $38k MAE" → CTO: "Can you prove it?"  
-**After Ch.6:** "We hit $38k ± $2k across 5 independent splits, with known failure modes on luxury homes" → CTO: "Ship it with monitoring."
+**Before Ch.6:** "You hit $38k MAE" → CTO: "Can you prove it?"  
+**After Ch.6:** "You hit $38k ± $2k across 5 independent splits, with known failure modes on luxury homes" → CTO: "Ship it with monitoring."
 
 **Unlocked capabilities:**
 
@@ -541,8 +541,8 @@ print("Gap at full data:", f"${val_mae[-1]-train_mae[-1]:,.0f}")
 | #5 PRODUCTION | ⚠️ **READY** | CV + intervals + diagnostics = deployment confidence; monitoring plan defined |
 
 **The conversation that changed:**
-- **Before Ch.6:** "We hit $38k MAE."  
-- **After Ch.6:** "We hit $38k ± $2k validated across 5 splits. Luxury homes (>$400k) systematically underestimate by $60k — we flag those for human review. 95% of predictions have ±$102k uncertainty. We're production-ready with defined monitoring."
+- **Before Ch.6:** "You hit $38k MAE."  
+- **After Ch.6:** "You hit $38k ± $2k validated across 5 splits. Luxury homes (>$400k) systematically underestimate by $60k — flag those for human review. 95% of predictions have ±$102k uncertainty. The model is production-ready with defined monitoring."
 
 ```mermaid
 flowchart LR
@@ -568,7 +568,7 @@ flowchart LR
 
 **SmartVal AI status:** Ch.6 validated the $38k MAE with complete diagnostic confidence. Cross-validation proved it wasn't luck. Residual analysis identified the luxury home blind spot. Learning curves confirmed regularization worked. The model is production-ready with defined monitoring.
 
-**But here's the uncomfortable truth: we guessed the hyperparameters.**
+**But here's the uncomfortable truth: you guessed the hyperparameters.**
 
 Ridge's α=1.0? Picked because "it felt reasonable." Polynomial degree=2? Seemed less excessive than degree=3. These weren't decisions — they were educated guesses. SmartVal's CTO knows it: "What if α=0.5 drops MAE to $35k? What if degree=3 with stronger regularization is the sweet spot?"
 
