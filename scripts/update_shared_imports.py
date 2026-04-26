@@ -3,8 +3,8 @@
 Batch-update all notes/ gen_scripts that import from _shared.*
 to use scripts/shared/ (the new centralised package location).
 
-ML callers:        notes/ML/<topic>/<chapter>/gen_scripts/  — parents[3] → parents[5]
-MultimodalAI:      notes/MultimodalAI/<chapter>/gen_scripts/ — parents[2] → parents[4]
+ML callers:        notes/01-ml/<topic>/<chapter>/gen_scripts/  — parents[3] → parents[5]
+MultimodalAI:      notes/04-multimodal_ai/<chapter>/gen_scripts/ — parents[2] → parents[4]
 """
 
 import re
@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 NOTES_DIR = REPO_ROOT / "notes"
 
 # ------------------------------------------------------------------
-# ML pattern: parents[3] points to notes/ML/  →  need parents[5] (repo root)
+# ML pattern: parents[3] points to notes/01-ml/  →  need parents[5] (repo root)
 # then sys.path.insert uses ROOT / "scripts"
 # ------------------------------------------------------------------
 ML_OLD = re.compile(

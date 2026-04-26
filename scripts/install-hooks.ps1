@@ -19,14 +19,32 @@ if (-not (Test-Path $HooksDest)) {
     New-Item -ItemType Directory -Path $HooksDest | Out-Null
 }
 
+Write-Host "`nInstalling Git hooks..." -ForegroundColor Cyan
+
 $installed = 0
-Get-ChildItem -Path $HooksSource -File | ForEach-Object {
-    $dest = Join-Path $HooksDest $_.Name
-    Copy-Item -Path $_.FullName -Destination $dest -Force
-    Write-Host "  Installed: $($_.Name)"
+
+# Install pre-commit hook
+$preCommitSource = Join-Path $HooksSource 'pre-commit'
+if (Test-Path $preCommitSource) {
+    $dest = Join-Path $HooksDest 'pre-commit'
+    Copy-Item -Path $preCommitSource -Destination $dest -Force
+    Write-Host "  ✓ " -ForegroundColor Green -NoNewline
+    Write-Host "Installed: pre-commit"
+    $installed++
+}
+
+# Install pre-push hook (secret removal)
+$prePushSource = Join-Path $HooksSource 'pre-push-remove-secrets.ps1'
+if (Test-Path $prePushSource) {
+    $dest = Join-Path $HooksDest 'pre-push'
+    Copy-Item -Path $prePushSource -Destination $dest -Force
+    Write-Host "  ✓ " -ForegroundColor Green -NoNewline
+    Write-Host "Installed: pre-push (secret removal)"
     $installed++
 }
 
 Write-Host ""
-Write-Host "$installed hook(s) installed into .git\hooks\"
-Write-Host "Test with: git add . ; git commit -m 'test' (on a branch)"
+Write-Host "$installed hook(s) installed into .git\hooks\" -ForegroundColor Green
+Write-Host "Test with: " -NoNewline
+Write-Host "git add . ; git commit -m 'test'" -ForegroundColor Yellow -NoNewline
+Write-Host " (on a branch)"

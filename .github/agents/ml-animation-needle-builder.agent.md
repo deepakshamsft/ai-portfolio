@@ -5,7 +5,7 @@ tools: [read, edit, search]
 argument-hint: "Chapter path and metric story to implement"
 user-invocable: false
 ---
-You build chapter-local animation generators for `notes/ML/`.
+You build chapter-local animation generators for `notes/01-ml/`.
 
 ## Requirements
 - Use the existing local animation conventions.

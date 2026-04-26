@@ -3,7 +3,7 @@
 
 Routing rules (by top-level folder under notes/):
   - notes/ML                → ml-notes
-  - notes/AIInfrastructure  → ai-infrastructure
+  - notes/05-AIInfrastructure  → ai-infrastructure
   - notes/MultiAgentAI      → multi-agent-ai
   - everything else         → ai-ml-dev
 

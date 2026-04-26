@@ -312,6 +312,189 @@ else
 
     # Notebook extras — dependencies pulled in by per-notes setup scripts
     install_group "Notebook extras (AIInfrastructure + MultiAgentAI)" "${NOTEBOOK_EXTRAS[@]}"
+
+    # AI Infrastructure (ML Experiment Tracking) dependencies
+    echo ""
+    echo "📦 Installing AI Infrastructure dependencies..."
+    install_group "AI Infrastructure (ML Experiment Tracking)" mlflow evidently dvc tensorboard wandb
+    echo "✅ AI Infrastructure setup complete"
+    echo "   Verify: mlflow --version && dvc --version"
+
+    # DevOps Fundamentals dependencies
+    echo ""
+    echo "📦 Installing DevOps Fundamentals dependencies..."
+    
+    # Docker
+    echo ""
+    echo "  • Checking Docker..."
+    if command -v docker &>/dev/null; then
+        ok "Docker already installed: $(docker --version)"
+    else
+        warn "Docker not found — attempting install..."
+        case "$OS" in
+            debian)
+                # Install Docker on Ubuntu/Debian
+                sudo apt-get update -qq
+                sudo apt-get install -y ca-certificates curl gnupg
+                sudo install -m 0755 -d /etc/apt/keyrings
+                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                sudo chmod a+r /etc/apt/keyrings/docker.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                sudo apt-get update -qq
+                sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+                sudo usermod -aG docker "$USER"
+                ok "Docker installed — you may need to log out and back in for group permissions"
+                ;;
+            macos)
+                warn "On macOS, install Docker Desktop manually from: https://www.docker.com/products/docker-desktop"
+                ;;
+            *)
+                warn "Cannot auto-install Docker on this system. Install manually from: https://docs.docker.com/engine/install/"
+                ;;
+        esac
+    fi
+    
+    # Kind
+    echo ""
+    echo "  • Checking Kind (Kubernetes in Docker)..."
+    if command -v kind &>/dev/null; then
+        ok "Kind already installed: $(kind --version)"
+    else
+        warn "Kind not found — installing..."
+        case "$OS" in
+            macos)
+                if command -v brew &>/dev/null; then
+                    brew install kind
+                    ok "Kind installed via Homebrew"
+                else
+                    # Download binary for macOS
+                    KIND_VERSION="v0.20.0"
+                    curl -Lo /tmp/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-darwin-amd64
+                    chmod +x /tmp/kind
+                    sudo mv /tmp/kind /usr/local/bin/kind
+                    ok "Kind installed to /usr/local/bin/kind"
+                fi
+                ;;
+            *)
+                # Download binary for Linux
+                KIND_VERSION="v0.20.0"
+                curl -Lo /tmp/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64
+                chmod +x /tmp/kind
+                sudo mv /tmp/kind /usr/local/bin/kind
+                ok "Kind installed to /usr/local/bin/kind"
+                ;;
+        esac
+    fi
+    
+    # kubectl
+    echo ""
+    echo "  • Checking kubectl..."
+    if command -v kubectl &>/dev/null; then
+        ok "kubectl already installed: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+    else
+        warn "kubectl not found — installing..."
+        case "$OS" in
+            macos)
+                if command -v brew &>/dev/null; then
+                    brew install kubectl
+                    ok "kubectl installed via Homebrew"
+                else
+                    # Download binary for macOS
+                    KUBECTL_VERSION="$(curl -L -s https://dl.k8s.io/release/stable.txt)"
+                    curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/darwin/amd64/kubectl"
+                    chmod +x kubectl
+                    sudo mv kubectl /usr/local/bin/kubectl
+                    ok "kubectl installed to /usr/local/bin/kubectl"
+                fi
+                ;;
+            debian)
+                # Install kubectl via apt repository
+                sudo apt-get update -qq
+                sudo apt-get install -y apt-transport-https ca-certificates curl
+                curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+                echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+                sudo apt-get update -qq
+                sudo apt-get install -y kubectl
+                ok "kubectl installed via apt"
+                ;;
+            *)
+                # Download binary for generic Linux
+                KUBECTL_VERSION="$(curl -L -s https://dl.k8s.io/release/stable.txt)"
+                curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+                chmod +x kubectl
+                sudo mv kubectl /usr/local/bin/kubectl
+                ok "kubectl installed to /usr/local/bin/kubectl"
+                ;;
+        esac
+    fi
+    
+    # Terraform
+    echo ""
+    echo "  • Checking Terraform..."
+    if command -v terraform &>/dev/null; then
+        ok "Terraform already installed: $(terraform --version | head -n1)"
+    else
+        warn "Terraform not found — installing..."
+        case "$OS" in
+            macos)
+                if command -v brew &>/dev/null; then
+                    brew tap hashicorp/tap
+                    brew install hashicorp/tap/terraform
+                    ok "Terraform installed via Homebrew"
+                else
+                    warn "Homebrew not found. Install Terraform manually from: https://developer.hashicorp.com/terraform/install"
+                fi
+                ;;
+            debian)
+                # Install Terraform via HashiCorp repository
+                wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+                echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+                sudo apt-get update -qq
+                sudo apt-get install -y terraform
+                ok "Terraform installed via HashiCorp repository"
+                ;;
+            *)
+                warn "Cannot auto-install Terraform on this system. Install manually from: https://developer.hashicorp.com/terraform/install"
+                ;;
+        esac
+    fi
+    
+    # K9s (optional)
+    echo ""
+    echo "  • Checking K9s (optional Kubernetes TUI)..."
+    if command -v k9s &>/dev/null; then
+        ok "K9s already installed: $(k9s version --short 2>/dev/null || echo 'installed')"
+    else
+        warn "K9s not found — installing (optional)..."
+        case "$OS" in
+            macos)
+                if command -v brew &>/dev/null; then
+                    brew install derailed/k9s/k9s
+                    ok "K9s installed via Homebrew"
+                else
+                    warn "Homebrew not found. Install K9s manually from: https://k9scli.io/topics/install/"
+                fi
+                ;;
+            debian)
+                # Install via webinstall.dev
+                curl -sS https://webi.sh/k9s | sh
+                export PATH="$HOME/.local/bin:$PATH"
+                ok "K9s installed via webinstall.dev"
+                ;;
+            *)
+                warn "Cannot auto-install K9s on this system. Install manually from: https://k9scli.io/topics/install/"
+                ;;
+        esac
+    fi
+    
+    echo ""
+    echo "✅ DevOps Fundamentals setup complete"
+    echo "   Verify installations:"
+    echo "   • docker --version"
+    echo "   • kind --version"
+    echo "   • kubectl version --client"
+    echo "   • terraform --version"
+    echo "   • k9s version"
 fi
 
 if [ "$ENABLE_GPU_NOTEBOOK_STACK" = true ]; then

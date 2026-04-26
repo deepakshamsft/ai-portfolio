@@ -361,6 +361,111 @@ if ($missingPackageCount -eq 0) {
 
     # Notebook extras
     Install-Group "Notebook extras (AIInfrastructure + MultiAgentAI)" $notebookExtras
+
+    # AI Infrastructure (ML Experiment Tracking) dependencies
+    Write-Host ""
+    Write-Host "📦 Installing AI Infrastructure dependencies..." -ForegroundColor Cyan
+    Install-Group "AI Infrastructure (ML Experiment Tracking)" @(
+        "mlflow",
+        "evidently",
+        "dvc",
+        "tensorboard",
+        "wandb"
+    )
+    Write-Host "✅ AI Infrastructure setup complete" -ForegroundColor Green
+    Write-Host "   Verify: mlflow --version && dvc --version" -ForegroundColor Cyan
+
+    # DevOps Fundamentals dependencies
+    Write-Host ""
+    Write-Host "📦 Installing DevOps Fundamentals dependencies..." -ForegroundColor Cyan
+    
+    # Docker Desktop (manual installation required)
+    Write-Host ""
+    Write-Host "⚠️  Docker Desktop - Manual setup required:" -ForegroundColor Yellow
+    Write-Host "   1. Download and install Docker Desktop from: https://www.docker.com/products/docker-desktop" -ForegroundColor Yellow
+    Write-Host "   2. After installation, verify with: docker --version" -ForegroundColor Yellow
+    Write-Host "   3. Ensure Docker Desktop is running before using DevOps notebooks" -ForegroundColor Yellow
+    
+    # Check if Chocolatey is available
+    $chocoAvailable = Get-Command choco -ErrorAction SilentlyContinue
+    if (-not $chocoAvailable) {
+        Write-Host ""
+        Write-Host "⚠️  Chocolatey not found - attempting install..." -ForegroundColor Yellow
+        try {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+            # Refresh PATH to pick up choco
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                        [System.Environment]::GetEnvironmentVariable("Path", "User")
+            Write-Ok "Chocolatey installed successfully"
+            $chocoAvailable = Get-Command choco -ErrorAction SilentlyContinue
+        } catch {
+            Write-Warn "Could not install Chocolatey automatically. Install manually from https://chocolatey.org/install"
+        }
+    }
+    
+    if ($chocoAvailable) {
+        Write-Host ""
+        Write-Host "Installing DevOps tools via Chocolatey..." -ForegroundColor Cyan
+        
+        # Kind
+        Write-Host "  • Installing Kind (Kubernetes in Docker)..." -ForegroundColor Cyan
+        try {
+            choco install kind -y --no-progress 2>&1 | Out-Null
+            Write-Ok "Kind installed"
+        } catch {
+            Write-Warn "Failed to install Kind via Chocolatey"
+        }
+        
+        # kubectl
+        Write-Host "  • Installing kubectl..." -ForegroundColor Cyan
+        try {
+            choco install kubernetes-cli -y --no-progress 2>&1 | Out-Null
+            Write-Ok "kubectl installed"
+        } catch {
+            Write-Warn "Failed to install kubectl via Chocolatey"
+        }
+        
+        # Terraform
+        Write-Host "  • Installing Terraform..." -ForegroundColor Cyan
+        try {
+            choco install terraform -y --no-progress 2>&1 | Out-Null
+            Write-Ok "Terraform installed"
+        } catch {
+            Write-Warn "Failed to install Terraform via Chocolatey"
+        }
+        
+        # K9s (optional)
+        Write-Host "  • Installing K9s (optional Kubernetes TUI)..." -ForegroundColor Cyan
+        try {
+            choco install k9s -y --no-progress 2>&1 | Out-Null
+            Write-Ok "K9s installed"
+        } catch {
+            Write-Warn "Failed to install K9s via Chocolatey (optional tool)"
+        }
+        
+        # Refresh PATH for this session
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                    [System.Environment]::GetEnvironmentVariable("Path", "User")
+    } else {
+        Write-Host ""
+        Write-Host "⚠️  Chocolatey not available - skipping automated tool installation" -ForegroundColor Yellow
+        Write-Host "   Install tools manually:" -ForegroundColor Yellow
+        Write-Host "   • Kind: https://kind.sigs.k8s.io/docs/user/quick-start/#installation" -ForegroundColor Yellow
+        Write-Host "   • kubectl: https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/" -ForegroundColor Yellow
+        Write-Host "   • Terraform: https://developer.hashicorp.com/terraform/install" -ForegroundColor Yellow
+        Write-Host "   • K9s: https://k9scli.io/topics/install/" -ForegroundColor Yellow
+    }
+    
+    Write-Host ""
+    Write-Host "✅ DevOps Fundamentals setup complete" -ForegroundColor Green
+    Write-Host "   Verify installations:" -ForegroundColor Cyan
+    Write-Host "   • docker --version" -ForegroundColor Cyan
+    Write-Host "   • kind --version" -ForegroundColor Cyan
+    Write-Host "   • kubectl version --client" -ForegroundColor Cyan
+    Write-Host "   • terraform --version" -ForegroundColor Cyan
+    Write-Host "   • k9s version" -ForegroundColor Cyan
 }
 
 if ($EnableGpuNotebookStack) {

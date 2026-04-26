@@ -5,7 +5,7 @@ tools: [read, search]
 argument-hint: "Chapter path or 'all' to validate entire MultimodalAI track"
 user-invocable: true
 ---
-You audit GPU safety guards in `notes/MultimodalAI/**/notebook_supplement.ipynb`.
+You audit GPU safety guards in `notes/04-MultimodalAI/**/notebook_supplement.ipynb`.
 
 ## Goals
 - Ensure every supplement notebook includes a GPU detection cell that exits early when no GPU is found.

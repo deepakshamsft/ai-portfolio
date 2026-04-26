@@ -5,10 +5,10 @@ tools: [read, edit, search]
 argument-hint: "Chapter path and flow narrative to animate"
 user-invocable: false
 ---
-You build chapter-local flow animation generators for `notes/MultimodalAI/`.
+You build chapter-local flow animation generators for `notes/04-MultimodalAI/`.
 
 ## Requirements
-- Use the shared renderer at `notes/MultimodalAI/_shared/flow_animation.py`.
+- Use the shared renderer at `notes/04-MultimodalAI/_shared/flow_animation.py`.
 - Follow the flow-stage + caption pattern: minimum 3 stages per chapter.
 - Keep filenames stable: `GenScripts/gen_<topic>_flow.py`.
 - Match chapter narrative and data-flow context.
