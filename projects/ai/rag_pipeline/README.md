@@ -70,10 +70,10 @@ This project makes the following AI notes executable:
 
 | Note | What this project demonstrates |
 |------|-------------------------------|
-| [RAGAndEmbeddings.md](../../../notes/02-ai/ch04_rag_and_embeddings/rag-and-embeddings.md) | Chunking, embedding, retrieval pipeline |
-| [VectorDBs.md](../../../notes/02-ai/ch05_vector_dbs/vector-dbs.md) | FAISS as an IVF-flat index with flat brute-force fallback |
-| [EvaluatingAISystems.md](../../../notes/02-ai/ch08_evaluating_ai_systems/evaluating-ai-systems.md) | RAGAS metrics running against a real pipeline |
-| [CostAndLatency.md](../../../notes/02-ai/ch09_cost_and_latency/cost-and-latency.md) | Input token count visible in `query.py` output |
+| [RAGAndEmbeddings.md](../../../notes/03-ai/ch04_rag_and_embeddings/rag-and-embeddings.md) | Chunking, embedding, retrieval pipeline |
+| [VectorDBs.md](../../../notes/03-ai/ch05_vector_dbs/vector-dbs.md) | FAISS as an IVF-flat index with flat brute-force fallback |
+| [EvaluatingAISystems.md](../../../notes/03-ai/ch08_evaluating_ai_systems/evaluating-ai-systems.md) | RAGAS metrics running against a real pipeline |
+| [CostAndLatency.md](../../../notes/03-ai/ch09_cost_and_latency/cost-and-latency.md) | Input token count visible in `query.py` output |
 
 ---
 

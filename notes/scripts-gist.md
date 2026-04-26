@@ -140,8 +140,8 @@ That script scans all `notes/**/plan.md` files, finds `<!-- SCRIPTS_HOOK_START -
 | `notes/01-ml/01_regression/plan.md` | ML / Regression |
 | `notes/01-ml/03_neural_networks/plan.md` | ML / Neural Networks |
 | `notes/01-ml/07_unsupervised_learning/plan.md` | ML / Unsupervised (no scripts) |
-| `notes/04-multimodal_ai/plan.md` | Multimodal AI |
-| `notes/03-multi_agent_ai/plan.md` | Multi-Agent AI |
+| `notes/05-multimodal_ai/plan.md` | Multimodal AI |
+| `notes/04-multi_agent_ai/plan.md` | Multi-Agent AI |
 | `notes/00-math_under_the_hood/plan.md` | Math Under the Hood |
 | `notes/interview_guides/plan.md` | Interview Guides |
 

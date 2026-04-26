@@ -2,7 +2,7 @@
 
 > **The story.** In June **2017** eight Google researchers — **Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan Gomez, Łukasz Kaiser, and Illia Polosukhin** — published *"Attention Is All You Need."* The thesis was startling: throw away recurrence (LSTMs, GRUs) and convolutions entirely; replace both with stacked self-attention; train it in parallel on TPUs; beat every translation benchmark. Within a year **BERT** (Devlin et al., Google, 2018) and **GPT-1** (Radford et al., OpenAI, 2018) had stamped the transformer onto NLP, and within five years it had taken over vision (ViT, 2020), audio (Whisper, 2022), and protein folding (AlphaFold 2, 2021). **GPT-3** (2020), **ChatGPT** (Nov 2022), **GPT-4** (2023), **Claude**, **Gemini**, **Llama** — every model in this entire curriculum's AI track is a transformer in some configuration. The 2017 paper is the dividing line: pre-transformer ML and post-transformer ML are different fields.
 >
-> **Where you are in the curriculum.** [Ch.9](../ch09_sequences_to_attention) established that **attention is a soft dictionary lookup** — dot-product similarity, softmax, weighted sum of values. This chapter dresses that one mechanism into the transformer: learned $W_Q, W_K, W_V$ projections, scaled dot-product attention, multi-head parallelism, positional encoding, residuals + LayerNorm, and a feed-forward sub-layer. After this chapter the entire AI track ([RAG](../../../02-ai/ch04_rag_and_embeddings), [LLMs](../../../02-ai/ch01_llm_fundamentals), [agents](../../../02-ai/ch06_react_and_semantic_kernel), [multi-agent](../../../03-multi_agent_ai)) becomes accessible — because all of it is built on what you assemble here.
+> **Where you are in the curriculum.** [Ch.9](../ch09_sequences_to_attention) established that **attention is a soft dictionary lookup** — dot-product similarity, softmax, weighted sum of values. This chapter dresses that one mechanism into the transformer: learned $W_Q, W_K, W_V$ projections, scaled dot-product attention, multi-head parallelism, positional encoding, residuals + LayerNorm, and a feed-forward sub-layer. After this chapter the entire AI track ([RAG](../../.$103-ai/ch04_rag_and_embeddings), [LLMs](../../.$103-ai/ch01_llm_fundamentals), [agents](../../.$103-ai/ch06_react_and_semantic_kernel), [multi-agent](../../../04-multi_agent_ai)) becomes accessible — because all of it is built on what you assemble here.
 >
 > **Notation in this chapter.** $X\in\mathbb{R}^{n\times d_{\text{model}}}$ — input sequence ($n$ tokens, each a $d_{\text{model}}$-dim embedding); $W_Q,W_K,W_V\in\mathbb{R}^{d_{\text{model}}\times d_k}$ — learned projection matrices producing **queries** $Q=XW_Q$, **keys** $K=XW_K$, **values** $V=XW_V$; $d_k$ — key/query dimension per head; $h$ — number of attention heads; $\text{Attention}(Q,K,V)=\text{softmax}\!\left(\dfrac{QK^\top}{\sqrt{d_k}}\right)V$ — **scaled dot-product attention**; $W_O$ — output projection that re-mixes the $h$ heads; **PE** — positional encoding added to $X$; **LN** — LayerNorm; **FFN** — two-layer feed-forward sub-layer applied position-wise.
 
@@ -610,11 +610,11 @@ Large language models use `clip_by_global_norm=1.0` universally. Without it, ear
 
 ### AI Track — Transformers Power Everything
 
-- **LLM Fundamentals** ([../../02-ai/ch01_llm_fundamentals](../../../02-ai/ch01_llm_fundamentals)): GPT-4, Claude, Gemini are **transformer decoders** (Ch.10 encoder + causal mask). Same attention mechanism, 96 layers instead of 6.
-- **RAG & Embeddings** ([../../02-ai/ch04_rag_and_embeddings](../../../02-ai/ch04_rag_and_embeddings)): Embedding models (BERT, Sentence-Transformers) are **transformer encoders** trained with contrastive loss. Ch.10's pooling step (§4) becomes the sentence vector you store in vector DBs.
-- **Prompt Engineering** ([../../02-ai/ch02_prompt_engineering](../../../02-ai/ch02_prompt_engineering)): Understanding attention helps you write better prompts — you know what the model "sees" when processing your input.
-- **Fine-Tuning** ([../../02-ai/ch10_fine_tuning](../../../02-ai/ch10_fine_tuning)): LoRA (Low-Rank Adaptation) fine-tunes the $W_Q, W_K, W_V$ projection matrices from §3.1. You can't fine-tune intelligently without knowing what those matrices do.
-- **ReAct & Semantic Kernel** ([../../02-ai/ch06_react_and_semantic_kernel](../../../02-ai/ch06_react_and_semantic_kernel)): Agents use LLMs (transformer decoders) to generate tool calls. The attention mechanism determines which context the model uses when deciding what action to take.
+- **LLM Fundamentals** ([../.$103-ai/ch01_llm_fundamentals](../../.$103-ai/ch01_llm_fundamentals)): GPT-4, Claude, Gemini are **transformer decoders** (Ch.10 encoder + causal mask). Same attention mechanism, 96 layers instead of 6.
+- **RAG & Embeddings** ([../.$103-ai/ch04_rag_and_embeddings](../../.$103-ai/ch04_rag_and_embeddings)): Embedding models (BERT, Sentence-Transformers) are **transformer encoders** trained with contrastive loss. Ch.10's pooling step (§4) becomes the sentence vector you store in vector DBs.
+- **Prompt Engineering** ([../.$103-ai/ch02_prompt_engineering](../../.$103-ai/ch02_prompt_engineering)): Understanding attention helps you write better prompts — you know what the model "sees" when processing your input.
+- **Fine-Tuning** ([../.$103-ai/ch10_fine_tuning](../../.$103-ai/ch10_fine_tuning)): LoRA (Low-Rank Adaptation) fine-tunes the $W_Q, W_K, W_V$ projection matrices from §3.1. You can't fine-tune intelligently without knowing what those matrices do.
+- **ReAct & Semantic Kernel** ([../.$103-ai/ch06_react_and_semantic_kernel](../../.$103-ai/ch06_react_and_semantic_kernel)): Agents use LLMs (transformer decoders) to generate tool calls. The attention mechanism determines which context the model uses when deciding what action to take.
 
 ### Multimodal AI Track
 
@@ -625,8 +625,8 @@ Large language models use `clip_by_global_norm=1.0` universally. Without it, ear
 
 ### AI Infrastructure Track
 
-- **Inference Optimization** ([../../05-ai_infrastructure/ch05_inference_optimization](../../../05-ai_infrastructure/ch05_inference_optimization)): KV-caching (store computed keys/values to avoid recomputation) and FlashAttention (fused attention kernel) are transformer-specific optimizations. Can't apply them without understanding §3 math.
-- **GPU Architecture** ([../../05-ai_infrastructure/ch01_gpu_architecture](../../../05-ai_infrastructure/ch01_gpu_architecture)): Multi-head attention (§3.2) is embarrassingly parallel — each head on a separate GPU stream. Understanding the architecture tells you why transformers need A100s with high memory bandwidth.
+- **Inference Optimization** ([../../06-ai_infrastructure/ch05_inference_optimization](../../../06-ai_infrastructure/ch05_inference_optimization)): KV-caching (store computed keys/values to avoid recomputation) and FlashAttention (fused attention kernel) are transformer-specific optimizations. Can't apply them without understanding §3 math.
+- **GPU Architecture** ([../../06-ai_infrastructure/ch01_gpu_architecture](../../../06-ai_infrastructure/ch01_gpu_architecture)): Multi-head attention (§3.2) is embarrassingly parallel — each head on a separate GPU stream. Understanding the architecture tells you why transformers need A100s with high memory bandwidth.
 
 💡 **One architecture, infinite applications.** If you master this chapter, you understand the core computation inside:
 - ChatGPT (GPT-4 decoder)
@@ -678,7 +678,7 @@ The only difference: input modality (text / image / audio / protein sequence) an
 
 1. **AI Track** → [LLM Fundamentals](../../../ai/llm_fundamentals): Apply transformers to text generation (GPT), understanding (BERT), and agents
 2. **Multimodal AI Track** → [Vision Transformers](../../../multimodal_ai): Replace CNNs with transformers for images; learn CLIP for text-image alignment
-3. **AI Infrastructure Track** → [Inference Optimization](../../../05-ai_infrastructure/ch05_inference_optimization): Make transformers fast enough for production (KV-cache, FlashAttention, quantization)
+3. **AI Infrastructure Track** → [Inference Optimization](../../../06-ai_infrastructure/ch05_inference_optimization): Make transformers fast enough for production (KV-cache, FlashAttention, quantization)
 
 ---
 

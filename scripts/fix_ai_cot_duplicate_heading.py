@@ -1,7 +1,7 @@
 """
 fix_ai_cot_duplicate_heading.py
 Remove the duplicate "## Interview Checklist" heading in
-notes/02-ai/ch03_cot_reasoning/cot-reasoning.md.
+notes$103-ai/ch03_cot_reasoning/cot-reasoning.md.
 Keeps the first occurrence; removes the second (which is a bare heading with no body).
 """
 import re
@@ -9,7 +9,7 @@ import os
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILEPATH = os.path.join(
-    REPO_ROOT, "notes", "02-ai", "ch03_cot_reasoning", "cot-reasoning.md"
+    REPO_ROOT, "notes", $103-ai", "ch03_cot_reasoning", "cot-reasoning.md"
 )
 
 if not os.path.exists(FILEPATH):

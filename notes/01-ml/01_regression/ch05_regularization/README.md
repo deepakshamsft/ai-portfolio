@@ -192,13 +192,25 @@ When two features are correlated (e.g., `AveRooms` and `AveBedrms` with ρ = 0.8
 
 **Ridge's solution:** The L2 penalty prefers **balanced, distributed weights** — splitting weight across correlated features has lower penalty than concentrating it. Ridge automatically spreads credit, stabilizing the model. This is why Ridge achieves $w = 0.09$ for `AveRooms × AveBedrms` instead of the unstable OLS value of $w = 0.29$.
 
-**Intuition:** Ridge shrinks all weights proportionally. Strong signal features resist shrinkage; noise features collapse. But even noise features retain tiny non-zero weights — Ridge turns them down to whispers, not silence.
+**Why Ridge never zeros weights:**
+
+The gradient of the L2 penalty is $\frac{\partial}{\partial w_j}(w_j^2) = 2w_j$. Notice this gradient **shrinks as the weight approaches zero** — when $w_j = 0.01$, the gradient is only $0.02$. This creates **asymptotic shrinkage**: each step toward zero gets smaller and smaller. The weight approaches zero infinitely slowly but never actually reaches it.
+
+**Concrete example:** At $\lambda = 1.0$, if $w_j = 0.1$, the penalty gradient is $0.2$. But when $w_j = 0.001$, the gradient drops to $0.002$ — the pulling force weakens proportionally. The weight gets trapped in an asymptotic approach to zero, never quite making it.
+
+**Intuition:** Ridge shrinks all weights proportionally. Strong signal features resist shrinkage; noise features collapse toward zero asymptotically. But even noise features retain tiny non-zero weights — Ridge turns them down to whispers, not silence.
 
 ### 3.2 · Lasso Regression (L1 Penalty)
 
 $$L_\text{Lasso} = \frac{1}{n}\sum_{i=1}^{n}(\hat{y}_i - y_i)^2 + \lambda \sum_{j=1}^{d} |w_j|$$
 
-The L1 penalty has a **corner at zero** — this is geometrically why Lasso sets some weights to exactly zero. Unlike Ridge's smooth quadratic penalty, L1's absolute value creates a "kink" at $w_j = 0$, and optimization naturally lands on these corners.
+**Why Lasso zeros weights:**
+
+The gradient of the L1 penalty is $\frac{\partial}{\partial w_j}|w_j| = \text{sign}(w_j)$, which equals **+1 or −1** regardless of magnitude. This creates **constant-force shrinkage**: whether $w_j = 10.0$ or $w_j = 0.01$, the penalty pulls with the same strength. If a weight is small and the MSE gradient can't overcome this constant pull, the weight gets driven all the way to **exact zero**.
+
+**Concrete example:** At $\lambda = 0.001$, if $w_j = 0.1$, the penalty gradient is $\pm 0.001$ (constant). Even when $w_j = 0.001$, it's still $\pm 0.001$ — the force doesn't weaken. If the MSE gradient for this feature is weaker than $0.001$ (because it's noise), the penalty wins and drives $w_j \to 0$ completely.
+
+The L1 penalty also has a **geometric corner at zero** — the absolute value creates a "kink" where the gradient is undefined at $w_j = 0$. During optimization, weak features naturally land on this corner and stay there.
 
 **Intuition:** Lasso doesn't just shrink weights — it forces the model to make hard choices. When $\lambda$ is high enough, weak features get cut completely. Features with strong signal survive; noise features hit exact zero. This is **automatic feature selection** — the model tells you which features matter.
 

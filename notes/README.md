@@ -50,11 +50,12 @@ Utility folders that appear alongside chapters:
 notes/
 ├── 00-math_under_the_hood/ ← Math foundations: linear & non-linear algebra, calculus, 1-D optimisation, matrices, gradients & chain rule, probability
 ├── 01-ml/               ← Machine Learning: topics grouped by domain (Regression, Classification, …)
-├── 02-ai/               ← Agentic AI: reasoning, retrieval, orchestration (+ notebooks)
-├── 03-multi_agent_ai/   ← Multi-agent protocols and coordination patterns (+ notebooks)
-├── 04-multimodal_ai/    ← Diffusion, CLIP, vision transformers, text-to-video (+ notebooks)
-├── 05-ai_infrastructure/ ← GPU hardware to production serving platforms (+ notebooks)
-├── 06-devops_fundamentals/ ← Docker, Kubernetes, CI/CD, monitoring
+├─$103-ai/               ← Agentic AI: reasoning, retrieval, orchestration (+ notebooks)
+├── 04-multi_agent_ai/   ← Multi-agent protocols and coordination patterns (+ notebooks)
+├── 05-multimodal_ai/    ← Diffusion, CLIP, vision transformers, text-to-video (+ notebooks)
+├── 06-ai_infrastructure/ ← GPU hardware to production serving platforms (+ notebooks)
+├── 07-devops_fundamentals/ ← Docker, Kubernetes, CI/CD, monitoring
+├── 02-advanced_deep_learning/ ← Production computer vision: ResNets, detection, segmentation, compression (+ notebooks)
 ├── archived/            ← Historical HTML/PDF chronicles and archived storyboard assets
 └── interview_guides/    ← Consolidated interview prep — rapid-fire Q&A + checklist index
 ```
@@ -96,23 +97,23 @@ bash scripts/setup.sh
 
 ---
 
-## Track 2 — Agentic AI (`02-ai/`)
+## Track 2 — Agentic AI $103-ai/`)
 
 Deep-dive notes explaining how LLMs become agents — from token prediction through tool use, retrieval, and orchestration. Running example: **Mamma Rosa's PizzaBot**.
 
 | Document | What it covers |
 |---|---|
-| [AIPrimer.md](02-ai/ai-primer.md) | Entry point — PizzaBot running example, conceptual arc, document map, and reading paths |
-| [LLMFundamentals/](02-ai/ch01_llm_fundamentals) | BPE tokenisation, pretraining → SFT → RLHF, temperature, context windows |
-| [PromptEngineering/](02-ai/ch02_prompt_engineering) | System prompts, few-shot, structured output, prompt injection |
-| [CoTReasoning/](02-ai/ch03_cot_reasoning) | Chain-of-Thought, hidden reasoning tokens, Self-Consistency, Tree of Thoughts |
-| [RAGAndEmbeddings/](02-ai/ch04_rag_and_embeddings) | Transformer encoders, contrastive training, chunking, full RAG pipeline |
-| [VectorDBs/](02-ai/ch05_vector_dbs) | ANN index types (HNSW, IVF, DiskANN), distance metrics, production architecture |
-| [ReActAndSemanticKernel/](02-ai/ch06_react_and_semantic_kernel) | ReAct loop, LangChain vs Semantic Kernel, LangGraph, Plan-and-Execute |
-| [EvaluatingAISystems/](02-ai/ch08_evaluating_ai_systems) | RAGAS metrics, LLM-as-judge, hallucination detection, pipeline evaluation |
-| [FineTuning/](02-ai/ch10_fine_tuning) | When to fine-tune vs RAG vs prompting, LoRA math, QLoRA |
-| [SafetyAndHallucination/](02-ai/ch07_safety_and_hallucination) | Hallucination types, mitigation stack, jailbreaks, alignment failures |
-| [CostAndLatency/](02-ai/ch09_cost_and_latency) | Token budgets, model cost tiers, KV caching, streaming |
+| [AIPrimer.md$103-ai/ai-primer.md) | Entry point — PizzaBot running example, conceptual arc, document map, and reading paths |
+| [LLMFundamentals/$103-ai/ch01_llm_fundamentals) | BPE tokenisation, pretraining → SFT → RLHF, temperature, context windows |
+| [PromptEngineering/$103-ai/ch02_prompt_engineering) | System prompts, few-shot, structured output, prompt injection |
+| [CoTReasoning/$103-ai/ch03_cot_reasoning) | Chain-of-Thought, hidden reasoning tokens, Self-Consistency, Tree of Thoughts |
+| [RAGAndEmbeddings/$103-ai/ch04_rag_and_embeddings) | Transformer encoders, contrastive training, chunking, full RAG pipeline |
+| [VectorDBs/$103-ai/ch05_vector_dbs) | ANN index types (HNSW, IVF, DiskANN), distance metrics, production architecture |
+| [ReActAndSemanticKernel/$103-ai/ch06_react_and_semantic_kernel) | ReAct loop, LangChain vs Semantic Kernel, LangGraph, Plan-and-Execute |
+| [EvaluatingAISystems/$103-ai/ch08_evaluating_ai_systems) | RAGAS metrics, LLM-as-judge, hallucination detection, pipeline evaluation |
+| [FineTuning/$103-ai/ch10_fine_tuning) | When to fine-tune vs RAG vs prompting, LoRA math, QLoRA |
+| [SafetyAndHallucination/$103-ai/ch07_safety_and_hallucination) | Hallucination types, mitigation stack, jailbreaks, alignment failures |
+| [CostAndLatency/$103-ai/ch09_cost_and_latency) | Token budgets, model cost tiers, KV caching, streaming |
 | [InterviewGuides/](interview_guides) | Consolidated interview prep — rapid-fire Q&A plus index of every per-chapter Interview Checklist across all tracks |
 
 Every core note has a companion `_Supplement.md` for production-depth details. Read the core note first.
@@ -123,7 +124,7 @@ Every core note has a companion `_Supplement.md` for production-depth details. R
 
 7-chapter track on protocols and coordination patterns for multi-agent systems. Running scenario: **OrderFlow**, a B2B purchase-order automation platform.
 
-> → [03-MultiAgentAI/README.md](03-multi_agent_ai/README.md) for the full reading map and setup instructions.
+> → [03-MultiAgentAI/README.md](04-multi_agent_ai/README.md) for the full reading map and setup instructions.
 
 **Setup:** use the single uber-setup from the repo root — it already installs all MultiAgentAI dependencies and registers the `multi-agent-ai` kernel:
 ```powershell
@@ -135,13 +136,13 @@ bash scripts/setup.sh
 
 | Chapter | What it covers |
 |---|---|
-| [MessageFormats/](03-multi_agent_ai/ch01_message_formats) | OpenAI message envelope, token counting, handoff strategies, context trimming |
-| [MCP/](03-multi_agent_ai/ch02_mcp) | Model Context Protocol — JSON-RPC 2.0, Resources/Tools/Prompts, transport options |
-| [A2A/](03-multi_agent_ai/ch03_a2a) | Agent-to-Agent protocol — Agent Cards, task lifecycle, SSE streaming, MCP+A2A composition |
-| [EventDrivenAgents/](03-multi_agent_ai/ch04_event_driven_agents) | Pub/sub bus, DLQ, correlation/causation IDs, idempotency, fan-out/fan-in |
-| [SharedMemory/](03-multi_agent_ai/ch05_shared_memory) | Blackboard pattern, write-once guards, compare-and-swap, checkpoint/resume |
-| [TrustAndSandboxing/](03-multi_agent_ai/ch06_trust_and_sandboxing) | Prompt injection, output schema validation, HMAC signing, timing attacks |
-| [AgentFrameworks/](03-multi_agent_ai/ch07_agent_frameworks) | LangGraph StateGraph, AutoGen multi-agent debate, Semantic Kernel, framework comparison |
+| [MessageFormats/](04-multi_agent_ai/ch01_message_formats) | OpenAI message envelope, token counting, handoff strategies, context trimming |
+| [MCP/](04-multi_agent_ai/ch02_mcp) | Model Context Protocol — JSON-RPC 2.0, Resources/Tools/Prompts, transport options |
+| [A2A/](04-multi_agent_ai/ch03_a2a) | Agent-to-Agent protocol — Agent Cards, task lifecycle, SSE streaming, MCP+A2A composition |
+| [EventDrivenAgents/](04-multi_agent_ai/ch04_event_driven_agents) | Pub/sub bus, DLQ, correlation/causation IDs, idempotency, fan-out/fan-in |
+| [SharedMemory/](04-multi_agent_ai/ch05_shared_memory) | Blackboard pattern, write-once guards, compare-and-swap, checkpoint/resume |
+| [TrustAndSandboxing/](04-multi_agent_ai/ch06_trust_and_sandboxing) | Prompt injection, output schema validation, HMAC signing, timing attacks |
+| [AgentFrameworks/](04-multi_agent_ai/ch07_agent_frameworks) | LangGraph StateGraph, AutoGen multi-agent debate, Semantic Kernel, framework comparison |
 
 ---
 
@@ -149,23 +150,23 @@ bash scripts/setup.sh
 
 13-chapter track on generative image and video models, plus text-to-audio. Running example: **PixelSmith**, a local AI-powered creative studio that must run on a stock developer laptop.
 
-> → [04-MultimodalAI/README.md](04-multimodal_ai/README.md) for the full reading map.
+> → [04-MultimodalAI/README.md](05-multimodal_ai/README.md) for the full reading map.
 
 | Chapter | What it covers |
 |---|---|
-| [MultimodalFoundations/](04-multimodal_ai/ch01_multimodal_foundations) | Signals → tensors → tokens; patch embeddings; cross-modal alignment |
-| [VisionTransformers/](04-multimodal_ai/ch02_vision_transformers) | ViT architecture, patch tokenisation, CLS token, attention maps |
-| [CLIP/](04-multimodal_ai/ch03_clip) | Contrastive pre-training, zero-shot classification, text-image retrieval |
-| [DiffusionModels/](04-multimodal_ai/ch04_diffusion_models) | DDPM forward/reverse process, noise schedules, score matching |
-| [LatentDiffusion/](04-multimodal_ai/ch06_latent_diffusion) | VAE latent space, Stable Diffusion architecture, CFG |
-| [Schedulers/](04-multimodal_ai/ch05_schedulers) | DDIM, DPM-Solver, Euler-a — speed vs quality tradeoffs |
-| [GuidanceConditioning/](04-multimodal_ai/ch07_guidance_conditioning) | Classifier-free guidance, ControlNet, img2img, inpainting |
-| [TextToImage/](04-multimodal_ai/ch08_text_to_image) | End-to-end prompt → pixel pipeline, prompt engineering for images |
-| [TextToVideo/](04-multimodal_ai/ch09_text_to_video) | Temporal attention, video diffusion, consistency across frames |
-| [MultimodalLLMs/](04-multimodal_ai/ch10_multimodal_llms) | Vision encoders in LLMs, visual question answering, GPT-4V patterns |
-| [GenerativeEvaluation/](04-multimodal_ai/ch12_generative_evaluation) | FID, IS, CLIP score, human preference alignment |
-| [LocalDiffusionLab/](04-multimodal_ai/ch13_local_diffusion_lab) | Running Stable Diffusion locally — memory optimisation, quantisation |
-| [AudioGeneration/](04-multimodal_ai/ch11_audio_generation) | Text-to-speech, local synthesis, vocoder stacks — CPU-first quick wins |
+| [MultimodalFoundations/](05-multimodal_ai/ch01_multimodal_foundations) | Signals → tensors → tokens; patch embeddings; cross-modal alignment |
+| [VisionTransformers/](05-multimodal_ai/ch02_vision_transformers) | ViT architecture, patch tokenisation, CLS token, attention maps |
+| [CLIP/](05-multimodal_ai/ch03_clip) | Contrastive pre-training, zero-shot classification, text-image retrieval |
+| [DiffusionModels/](05-multimodal_ai/ch04_diffusion_models) | DDPM forward/reverse process, noise schedules, score matching |
+| [LatentDiffusion/](05-multimodal_ai/ch06_latent_diffusion) | VAE latent space, Stable Diffusion architecture, CFG |
+| [Schedulers/](05-multimodal_ai/ch05_schedulers) | DDIM, DPM-Solver, Euler-a — speed vs quality tradeoffs |
+| [GuidanceConditioning/](05-multimodal_ai/ch07_guidance_conditioning) | Classifier-free guidance, ControlNet, img2img, inpainting |
+| [TextToImage/](05-multimodal_ai/ch08_text_to_image) | End-to-end prompt → pixel pipeline, prompt engineering for images |
+| [TextToVideo/](05-multimodal_ai/ch09_text_to_video) | Temporal attention, video diffusion, consistency across frames |
+| [MultimodalLLMs/](05-multimodal_ai/ch10_multimodal_llms) | Vision encoders in LLMs, visual question answering, GPT-4V patterns |
+| [GenerativeEvaluation/](05-multimodal_ai/ch12_generative_evaluation) | FID, IS, CLIP score, human preference alignment |
+| [LocalDiffusionLab/](05-multimodal_ai/ch13_local_diffusion_lab) | Running Stable Diffusion locally — memory optimisation, quantisation |
+| [AudioGeneration/](05-multimodal_ai/ch11_audio_generation) | Text-to-speech, local synthesis, vocoder stacks — CPU-first quick wins |
 
 ---
 
@@ -173,20 +174,64 @@ bash scripts/setup.sh
 
 5 implemented chapters (with additional chapters planned) from GPU silicon through inference optimization. Running scenario: **InferenceBase**, a startup evaluating whether to self-host Llama-3-8B instead of paying $80k/month in API bills.
 
-> → [05-AIInfrastructure/README.md](05-ai_infrastructure/README.md) for the full reading map.
+> → [05-AIInfrastructure/README.md](06-ai_infrastructure/README.md) for the full reading map.
 
 | Chapter | What it covers |
 |---|---|
-| [GPUArchitecture/](05-ai_infrastructure/ch01_gpu_architecture) | CUDA cores, tensor cores, VRAM, memory bandwidth, roofline model |
-| [MemoryAndComputeBudgets/](05-ai_infrastructure/ch02_memory_and_compute_budgets) | VRAM estimation: parameters, KV cache, optimizer states, activations |
-| [QuantizationAndPrecision/](05-ai_infrastructure/quantization_and_precision) | FP16/BF16/INT8/INT4, GPTQ, AWQ, perplexity vs compression tradeoffs |
-| [ParallelismAndDistributedTraining/](05-ai_infrastructure/parallelism_and_distributed_training) | Data/tensor/pipeline parallelism, ZeRO stages, FSDP |
-| [InferenceOptimization/](05-ai_infrastructure/ch05_inference_optimization) | KV cache, speculative decoding, flash attention, kernel fusion |
+| [GPUArchitecture/](06-ai_infrastructure/ch01_gpu_architecture) | CUDA cores, tensor cores, VRAM, memory bandwidth, roofline model |
+| [MemoryAndComputeBudgets/](06-ai_infrastructure/ch02_memory_and_compute_budgets) | VRAM estimation: parameters, KV cache, optimizer states, activations |
+| [QuantizationAndPrecision/](06-ai_infrastructure/quantization_and_precision) | FP16/BF16/INT8/INT4, GPTQ, AWQ, perplexity vs compression tradeoffs |
+| [ParallelismAndDistributedTraining/](06-ai_infrastructure/parallelism_and_distributed_training) | Data/tensor/pipeline parallelism, ZeRO stages, FSDP |
+| [InferenceOptimization/](06-ai_infrastructure/ch05_inference_optimization) | KV cache, speculative decoding, flash attention, kernel fusion |
 | *(planned, not yet in tree)* Serving Frameworks | vLLM, TensorRT-LLM, TGI — continuous batching, PagedAttention |
 | *(planned, not yet in tree)* Networking & Cluster Architecture | InfiniBand, NVLink, RDMA, collective ops (AllReduce, AllGather) |
 | *(planned, not yet in tree)* MLOps & Experiment Management | MLflow, W&B, experiment tracking, model registry, CI for ML |
 | *(planned, not yet in tree)* Production AI Platform | SLOs, autoscaling, shadow deployment, cost monitoring |
 | *(planned, not yet in tree)* Cloud AI Infrastructure | Azure/AWS/GCP GPU offerings, spot instances, cost vs throughput |
+
+---
+
+## Track 6 — DevOps Fundamentals (`07-devops_fundamentals/`)
+
+8-chapter track covering Docker, Kubernetes, CI/CD, monitoring, and secrets management. Running example: **ProductionStack** — deploying a Flask API with PostgreSQL and Redis from laptop to production.
+
+> → [07-devops_fundamentals/README.md](07-devops_fundamentals/README.md) for the full reading map and Grand Challenge.
+
+| Chapter | What it covers |
+|---|---|
+| [DockerFundamentals/](07-devops_fundamentals/ch01_docker_fundamentals) | Containers vs VMs, Dockerfile, images, layers, volumes |
+| [ContainerOrchestration/](07-devops_fundamentals/ch02_container_orchestration) | Docker Compose, health checks, dependency ordering |
+| [KubernetesBasics/](07-devops_fundamentals/ch03_kubernetes_basics) | Pods, Services, Deployments, 5 essential kubectl commands |
+| [CICDPipelines/](07-devops_fundamentals/ch04_cicd_pipelines) | GitHub Actions, workflow triggers, Docker Hub integration |
+| [MonitoringObservability/](07-devops_fundamentals/ch05_monitoring_observability) | Prometheus, Grafana, metrics collection, alerting |
+| [InfrastructureAsCode/](07-devops_fundamentals/ch06_infrastructure_as_code) | Terraform, state management, resource graphs |
+| [NetworkingLoadBalancing/](07-devops_fundamentals/ch07_networking_load_balancing) | Nginx reverse proxy, load balancing algorithms, health checks |
+| [SecuritySecretsManagement/](07-devops_fundamentals/ch08_security_secrets_management) | Environment variables, Docker secrets, Kubernetes secrets, pre-push hooks |
+
+**Grand Challenge:** ProductionStack achieves 99% uptime, <5min MTTD, zero secrets in git, and deploys in <5min.
+
+---
+
+## Track 7 — Advanced Deep Learning (`02-advanced_deep_learning/`)
+
+10-chapter production computer vision track from ResNets to edge deployment. Running challenge: **ProductionCV** — autonomous retail shelf monitoring achieving 82% mAP, 71% IoU, 35ms latency, 6.8 MB model size, trained on <1,000 labeled images.
+
+> → [02-advanced_deep_learning/README.md](02-advanced_deep_learning/README.md) for the full reading map and Grand Challenge details.
+
+| Chapter | What it covers |
+|---|---|
+| [ResidualNetworks/](02-advanced_deep_learning/ch01_residual_networks) | Skip connections, vanishing gradients, ResNet-18/50/101 |
+| [EfficientArchitectures/](02-advanced_deep_learning/ch02_efficient_architectures) | MobileNetV2, EfficientNet, depthwise separable convolutions |
+| [TwoStageDetectors/](02-advanced_deep_learning/ch03_two_stage_detectors) | Faster R-CNN, RPN, RoI pooling, multi-task loss |
+| [OneStageDetectors/](02-advanced_deep_learning/ch04_one_stage_detectors) | YOLOv5, RetinaNet, focal loss, grid-based detection |
+| [SemanticSegmentation/](02-advanced_deep_learning/ch05_semantic_segmentation) | FCN, U-Net, DeepLabV3+, atrous convolutions |
+| [InstanceSegmentation/](02-advanced_deep_learning/ch06_instance_segmentation) | Mask R-CNN, RoIAlign, per-instance masks |
+| [ContrastiveLearning/](02-advanced_deep_learning/ch07_contrastive_learning) | SimCLR, MoCo, NT-Xent loss, momentum encoder |
+| [SelfSupervisedVision/](02-advanced_deep_learning/ch08_self_supervised_vision) | DINO, MAE, masked autoencoding, emergent attention |
+| [KnowledgeDistillation/](02-advanced_deep_learning/ch09_knowledge_distillation) | Teacher-student, temperature scaling, soft labels |
+| [PruningMixedPrecision/](02-advanced_deep_learning/ch10_pruning_mixed_precision) | Magnitude pruning, AMP, FP16 training, 14× compression |
+
+**Grand Challenge:** ProductionCV compresses 97 MB ResNet-50 → 6.8 MB pruned MobileNetV2, achieving all 5 constraints (detection, segmentation, latency, model size, data efficiency).
 
 ---
 

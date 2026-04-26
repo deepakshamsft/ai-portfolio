@@ -8,17 +8,18 @@
 
 ## Overview
 
-This portfolio contains **5 core learning tracks** plus supporting material (interview guides, archives):
+This portfolio contains **7 core learning tracks** plus supporting material (interview guides, archives):
 
 | # | Track | Folder | Status | Pedagogical Focus |
 |---|-------|--------|--------|-------------------|
 | **0** | Math Foundations | `00-math_under_the_hood/` | ✅ Complete | Prerequisites: calculus, linear algebra, optimization (7 chapters) |
 | **1** | Machine Learning | `01-ml/` | ✅ Complete | Supervised, unsupervised, deep learning (8 topics, 50+ chapters) |
-| **2** | Agentic AI | `02-ai/` | ✅ Complete (Ch.1-11) | Single-agent systems: RAG, tools, orchestration, advanced patterns (11 chapters) |
-| **3** | Multi-Agent AI | `03-multi_agent_ai/` | ✅ Complete | Multi-agent protocols and coordination (7 chapters) |
-| **4** | Multimodal AI | `04-multimodal_ai/` | ✅ Complete | Generative image/video/audio models (13 chapters) |
-| **5** | AI Infrastructure | `05-ai_infrastructure/` | ✅ Complete (Ch.1-10) | GPU architecture through feature stores — all 10 chapters complete |
-| **6** | DevOps Fundamentals | `06-devops_fundamentals/` | ✅ Complete (Ch.1-8) | Docker through security — all 8 chapters complete |
+| **2** | Agentic AI |$103-ai/` | ✅ Complete (Ch.1-11) | Single-agent systems: RAG, tools, orchestration, advanced patterns (11 chapters) |
+| **3** | Multi-Agent AI | `04-multi_agent_ai/` | ✅ Complete | Multi-agent protocols and coordination (7 chapters) |
+| **4** | Multimodal AI | `05-multimodal_ai/` | ✅ Complete | Generative image/video/audio models (13 chapters) |
+| **5** | AI Infrastructure | `06-ai_infrastructure/` | ✅ Complete (Ch.1-10) | GPU architecture through feature stores — all 10 chapters complete |
+| **6** | DevOps Fundamentals | `07-devops_fundamentals/` | ✅ Complete (Ch.1-8) | Docker through security — all 8 chapters complete |
+| **7** | Advanced Deep Learning | `02-advanced_deep_learning/` | ✅ Complete (Ch.1-10) | Production computer vision: ResNets to edge deployment — 10 chapters complete |
 
 ---
 
@@ -27,11 +28,11 @@ This portfolio contains **5 core learning tracks** plus supporting material (int
 **Completed actions:**
 - ✅ Renamed `notes/ml/` → `notes/01-ml/`
 - ✅ Renamed `notes/math_under_the_hood/` → `notes/00-math_under_the_hood/`
-- ✅ Renamed `notes/ai/` → `notes/02-ai/`
-- ✅ Renamed `notes/multi_agent_ai/` → `notes/03-multi_agent_ai/`
-- ✅ Renamed `notes/multimodal_ai/` → `notes/04-multimodal_ai/`
-- ✅ Renamed `notes/ai_infrastructure/` → `notes/05-ai_infrastructure/`
-- ✅ Renamed `notes/devops_fundamentals/` → `notes/06-devops_fundamentals/`
+- ✅ Renamed `notes/ai/` → `notes/03-ai/`
+- ✅ Renamed `notes/multi_agent_ai/` → `notes/04-multi_agent_ai/`
+- ✅ Renamed `notes/multimodal_ai/` → `notes/05-multimodal_ai/`
+- ✅ Renamed `notes/ai_infrastructure/` → `notes/06-ai_infrastructure/`
+- ✅ Renamed `notes/devops_fundamentals/` → `notes/07-devops_fundamentals/`
 - ✅ Updated all cross-references in READMEs and notebooks
 - ✅ Updated root README.md with new folder names
 - ✅ Updated scripts with hardcoded paths
@@ -44,6 +45,7 @@ This portfolio contains **5 core learning tracks** plus supporting material (int
 - **Track 4 (Multimodal AI):** Image/video/audio generation — extends transformers to multimodal
 - **Track 5 (AI Infrastructure):** GPU optimization, serving, monitoring — production layer for all AI systems
 - **Track 6 (DevOps Fundamentals):** Containers, orchestration, CI/CD — prerequisite for deploying AI systems
+- **Track 7 (Advanced Deep Learning):** Production computer vision — ResNets through edge deployment, compression, and self-supervised learning
 
 Numerical prefixes enforce pedagogical sequence and make the intended learning path explicit.
 
@@ -175,7 +177,7 @@ Numerical prefixes enforce pedagogical sequence and make the intended learning p
 
 ---
 
-## Track 2 — Agentic AI (`02-ai/`)
+## Track 2 — Agentic AI $103-ai/`)
 
 **Pedagogical goal:** Transform LLMs from text predictors into production agents
 
@@ -256,7 +258,7 @@ Numerical prefixes enforce pedagogical sequence and make the intended learning p
 
 ---
 
-## Track 3 — Multi-Agent AI (`03-multi_agent_ai/`)
+## Track 3 — Multi-Agent AI (`04-multi_agent_ai/`)
 
 **Pedagogical goal:** Scale single-agent patterns to multi-agent systems
 
@@ -290,7 +292,7 @@ Numerical prefixes enforce pedagogical sequence and make the intended learning p
 
 ---
 
-## Track 4 — Multimodal AI (`04-multimodal_ai/`)
+## Track 4 — Multimodal AI (`05-multimodal_ai/`)
 
 **Pedagogical goal:** Generate images, video, audio with diffusion models
 
@@ -330,7 +332,7 @@ Numerical prefixes enforce pedagogical sequence and make the intended learning p
 
 ---
 
-## Track 5 — AI Infrastructure (`05-ai_infrastructure/`)
+## Track 5 — AI Infrastructure (`06-ai_infrastructure/`)
 
 **Pedagogical goal:** GPU hardware to production ML systems
 
@@ -381,7 +383,7 @@ Numerical prefixes enforce pedagogical sequence and make the intended learning p
 
 ---
 
-## Track 6 — DevOps Fundamentals (`06-devops_fundamentals/`)
+## Track 6 — DevOps Fundamentals (`07-devops_fundamentals/`)
 
 **Pedagogical goal:** Generic infrastructure skills (not AI-specific)
 

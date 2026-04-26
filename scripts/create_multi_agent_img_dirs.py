@@ -5,7 +5,7 @@ Create img/ directory in each of the 7 Multi-Agent AI chapter folders.
 import os
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MA_ROOT = os.path.join(REPO_ROOT, "notes", "03-multi_agent_ai")
+MA_ROOT = os.path.join(REPO_ROOT, "notes", "04-multi_agent_ai")
 
 CHAPTERS = [
     "ch01_message_formats",

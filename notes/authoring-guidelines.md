@@ -406,7 +406,7 @@ Each track's `AUTHORING_GUIDE.md` extends this document with:
 | Track | AUTHORING_GUIDE |
 |-------|----------------|
 | **ML** | [notes/01-ml/authoring-guide.md](01-ml/authoring-guide.md) — canonical style reference (deepest documentation) |
-| **AI** | [notes/02-ai/AUTHORING_GUIDE.md](02-ai/authoring-guide.md) |
+| **AI** | [notes/03-ai/AUTHORING_GUIDE.md$103-ai/authoring-guide.md) |
 | **AIInfrastructure** | [notes/AIInfrastructure/AUTHORING_GUIDE.md](ai_infrastructure/authoring-guide.md) |
 | **MultiAgentAI** | [notes/MultiAgentAI/AUTHORING_GUIDE.md](multi_agent_ai/authoring-guide.md) |
 | **MultimodalAI** | [notes/MultimodalAI/AUTHORING_GUIDE.md](multimodal_ai/authoring-guide.md) |

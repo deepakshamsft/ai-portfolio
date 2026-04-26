@@ -4,7 +4,7 @@ Batch-update all notes/ gen_scripts that import from _shared.*
 to use scripts/shared/ (the new centralised package location).
 
 ML callers:        notes/01-ml/<topic>/<chapter>/gen_scripts/  — parents[3] → parents[5]
-MultimodalAI:      notes/04-multimodal_ai/<chapter>/gen_scripts/ — parents[2] → parents[4]
+MultimodalAI:      notes/05-multimodal_ai/<chapter>/gen_scripts/ — parents[2] → parents[4]
 """
 
 import re

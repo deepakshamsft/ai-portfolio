@@ -8,7 +8,7 @@ import os
 import glob
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MA_ROOT = os.path.join(REPO_ROOT, "notes", "03-multi_agent_ai")
+MA_ROOT = os.path.join(REPO_ROOT, "notes", "04-multi_agent_ai")
 
 CHAPTERS = [
     "ch01_message_formats", "ch02_mcp", "ch03_a2a", "ch04_event_driven_agents",

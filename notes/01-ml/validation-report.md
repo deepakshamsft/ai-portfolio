@@ -148,8 +148,8 @@ All three broken links use `../../../../` (4 levels up) to reference `MathUnderT
 | `02-Classification/ch05-hyperparameter-tuning` | `../../03-NeuralNetworks/README.md` | `notes/ML/03-NeuralNetworks/README.md` | ✅ |
 | `02-Classification/ch05-hyperparameter-tuning` | `../../08-EnsembleMethods/README.md` | `notes/ML/08-EnsembleMethods/README.md` | ✅ |
 | `03-NeuralNetworks/ch08-tensorboard` | `../../07-UnsupervisedLearning/ch02-dimensionality-reduction/` | `notes/ML/07-UnsupervisedLearning/ch02-dimensionality-reduction/` | ✅ |
-| `03-NeuralNetworks/ch10-transformers` | `../../../02-AI/LLMFundamentals/` | `notes/02-AI/LLMFundamentals/` | ✅ |
-| `03-NeuralNetworks/ch10-transformers` | `../../../02-AI/RAGAndEmbeddings/` | `notes/02-AI/RAGAndEmbeddings/` | ✅ |
+| `03-NeuralNetworks/ch10-transformers` | `../../.$103-ai/LLMFundamentals/` | `notes/03-ai/LLMFundamentals/` | ✅ |
+| `03-NeuralNetworks/ch10-transformers` | `../../.$103-ai/RAGAndEmbeddings/` | `notes/03-ai/RAGAndEmbeddings/` | ✅ |
 | `05-AnomalyDetection/ch01-statistical-methods` | `../ch03-autoencoders/` | `notes/ML/05-AnomalyDetection/ch03-autoencoders/` | ✅ |
 | `07-UnsupervisedLearning/ch01-clustering` | `../ch02-dimensionality-reduction/` | `notes/ML/07-UnsupervisedLearning/ch02-dimensionality-reduction/` | ✅ |
 

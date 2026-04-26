@@ -55,8 +55,8 @@ python notes\04-MultimodalAI\VisionTransformers\gen_scripts\gen_vision_transform
 ```bash
 # macOS / Linux
 source .venv/bin/activate
-python notes/04-MultimodalAI/VisionTransformers/gen_scripts/gen_vision_transformers.py
-python notes/04-MultimodalAI/VisionTransformers/gen_scripts/gen_vision_transformers_flow.py
+python notes/05-MultimodalAI/VisionTransformers/gen_scripts/gen_vision_transformers.py
+python notes/05-MultimodalAI/VisionTransformers/gen_scripts/gen_vision_transformers_flow.py
 ```
 
 For other chapters, use the same pattern: run the chapter-local `gen_scripts/*.py` file that owns the asset you want to change.

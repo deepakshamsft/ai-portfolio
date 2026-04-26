@@ -337,9 +337,9 @@ Both use 16 bits total but different mantissa/exponent splits. BF16 has the same
 
 > ➡️ **Forward links** — these build on AI Infrastructure concepts:
 - [Agentic AI Interview Guide](agentic-ai.md) — Cost & Latency section covers the application-layer view of the same GPU/inference concepts
-- [Multimodal AI / Local Diffusion Lab](../04-multimodal_ai/ch13_local_diffusion_lab) — same serving patterns apply to diffusion models
+- [Multimodal AI / Local Diffusion Lab](../05-multimodal_ai/ch13_local_diffusion_lab) — same serving patterns apply to diffusion models
 
 > 📖 **Optional depth** — academic rigor for mathematical proofs:
-- [AI / Fine-tuning](../02-ai/ch10_fine_tuning) — QLoRA is quantization + LoRA combined
-- [AI / Cost & Latency](../02-ai/ch09_cost_and_latency) — VRAM side of the same cost model
+- [AI / Fine-tuning](.$103-ai/ch10_fine_tuning) — QLoRA is quantization + LoRA combined
+- [AI / Cost & Latency](.$103-ai/ch09_cost_and_latency) — VRAM side of the same cost model
 
