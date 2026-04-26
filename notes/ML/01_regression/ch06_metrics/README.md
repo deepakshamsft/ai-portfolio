@@ -295,10 +295,10 @@ Before trusting the sklearn output, work through the mechanics by hand on a Cali
 
 | Fold | Test samples | Test data |
 |------|-------------|-----------|
-| 1 | $i$=0,1 | (age=5, \$200k) and (age=10, \$240k) |
-| 2 | $i$=2,3 | (age=15, \$210k) and (age=20, \$260k) |
-| 3 | $i$=4,5 | (age=25, \$300k) and (age=30, \$280k) |
-| 4 | $i$=6,7 | (age=35, \$320k) and (age=40, \$350k) |
+| 1 | i=0,1 | (age=5, $200k) and (age=10, $240k) |
+| 2 | i=2,3 | (age=15, $210k) and (age=20, $260k) |
+| 3 | i=4,5 | (age=25, $300k) and (age=30, $280k) |
+| 4 | i=6,7 | (age=35, $320k) and (age=40, $350k) |
 
 For each fold, fit $\hat{y} = w \cdot \text{age} + b$ on the 6 training samples using
 ordinary least squares, then predict the 2 held-out samples.
@@ -317,10 +317,10 @@ Predictions on test (ages 5, 10):
 
 | Sample | age | $\hat{y}$ | actual | $\|$error$\|$ |
 |--------|-----|----------|--------|-----------|
-| 1 | 5 | $4.91(5)+151.5 = \mathbf{176}$ | 200 | **24** |
-| 2 | 10 | $4.91(10)+151.5 = \mathbf{201}$ | 240 | **39** |
+| 1 | 5 | 176 | 200 | **24** |
+| 2 | 10 | 201 | 240 | **39** |
 
-$$\text{MAE}_1 = \frac{24 + 39}{2} = \$31.5\text{k} \approx \textbf{\$32k}$$
+$$\text{MAE}_1 = \frac{24 + 39}{2} = 31.5 \approx \textbf{32}$$ (in $k)
 
 > **Why the large errors?** The model trained on older homes (ages 15–40) and predicts that young homes are worth less than they actually are — it extrapolates backward below the training range.
 
@@ -334,12 +334,12 @@ $$w_2 = \frac{3658}{970.8} = 3.77 \qquad b_2 = 281.7 - 3.77 \times 24.2 = 190.6$
 
 Predictions on test (ages 15, 20):
 
-| Sample | age | $\hat{y}$ | actual | $\|$error$\|$ |
-|--------|-----|----------|--------|-----------|
-| 3 | 15 | $3.77(15)+190.6 = \mathbf{247}$ | 210 | **37** |
-| 4 | 20 | $3.77(20)+190.6 = \mathbf{266}$ | 260 | **6** |
+| Sample | age | Predicted | actual | Absolute Error |
+|--------|-----|-----------|--------|----------------|
+| 3 | 15 | 247 | 210 | **37** |
+| 4 | 20 | 266 | 260 | **6** |
 
-$$\text{MAE}_2 = \frac{37 + 6}{2} = \$21.5\text{k} \approx \textbf{\$22k}$$
+$$\text{MAE}_2 = \frac{37 + 6}{2} = 21.5 \approx \textbf{22}$$ (in $k)
 
 ---
 
@@ -351,12 +351,12 @@ $$w_3 = \frac{4033}{970.8} = 4.15 \qquad b_3 = 263.3 - 4.15 \times 20.8 = 176.8$
 
 Predictions on test (ages 25, 30):
 
-| Sample | age | $\hat{y}$ | actual | $\|$error$\|$ |
-|--------|-----|----------|--------|-----------|
-| 5 | 25 | $4.15(25)+176.8 = \mathbf{281}$ | 300 | **19** |
-| 6 | 30 | $4.15(30)+176.8 = \mathbf{301}$ | 280 | **21** |
+| Sample | age | Predicted | actual | Absolute Error |
+|--------|-----|-----------|--------|----------------|
+| 5 | 25 | 281 | 300 | **19** |
+| 6 | 30 | 301 | 280 | **21** |
 
-$$\text{MAE}_3 = \frac{19 + 21}{2} = \textbf{\$20k}$$
+$$\text{MAE}_3 = \frac{19 + 21}{2} = \textbf{20}$$ (in $k)
 
 ---
 
@@ -368,47 +368,47 @@ $$w_4 = \frac{1575}{437.5} = 3.60 \qquad b_4 = 248.3 - 3.60 \times 17.5 = 185.3$
 
 Predictions on test (ages 35, 40):
 
-| Sample | age | $\hat{y}$ | actual | $\|$error$\|$ |
-|--------|-----|----------|--------|-----------|
-| 7 | 35 | $3.60(35)+185.3 = \mathbf{311}$ | 320 | **9** |
-| 8 | 40 | $3.60(40)+185.3 = \mathbf{329}$ | 350 | **21** |
+| Sample | age | Predicted | actual | Absolute Error |
+|--------|-----|-----------|--------|----------------|
+| 7 | 35 | 311 | 320 | **9** |
+| 8 | 40 | 329 | 350 | **21** |
 
-$$\text{MAE}_4 = \frac{9 + 21}{2} = \textbf{\$15k}$$
+$$\text{MAE}_4 = \frac{9 + 21}{2} = \textbf{15}$$ (in $k)
 
 ---
 
 #### Summary — Mean ± Std
 
-| Fold | Test ages | Slope $w$ | Intercept $b$ | MAE |
-|------|-----------|-----------|---------------|-----|
-| 1 | 5, 10 | 4.91 | 151.5 | **\$32k** |
-| 2 | 15, 20 | 3.77 | 190.6 | **\$22k** |
-| 3 | 25, 30 | 4.15 | 176.8 | **\$20k** |
-| 4 | 35, 40 | 3.60 | 185.3 | **\$15k** |
+| Fold | Test ages | Slope $w$ | Intercept $b$ | MAE (\$k) |
+|------|-----------|-----------|---------------|----------|
+| 1 | 5, 10 | 4.91 | 151.5 | **32** |
+| 2 | 15, 20 | 3.77 | 190.6 | **22** |
+| 3 | 25, 30 | 4.15 | 176.8 | **20** |
+| 4 | 35, 40 | 3.60 | 185.3 | **15** |
 
-$$\overline{\text{MAE}} = \frac{32 + 22 + 20 + 15}{4} = \textbf{\$22k}$$
+$$\overline{\text{MAE}} = \frac{32 + 22 + 20 + 15}{4} = \textbf{22}$$
 
-$$\sigma_{\text{MAE}} = \sqrt{\frac{(32-22)^2+(22-22)^2+(20-22)^2+(15-22)^2}{4}} = \sqrt{38.2} \approx \textbf{\$6k}$$
+$$\sigma_{\text{MAE}} = \sqrt{\frac{(32-22)^2+(22-22)^2+(20-22)^2+(15-22)^2}{4}} = \sqrt{38.2} \approx \textbf{6}$$
 
-> **Mean CV MAE = \$22k ± \$6k** (California Housing dataset, 8 samples, 4-fold)
+> **Mean CV MAE = $22k ± $6k** (California Housing dataset, 8 samples, 4-fold)
 
 **Three things the worked example reveals:**
 
 1. **Each fold gets a slightly different line** ($w$ ranges 3.60–4.91). This is the model's
    variance: it sees different age ranges in training and learns different slopes.
 
-2. **Fold 1 has the largest errors** (\$32k): the model trained on older homes extrapolates
+2. **Fold 1 has the largest errors** ($32k): the model trained on older homes extrapolates
    backward to young homes. This is the equivalent of the California Housing problem where the
    model trained on mid-range districts underestimates coastal luxury homes.
 
-3. **The ±\$6k std is real information.** The minimum fold (Fold 4, \$15k) and the maximum
-   (Fold 1, \$32k) both happened on the same California Housing dataset. A single train-test split would give
+3. **The ±$6k std is real information.** The minimum fold (Fold 4, $15k) and the maximum
+   (Fold 1, $32k) both happened on the same California Housing dataset. A single train-test split would give
    *one* of these — and you wouldn't know if it was the lucky fold or the unlucky one. CV
    forces you to see all four.
 
 **The California Housing equivalent** (from sklearn cross\_val\_score on the full Ridge pipeline):
 ```python
-# Actual output from 5-fold CV — §10 Code Skeleton
+# Actual output from 5-fold CV — §9 Code Skeleton
 CV MAE: $38,214 ± $1,843
   Fold 1: $37,012
   Fold 2: $40,118
@@ -416,7 +416,7 @@ CV MAE: $38,214 ± $1,843
   Fold 4: $37,794
   Fold 5: $37,716
 ```
-Fold 2 ($\$40k$) crosses the SmartVal target. On this fold the model technically failed. Without CV, we'd never know that one fifth of real-world deployment conditions would put us above the target.
+Fold 2 ($40k) crosses the SmartVal target. On this fold the model technically failed. Without CV, we'd never know that one fifth of real-world deployment conditions would put us above the target.
 
 ---
 
@@ -448,11 +448,29 @@ flowchart TD
 
 ---
 
-## 8 · Prediction Intervals and Confidence Bands
+## 7 · Prediction Intervals and Confidence Bands
 
 A point prediction of "$380k" is incomplete. Stakeholders need: **"$380k ± $45k with 95% confidence."**
 
-### Bootstrap Prediction Intervals
+### How Confidence Is Calculated
+
+**What "95% confidence" means:** If we built this model 100 times on different samples from the same population, approximately 95 of those models would produce intervals that contain the true value.
+
+**Where the 1.96 comes from:** Under the assumption that residuals follow a normal distribution:
+- 68% of values fall within ±1 standard deviation
+- 95% of values fall within ±1.96 standard deviations
+- 99.7% of values fall within ±3 standard deviations
+
+For a 95% confidence interval, we use $z_{0.975} = 1.96$ (the z-score that leaves 2.5% in each tail of the normal distribution).
+
+**The calculation:** If RMSE = $52k (our standard deviation of prediction errors), then:
+- 95% interval = $\hat{y} \pm 1.96 \times \$52\text{k} = \hat{y} \pm \$102\text{k}$
+
+This means: "We're 95% confident the true house value lies within ±$102k of our prediction."
+
+### Bootstrap Prediction Intervals (Non-Parametric Alternative)
+
+When residuals aren't normally distributed (common with skewed targets like house prices), bootstrap provides a non-parametric alternative:
 
 ```python
 from sklearn.utils import resample
@@ -469,7 +487,7 @@ upper = np.percentile(predictions, 97.5, axis=0)
 # → 95% prediction interval: [lower, upper]
 ```
 
-### Residual-Based Intervals
+### Residual-Based Intervals (Parametric Method)
 
 Assuming residuals are approximately normal:
 
@@ -479,53 +497,53 @@ For 95% confidence: $z_{0.975} = 1.96$, so interval = $\hat{y} \pm 1.96 \times \
 
 **California Housing:** RMSE ≈ $50k → 95% interval ≈ ±$98k (wide! Reflects model uncertainty on extreme values).
 
-### 8.1 · Three SmartVal Districts — What the Interval Means
+### 7.1 · Three SmartVal Districts — What the Interval Means
 
-The Ridge model (Ch.5, RMSE = \$52k) is live. SmartVal's CTO wants a confidence
+The Ridge model (Ch.5, RMSE = $52k) is live. SmartVal's CTO wants a confidence
 number to display beneath every automated valuation. Here are three real districts, using the
 residual-based interval formula:
 
-$$\hat{y} \pm 1.96 \times \$52\text{k} = \hat{y} \pm \$102\text{k} \quad \text{(95\% PI)}$$
+**Prediction interval formula:** $\hat{y} \pm 1.96 \times \text{RMSE}$, where RMSE = $52k, so the interval is $\hat{y} \pm $102k (95% confidence).
 
-| District | Model prediction $\hat{y}$ | 95% interval | Width | SmartVal verdict |
-|----------|--------------------------|--------------|-------|-----------------|
-| South Bay suburb | **\$320k** | [\$218k, \$422k] | \$204k | ⚠️ Publish with caveat |
-| SF coastal (luxury) | **\$450k** | [\$348k, \$552k] | \$204k | ⚠️ Interval includes \$500k cap — unreliable |
-| Central Valley mid-range | **\$180k** | [\$78k, \$282k] | \$204k | ⚠️ Lower bound approaches land value |
+| District | Model prediction | 95% interval | Width | SmartVal verdict |
+|----------|-----------------|--------------|-------|------------------|
+| South Bay suburb | **$320k** | [$218k, $422k] | $204k | ⚠️ Publish with caveat |
+| SF coastal (luxury) | **$450k** | [$348k, $552k] | $204k | ⚠️ Interval includes $500k cap — unreliable |
+| Central Valley mid-range | **$180k** | [$78k, $282k] | $204k | ⚠️ Lower bound approaches land value |
 
-> **Why is the width always \$204k?** The formula $\hat{y} \pm 1.96 \cdot \text{RMSE}$ adds
-> a **fixed** uncertainty of ±\$102k regardless of the prediction. This is the critical
+> **Why is the width always $204k?** The formula $\hat{y} \pm 1.96 \cdot \text{RMSE}$ adds
+> a **fixed** uncertainty of ±$102k regardless of the prediction. This is the critical
 > weakness of the residual-based interval: it assumes errors are homoscedastic (uniform across
-> the prediction range). In practice, the Q-Q plot (§4, `img/ch06-qq-plot.png`) shows that
+> the prediction range). In practice, the Q-Q plot (§3, `img/ch06-qq-plot.png`) shows that
 > our Ridge model's errors are **not** uniform — cheap homes have tighter errors and expensive
-> homes have wider ones. The \$204k band is too wide for District 3 (conservative, safe to
+> homes have wider ones. The $204k band is too wide for District 3 (conservative, safe to
 > publish) and too narrow for District 2 (the interval may not actually contain the true value
 > 95% of the time).
 
 **SmartVal business interpretation:**
 
-- **District 1 (\$320k ± \$102k):** The interval is \$218k–\$422k — a two-to-one range.
+- **District 1 ($320k ± $102k):** The interval is $218k–$422k — a two-to-one range.
   Publishable for automated appraisals, but too wide for mortgage underwriting. Flag for human
-  review above \$400k.
+  review above $400k.
 
-- **District 2 (\$450k ± \$102k):** The upper bound (\$552k) plausibly exceeds the California
-  Housing cap (\$500k), meaning the true distribution right-tail is censored. The bootstrap
-  interval (§7 code, 100 resamples) gives a narrower and more honest [\$380k, \$530k].
-  Use bootstrap whenever $\hat{y} > \$410k$.
+- **District 2 ($450k ± $102k):** The upper bound ($552k) plausibly exceeds the California
+  Housing cap ($500k), meaning the true distribution right-tail is censored. The bootstrap
+  interval (§7 code, 100 resamples) gives a narrower and more honest [$380k, $530k].
+  Use bootstrap whenever the predicted value exceeds $410k.
 
-- **District 3 (\$180k ± \$102k):** Lower bound \$78k is below land value in most California
-  markets. The model anchors on the target encoding (values in ×\$100k units) and can output
+- **District 3 ($180k ± $102k):** Lower bound $78k is below land value in most California
+  markets. The model anchors on the target encoding (values in ×$100k units) and can output
   implausibly low bounds. Clip the lower bound at the greater of $\hat{y} - 1.96 \cdot \text{RMSE}$ 
   and the minimum land value before publishing.
 
 **The right fix:** Fit a **quantile regression model** for the 2.5th and 97.5th percentiles
-directly, or use conformalized prediction sets (Ch.7 and beyond). For now the ±\$102k band
+directly, or use conformalized prediction sets (Ch.7 and beyond). For now the ±$102k band
 is SmartVal's honest disclosure to users: *"95% of similar districts had errors within this
 range on the validation set."*
 
 ---
 
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 - **Reporting only MAE without residual analysis.** $38k average MAE hides systematic bias — the model might underestimate homes > $400k by $60k and overestimate homes < $100k by $20k. The average is fine but the model is structurally wrong. **Fix:** Always plot residuals vs predicted values.
 
@@ -555,7 +573,7 @@ flowchart TD
 
 ---
 
-## 8 · Code Skeleton
+## 9 · Code Skeleton
 
 ```python
 import numpy as np
@@ -675,33 +693,32 @@ print("Gap at full data:", f"${val_mae[-1]-train_mae[-1]:,.0f}")
 
 ---
 
-## 9 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 **Unlocked with this chapter:**
 
-| Capability | What you can do | New this chapter |
-|------------|----------------|-----------------|
-| **Multiple metrics** | Report MAE, RMSE, MAPE, R², Adj.R² from one pipeline | §2 |
-| **AIC / BIC** | Formally compare Ridge vs Polynomial; compute the 72-unit AIC complexity penalty | §3.1 (new) |
-| **Residual diagnostics** | Detect systematic bias vs ŷ; check normality with Q-Q plot; flag influential points | §4 + `img/ch06-residuals-vs-predicted.png`, `img/ch06-qq-plot.png` |
-| **Learning curves** | Diagnose high-bias vs high-variance; confirm regularization converged | §5 + `img/ch06-learning-curve.png` |
-| **Hand-worked CV** | Trace exactly how each fold retrains and what its MAE is | §6.1 (new) |
-| **Cross-validation** | Report \$38k ± \$2k instead of one lucky \$38k | §6 |
-| **Prediction intervals** | Quote "\$320k ± \$102k (95%)" for any valuation; use bootstrap for luxury tier | §8, §8.1 (new), §10 code |
-| **Metrics evolution** | Read the SmartVal story Ch.1→Ch.6 in one chart | §1 + `img/ch06-metrics-journey.png` |
+| Capability | What you can do | Section |
+|------------|----------------|---------|
+| **Multiple metrics** | Report MAE, RMSE, R² from one pipeline | §2 |
+| **Residual diagnostics** | Detect systematic bias vs ŷ; check normality with Q-Q plot | §3 + images |
+| **Learning curves** | Diagnose high-bias vs high-variance; confirm regularization converged | §4 + images |
+| **Hand-worked CV** | Trace exactly how each fold retrains and what its MAE is | §5.1 |
+| **Cross-validation** | Report $38k ± $2k instead of one lucky $38k | §5 |
+| **Prediction intervals** | Understand and calculate 95% confidence intervals | §7, §7.1, §9 code |
+| **Metrics evolution** | Read the SmartVal story Ch.1→Ch.6 in one chart | §1 + images |
 
 **Progress toward SmartVal constraints:**
 
 | Constraint | Status | Evidence |
 |------------|--------|----------|
-| #1 ACCURACY | ✅ **ACHIEVED** | \$38k MAE **validated by 5-fold CV** (\$38k ± \$2k); single-split luck ruled out |
+| #1 ACCURACY | ✅ **ACHIEVED** | $38k MAE **validated by 5-fold CV** ($38k ± $2k); single-split luck ruled out |
 | #2 GENERALIZATION | ✅ **ACHIEVED** | CV shows consistent performance; learning curve confirms mild variance, not high bias |
 | #3 MULTI-TASK | ❌ Blocked | Still regression only — next: Ch.8 adds classification head |
 | #4 INTERPRETABILITY | ⚠️ Partial | Residual plot shows *where* errors are large |
 | #5 PRODUCTION | ⚠️ Partial | CV provides confidence intervals for deployment decisions |
 
-> **The CTO conversation has changed.** Before Ch.6: "We hit \$38k MAE." After Ch.6: "We hit
-> \$38k ± \$2k across five independent splits, and we can show exactly which districts the model fails on and why."
+> **The CTO conversation has changed.** Before Ch.6: "We hit $38k MAE." After Ch.6: "We hit
+> $38k ± $2k across five independent splits, and we can show exactly which districts the model fails on and why."
 
 ```mermaid
 flowchart LR
@@ -724,19 +741,14 @@ flowchart LR
 
 ---
 
-## 10 · Bridge to Chapter 7
+## 11 · Bridge to Chapter 7
 
-Ch.6 built the complete evaluation framework SmartVal needs to trust its model. The \$38k MAE
-is real (5-fold CV std ≈ ±\$2k), and the residuals show a known structural blind spot (homes
-above \$400k are underestimated by ~\$60k). But one question remains: *are the hyperparameters optimal?*
+Ch.6 built the complete evaluation framework SmartVal needs to trust its model. The $38k MAE is validated, the residuals reveal where errors concentrate (luxury homes above $400k), and cross-validation proved the result wasn't luck. But here's the uncomfortable truth: **we guessed the hyperparameters.**
 
-Ridge uses $\alpha = 1.0$ (chosen by intuition in Ch.5) and the polynomial degree was set to 2.
-We don't know whether $\alpha = 0.1$ or $\alpha = 10$ would push the CV MAE below \$36k.
-Ch.7 introduces **systematic hyperparameter tuning** — Grid Search,
-Random Search, and Bayesian optimization — to find the combination of
-regularization strength, polynomial degree, and model type that minimizes cross-validated MAE
-without requiring guesswork. The residual diagnostic plots from Ch.6 will guide *which*
-hyperparameters to prioritize: if the Q-Q plot shows heavy right-tail errors, tuning the
-degree may help more than tuning $\alpha$.
+Ridge's regularization strength? Picked α=1.0 in Ch.5 because "it felt reasonable." Polynomial degree? Set to 2 because degree 3 seemed excessive. These weren't decisions — they were educated coin flips. And SmartVal's CTO knows it. What if α=0.5 drops MAE to $35k? What if degree 3 with stronger regularization is the sweet spot?
+
+**The historical lesson:** In the 1980s and 90s, machine learning researchers spent weeks hand-tuning neural networks — adjusting learning rates, hidden layer sizes, and activation functions one at a time, retraining after every change. A single model could require hundreds of experiments. **James Bergstra and Yoshua Bengio** (2012) proved something embarrassing: **random search** — literally trying random combinations — often beat the methodical grid search that researchers had trusted for decades. The problem wasn't lack of rigor; it was the *curse of dimensionality* hiding in the hyperparameter space. When you have 5 hyperparameters, the "optimal" combination is almost never at the intersections of your carefully chosen grid points.
+
+Ch.7 fixes the guesswork. **Grid Search** exhaustively tests combinations. **Random Search** samples the space efficiently. **Bayesian Optimization** learns which regions are promising and adaptively focuses the search. By the end, SmartVal will have the *provably best* Ridge configuration from 100+ tested combinations — and the tools to retune when new data arrives. No more educated guesses.
 
 
