@@ -1,10 +1,10 @@
 # Ch.6 — Evaluation Metrics for Regression
 
-> **The story.** **Carl Friedrich Gauss** invented least squares in **1795** (age 18!) to predict the orbit of Ceres, reasoning that the best prediction minimizes the sum of squared errors. **Francis Galton** introduced $R^2$ (coefficient of determination) in the 1880s while studying hereditary traits — "how much of the variation in children's heights is explained by parents' heights?" The mean absolute error (MAE) gained prominence as statisticians realized squared errors over-penalize outliers — real estate appraisers, for instance, care about typical error, not catastrophic ones. **MAPE** (Mean Absolute Percentage Error) emerged from business forecasting where "$10k error on a $100k house" (10%) differs fundamentally from "$10k error on a $1M house" (1%). **Adjusted R²** was developed to solve the "R² always increases when you add features" problem — penalizing model complexity to prevent over-engineering. Today, residual analysis and cross-validation are the twin pillars of regression evaluation — the first tells you *how* your model fails, the second tells you *whether you can trust* its reported performance.
+> **The story.** **Carl Friedrich Gauss** invented least squares in **1795** (age 18!) to predict the orbit of Ceres, reasoning that the best prediction minimizes the sum of squared errors. **Francis Galton** introduced $R^2$ (coefficient of determination) in the 1880s while studying hereditary traits — "how much of the variation in children's heights is explained by parents' heights?" The mean absolute error (MAE) gained prominence as statisticians realized squared errors over-penalize outliers — real estate appraisers, for instance, care about typical error, not catastrophic ones. Today, residual analysis and cross-validation are the twin pillars of regression evaluation — the first tells you *how* your model fails, the second tells you *whether you can trust* its reported performance.
 >
-> **Where you are in the curriculum.** Ch.5 achieved $38k MAE — below the $40k target! But how reliable is that number? A single train-test split might be lucky. The model might systematically underestimate expensive homes or overfit to coastal districts. This chapter builds a **complete evaluation framework** for regression: multiple error metrics, residual diagnostics, cross-validation stability, learning curves, and prediction intervals. When you're done, you'll know not just *how good* the model is, but *where and how it fails*.
+> **Where you are in the curriculum.** Ch.5 achieved $38k MAE — below the $40k target! But how reliable is that number? A single train-test split might be lucky. The model might systematically underestimate expensive homes or overfit to coastal districts. This chapter builds a **complete evaluation framework** for regression: multiple error metrics, residual diagnostics, cross-validation stability, and learning curves. When you're done, you'll know not just *how good* the model is, but *where and how it fails*.
 >
-> **Notation in this chapter.** $y_i$ — actual value; $\hat{y}_i$ — predicted value; $\bar{y}$ — mean of actuals; MAE $=\tfrac{1}{n}\sum|y_i-\hat{y}_i|$; RMSE $=\sqrt{\tfrac{1}{n}\sum(y_i-\hat{y}_i)^2}$; $R^2 = 1 - \tfrac{\sum(y_i-\hat{y}_i)^2}{\sum(y_i-\bar{y})^2}$; MAPE $=\tfrac{100}{n}\sum\tfrac{|y_i-\hat{y}_i|}{|y_i|}$; Adjusted $R^2 = 1 - \tfrac{(1-R^2)(n-1)}{n-p-1}$ where $p$ = number of features.
+> **Notation in this chapter.** $y_i$ — actual value; $\hat{y}_i$ — predicted value; $\bar{y}$ — mean of actuals; MAE $=\tfrac{1}{n}\sum|y_i-\hat{y}_i|$; RMSE $=\sqrt{\tfrac{1}{n}\sum(y_i-\hat{y}_i)^2}$; $R^2 = 1 - \tfrac{\sum(y_i-\hat{y}_i)^2}{\sum(y_i-\bar{y})^2}$.
 
 ---
 
@@ -155,16 +155,7 @@ $$\text{RMSE} = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}$$
 
 Same MAE, but RMSE reveals Model B has one catastrophic prediction. **RMSE ≥ MAE always**, and the gap tells you about error variance.
 
-### MAPE — Mean Absolute Percentage Error
 
-$$\text{MAPE} = \frac{100}{n}\sum_{i=1}^{n}\frac{|y_i - \hat{y}_i|}{|y_i|}$$
-
-**In English:** Average percentage error — scale-independent.  
-"$10k error on a $100k home" (10%) vs "$10k error on a $1M home" (1%).
-
-**When to use:** When stakeholders think in percentages. A real estate appraiser cares about 10% error, not $X error.
-
-**Caveats:** Undefined when $y_i = 0$. Asymmetric — penalizes over-prediction differently from under-prediction.
 
 ### R² — Coefficient of Determination
 
@@ -178,22 +169,7 @@ $R^2 = 0.75$ → "The model explains 75% of house value variation."
 - $R^2 = 0$: Model is no better than predicting $\bar{y}$ (the mean) for every district
 - $R^2 < 0$: Model is worse than the mean (broken)
 
-### Adjusted R²
 
-$$\bar{R}^2 = 1 - \frac{(1-R^2)(n-1)}{n-p-1}$$
-
-where $n$ = number of observations, $p$ = number of features, $R^2$ = coefficient of determination.
-
-**Why it exists:** $R^2$ **always increases** when you add features, even garbage ones. Adding `random_noise` as a feature increases $R^2$ slightly. Adjusted $R^2$ penalizes for the number of features $p$, so it only increases if the new feature improves predictions more than expected by chance.
-
-**Concrete example (Ch.3 → Ch.4):**
-| Model | Features | R² | Adjusted R² |
-|-------|----------|-----|-------------|
-| Ch.2 (linear, 8 feats) | 8 | 0.606 | 0.606 |
-| Ch.4 (poly d=2, 44 feats) | 44 | 0.672 | 0.668 |
-| Ch.5 (Ridge, 44 feats) | 44 | 0.680 | 0.677 |
-
-R² increased by 0.066 from Ch.2→Ch.4, but Adjusted R² increased less (0.062) because we added 36 features.
 
 #### Numeric Verification — MAE / RMSE / R² on 3 Predictions
 
@@ -205,7 +181,7 @@ R² increased by 0.066 from Ch.2→Ch.4, but Adjusted R² increased less (0.062)
 
 $$\text{MAE} = \frac{0.5+0.8+0.3}{3} = 0.533, \quad \text{RMSE} = \sqrt{\frac{0.98}{3}} = 0.572$$
 
-$$\bar{y} = 4.0, \quad SS_\text{res} = 0.98, \quad SS_\text{tot} = (3-4)^2+(5-4)^2+(4-4)^2 = 2.0$$
+$$\bar{y} = 4.0, \quad SS_{\text{res}} = 0.98, \quad SS_{\text{tot}} = (3-4)^2+(5-4)^2+(4-4)^2 = 2.0$$
 
 $$R^2 = 1 - \frac{0.98}{2.0} = 0.51$$
 
@@ -215,9 +191,7 @@ $$R^2 = 1 - \frac{0.98}{2.0} = 0.51$$
 |--------|---------|-------|----------------|----------|
 | **MAE** | $\frac{1}{n}\sum\|y_i-\hat{y}_i\|$ | target | ✅ Yes | Typical error magnitude |
 | **RMSE** | $\sqrt{\frac{1}{n}\sum(y_i-\hat{y}_i)^2}$ | target | ❌ No | Penalizing large errors |
-| **MAPE** | $\frac{100}{n}\sum\frac{\|y_i-\hat{y}_i\|}{\|y_i\|}$ | % | ✅ Yes | Scale-independent comparison |
-| **R²** | $1-\frac{SS_{res}}{SS_{tot}}$ | unitless | ⚠️ Moderate | Variance explained |
-| **Adj. R²** | penalized R² | unitless | ⚠️ Moderate | Feature selection |
+| **R²** | $1-\frac{SS_{\text{res}}}{SS_{\text{tot}}}$ | unitless | ⚠️ Moderate | Variance explained |
 
 ```mermaid
 flowchart TD
@@ -225,124 +199,21 @@ flowchart TD
     
     Q1 -->|"Typical error<br/>in dollars"| MAE["✅ MAE<br/>Robust, interpretable<br/>Same units as target"]
     Q1 -->|"Large errors<br/>are costly"| RMSE["✅ RMSE<br/>Penalizes big mistakes<br/>Insurance, safety"]
-    Q1 -->|"Percentage<br/>error"| MAPE["✅ MAPE<br/>Scale-independent<br/>Cross-market comparison"]
-    Q1 -->|"Overall model<br/>quality"| R2["✅ R² / Adj. R²<br/>Variance explained<br/>Feature selection"]
+    Q1 -->|"Overall model<br/>quality"| R2["✅ R²<br/>Variance explained<br/>Model quality"]
     
     style START fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style MAE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style RMSE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style MAPE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style R2 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
 ---
 
-## 3 · Goodness-of-Fit: R², Adjusted R², AIC/BIC
-
-### When R² Lies
-
-R² **always increases** (or stays the same) when you add features — even random noise:
-
-| Model | Features added | R² | Adj. R² | Verdict |
-|-------|---------------|-----|---------|---------|
-| 8 raw features | — | 0.606 | 0.606 | Baseline |
-| + random_noise_1 | 1 garbage | 0.606 | 0.606 | R² flat, Adj R² flat |
-| + 5 random features | 5 garbage | 0.607 | 0.605 | R² ↑ but Adj R² ↓ (caught!) |
-| + 36 polynomial features | 36 useful | 0.672 | 0.668 | Both ↑ (genuine improvement) |
-
-**Rule:** If R² goes up but Adjusted R² goes down, the new features are noise.
-
-### AIC and BIC
-
-For model selection (comparing models with different numbers of parameters):
-
-$$\text{AIC} = n \cdot \ln(\text{MSE}) + 2p$$
-$$\text{BIC} = n \cdot \ln(\text{MSE}) + p \cdot \ln(n)$$
-
-Both penalize complexity. BIC penalizes more strongly (prefers simpler models). **Lower is better.**
-
-### 3.1 · AIC in Practice: Ridge vs Polynomial — The Penalty in Numbers
-
-Use AIC and BIC to compare the two best models built so far:
-
-| Model | Parameters $p$ | $n$ | RMSE | MSE (in ×\$100k²) |
-|-------|:-------------:|:---:|:----:|:-----------------:|
-| Ch.5 Ridge ($\alpha=1.0$, 8 raw features) | 8 | 16,512 | \$52k = 0.52 | **0.2704** |
-| Ch.4 OLS poly degree=2 (44 features) | 44 | 16,512 | \$48k = 0.48 | **0.2304** |
-
-> Units: California Housing targets are in ×\$100k, so $\text{RMSE}=\$52\text{k}=0.52$
-> and $\text{MSE}=0.52^2=0.2704$. AIC is scale-sensitive but comparison is valid when both
-> models use the same units.
-
-#### Ridge Computation
-
-$$n \cdot \ln(\text{MSE}_\text{Ridge}) = 16{,}512 \times \ln(0.2704) = 16{,}512 \times (-1.308) = -21{,}594$$
-
-$$\text{AIC}_\text{Ridge} = -21{,}594 + 2 \times 8 = -21{,}594 + 16 = \boxed{-21{,}578}$$
-
-$$\text{BIC}_\text{Ridge} = -21{,}594 + 8 \times \ln(16{,}512) = -21{,}594 + 8 \times 9.712 = -21{,}594 + 77.7 = \boxed{-21{,}516}$$
-
-#### Polynomial Computation
-
-$$n \cdot \ln(\text{MSE}_\text{Poly}) = 16{,}512 \times \ln(0.2304) = 16{,}512 \times (-1.469) = -24{,}249$$
-
-$$\text{AIC}_\text{Poly} = -24{,}249 + 2 \times 44 = -24{,}249 + 88 = \boxed{-24{,}161}$$
-
-$$\text{BIC}_\text{Poly} = -24{,}249 + 44 \times 9.712 = -24{,}249 + 427.3 = \boxed{-23{,}822}$$
-
-#### Penalty Breakdown
-
-| | Ridge | Polynomial | Extra cost of 36 more features |
-|-|:-----:|:----------:|:-----------------------------:|
-| Log-likelihood part ($n \cdot \ln(\text{MSE})$) | −21,594 | −24,249 | improvement = **2,655 units** |
-| **AIC** complexity penalty ($2p$) | 16 | 88 | penalty = **+72 units** |
-| **BIC** complexity penalty ($p \cdot \ln n$) | 77.7 | 427.3 | penalty = **+350 units** |
-| **AIC** (lower = better) | **−21,578** | **−24,161** | Poly wins |
-| **BIC** (lower = better) | **−21,516** | **−23,822** | Poly wins |
-
-**Why the polynomial still wins despite the penalty.** The log-likelihood improvement from
-reducing RMSE by \$4k (52 → 48) is **2,655 AIC units** on a dataset of 16,512 samples.
-The 36-feature complexity penalty costs only 72 AIC units. The improvement is ~37× larger
-than the penalty — this is a *genuine* fit improvement, not overfitting noise.
-
-**The important half of the story.** Now consider a hypothetical: what if the polynomial
-reduced RMSE by only \$0.5k (52.0 → 51.5, barely measurable)?
-
-$$n \cdot \Delta\ln(\text{MSE}) = 16{,}512 \times \ln\!\left(\frac{0.5150^2}{0.5200^2}\right)
-  = 16{,}512 \times (-0.0194) = -320 \text{ units}$$
-
-$$\text{AIC penalty for 36 extra features} = 72 \text{ units}$$
-$$\text{BIC penalty for 36 extra features} = 350 \text{ units}$$
-
-In this case AIC would still prefer the polynomial (320 > 72) but BIC would prefer Ridge
-(320 < 350). BIC's stronger penalty makes it the right tool when $n$ is large and you suspect
-overfitting.
-
-**SmartVal rule of thumb from this analysis:**
-- If RMSE improvement > 0.5% of current RMSE per extra feature → add the feature (AIC agrees).
-- If RMSE improvement < 0.05% per extra feature → Ridge wins on BIC; don't add it.
-- When in doubt, report both AIC and BIC: disagreement signals the "thin evidence" zone.
-
----
-
-## 4 · Residual Diagnostics
+## 3 · Residual Diagnostics
 
 Residuals $e_i = y_i - \hat{y}_i$ are the fingerprints of model failure. Plotting them reveals patterns that aggregate metrics hide.
 
 ### Residual vs Predicted Plot
-
-```
-Good (random scatter):          Bad (systematic pattern):
-   +|  · ··  · ·                  +|        ·  · ·
-    | ·  ·   ·                     |      ·  ·
-   0├──·──────·──                 0├──·────────
-    | ·   · ·                      | ·
-   -|   ·    ·                    -|· ·
-    └──────────→ ŷ                 └──────────→ ŷ
-    
-  ✅ No pattern = model is         ❌ Curve = missing non-linear
-     unbiased                         term (polynomial?)
-```
 
 > See the generated residual diagnostic plot for the Ch.5 Ridge model:
 >
@@ -366,43 +237,13 @@ Compares residual distribution against theoretical normal distribution:
 
 > ![Q-Q plot of residuals: positive tail much thicker than normal, confirming luxury-home underestimates](img/ch06-qq-plot.png)
 
-### Cook's Distance
-
-Measures how much each data point influences the model:
-
-$$D_i = \frac{(\hat{y}_{(i)} - \hat{y})^2}{p \cdot \text{MSE}} \cdot \frac{h_{ii}}{(1 - h_{ii})^2}$$
-
-Points with Cook's distance > $4/n$ are influential outliers. Removing them might significantly change the model.
-
-**California Housing:** Districts with capped values ($500k+) often have high Cook's distance — they're at the edge of the feature space and the target is truncated.
-
 ---
 
-## 5 · Learning Curves
+## 4 · Learning Curves
 
 Plot train and validation MAE as a function of **training set size**:
 
-```
-MAE
- ↑
- │
- │ ·───────────── validation MAE (high, flat)
- │                      ← HIGH BIAS (underfitting)
- │ ·───────────── training MAE (also high)
- │
- └──────────────────→ training set size
-
-MAE
- ↑
- │ ·───────────── validation MAE (high)
- │                      ← HIGH VARIANCE (overfitting)
- │         ·────── gap → need more data or regularization
- │ ·───────────── training MAE (low)
- │
- └──────────────────→ training set size
-```
-
-> ![Learning curve: train vs validation MAE vs training set size, showing well-regularised behaviour](img/ch06-learning-curve.png)
+![Learning curve: train vs validation MAE vs training set size, showing well-regularised behaviour](img/ch06-learning-curve.png)
 
 **What learning curves tell you:**
 
@@ -415,21 +256,11 @@ MAE
 
 ---
 
-## 6 · Cross-Validation for Regression
+## 5 · Cross-Validation for Regression
 
 A single train-test split is unreliable. **K-fold cross-validation** uses every sample for both training and testing:
 
-```
-5-Fold Cross-Validation:
-──────────────────────────────────────────
-Fold 1: [TEST] [TRAIN] [TRAIN] [TRAIN] [TRAIN] → MAE₁ = $37k
-Fold 2: [TRAIN] [TEST] [TRAIN] [TRAIN] [TRAIN] → MAE₂ = $40k
-Fold 3: [TRAIN] [TRAIN] [TEST] [TRAIN] [TRAIN] → MAE₃ = $38k
-Fold 4: [TRAIN] [TRAIN] [TRAIN] [TEST] [TRAIN] → MAE₄ = $39k
-Fold 5: [TRAIN] [TRAIN] [TRAIN] [TRAIN] [TEST] → MAE₅ = $36k
-──────────────────────────────────────────
-                           Mean MAE = $38k ± $1.4k
-```
+![5-Fold Cross-Validation: Each fold uses different 20% for testing](img/ch06-cv-folds.png)
 
 **sklearn implementation:**
 ```python
@@ -587,13 +418,9 @@ CV MAE: $38,214 ± $1,843
 ```
 Fold 2 ($\$40k$) crosses the SmartVal target. On this fold the model technically failed. Without CV, we'd never know that one fifth of real-world deployment conditions would put us above the target.
 
-### Leave-One-Out Cross-Validation (LOOCV)
-
-$K = n$ — each sample gets its own fold. Gives the lowest bias but highest variance and computational cost. Use only for small datasets ($n < 500$).
-
 ---
 
-## 7 · When Metrics Disagree
+## 6 · When Metrics Disagree
 
 MAE says Model A wins. RMSE says Model B wins. Who's right?
 
@@ -688,8 +515,8 @@ $$\hat{y} \pm 1.96 \times \$52\text{k} = \hat{y} \pm \$102\text{k} \quad \text{(
 
 - **District 3 (\$180k ± \$102k):** Lower bound \$78k is below land value in most California
   markets. The model anchors on the target encoding (values in ×\$100k units) and can output
-  implausibly low bounds. Clip the lower bound at
-  $\max(\hat{y} - 1.96 \cdot \text{RMSE},\; \text{land\_floor})$ before publishing.
+  implausibly low bounds. Clip the lower bound at the greater of $\hat{y} - 1.96 \cdot \text{RMSE}$ 
+  and the minimum land value before publishing.
 
 **The right fix:** Fit a **quantile regression model** for the 2.5th and 97.5th percentiles
 directly, or use conformalized prediction sets (Ch.7 and beyond). For now the ±\$102k band
@@ -708,7 +535,7 @@ range on the validation set."*
 
 - **Comparing models on different metrics.** "Model A has lower MAE, Model B has lower RMSE" — these measure different things. **Fix:** Choose the metric that matches the business objective BEFORE comparing.
 
-- **MAPE on extreme values.** MAPE = 50% on a $50k home ($25k error) seems terrible. MAPE = 5% on a $500k home ($25k error) seems great. Same dollar error, wildly different percentages. **Fix:** Report both MAE and MAPE. Use MAPE only when percentage error is the natural unit.
+
 
 ```mermaid
 flowchart TD
@@ -728,7 +555,7 @@ flowchart TD
 
 ---
 
-## 10 · Code Skeleton
+## 8 · Code Skeleton
 
 ```python
 import numpy as np
@@ -759,15 +586,10 @@ y_pred = pipe.predict(X_test)
 mae  = mean_absolute_error(y_test, y_pred) * 100_000
 rmse = np.sqrt(mean_squared_error(y_test, y_pred)) * 100_000
 r2   = r2_score(y_test, y_pred)
-n, p = X_test.shape[0], pipe.named_steps['poly'].n_output_features_
-adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
-mape = np.mean(np.abs((y_pred - y_test) / y_test)) * 100
 
 print(f"MAE:        ${mae:,.0f}")
 print(f"RMSE:       ${rmse:,.0f}")
 print(f"R²:         {r2:.4f}")
-print(f"Adjusted R²: {adj_r2:.4f}")
-print(f"MAPE:       {mape:.1f}%")
 print(f"RMSE/MAE:   {rmse/mae:.2f}  (1.0 = uniform errors)")
 ```
 
@@ -849,77 +671,11 @@ print("Gap at full data:", f"${val_mae[-1]-train_mae[-1]:,.0f}")
 # is well-regularized.  If val_mae is still falling at the rightmost point → get more data.
 ```
 
-```python
-# ── AIC / BIC computation ─────────────────────────────────────────────────
-import numpy as np
 
-def aic_bic(rmse_dollars, n, p):
-    """AIC and BIC for linear regression.
-    rmse_dollars: RMSE in original units (e.g. $52_000)
-    n: number of training samples
-    p: number of model parameters (features)
-    """
-    # Convert RMSE to model units (California Housing uses *$100k* internally)
-    rmse_units = rmse_dollars / 100_000
-    mse_units  = rmse_units ** 2
-    log_lik    = n * np.log(mse_units)  # n * ln(MSE)
-    aic = log_lik + 2 * p
-    bic = log_lik + p * np.log(n)
-    return aic, bic
-
-n_train = len(X_train)   # 16,512 for California Housing 80/20 split
-
-aic_r, bic_r = aic_bic(rmse_dollars=52_000, n=n_train, p=8)
-aic_p, bic_p = aic_bic(rmse_dollars=48_000, n=n_train, p=44)
-
-print(f"Ridge   (p=8,  RMSE=$52k): AIC={aic_r:,.0f}  BIC={bic_r:,.0f}")
-print(f"Poly    (p=44, RMSE=$48k): AIC={aic_p:,.0f}  BIC={bic_p:,.0f}")
-print(f"ΔAIC penalty (36 extra features): {2*36:.0f} units")
-print(f"ΔBIC penalty (36 extra features): {36*np.log(n_train):.1f} units")
-# Expected output:
-# Ridge   (p=8,  RMSE=$52k): AIC=-21578  BIC=-21516
-# Poly    (p=44, RMSE=$48k): AIC=-24161  BIC=-23822
-# ΔAIC penalty (36 extra features): 72 units
-# ΔBIC penalty (36 extra features): 349.6 units
-```
-
-```python
-# ── Prediction intervals for three SmartVal districts ─────────────────────
-from sklearn.utils import resample as sk_resample
-
-# Formula-based (assumes residual normality)
-rmse = np.sqrt(mean_squared_error(y_test, y_pred)) * 100_000
-z    = 1.96  # 95% confidence
-
-districts = {
-    "South Bay suburb":     320_000,
-    "SF coastal (luxury)":  450_000,
-    "Central Valley":       180_000,
-}
-
-print("\nResidual-based 95% prediction intervals (ŷ ± 1.96·RMSE):")
-for name, yhat in districts.items():
-    lo, hi = yhat - z * rmse, yhat + z * rmse
-    print(f"  {name}: ${yhat:,.0f}  →  [${lo:,.0f}, ${hi:,.0f}]")
-
-# Bootstrap-based (100 resamples — more robust for skewed residuals)
-boot_preds = []
-for _ in range(100):
-    Xb, yb = sk_resample(X_train, y_train, random_state=None)
-    pipe.fit(Xb, yb)
-    # arbitrary new district feature vector — replace with real district features
-    x_new = X_test[[0]]   # placeholder: first test district
-    boot_preds.append(pipe.predict(x_new)[0] * 100_000)
-
-lower = np.percentile(boot_preds, 2.5)
-upper = np.percentile(boot_preds, 97.5)
-print(f"\nBootstrap 95% PI for test district 0: [${lower:,.0f}, ${upper:,.0f}]")
-# Rule: use bootstrap when ŷ > $410k (near the $500k cap where normality breaks down).
-```
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 **Unlocked with this chapter:**
 
@@ -941,12 +697,11 @@ print(f"\nBootstrap 95% PI for test district 0: [${lower:,.0f}, ${upper:,.0f}]")
 | #1 ACCURACY | ✅ **ACHIEVED** | \$38k MAE **validated by 5-fold CV** (\$38k ± \$2k); single-split luck ruled out |
 | #2 GENERALIZATION | ✅ **ACHIEVED** | CV shows consistent performance; learning curve confirms mild variance, not high bias |
 | #3 MULTI-TASK | ❌ Blocked | Still regression only — next: Ch.8 adds classification head |
-| #4 INTERPRETABILITY | ⚠️ Partial | AIC comparison confirms 44-feature model is genuinely better (not just overfit); residual plot shows *where* errors are large |
-| #5 PRODUCTION | ⚠️ Partial | Prediction intervals (\$320k ± \$102k) are now production-ready; bootstrap fallback for luxury segment |
+| #4 INTERPRETABILITY | ⚠️ Partial | Residual plot shows *where* errors are large |
+| #5 PRODUCTION | ⚠️ Partial | CV provides confidence intervals for deployment decisions |
 
 > **The CTO conversation has changed.** Before Ch.6: "We hit \$38k MAE." After Ch.6: "We hit
-> \$38k ± \$2k across five independent splits; we have 95% prediction intervals for every
-> valuation; and we can show exactly which districts the model fails on and why."
+> \$38k ± \$2k across five independent splits, and we can show exactly which districts the model fails on and why."
 
 ```mermaid
 flowchart LR
@@ -969,20 +724,18 @@ flowchart LR
 
 ---
 
-## 12 · Bridge to Chapter 7
+## 10 · Bridge to Chapter 7
 
 Ch.6 built the complete evaluation framework SmartVal needs to trust its model. The \$38k MAE
-is real (5-fold CV std ≈ ±\$2k), the residuals show a known structural blind spot (homes
-above \$400k are underestimated by ~\$60k), and every valuation now ships with a 95%
-prediction interval. But one question remains open: *are the hyperparameters optimal?*
+is real (5-fold CV std ≈ ±\$2k), and the residuals show a known structural blind spot (homes
+above \$400k are underestimated by ~\$60k). But one question remains: *are the hyperparameters optimal?*
 
 Ridge uses $\alpha = 1.0$ (chosen by intuition in Ch.5) and the polynomial degree was set to 2.
-We don't know whether $\alpha = 0.1$ or $\alpha = 10$ would push the CV MAE below \$36k — and
-the AIC calculation from §3.1 tells us that a genuine RMSE improvement of even \$4k is worth
-the complexity cost. Ch.7 introduces **systematic hyperparameter tuning** — Grid Search,
-Random Search, and Bayesian optimization via Optuna — to find the combination of
-regularization strength, polynomial degree, and model type that minimises cross-validated MAE
-without requiring guesswork. The residual diagnostic plots from Ch.6 will also guide *which*
+We don't know whether $\alpha = 0.1$ or $\alpha = 10$ would push the CV MAE below \$36k.
+Ch.7 introduces **systematic hyperparameter tuning** — Grid Search,
+Random Search, and Bayesian optimization — to find the combination of
+regularization strength, polynomial degree, and model type that minimizes cross-validated MAE
+without requiring guesswork. The residual diagnostic plots from Ch.6 will guide *which*
 hyperparameters to prioritize: if the Q-Q plot shows heavy right-tail errors, tuning the
 degree may help more than tuning $\alpha$.
 
