@@ -182,6 +182,8 @@ $R^2 = 0.75$ → "The model explains 75% of house value variation."
 
 $$\bar{R}^2 = 1 - \frac{(1-R^2)(n-1)}{n-p-1}$$
 
+where $n$ = number of observations, $p$ = number of features, $R^2$ = coefficient of determination.
+
 **Why it exists:** $R^2$ **always increases** when you add features, even garbage ones. Adding `random_noise` as a feature increases $R^2$ slightly. Adjusted $R^2$ penalizes for the number of features $p$, so it only increases if the new feature improves predictions more than expected by chance.
 
 **Concrete example (Ch.3 → Ch.4):**
@@ -195,8 +197,8 @@ R² increased by 0.066 from Ch.2→Ch.4, but Adjusted R² increased less (0.062)
 
 #### Numeric Verification — MAE / RMSE / R² on 3 Predictions
 
-| $y_i$ | $\hat{y}_i$ | $|e_i|$ | $e_i^2$ |
-|--------|-------------|---------|--------|
+| Actual y<sub>i</sub> | Predicted ŷ<sub>i</sub> | Absolute Error | Squared Error |
+|:--------------------:|:-----------------------:|:--------------:|:-------------:|
 | 3.0 | 2.5 | 0.5 | 0.25 |
 | 5.0 | 5.8 | 0.8 | 0.64 |
 | 4.0 | 3.7 | 0.3 | 0.09 |
