@@ -173,24 +173,18 @@ $$L_\text{total} = \underbrace{\text{MSE}}_{\text{fit the data}} + \underbrace{\
 - **Ridge (α=1.0)**: All 44 weights shrunk but non-zero → **$38k MAE** ✅
 - **Lasso (α=0.001)**: 12 weights zeroed → 32 active features → $39k MAE ✅
 
-### Key Insights from Weight Changes
+### Three Key Patterns
 
-**Strong signal features survive:**
-- `MedInc` (ρ = 0.69 with target) — shrinks slightly but never zeros out
-- `Latitude`, `Longitude` — location features resist shrinkage
+**1. Signal strength determines survival:**  
+Features with strong correlation to the target (`MedInc`, `Latitude`, `Longitude`) resist shrinkage in both Ridge and Lasso. Weak features shrink dramatically or hit zero.
 
-**Collinearity gets resolved:**
-- `AveRooms × AveBedrms` (ρ = 0.85 between base features):
-  - OLS: +0.29 (unstable, arbitrary credit split)
-  - Ridge: +0.09 (stabilized, balanced assignment) ✅
-  - Lasso: 0.00 (forced to pick one, dropped this interaction)
+**2. Multicollinearity gets resolved differently:**  
+When `AveRooms` and `AveBedrms` are correlated (ρ = 0.85), Ridge **distributes** weight across both, while Lasso **picks one arbitrarily** and zeros the other. Ridge is more stable for correlated features.
 
-**Noise features collapse:**
-- `Population × AveBedrms`: OLS +0.21 → Lasso **0.00** (no domain justification)
-- `AveOccup²`: OLS −0.18 → Lasso **0.00** (occupation squared doesn't predict value)
-- `HouseAge × AveOccup`: OLS +0.15 → Lasso **0.00** (spurious correlation)
+**3. Noise features collapse:**  
+Cross-terms like `Population × AveBedrms` and `HouseAge × AveOccup` lack domain justification. Ridge shrinks them to near-zero; Lasso eliminates them completely.
 
-**The practical outcome:** Ridge achieved the $38k target while keeping all 44 features (safer for production). Lasso achieved $39k with only 32 features (better for interpretability).
+**The trade-off:** Ridge achieved the $38k target while keeping all 44 features (safer for production). Lasso achieved $39k with only 32 features (better for interpretability).
 
 ---
 
@@ -226,23 +220,30 @@ The L1 penalty has a **corner at zero** — this is geometrically why Lasso sets
 
 **Intuition:** Lasso doesn't just shrink weights — it forces the model to make hard choices. When $\lambda$ is high enough, weak features get cut completely. Features with strong signal survive; noise features hit exact zero. This is **automatic feature selection** — the model tells you which features matter.
 
-### 3.3 · Convergence Behavior: MSE Tapering During Optimization
+### 3.3 · Loss Function Convergence: How Regularization Affects Optimization
 
-**How regularization affects gradient descent:** To understand the practical difference between no regularization, Ridge, and Lasso, observe how test MSE evolves during training:
+**The key question:** How do MSE, MSE+L1, and MSE+L2 converge differently during gradient descent?
 
-![MSE convergence across gradient descent iterations](img/ch05-l1-l2-geometry.png)
+![MSE convergence comparison with same regularization parameter](img/ch05-mse-convergence-comparison.png)
 
-**Key observations:**
+**What this shows:** All three loss functions trained with the **same λ=0.001** to compare optimization paths fairly:
+- **MSE (no regularization)** — Converges quickly but risks overfitting  
+- **MSE + L2 (Ridge)** — Smooth convergence with continuous weight shrinkage  
+- **MSE + L1 (Lasso)** — Similar trajectory but with discrete feature zeroing
 
-1. **No regularization (OLS)** — Red curve converges fastest initially but reaches a higher final test MSE. The model aggressively minimizes training error without constraint, risking overfitting.
+**Key insight:** Regularization adds a "drag force" during optimization. The penalty opposes the MSE gradient at each iteration, slowing convergence but improving generalization.
 
-2. **Ridge (L2)** — Blue curve converges smoothly and reaches the lowest final test MSE. The quadratic penalty continuously pushes weights toward zero throughout training, creating a gentle "brake" on optimization.
+### How λ Affects Convergence Rate
 
-3. **Lasso (L1)** — Green curve shows similar convergence to Ridge but with slightly higher final MSE. The L1 penalty's non-differentiability at zero creates a different optimization path, favoring sparsity over pure performance.
+![Lambda sensitivity: convergence rates for different λ values](img/ch05-lambda-convergence-sensitivity.png)
 
-**Why regularization "slows" convergence:** The penalty term opposes the MSE gradient. At each iteration, weights want to decrease training error, but the penalty pulls them back. This creates a longer path to convergence — but the destination (test performance) is better.
+**Left panel (L1/Lasso):** Larger λ slows convergence but stabilizes final MSE  
+**Right panel (L2/Ridge):** Same pattern — the regularization-convergence trade-off is fundamental
 
-**The generalization trade-off visualized:** OLS reaches low training MSE quickly, but test MSE suffers. Ridge/Lasso sacrifice training speed to achieve better test performance. This is regularization working as intended.
+**Reading the curves:**
+- **λ = 10⁻⁵** (yellow): Fast convergence, minimal regularization  
+- **λ = 10⁻³** (blue): Balanced — reasonable convergence speed, good generalization  
+- **λ = 10⁻¹** (purple): Slow convergence, heavy regularization (risks underfitting)
 
 ### Comparison Table
 
@@ -276,7 +277,7 @@ flowchart TD
 
 ## 4 · Key Diagrams: Weight Shrinkage and Convergence Paths
 
-### How Regularization Shrinks Weights
+### Weight Shrinkage Across λ Values
 
 **Ridge** smoothly shrinks all weights as λ increases, but never reaches exactly zero:
 
@@ -292,81 +293,67 @@ flowchart TD
 
 *Ridge (left) keeps all features active even at high λ. Lasso (right) progressively eliminates features. Red ✗ marks zeroed features.*
 
+### Weight Evolution During Optimization
+
+The animations above show how weights change **across different λ values**. But how do weights evolve **during training** with a fixed λ?
+
+![Weight evolution during optimization](img/ch05-weight-optimization-trajectories.png)
+
+**Left panel (Ridge):** All 4 weights smoothly converge from initialization to their final values. Strong signal features (MedInc, Latitude) reach higher magnitudes, while weak features stay small but never hit zero.
+
+**Right panel (Lasso):** Similar convergence pattern, but the weak/noise feature (AveBedrms) is aggressively driven to **exact zero** around iteration 40. Lasso makes the decision "this feature doesn't justify its penalty cost" and eliminates it completely.
+
+**Key insight:** This shows the **optimization path**, not the regularization path. With a fixed λ=0.001:
+- **Ridge**: Preserves all features, even weak ones (0.079 weight)
+- **Lasso**: Zeros out features that don't earn their keep
+
+This is why Lasso is called a "feature selection" method — it doesn't just shrink, it **decides**.
+
 ---
 
-### MSE Convergence During Optimization
+## 5 · The λ Dial: From $48k to $38k MAE
 
-![MSE convergence showing regularization's effect on gradient descent](img/ch05-l1-l2-geometry.png)
+⚡ **Victory:** SmartVal AI hit the <$40k target by tuning λ (regularization strength).
 
-**The trade-off visualized:** OLS (red) converges fast to training data but overfits. Ridge/Lasso (blue/green) converge more slowly but achieve better test performance. The penalty acts as a "drag force" during optimization.
-
-**Why this matters:** Regularized models often need more training iterations — the penalty deliberately slows convergence to avoid overfitting.
-
----
-
-## 5 · The Dial That Solved the Challenge
-
-⚡ **Victory moment:** We just achieved the grand challenge. SmartVal AI went from $48k MAE (Ch.4) to **$38k MAE** — beating the <$40k target. The dial that made this happen: **λ (regularization strength)**.
-
-### How the λ Dial Controls Accuracy
-
-Watch the accuracy needle move as we tune λ from 0 (no regularization) to the optimal value:
+### The Accuracy Needle
 
 ![Regularization needle: MAE drops as λ increases](img/ch05-regularization-needle.gif)
 
-**What's happening:**
-- **λ = 0** (left): No penalty → OLS with 44 features → $48k MAE (overfitting)
-- **λ = 1.0** (center): Optimal penalty → noise features suppressed → **$38k MAE** ✅
-- **λ = 1000** (right): Extreme penalty → all weights collapse → $65k MAE (underfitting)
-
-**The insight:** There's a sweet spot where regularization is strong enough to eliminate noise but weak enough to preserve signal. Cross-validation finds this automatically.
+- **λ = 0**: No penalty → $48k MAE (overfitting)  
+- **λ = 1.0**: Optimal → **$38k MAE** ✅  
+- **λ = 1000**: Over-penalized → $65k MAE (underfitting)
 
 ### The U-Shaped Validation Curve
 
 ![Lambda sweep showing U-shaped curve with optimal point](img/ch05-lambda-sweep.png)
 
-**Reading the chart:**
-- **Left side** (low λ): Training MAE is low (good fit), but test MAE is high (overfitting)
-- **Bottom** (λ ≈ 1.0): Training and test MAE are both low → **generalization achieved**
-- **Right side** (high λ): Both training and test MAE increase (underfitting — model too simple)
+**Left side** (low λ): Overfitting — training MAE low, test MAE high  
+**Bottom** (λ ≈ 1.0): Goldilocks zone — both low  
+**Right side** (high λ): Underfitting — both high
 
-**The practical workflow:** This is exactly how you tune λ in practice:
-1. Try λ values spanning multiple powers of 10: [0.001, 0.01, 0.1, 1, 10, 100]
+**Production workflow:**
+1. Try λ values spanning powers of 10: `[0.001, 0.01, 0.1, 1, 10, 100]`
 2. Use cross-validation to measure test MAE at each λ
 3. Pick the λ that minimizes test MAE
-4. Sklearn's `GridSearchCV` does this automatically (see §6 Code Skeleton)
+4. Let `GridSearchCV` automate this (see §6)
 
 ### Weight Evolution Across Powers of 10
 
 ![Weight shrinkage across lambda values](img/ch05-lambda-powers-sweep.gif)
 
-**Left panel:** All 44 features (gray) + tracked features (color) — watch them shrink as λ increases.  
-**Right panel:** Current weight magnitudes — notice how noise features collapse faster than signal features.
+**Left panel:** All 44 features (gray) + tracked features (color) shrink as λ increases  
+**Right panel:** Current weight magnitudes — noise features collapse faster than signal features
 
 **Key observations:**
-- **λ = 0.001**: Minimal regularization → weights near OLS values → noise features still large
-- **λ = 1.0**: Our sweet spot → `MedInc` and `Latitude` remain strong, noise features suppressed
-- **λ = 1000**: Over-regularized → even `MedInc` (strongest signal) is nearly zero → underfitting
+- **λ = 0.001**: Minimal regularization → noise features still large  
+- **λ = 1.0**: Sweet spot → signal features strong, noise suppressed  
+- **λ = 1000**: Over-regularized → even strong signals nearly zero
 
-**Why this dial matters:** λ is the first hyperparameter you've seen that **explicitly controls the bias-variance trade-off through a mathematical penalty**. It's the conceptual ancestor of:
-- Neural network weight decay (L2 on all layers)
-- Dropout (probabilistic weight zeroing)
-- Batch normalization (implicit regularization)
-- Early stopping (time-based regularization)
-
-Every modern ML framework has a "regularization dial" — Ridge/Lasso taught you how to use it.
-
-### The Decision Tree: Which λ Should I Use?
-
-**If you're tuning by hand** (not recommended, but instructive):
-
-| Symptom | λ Setting | What It Means |
-|---------|-----------|---------------|
-| Train MAE low, test MAE high (gap > $5k) | **Increase λ** | Model is overfitting — needs more penalty |
-| Train and test MAE both high | **Decrease λ** | Model is underfitting — too much penalty |
-| Train ≈ test, both low | **Keep λ** | Goldilocks zone ✅ |
-
-**In practice:** Never tune by hand. Use `GridSearchCV` (Ridge) or `LassoCV` (Lasso) — they find the optimal λ automatically via cross-validation. This is the first time you've seen **automated hyperparameter tuning** — it's a core skill for production ML.
+**Why this matters:** λ is the first hyperparameter you've seen that **explicitly controls the bias-variance trade-off**. This same principle appears in:
+- Neural network weight decay  
+- Dropout  
+- Batch normalization  
+- Early stopping
 
 ---
 
