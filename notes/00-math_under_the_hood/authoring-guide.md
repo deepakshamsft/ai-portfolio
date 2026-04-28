@@ -11,18 +11,18 @@ canonical_chapters: ["notes/00-math_under_the_hood/ch01_linear_algebra/README.md
 voice: second_person_practitioner
 register: technical_but_conversational
 formula_motivation: required_before_each_formula
-numerical_walkthroughs: knuckleball_trajectory_with_explicit_arithmetic
+numerical_walkthroughs: judicious_knuckleball_examples_when_clarifying
 dataset: knuckleball_free_kick_physics_2d_parabola
 failure_first_pedagogy: true
 callout_system: {insight:"💡", warning:"⚠️", constraint:"⚡", optional_depth:"📖", forward_pointer:"➡️"}
 mermaid_color_palette: {primary:"#1e3a8a", success:"#15803d", caution:"#b45309", danger:"#b91c1c", info:"#1d4ed8"}
 image_background: dark_facecolor_1a1a2e_for_generated_plots
-section_template: [story_header, challenge_0, core_idea_1, running_example_2, math_3, step_by_step_4, key_diagrams_5, code_skeleton_6, what_can_go_wrong_7, progress_check_N, bridge_N1]
+section_template: [story_header, challenge_0, core_idea_1, running_example_2, math_3, step_by_step_4, key_diagrams_5, what_can_go_wrong_6, progress_check_N, bridge_N1]
 math_style: scalar_first_then_vector_generalization
 ascii_matrix_diagrams: required_for_matrix_operations
 forward_backward_links: every_concept_links_to_where_it_was_introduced_and_where_it_reappears
 conformance_check: compare_new_chapter_against_ch01_and_ch03_before_publishing
-red_lines: [no_formula_without_verbal_explanation, no_concept_without_knuckleball_grounding, no_section_without_forward_backward_context, no_math_derivation_without_toy_numerical_example, no_callout_box_without_actionable_content]
+red_lines: [no_formula_without_verbal_explanation, no_concept_without_knuckleball_grounding, no_section_without_forward_backward_context, no_unnecessary_arithmetic_obscuring_intuition, no_callout_box_without_actionable_content]
 interactive_widgets: bidirectional_sliders_with_numeric_inputs
 -->
 
@@ -45,6 +45,21 @@ chNN-<slug>/
   img/             # static PNGs and GIFs referenced from README
   gen_scripts/     # (optional) Python scripts that generate animations
 ```
+
+**Track-level consolidation:**
+
+At the root of `notes/00-math_under_the_hood/`, two special files consolidate the entire track:
+
+- **`grand_solution.md`**: Narrative synthesis document that shows the complete mathematical progression from Ch.1–7 as a single story arc. Includes production patterns, historical context, and forward links to ML track.
+
+- **`grand_solution.ipynb`**: Executable Jupyter notebook that consolidates all code examples from the track end-to-end. Structure:
+  - Setup cell (imports, plotting config)
+  - One section per chapter (markdown explanation + code cells)
+  - Production patterns demonstrated (Scale→Engineer→Fit, Forward/Backward passes, etc.)
+  - Complete trajectory visualization
+  - Summary cell linking to ML track
+  
+  **Usage:** Readers can run this notebook top-to-bottom to see the complete solution in action without navigating individual chapter notebooks. Each code cell is brief (10-30 lines), focused on demonstrating the core concept, and includes inline comments referencing the chapter it came from.
 
 **Naming conventions:**
 - Images: `chNN-[topic]-[type].png/.gif` (chapter-specific) or `[concept]_generated.gif/.png` (algorithmically generated)
@@ -158,15 +173,11 @@ Every chapter README follows this **extended structure**:
 
 [The main tunable parameter, its effect on trajectory, typical starting value]
 
-## 7 · Code Skeleton
-
-[Minimal Python (6–20 lines) — illustrative, copy-pasteable, uses numpy + matplotlib]
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 [3–5 bullet traps following pattern: **Bold trap name** — description (2-3 sentences with numbers) → **Fix:** one actionable sentence]
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 [Forward links to ML chapters that use this math + later Math chapters that build on it]
 
@@ -433,15 +444,14 @@ Two templates are allowed. Pick one and stay inside it.
 3. Math (derived, not dumped)
 4. Step by Step (numbered recipe)
 5. Key Diagram (single hero PNG in `img/` OR Mermaid flowchart)
-6. Code Skeleton (6–20 lines, copy-pasteable)
-7. What Can Go Wrong (3–5 common failure modes with Fixes)
-8. Where This Reappears (explicit pointers to ML chapters + future Math chapters)
-9. Progress Check (with visual)
-10. Bridge to Next Chapter
-11. Exercises (3–5, increasing difficulty)
-12. References (Krohn, 3Blue1Brown, Strang, Goodfellow as primary sources)
+6. What Can Go Wrong (3–5 common failure modes with Fixes)
+7. Where This Reappears (explicit pointers to ML chapters + future Math chapters)
+8. Progress Check (with visual)
+9. Bridge to Next Chapter
+10. Exercises (3–5, increasing difficulty)
+11. References (Krohn, 3Blue1Brown, Strang, Goodfellow as primary sources)
 
-**Template B — Math-heavy chapter (Ch.3, 6, 7).** Use when the chapter introduces several distinct mathematical objects (e.g. derivative *and* integral; gradient *and* chain rule *and* Hessian; three distributions *and* MLE) that each need their own derivation block. The hero PNG may sit immediately under the title (above the epigraph) when the chapter has no natural §5 home for it. Required sections in any order that flows: Core Idea, every named math object as its own section, a Worked Example or Step-by-Step, Pitfalls / What Can Go Wrong, Where This Reappears, References. Exercises and Code Skeleton are optional in Template B if the notebook already covers them — link to the notebook explicitly when omitting.
+**Template B — Math-heavy chapter (Ch.3, 6, 7).** Use when the chapter introduces several distinct mathematical objects (e.g. derivative *and* integral; gradient *and* chain rule *and* Hessian; three distributions *and* MLE) that each need their own derivation block. The hero PNG may sit immediately under the title (above the epigraph) when the chapter has no natural §5 home for it. Required sections in any order that flows: Core Idea, every named math object as its own section, a Worked Example or Step-by-Step, Pitfalls / What Can Go Wrong, Where This Reappears, References. Exercises are optional in Template B if the notebook already covers them — link to the notebook explicitly when omitting.
 
 Whichever template you pick, every chapter must end with **Progress Check**, **Bridge to Next Chapter**, and **References**.
 
@@ -501,7 +511,7 @@ All Mermaid nodes use white text (`color:#ffffff`) for legibility against dark b
 
 **Comments explain *why*, not *what*.** The code line `h_apex = v0_y**2 / (2*g)` does not need a comment saying "calculate apex height". It needs: `# max height when vertical velocity reaches zero (kinematic formula)`.
 
-**The manual derivation loop always appears alongside the numpy vectorized version** in the Code Skeleton section. The manual version is labelled "Educational: step-by-step from first principles" and the numpy version is the practical reference.
+**The manual derivation loop always appears alongside the numpy vectorized version.** The manual version is labelled "Educational: step-by-step from first principles" and the numpy version is the practical reference.
 
 **Example code structure:**
 ```python
@@ -749,6 +759,348 @@ Example: Showing formula, then immediately generalizing without computing a spec
 
 ---
 
+## Track Grand Solution Template
+
+> **New pattern (2026):** Each major track (Linear Algebra, Calculus, Matrix Operations, etc.) now includes a `grand_solution.md` that synthesizes all chapters into a single revision document. This is for readers who need the big picture quickly or want a concise reference after completing all chapters.
+
+### Purpose & Audience
+
+**Target reader:** Someone who either:
+1. Doesn't have time to read all chapters but needs to understand the concepts
+2. Completed all chapters and wants a single-page revision guide
+3. Needs to explain the track's narrative arc to stakeholders or study groups
+
+**Not a replacement for:** Individual chapters. This is a synthesis, not a tutorial.
+
+### Structure (Fixed Order)
+
+Every `grand_solution.md` follows this **7-section template**:
+
+```markdown
+# [Track Name] Grand Solution — The Perfect Knuckleball Free Kick
+
+> **For readers short on time:** This document synthesizes all chapters into one revision guide showing how each mathematical tool unlocks progress toward scoring the perfect free kick.
+
+---
+
+## Mission Accomplished: Can We Score This Goal? ✅
+
+**The Challenge:** Score a knuckleball free kick that clears a 1.8m wall at 9.15m distance and dips under a 2.44m crossbar at 20m distance, while beating the goalkeeper's reaction time.
+
+**The Result:** ✅ **YES!** Optimal parameters: v₀ = 22.4 m/s, θ = 32°, flight time = 1.15s
+
+**The Progression:**
+
+```
+Ch.1 (Linear Algebra):   Can predict first 0.1s only (linear approx)
+Ch.2 (Parabolas):        Can model full trajectory → h(t) = v₀ᵧt - ½gt²
+Ch.3 (Calculus):         Can find apex (h' = 0) and verify wall/crossbar clearance ✅
+Ch.4 (Small Steps):      Can optimize one parameter (angle for max range)
+Ch.5 (Matrices):         Can handle v₀ AND θ AND wind simultaneously
+Ch.6 (Chain Rule):       Can optimize MULTIPLE parameters at once → SOLVED! ✅
+Ch.7 (Probability):      Can reason about success rate with striker fatigue
+```
+
+---
+
+## The 7 Concepts — How Each Unlocked Progress
+
+### Ch.1: Linear Algebra — Lines and Slopes
+
+**What it is:** Straight-line approximations using y = mx + b, vectors for position/velocity.
+
+**What it unlocked:**
+- Predict ball height during first 0.1s (before curvature dominates)
+- Understand velocity components: v₀ₓ (horizontal), v₀ᵧ (vertical)
+- Foundation: trajectory is vector motion with gravity
+
+**Production value:**
+- Every numerical simulation starts with linear steps (Euler method)
+- ML gradient descent is "follow the linear slope to minimum"
+- Computer graphics: straight-line segments approximate curves
+
+**Key insight:** Lines are fast to compute but can't model the full arc — need parabolas.
+
+---
+
+### Ch.2: Non-linear Algebra — Parabolas
+
+**What it is:** Quadratic equations h(t) = v₀ᵧt - ½gt² model projectile motion.
+
+**What it unlocked:**
+- Full trajectory from kick to goal line
+- Predict wall height at t = 0.6s and goal height at t = 1.2s
+- Understand: gravity accumulates (t² term grows faster than linear term)
+
+**Production value:**
+- Physics simulations: every projectile (ball, rocket, water fountain)
+- ML: squared terms in polynomial regression capture non-linear patterns
+- Game engines: parabolic arcs for thrown objects
+
+**Key insight:** Parabolas model the shape, but we still can't find the peak or optimal angle — need calculus.
+
+---
+
+### Ch.3: Calculus Intro — Derivatives and Critical Points
+
+**What it is:** Derivatives measure rate of change; h'(t) = 0 finds the apex.
+
+**What it unlocked:**
+- ✅ **Constraint #1 & #2 verification!** Can compute exact wall/crossbar heights
+- Find apex: h'(t) = v₀ᵧ - gt = 0 → t_apex = v₀ᵧ/g
+- Verify: h(0.6s) > 1.8m (wall) and h(1.2s) < 2.44m (crossbar)
+
+**Production value:**
+- ML: loss function derivatives → gradient descent (minimize error)
+- Optimization: find peaks (max profit) and valleys (min cost)
+- Physics: acceleration is derivative of velocity
+
+**Key insight:** Derivatives find extrema precisely, but we can only check ONE parameter set at a time — can't optimize yet.
+
+---
+
+### Ch.4: Small Steps — Gradient Descent and Iterative Optimization
+
+**What it is:** Follow the slope downhill to find the minimum/maximum.
+
+**What it unlocked:**
+- Optimize ONE parameter: find best launch angle θ for maximum range
+- Learning rate α controls step size (too large → overshoot, too small → slow)
+- Can now answer: "What angle maximizes distance before crossbar?"
+
+**Production value:**
+- ML training: iterate weights to minimize loss (backpropagation = chain rule + gradient descent)
+- Real-time systems: adjust parameters on-the-fly
+- Robotics: optimize motor angles for target position
+
+**Key insight:** Works for single-variable problems, but free kick has TWO variables (v₀ AND θ) — need multi-dimensional optimization.
+
+---
+
+### Ch.5: Matrices — Multi-Variable Systems
+
+**What it is:** Matrices represent systems with multiple variables; solve Ax = b.
+
+**What it unlocked:**
+- Handle v₀ AND θ AND wind simultaneously as vector equations
+- Linear transformations: rotate, scale, project vectors
+- Foundation for multi-dimensional optimization (coming in Ch.6)
+
+**Production value:**
+- ML: weight matrices in neural networks (Ax + b for every layer)
+- Computer graphics: rotate/scale/translate objects with matrix multiply
+- Data science: PCA, SVD for dimensionality reduction
+
+**Key insight:** Matrices organize multi-variable relationships, but we still can't optimize them together — need gradients.
+
+---
+
+### Ch.6: Chain Rule and Gradients — Multi-Variable Optimization
+
+**What it is:** Gradients extend derivatives to multiple variables; chain rule composes them.
+
+**What it unlocked:**
+- ✅ **THE FULL SOLUTION!** Optimize v₀ AND θ simultaneously
+- ∇f = [∂f/∂v₀, ∂f/∂θ] points toward steepest ascent
+- Constrained optimization: find (v₀, θ) that clears wall AND crossbar
+
+**Production value:**
+- ML: backpropagation is chain rule applied layer-by-layer
+- Deep learning: every weight update uses ∇Loss
+- Engineering: optimize multiple design parameters at once
+
+**Key insight:** With gradients, we can finally solve the full challenge — optimal parameters found in <10 iterations.
+
+---
+
+### Ch.7: Probability and Statistics — Handling Uncertainty
+
+**What it is:** Distributions model variability; expected value accounts for noise.
+
+**What it unlocked:**
+- Model striker fatigue: launch speed varies ±2 m/s
+- Success rate: P(score | v₀ ~ N(22.4, 2²), θ ~ N(32°, 3°²))
+- Confidence intervals: "95% chance of clearing wall"
+
+**Production value:**
+- ML: train/test split, cross-validation, confidence intervals
+- A/B testing: statistical significance of conversion lift
+- Risk analysis: quantify uncertainty in predictions
+
+**Key insight:** Perfect parameters exist in theory, but real systems have noise — probability quantifies success likelihood.
+
+---
+
+## Production Math System Architecture
+
+```mermaid
+graph TD
+    A[Knuckleball Problem] --> B[Ch.1-2: Model Trajectory]
+    B --> C[Ch.3: Verify Constraints]
+    C --> D[Ch.4-6: Optimize Parameters]
+    D --> E[Ch.7: Handle Uncertainty]
+    E --> F[✅ Complete Solution]
+    
+    B --> G[h_t = v₀ᵧt - ½gt²]
+    C --> H[h' = 0 for apex]
+    D --> I[∇f for multi-variable]
+    E --> J[P_score with noise]
+```
+
+### Integration Pipeline
+
+```python
+# Full solution integrating all chapters
+import numpy as np
+from scipy.optimize import minimize
+
+# Ch.2: Trajectory model
+def height(t, v0, theta):
+    v0_y = v0 * np.sin(np.radians(theta))
+    return v0_y * t - 0.5 * 9.8 * t**2
+
+# Ch.3: Constraint checks
+def check_constraints(v0, theta):
+    v0_x = v0 * np.cos(np.radians(theta))
+    t_wall = 9.15 / v0_x
+    t_goal = 20.0 / v0_x
+    h_wall = height(t_wall, v0, theta)
+    h_goal = height(t_goal, v0, theta)
+    return h_wall > 1.8 and h_goal < 2.44 and h_goal > 0
+
+# Ch.6: Gradient-based optimization
+def objective(params):
+    v0, theta = params
+    if not check_constraints(v0, theta):
+        return 1e6  # penalty for constraint violation
+    # Minimize flight time (faster ball)
+    v0_x = v0 * np.cos(np.radians(theta))
+    t_goal = 20.0 / v0_x
+    return t_goal
+
+result = minimize(objective, x0=[22, 32], bounds=[(15, 30), (20, 50)])
+v0_opt, theta_opt = result.x
+print(f"Optimal: v₀={v0_opt:.1f} m/s, θ={theta_opt:.1f}°")
+
+# Ch.7: Success rate with noise
+def monte_carlo_success_rate(v0_mean, theta_mean, n_trials=10000):
+    successes = 0
+    for _ in range(n_trials):
+        v0_trial = np.random.normal(v0_mean, 2)    # ±2 m/s fatigue
+        theta_trial = np.random.normal(theta_mean, 3)  # ±3° variance
+        if check_constraints(v0_trial, theta_trial):
+            successes += 1
+    return successes / n_trials
+
+success_rate = monte_carlo_success_rate(v0_opt, theta_opt)
+print(f"Success rate with noise: {success_rate:.1%}")
+```
+
+---
+
+## Key Production Patterns
+
+### 1. Scalar First, Then Vector (Ch.1 → Ch.5)
+**Pattern:** Always show 1D version before generalizing to N dimensions.
+- 1D: h(t) = v₀t - ½gt² (scalar)
+- 2D: r⃗(t) = r⃗₀ + v⃗₀t + ½a⃗t² (vector)
+- **When to apply:** Teaching, debugging, unit tests (verify scalar case first)
+
+### 2. Derivative = Optimization Tool (Ch.3 + Ch.4 + Ch.6)
+**Pattern:** Critical points (f' = 0) locate extrema; gradients extend to multiple variables.
+- Single-variable: df/dx = 0
+- Multi-variable: ∇f = [∂f/∂x, ∂f/∂y] = 0
+- **When to apply:** Any time you need "best" — max profit, min error, optimal trajectory
+
+### 3. Iterative Refinement (Ch.4)
+**Pattern:** Start with guess, follow gradient, iterate until convergence.
+- Initialize: x₀ = initial_guess
+- Update: xₙ₊₁ = xₙ - α · f'(xₙ)
+- Stop: when |xₙ₊₁ - xₙ| < tolerance
+- **When to apply:** No closed-form solution, real-time tuning, ML training
+
+### 4. Chain Rule for Composition (Ch.6)
+**Pattern:** Break complex functions into simple parts, differentiate each, multiply.
+- Example: f(g(x)) → f'(g(x)) · g'(x)
+- ML: ∂Loss/∂w₁ = ∂Loss/∂h₂ · ∂h₂/∂h₁ · ∂h₁/∂w₁ (backpropagation)
+- **When to apply:** Nested functions, neural networks, multi-stage pipelines
+
+### 5. Monte Carlo for Uncertainty (Ch.7)
+**Pattern:** Simulate many trials with random noise, compute statistics.
+- Generate: N samples from distributions
+- Evaluate: success/failure for each sample
+- Report: P(success) = (# successes) / N
+- **When to apply:** No analytical solution, complex constraints, risk analysis
+
+---
+
+## The 3 Constraints — Final Status
+
+| # | Constraint | Target | Status | How We Achieved It |
+|---|------------|--------|--------|--------------------||
+| #1 | WALL CLEARANCE | Ball height > 1.8m at 9.15m | ✅ 2.04m | Ch.3: h(0.54s) = 2.04m using v₀=22.4, θ=32° |
+| #2 | CROSSBAR CLEARANCE | Ball height < 2.44m at 20m | ✅ 2.21m | Ch.3: h(1.15s) = 2.21m (23cm margin) |
+| #3 | KEEPER-BEATING SPEED | Flight time minimized | ✅ 1.15s | Ch.6: Optimized (v₀, θ) → fastest valid trajectory |
+
+**Final verification:** All constraints met simultaneously with 15–20% safety margins.
+
+---
+
+## What's Next: Beyond Free Kicks
+
+**This track taught:**
+- ✅ Linear approximations → Parabolic models → Calculus optimization
+- ✅ Single-variable → Multi-variable → Gradient-based solutions
+- ✅ Deterministic → Probabilistic (handling real-world noise)
+- ✅ Numerical verification → Analytical solutions → Monte Carlo simulation
+
+**What remains for advanced physics:**
+- Air resistance (quadratic drag: more calculus + differential equations)
+- Spin effects (Magnus force: vector calculus + cross products)
+- Wind shear (time-varying forces: differential equations + numerical methods)
+
+**Continue to:**
+- **ML Track (01-ml):** Apply these tools to regression, classification, neural networks
+- **Advanced Calculus:** Partial derivatives, multiple integrals, vector fields
+- **Differential Equations:** Solve dynamic systems (population growth, fluid flow, circuits)
+
+---
+
+## Quick Reference: Chapter-to-Production Mapping
+
+| Chapter | Production Component | When To Use |
+|---------|---------------------|-------------|
+| Ch.1 Linear Algebra | Vector operations, dot products | 3D graphics, physics engines, ML feature engineering |
+| Ch.2 Parabolas | Quadratic models, polynomial regression | Projectile motion, simple non-linear relationships |
+| Ch.3 Calculus | Derivatives for optimization, critical points | ML training (gradient descent), min/max problems |
+| Ch.4 Small Steps | Iterative algorithms, learning rate tuning | ML training loops, real-time control systems |
+| Ch.5 Matrices | Linear transformations, systems of equations | Neural network layers, PCA, graphics transforms |
+| Ch.6 Chain Rule | Backpropagation, gradient composition | Deep learning, automatic differentiation (PyTorch/TensorFlow) |
+| Ch.7 Probability | Uncertainty quantification, confidence intervals | A/B testing, risk analysis, Bayesian inference |
+
+---
+
+## The Takeaway
+
+You now understand the mathematical progression from **linear intuition → non-linear reality → calculus precision → multi-variable optimization → probabilistic reasoning**.
+
+Every ML algorithm, physics simulation, and optimization problem uses this same arc:
+1. Model the system (Ch.1-2)
+2. Find critical points (Ch.3)
+3. Optimize parameters (Ch.4-6)
+4. Handle uncertainty (Ch.7)
+
+**You now have:**
+- The mathematical toolkit for gradient descent (ML's workhorse algorithm)
+- The calculus foundation for neural network backpropagation
+- The optimization skills for hyperparameter tuning
+- The probability framework for model evaluation
+
+**Next milestone:** Apply these tools to real ML problems in the 01-ml track — linear regression, classification, neural networks.
+```
+
+---
+
 ## Jupyter Notebook Template
 
 Each notebook mirrors the README exactly — same sections, same order. The notebook adds:
@@ -773,12 +1125,9 @@ Cell structure per notebook:
 [code]     Interactive widget (slider + text input synced)
 [markdown] ## 5 · The Key Diagrams
 [code]     Generate hero visualization
-[markdown] ## 6 · Code Skeleton
-[code]     Manual version (educational)
-[code]     Vectorized version (practical)
-[markdown] ## 7 · What Can Go Wrong
+[markdown] ## 6 · What Can Go Wrong
 [code]     Demonstrate one trap (degrees/radians, etc.)
-[markdown] ## 8 · Exercises
+[markdown] ## 7 · Exercises
 [code]     Exercise scaffolds (partially filled)
 ```
 
@@ -836,7 +1185,7 @@ Before publishing any chapter, verify each item:
 ### Code
 - [ ] Variable naming: `v0`, `theta`, `g`, `t`, `h`, `x`, `wall_dist`, `goal_dist` (consistent across chapters)
 - [ ] Comments: explain *why*, not *what* (e.g., "# kinematic formula" not "# calculate height")
-- [ ] Dual approach: manual step-by-step + vectorized equivalent in Code Skeleton
+- [ ] Dual approach: manual step-by-step + vectorized equivalent
 - [ ] Runnable: all code blocks copy-paste executable (or explicitly marked as pseudocode/conceptual)
 
 ### Progress & Traps
@@ -872,7 +1221,7 @@ Before publishing any chapter, verify each item:
 - [ ] Exercises: 2–3 cells for reader to modify parameters (different angles, wind effects, slope launch, etc.)
 
 ### Completeness
-- [ ] All required sections present: Challenge (§0), Core Idea, Running Example, Math, Step-by-Step, Key Diagrams, Code Skeleton, What Can Go Wrong, Where This Reappears, Progress Check, Bridge, Exercises, References
+- [ ] All required sections present: Challenge (§0), Core Idea, Running Example, Math, Step-by-Step, Key Diagrams, What Can Go Wrong, Where This Reappears, Progress Check, Bridge, Exercises, References
 - [ ] Template consistency: Template A (single object) or Template B (multiple objects) — not hybrid
 - [ ] Section headings: descriptive (state conclusion) not labels (e.g., "## 3 · Math — How Parabolas Encode Initial Conditions" not "## 3 · Math")
 - [ ] Ending trio: Progress Check → Bridge → Exercises → References (in that order)

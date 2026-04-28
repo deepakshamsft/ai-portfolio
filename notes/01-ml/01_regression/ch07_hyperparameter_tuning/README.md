@@ -1,10 +1,10 @@
 # Ch.7 — Hyperparameter Tuning for Regression
 
-> **The story.** For most of ML history, hyperparameters were tuned by **grad-student descent** — staring at training curves, twiddling knobs, praying. **James Bergstra and Yoshua Bengio** (**2012**) shocked the field by proving that **random search** consistently beats grid search — because most hyperparameters don't matter equally, and grid search wastes budget on irrelevant axes. **Bayesian optimization** (Snoek, Larochelle, Adams, 2012) added a probabilistic surrogate model to spend each trial wisely. **Optuna** (Akiba et al., 2019) made tree-structured Parzen estimators practical with pruning and parallel trials. Today, systematic hyperparameter tuning isn't optional — it's the difference between "$38k MAE because we guessed α=1" and "$32k MAE because we searched properly."
+> **The story.** For most of ML history, hyperparameters were tuned by **manual trial and error** — staring at training curves, twiddling knobs, hoping for improvement. **James Bergstra and Yoshua Bengio** (**2012**) shocked the field by proving that **random search** consistently beats grid search — because most hyperparameters don't matter equally, and grid search wastes budget on irrelevant axes. **Bayesian optimization** (Snoek, Larochelle, Adams, 2012) added a probabilistic surrogate model to spend each trial wisely. **Optuna** (Akiba et al., 2019) made tree-structured Parzen estimators practical with pruning and parallel trials. Today, systematic hyperparameter tuning isn't optional — it's the difference between "$38k MAE because we guessed α=1" and "$32k MAE because we searched properly."
 >
-> **Where you are in the curriculum.** Ch.5 achieved $38k MAE with Ridge (α=1.0) and degree-2 polynomials. But α=1.0 was chosen by a quick grid search, not exhaustive optimization. Ch.6 validated the $38k is real — but also revealed the model struggles on expensive homes. This chapter systematically tunes every regression hyperparameter: regularization strength (α), polynomial degree, Lasso/Ridge/ElasticNet selection, and introduces XGBoost with its own parameter space. The goal: squeeze every last dollar out of MAE through methodical optimization.
+> **Where you are in the curriculum.** Ch.5 achieved $38k MAE with Ridge (α=1.0) and degree-2 polynomials. But α=1.0 was chosen by a quick grid search, not exhaustive optimization. Ch.6 validated the $38k is real — but also revealed the model struggles on expensive homes. This chapter systematically tunes every regression hyperparameter: regularization strength (α), polynomial degree, Ridge/Lasso selection, and introduces XGBoost with its own parameter space. The goal: squeeze every last dollar out of MAE through methodical optimization.
 >
-> **Notation in this chapter.** $\alpha$ — regularization strength (sklearn convention, equivalent to $\lambda$ in Ch.4); `l1_ratio` ($\rho$) — Elastic Net L1/L2 balance; `degree` — polynomial expansion degree; `scoring='neg_mean_absolute_error'` — sklearn's MAE scorer (negative because sklearn maximizes).
+> **Notation in this chapter.** $\alpha$ — regularization strength (sklearn convention for **both Ridge and Lasso**, equivalent to $\lambda$ in Ch.5's mathematical exposition); `degree` — polynomial expansion degree; `scoring='neg_mean_absolute_error'` — sklearn's MAE scorer (negative because sklearn maximizes). **Important:** In sklearn, `alpha` is used for both L1 (Lasso) and L2 (Ridge) regularization strength, unlike Ch.5 where we used $\lambda$ for clarity in the math.
 
 ---
 
@@ -27,12 +27,10 @@
 | Polynomial degree | 2 | Tried 1, 2, 3 manually | Maybe |
 | Regularization type | Ridge | Just tried Ridge | Unknown |
 | α (regularization strength) | 1.0 | Quick grid search | Probably not |
-| l1_ratio (if Elastic Net) | — | Never tried | Unknown |
 
 **The cost of guessing:**
 - α=1.0 might be good for some folds but bad for others
 - Maybe Lasso with α=0.005 would give $35k MAE
-- Maybe Elastic Net (l1_ratio=0.7, α=0.02) would be even better
 - XGBoost might blow linear models away entirely
 
 **What this chapter unlocks:**
@@ -40,7 +38,7 @@
 1. **Grid Search**: Exhaustive sweep of small parameter spaces
 2. **Random Search**: Efficient for large spaces (Bergstra & Bengio proof)
 3. **Bayesian Optimization**: Smart trial selection using Optuna
-4. **Joint tuning**: degree × model_type × α × l1_ratio simultaneously
+4. **Joint tuning**: degree × model_type × α simultaneously
 5. **XGBoost**: Non-linear regression with tree-specific hyperparameters
 
 Result: **~$32k MAE** (push well past the $40k target!)
@@ -65,7 +63,7 @@ flowchart LR
     RANDOM --> RESULT
     BAYES --> RESULT
     
-    style GUESS fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style GUESS fill:#b91c1c,stroke:#e2e8f0,stroke:#width:2px,color:#ffffff
     style RESULT fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
@@ -75,23 +73,30 @@ flowchart LR
 
 ![Chapter animation](img/ch07-hyperparameter-tuning-needle.gif)
 
-## 1 · Ridge α Must Be Tuned on Log Scale
+---
 
-### Ridge α — The Most Important Dial
+## 1 · The Core Question: Why Does α=1.0 Matter?
 
-α controls the L2 penalty strength. The optimal value depends on feature count, multicollinearity, and noise level.
+**The story so far:** Ch.5 achieved $38k MAE with Ridge and α=1.0. But that value was a guess — someone tried a few numbers and picked one that looked good. The question is: **what if α=0.01 gives $35k MAE? Or α=100 gives $42k?**
 
-| α too small | α sweet spot | α too large |
-|-------------|-------------|-------------|
-| No regularization | Balance fit/penalty | All weights → 0 |
-| Overfitting (Ch.4 behavior) | Best generalization | Underfitting (predicts mean) |
-| Train $42k / Test $48k | Train $39k / Test $38k ✅ | Train $65k / Test $65k |
+### The Intuition: α Controls the Bias-Variance Trade-Off
 
-**Search space:** `np.logspace(-3, 3, 50)` → [0.001, 0.01, ..., 100, 1000]
+Think of α as a dial that controls how much the model trusts the training data:
 
-Why log-scale? Because α's effect is multiplicative — the difference between α=0.001 and α=0.01 matters as much as between α=100 and α=1000.
+| α Value | What Happens | Training MAE | Test MAE |
+|---------|--------------|--------------|----------|
+| **α = 0** | No penalty — memorize training noise | $42k | $48k (overfitting) |
+| **α = 0.1** | Light penalty — most noise suppressed | $39k | **$38k** ✅ |
+| **α = 10** | Heavy penalty — even signal suppressed | $48k | $49k (underfitting) |
+| **α = 1000** | Extreme penalty — all weights → 0 | $65k | $65k (predicts mean) |
 
-![MAE vs α sweep — Ridge on California Housing, sweet spot highlighted](img/ch07-alpha-sweep.png)
+**The pattern:** As α increases, training error goes up (worse fit) but test error first improves (better generalization), then gets worse again (too much regularization).
+
+### Why Log Scale?
+
+The difference between α=0.001 and α=0.01 matters as much as α=100 and α=1000. The effect is **multiplicative**, not additive. That's why we search `np.logspace(-3, 3, 50)` instead of `np.linspace`.
+
+![MAE vs α sweep showing U-shaped test curve](img/ch07-alpha-sweep.png)
 
 ### Lasso α — Sparsity Control
 
@@ -103,20 +108,15 @@ Lasso's α determines how many features get zeroed out:
 
 **Search space:** `np.logspace(-4, -1, 30)` (Lasso needs smaller α than Ridge)
 
-### Elastic Net — Two Dials at Once
+---
 
-| Hyperparameter | Range | What it controls |
-|---------------|-------|-----------------|
-| α | [0.001, 0.01, 0.05, 0.1] | Overall regularization strength |
-| l1_ratio | [0.1, 0.3, 0.5, 0.7, 0.9] | L1 vs L2 balance (0=Ridge, 1=Lasso) |
+## 2 · Joint Tuning: degree × α Must Be Searched Together
 
-**Grid size:** 4 × 5 = 20 combinations × 5 folds = 100 fits. Still fast for linear models.
+**The coupling problem:** With 44 polynomial features (degree=2), α=0.1 works well. But degree=3 creates 164 features — now α=0.1 is too weak, and you need α=10 to prevent overfitting.
 
-### What GridSearchCV Actually Computes: 12 Fits in One Call
+### Why GridSearchCV Exists: Search All Combinations
 
-A 2×2 grid + 3-fold CV makes **12 model fits** (4 parameter combinations × 3 folds). Here is every fit unpacked.
-
-**Setup:**
+Instead of manually testing degree=2 with α=0.1, then degree=2 with α=1.0, then degree=3 with α=0.1... GridSearchCV tests every combination automatically.
 
 ```python
 param_grid = {
@@ -128,55 +128,32 @@ grid_cv = GridSearchCV(ridge_pipe, param_grid, cv=3,
 grid_cv.fit(X_train, y_train)
 ```
 
-The training set (16,512 samples) is split into 3 folds. For each of 4 (degree, α) combos, sklearn trains on 2 folds and validates on the held-out fold — **3 times**. That's 12 `fit()` calls total.
+**What happens:** 4 parameter combinations × 3 folds = **12 model fits**. For each combination, sklearn trains on 2/3 of training data and validates on the held-out 1/3 — three times with different folds.
 
-**All 12 (degree, α, fold) → MAE results:**
+**Key result:** Mean CV MAE per combination
 
-| degree | α | Fold | Train rows | Val rows | Val MAE ($k) |
-|--------|------|------|------------|----------|--------------|
-| 1 | 0.1 | 1 | 11,008 | 5,504 | 57.2 |
-| 1 | 0.1 | 2 | 11,008 | 5,504 | 55.8 |
-| 1 | 0.1 | 3 | 11,008 | 5,504 | 56.4 |
-| 1 | 10.0 | 1 | 11,008 | 5,504 | 61.3 |
-| 1 | 10.0 | 2 | 11,008 | 5,504 | 62.1 |
-| 1 | 10.0 | 3 | 11,008 | 5,504 | 60.8 |
-| **2** | **0.1** | 1 | 11,008 | 5,504 | 38.9 |
-| **2** | **0.1** | 2 | 11,008 | 5,504 | 39.4 |
-| **2** | **0.1** | 3 | 11,008 | 5,504 | 38.7 |
-| 2 | 10.0 | 1 | 11,008 | 5,504 | 40.2 |
-| 2 | 10.0 | 2 | 11,008 | 5,504 | 41.0 |
-| 2 | 10.0 | 3 | 11,008 | 5,504 | 39.8 |
-
-**Mean CV MAE per combination:**
-
-| degree | α | Fold 1 | Fold 2 | Fold 3 | **Mean MAE** | Winner? |
-|--------|------|--------|--------|--------|-------------|---------|
-| 1 | 0.1 | 57.2 | 55.8 | 56.4 | 56.5 | ❌ |
-| 1 | 10.0 | 61.3 | 62.1 | 60.8 | 61.4 | ❌ |
-| **2** | **0.1** | **38.9** | **39.4** | **38.7** | **39.0** | **✅ WINNER** |
-| 2 | 10.0 | 40.2 | 41.0 | 39.8 | 40.3 | ❌ |
+| degree | α | Mean MAE | Winner? |
+|--------|------|----------|---------|
+| 1 | 0.1 | $56.5k | ❌ |
+| 1 | 10.0 | $61.4k | ❌ |
+| **2** | **0.1** | **$39.0k** | **✅ WINNER** |
+| 2 | 10.0 | $40.3k | ❌ |
 
 ```python
 print(grid_cv.best_params_)
 # {'poly__degree': 2, 'model__alpha': 0.1}
-print(-grid_cv.best_score_)
-# 0.390  (mean MAE in $100k units → $39,000)
 ```
 
 **What these numbers tell you:**
-- degree=1 is dramatically worse than degree=2 regardless of α ($55k vs $39k → the non-linearity captured by polynomial features is real)
-- α=0.1 beats α=10.0 at degree=2 ($39.0k vs $40.3k = underfitting at α=10)
-- The 3-fold variance for the winner is ±0.35k — the model is stable across folds (good generalization signal)
-- The full-data test set MAE after refitting on all training data with (degree=2, α=0.1) = **$38.3k**
+- degree=1 is dramatically worse than degree=2 regardless of α ($56k vs $39k → polynomial features are necessary)
+- α=0.1 beats α=10.0 at degree=2 ($39.0k vs $40.3k → α=10 over-regularizes)
+- The winner trains on full training data: **$38.3k test MAE**
 
-**Why cross-validation instead of a single hold-out?**  
-If you split train/test once and pick the best (degree, α) from that single test set, you risk selecting the combination that happened to fit the test set's random variation. 3-fold CV measures performance on 3 *different* held-out sets and averages — much more reliable. With 5-fold CV (standard), the confidence in the winner is even higher.
+### Why cross-validation instead of a single split?
 
----
+If you pick the best (degree, α) from one test set, you might choose the combo that happened to fit that test set's randomness. 3-fold CV averages over 3 different held-out sets — much more reliable.
 
-## 2 · Degree and α Are Coupled Parameters
-
-### Degree Selection
+### Why Hyperparameters Interact
 
 | Degree | Features | Risk | Regularization needed? |
 |--------|----------|------|----------------------|
@@ -206,39 +183,23 @@ param_grid = {
 
 ---
 
-## 3 · Decision Tree Regression Tuning
+## 3 · XGBoost — When Linear Models Hit Their Limit
 
-Decision trees are a fundamentally different model — no polynomial expansion needed, naturally handles non-linearity. Key hyperparameters:
+**Where we are in the story:** Ridge/Lasso with degree-2 polynomials achieved $38k MAE. To push further, we need a model that can capture non-linear patterns **without manually engineering polynomial features**.
 
-| Hyperparameter | Range | Effect |
-|---------------|-------|--------|
-| `max_depth` | [3, 5, 8, 12, None] | Tree complexity (None = grow until pure leaves) |
-| `min_samples_split` | [2, 5, 10, 20] | Minimum samples to split a node |
-| `min_samples_leaf` | [1, 2, 5, 10] | Minimum samples in a leaf |
-| `criterion` | ['squared_error', 'absolute_error'] | Split quality metric |
+**XGBoost (eXtreme Gradient Boosting)** builds an ensemble of small decision trees, each correcting the errors left by previous trees. It's the go-to choice for tabular regression when you've exhausted linear model tuning.
 
-**Typical search:**
-```python
-from sklearn.tree import DecisionTreeRegressor
+### Why XGBoost After Ridge/Lasso?
 
-tree_params = {
-    'max_depth': [3, 5, 8, 12, None],
-    'min_samples_split': [2, 5, 10, 20],
-    'min_samples_leaf': [1, 2, 5],
-    'criterion': ['squared_error', 'absolute_error']
-}
-# 5 × 4 × 3 × 2 = 120 combinations
-```
+| Challenge | Ridge/Lasso Solution | XGBoost Solution |
+|-----------|---------------------|------------------|
+| Non-linear relationships | Add MedInc², MedInc³ manually | Tree splits learn curves automatically |
+| Feature interactions | Add MedInc×Latitude manually | Multi-level tree paths = automatic interactions |
+| Diminishing returns (income → value) | Polynomial approximation (clunky) | Step-function splits (natural fit) |
 
-Decision trees alone rarely beat regularized linear models, but they're the building block for ensembles (Random Forest, XGBoost).
+**The key insight:** California house prices don't scale linearly with income. A district earning $100k/year has ~$400k homes, not $10M homes. XGBoost's tree splits naturally capture this — Ridge needs degree-3+ polynomials to approximate the same curve.
 
----
-
-## 4 · XGBoost Captures Non-Linear Interactions Automatically
-
-XGBoost (eXtreme Gradient Boosting) builds an ensemble of decision trees sequentially. It's the **most competitive model for tabular data** and has a larger hyperparameter space.
-
-### Key Hyperparameters
+### Hyperparameters for XGBoost (Focus on These)
 
 | Hyperparameter | Range | What it controls |
 |---------------|-------|-----------------|
@@ -253,21 +214,133 @@ XGBoost (eXtreme Gradient Boosting) builds an ensemble of decision trees sequent
 **Objective:** `reg:squarederror`  
 **Eval metric:** `mae`
 
-### XGBoost vs Linear Models
+Use `RandomizedSearchCV` with 100+ trials. Typical result: **$32k MAE** (vs $38k for Ridge).
 
-| Aspect | Ridge/Lasso (Ch.5) | XGBoost |
-|--------|-------------------|---------|
-| Non-linearity | Requires polynomial features | Built-in (tree splits) |
-| Feature interactions | Manual (PolynomialFeatures) | Automatic (multi-level splits) |
-| Interpretability | Coefficient weights | SHAP values |
-| Training speed | Fast (closed-form or fast GD) | Slower (sequential tree building) |
-| Hyperparameters | 1-2 (α, l1_ratio) | 7+ (depth, lr, subsample, ...) |
-| Typical performance | Good | Usually best for tabular data |
-### How XGBoost Builds Predictions — A 3-Sample Walkthrough
+---
 
-Ridge fits one model globally. XGBoost builds a **sequence of small trees**, each one correcting what the previous left wrong. Here’s the full mechanics on 3 samples.
+## 4 · Random Search Beats Grid in High Dimensions
 
-**Dataset (3 California-style districts):**
+**The problem with grid search:** When you have 5+ hyperparameters, grid search becomes impractical. Testing 5 values per parameter = 5^5 = 3,125 combinations.
+
+### Grid Search — Exhaustive but Expensive
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+    'model__alpha': [0.001, 0.01, 0.1, 1, 10, 100],
+    'poly__degree': [1, 2, 3]
+}
+# 6 × 3 = 18 combinations × 5 folds = 90 fits
+grid_cv = GridSearchCV(pipeline, param_grid, cv=5,
+                       scoring='neg_mean_absolute_error', n_jobs=-1)
+```
+
+**When to use:** < 4 hyperparameters, < 100 total combinations.
+
+### Random Search — Better for Large Spaces
+
+**Bergstra & Bengio (2012)** proved: with $n$ trials, random search finds a top-5% configuration with probability $1 - 0.95^n$. At $n=60$, that's 95% probability.
+
+```python
+from sklearn.model_selection import RandomizedSearchCV
+from scipy.stats import uniform, loguniform
+
+param_dist = {
+    'model__alpha': loguniform(0.001, 1000),
+    'poly__degree': [1, 2, 3]
+}
+random_cv = RandomizedSearchCV(pipeline, param_dist, n_iter=60, cv=5,
+                               scoring='neg_mean_absolute_error', n_jobs=-1)
+```
+
+**When to use:** > 4 hyperparameters, or when some hyperparameters matter much more than others.
+
+### Why Random Beats Grid
+
+```
+Grid Search (9 trials):          Random Search (9 trials):
+    ·───·───·                        ·  ·    ·
+    │   │   │                       ·     ·
+    ·───·───·   ← wastes trials    ·  ·  ·    ← covers more
+    │   │   │     on unimportant     ·
+    ·───·───·     axis
+
+Important param ──→               Important param ──→
+```
+
+If α matters but degree doesn't, grid search tests only 3 unique α values. Random search tests **9 unique α values**.
+
+---
+
+## 5 · Bayesian Optimization — Optuna
+
+**The final upgrade:** Grid and random search are **memoryless** — each trial ignores all previous results. Bayesian optimization learns from past trials to pick the next configuration that's most likely to improve.
+
+```python
+import optuna
+
+def objective(trial):
+    alpha = trial.suggest_float('alpha', 1e-3, 1e3, log=True)
+    degree = trial.suggest_int('degree', 1, 3)
+    
+    pipe = Pipeline([
+        ('poly', PolynomialFeatures(degree=degree, include_bias=False)),
+        ('scaler', StandardScaler()),
+        ('model', Ridge(alpha=alpha, max_iter=10000))
+    ])
+    
+    scores = cross_val_score(pipe, X_train, y_train,
+                             cv=5, scoring='neg_mean_absolute_error')
+    return -scores.mean()  # Optuna minimizes
+
+study = optuna.create_study(direction='minimize')
+study.optimize(objective, n_trials=100)
+```
+
+**When to use:** Expensive models (XGBoost, neural nets), or when you want the best result with a limited trial budget (50-200 trials).
+
+**How it works:** Optuna uses the **Tree Parzen Estimator (TPE)** to build a probabilistic model of which parameter regions are promising, then samples from those regions. After 20-30 trials, it starts converging toward the optimum much faster than random search.
+
+![Optuna optimization history showing convergence](img/ch07-optuna-history.png)
+
+---
+
+## 6 · Hyperparameter Quick Reference
+
+Now that you've seen what each hyperparameter does, here's a complete reference:
+
+### Linear Models (Ridge / Lasso)
+
+| Hyperparameter | What It Does | Typical Range | Too Low → | Too High → |
+|----------------|--------------|---------------|-----------|------------|
+| **α** (alpha) | Regularization strength | [0.001, 1000] log | Overfitting (noise features get large weights) | Underfitting (all weights → 0) |
+
+### Polynomial Features
+
+| Hyperparameter | What It Does | Typical Range | Too Low → | Too High → |
+|----------------|--------------|---------------|-----------|------------|
+| **degree** | Polynomial expansion depth | {1, 2, 3} | Underfitting (linear only) | Feature explosion, overfitting |
+
+### XGBoost (Tree Ensemble)
+
+| Hyperparameter | What It Does | Typical Range | Too Low → | Too High → |
+|----------------|--------------|---------------|-----------|------------|
+| **n_estimators** | Number of trees in ensemble | [100, 1000] | Underfitting | Diminishing returns |
+| **max_depth** | Tree complexity per tree | [3, 9] | Underfitting (stumps) | Overfitting (memorizes noise) |
+| **learning_rate** | Shrinkage factor per tree | [0.01, 0.3] log | Slow convergence | Overfitting |
+
+### Search Strategies
+
+| Strategy | When To Use | Trials Needed | Strengths |
+|----------|-------------|---------------|-----------|
+| **Grid Search** | ≤ 3 hyperparams, < 100 combos | Exhaustive | Guaranteed to find best in grid |
+| **Random Search** | 4-7 hyperparams, any budget | 60+ recommended | Covers space efficiently |
+| **Bayesian (Optuna)** | Expensive models, limited budget | 100+ for convergence | Learns from past trials |
+
+---
+
+### XGBoost Step-by-Step Example
 
 | $i$ | MedInc | True $y$ ($100k) |
 |-----|--------|------------------|
@@ -350,285 +423,53 @@ Tree 2 fits these new (smaller) residuals. Each tree’s job is only to reduce w
 
 **Why XGBoost wins on tabular data:**  
 MedInc → MedHouseVal is NOT linear: a district earning $100k has roughly $400k homes, not $10M. The income effect has diminishing returns at the top. XGBoost’s tree splits naturally capture this step-function behavior. Ridge needs degree-3 polynomials to approximate the same curve.
-### Code Skeleton
-
-```python
-from xgboost import XGBRegressor
-from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import uniform, randint
-
-xgb = XGBRegressor(
-    objective='reg:squarederror',
-    n_jobs=-1,
-    random_state=42
-)
-
-xgb_params = {
-    'n_estimators': randint(100, 1000),
-    'max_depth': randint(3, 10),
-    'learning_rate': uniform(0.01, 0.29),
-    'subsample': uniform(0.7, 0.3),
-    'colsample_bytree': uniform(0.7, 0.3),
-    'reg_alpha': uniform(0, 1),
-    'reg_lambda': uniform(0, 1),
-}
-
-xgb_cv = RandomizedSearchCV(
-    xgb, xgb_params, n_iter=100, cv=5,
-    scoring='neg_mean_absolute_error', n_jobs=-1, random_state=42
-)
-xgb_cv.fit(X_train, y_train)
-```
 
 ---
 
-## 5 · Random Search Beats Grid in High Dimensions
-
-### Grid Search — Exhaustive but Expensive
-
-```python
-from sklearn.model_selection import GridSearchCV
-
-param_grid = {
-    'model__alpha': [0.001, 0.01, 0.1, 1, 10, 100],
-    'poly__degree': [1, 2, 3]
-}
-# 6 × 3 = 18 combinations × 5 folds = 90 fits
-grid_cv = GridSearchCV(pipeline, param_grid, cv=5,
-                       scoring='neg_mean_absolute_error', n_jobs=-1)
-```
-
-**When to use:** < 4 hyperparameters, < 100 total combinations.
-
-### Random Search — Better for Large Spaces
-
-**Bergstra & Bengio (2012)** proved: with $n$ trials, random search finds a top-5% configuration with probability $1 - 0.95^n$. At $n=60$, that's 95% probability.
-
-```python
-from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import uniform, loguniform
-
-param_dist = {
-    'model__alpha': loguniform(0.001, 1000),
-    'model__l1_ratio': uniform(0, 1),
-    'poly__degree': [1, 2, 3]
-}
-random_cv = RandomizedSearchCV(pipeline, param_dist, n_iter=60, cv=5,
-                               scoring='neg_mean_absolute_error', n_jobs=-1)
-```
-
-**When to use:** > 4 hyperparameters, or when some hyperparameters matter much more than others.
-
-### Why Random Beats Grid
-
-```
-Grid Search (9 trials):          Random Search (9 trials):
-    ·───·───·                        ·  ·    ·
-    │   │   │                       ·     ·
-    ·───·───·   ← wastes trials    ·  ·  ·    ← covers more
-    │   │   │     on unimportant     ·
-    ·───·───·     axis
-
-Important param ──→               Important param ──→
-```
-
-If α matters but l1_ratio doesn't, grid search tests only 3 unique α values. Random search tests 9 unique α values.
-
-#### Numerical Proof: 9 Trials, Same Budget
-
-**Parameter space:** $\alpha \in [0.001, 100]$ (log-scale), `degree` $\in \{1, 2, 3\}$
-
-**Grid Search (budget = 9):**
-
-To test exactly 9 combinations, the practitioner must choose a 3-value subset of the α axis:
-
-```python
-param_grid = {
-    'model__alpha':  [0.01, 0.1, 1.0],   # 3 values (must pick a finite subset)
-    'poly__degree':  [1, 2, 3]            # 3 values
-}
-# Result: 3 × 3 = 9 trials
-```
-
-Every trial in the 9-trial grid uses one of just **3 unique α values**: `{0.01, 0.1, 1.0}`. The values `{0.001, 0.003, 0.5, 3, 10, 30, 100}` are **never tested** — including zones that might contain the optimum.
-
-| α | degree | CV MAE ($k) | Tested? |
-|------|--------|-------------|----------|
-| 0.01 | 1 | 55.1 | ✅ Grid |
-| 0.01 | 2 | 39.8 | ✅ Grid |
-| 0.01 | 3 | 43.2 | ✅ Grid |
-| 0.10 | 1 | 54.9 | ✅ Grid |
-| 0.10 | 2 | **38.3** | ✅ Grid ← best grid finds |
-| 0.10 | 3 | 39.1 | ✅ Grid |
-| 1.0 | 1 | 55.4 | ✅ Grid |
-| 1.0 | 2 | 38.9 | ✅ Grid |
-| 1.0 | 3 | 39.6 | ✅ Grid |
-| **0.001** | **2** | **40.5** | ❌ Grid can't see it |
-| **0.003** | **2** | **37.6** | ❌ **Grid misses optimum** |
-| **30** | **2** | **41.0** | ❌ Grid can't see it |
-
-**Grid search best:** α=0.10, degree=2, MAE = $38.3k
-
-**Random Search (budget = 9):**
-
-α is sampled from a continuous **log-uniform** distribution over [0.001, 100]; degree from `{1, 2, 3}`. Each trial gets a unique α value.
-
-```python
-param_dist = {
-    'model__alpha':  loguniform(0.001, 100),   # continuous — never repeats
-    'poly__degree':  [1, 2, 3]
-}
-random_cv = RandomizedSearchCV(..., n_iter=9)
-```
-
-Example 9 trials drawn from this distribution:
-
-| Trial | α (log-uniform sample) | degree | CV MAE ($k) |
-|-------|-------------------------|--------|-------------|
-| 1 | 0.0034 | 2 | 40.5 |
-| 2 | 0.47 | 1 | 55.2 |
-| 3 | 8.3 | 3 | 42.1 |
-| 4 | 0.091 | 2 | 38.5 |
-| 5 | 0.014 | 1 | 56.0 |
-| 6 | **0.0031** | **2** | **37.5** ← random search finds near-optimum |
-| 7 | 1.83 | 2 | 39.1 |
-| 8 | 0.23 | 3 | 39.8 |
-| 9 | 3.9 | 1 | 57.0 |
-
-**9 unique α values** spanning the full range [0.001, 100]. **Random search best:** α=0.0031, degree=2, MAE = $37.5k — beats grid by **$0.8k** despite identical trial budget.
-
-**The underlying reason (Bergstra & Bengio, 2012):**  
-In this 2D space, `degree` has near-zero effect on MAE when α is properly tuned, but `α` has enormous effect ($15k difference between worst and best α). Grid search wasted 2/3 of its budget testing every degree at each α; random search spent those same 6 extra trials exploring *different α values* — which is where the signal was.
-
-**Generalized formula (Bergstra & Bengio):**  
-With $n$ random trials in a $d$-parameter space where only $k$ parameters matter:
-
-$$P(\text{top 5\% found}) = 1 - 0.95^n$$
-
-At $n = 60$: $P = 1 - 0.95^{60} \approx 95\%$ — regardless of how many irrelevant parameters are in the space.
-
-![Grid vs random search coverage — 9 trials in 2D parameter space](img/ch07-grid-vs-random.png)
-
-### Bayesian Optimization — Optuna
-
-Uses a surrogate model to predict which configurations are likely good, then samples there:
-
-```python
-import optuna
-
-def objective(trial):
-    alpha = trial.suggest_float('alpha', 1e-3, 1e3, log=True)
-    degree = trial.suggest_int('degree', 1, 3)
-    l1_ratio = trial.suggest_float('l1_ratio', 0.0, 1.0)
-    
-    pipe = Pipeline([
-        ('poly', PolynomialFeatures(degree=degree, include_bias=False)),
-        ('scaler', StandardScaler()),
-        ('model', ElasticNet(alpha=alpha, l1_ratio=l1_ratio, max_iter=10000))
-    ])
-    
-    scores = cross_val_score(pipe, X_train, y_train,
-                             cv=5, scoring='neg_mean_absolute_error')
-    return -scores.mean()  # Optuna minimizes
-
-study = optuna.create_study(direction='minimize')
-study.optimize(objective, n_trials=100)
-```
-
-**When to use:** Expensive models (XGBoost, neural nets), or when you want the best result with a limited trial budget.
-
-### Bayesian Optimization Deep Dive
-
-#### How Optuna Knows Where to Sample Next
-
-Grid and random search are **memoryless** — each trial ignores all previous results. Bayesian optimization is different: it builds a **surrogate model** of the objective function from observed trials, then uses that model to pick the next point that is most likely to improve on the current best.
-
-**The two components:**
-
-1. **Surrogate model** — a cheap-to-evaluate probabilistic approximation of MAE(α, degree, …). After seeing $n$ trials, it predicts the *distribution* of MAE at any untested point: a mean $\mu(x)$ and an uncertainty $\sigma(x)$.
-
-2. **Acquisition function** — a formula that trades off “expected improvement” vs “uncertainty” to decide where to sample next. Optuna uses the **Tree Parzen Estimator (TPE)**; textbook explanations use **Gaussian Process (GP) + Expected Improvement (EI)** which is mathematically cleaner.
-
-#### Expected Improvement (EI) — The Formula
-
-Let $f^*$ be the best (lowest) MAE seen so far. For a new candidate point $x$ where the surrogate predicts $\hat{f}(x) \sim \mathcal{N}(\mu(x), \sigma(x)^2)$, the Expected Improvement is:
-
-$$\boxed{EI(x) = (f^* - \mu(x))\,\Phi(Z) + \sigma(x)\,\phi(Z), \qquad Z = \frac{f^* - \mu(x)}{\sigma(x)}}$$
-
-where $\Phi$ is the standard normal CDF and $\phi$ is the standard normal PDF.
-
-**Reading the formula:**
-- **Term 1** — $(f^* - \mu(x))\,\Phi(Z)$: how much better than the best we *expect* (exploitation). Positive only when $\mu(x) < f^*$. Larger when the mean prediction is well below the current best.
-- **Term 2** — $\sigma(x)\,\phi(Z)$: the uncertainty bonus (exploration). Positive even when $\mu(x) > f^*$, rewarding unexplored regions.
-
-The algorithm always chooses $x^* = \arg\max_x EI(x)$.
-
-#### 5-Trial Worked Example
-
-**Setup:** Tuning Ridge regularization strength α (1D) on California Housing. Search space: $\alpha \in [0.001, 1000]$ (log-scale). Best possible MAE ≈ $36k.
-
-**Trials 1–4 are random (cold start):**
-
-| Trial | α | CV MAE ($k) |
-|-------|------|-------------|
-| 1 | 0.10 | 38.5 |
-| 2 | 10.0 | 41.2 |
-| 3 | 1.0 | 37.9 |
-| 4 | 0.01 | 39.8 |
-
-**Best so far:** $f^* = 37.9\,\text{k}$ at $\alpha = 1.0$
-
-The GP surrogate is now fit to these 4 points. It predicts $(\mu, \sigma)$ at unexplored candidates:
-
-| Candidate α | $\mu(x)$ ($k) | $\sigma(x)$ ($k) | $Z = (f^* - \mu)/\sigma$ | $\Phi(Z)$ | $\phi(Z)$ | $EI$ ($k) |
-|-------------|----------------|-----------------|--------------------------|-----------|-----------|------------|
-| 0.001 | 40.5 | 2.1 | $(37.9 - 40.5)/2.1 = -1.24$ | 0.107 | 0.182 | $(-2.6)(0.107) + (2.1)(0.182) = \mathbf{0.104}$ |
-| **0.30** | **37.2** | **0.9** | $(37.9 - 37.2)/0.9 = +0.78$ | **0.782** | **0.290** | $(0.7)(0.782) + (0.9)(0.290) = \mathbf{0.808}$ |
-| 3.0 | 38.4 | 0.6 | $(37.9 - 38.4)/0.6 = -0.83$ | 0.203 | 0.272 | $(-0.5)(0.203) + (0.6)(0.272) = \mathbf{0.061}$ |
-| 100 | 43.0 | 0.5 | $(37.9 - 43.0)/0.5 = -10.2$ | $\approx 0$ | $\approx 0$ | $\approx \mathbf{0}$ |
-
-**Result:** $EI$ is highest at $\alpha = 0.30$ — the surrogate predicts it’s likely below the current best AND the model still has meaningful uncertainty there.
-
-**Trial 5:** Optuna samples $\alpha = 0.30$ → observes $\text{MAE} = 37.1\,\text{k}$ → **new best!**
-
-The key: Trial 5 wasn’t random. It was *steered* toward the gap between the known good region ($\alpha \approx 1.0$) and the unexplored low-α territory — exactly where the formula said there was potential upside.
-
-**What makes TPE (Optuna’s actual implementation) different from GP+EI:**
-
-| Aspect | Gaussian Process + EI | Tree Parzen Estimator (TPE) |
-|--------|----------------------|------------------------------|
-| Surrogate model | GP: global smooth interpolation | TPE: two density estimators $\ell(x) = p(x \mid y < y^*)$ and $g(x) = p(x \mid y \geq y^*)$ |
-| Acquisition | Maximize $EI(x)$ explicitly | Maximize $\ell(x)/g(x)$ |
-| Scales to high dims | Poorly ($O(n^3)$ GP inversion) | Well (each param modeled independently) |
-| Handles categorical | Poorly | Natively |
-| Handles pruning | No | Yes (Optuna’s early stopping of bad trials) |
-
-Conceptually both methods do the same thing: **remember which configurations were good, build a model of the good region, and sample from outside it only when uncertainty is high enough.**
-
-![Optuna optimization history — trial number vs best MAE, convergence curve](img/ch07-optuna-history.png)
-![Top-10 Optuna trials — parallel coordinates across α, degree, l1_ratio](img/ch07-optuna-parallel-coords.png)
+**What you've learned:**
+- **α is the most important dial** — controls the bias-variance trade-off, must be searched on log scale
+- **degree and α are coupled** — you can't optimize them separately
+- **Grid search** works for small spaces (< 100 combinations)
+- **Random search** beats grid in high dimensions (Bergstra & Bengio 2012 proof)
+- **Bayesian optimization (Optuna)** learns from past trials to converge faster
+
+**What you can do now:**
+- Tune Ridge/Lasso with `GridSearchCV` or `RandomizedSearchCV`
+- Search polynomial degree and α jointly
+- Use Optuna for XGBoost's 7+ hyperparameters
+- Pick the right metric (`neg_mean_absolute_error` for MAE)
+
+**The progression:**
+- Ch.1: $70k MAE (no features) → Ch.2: $55k (basic features) → Ch.4: $48k (regularization) → Ch.5: $38k (polynomial + Ridge α=1.0) → **This chapter: $32k (XGBoost + systematic tuning) ✅**
 
 ```mermaid
-flowchart TD
-    START["Choose Tuning Strategy"] --> Q1{"How many<br/>hyperparameters?"}
+flowchart LR
+    subgraph "Before"
+        GUESS["Guessed α=1.0<br/>degree=2<br/>$38k MAE"]
+    end
     
-    Q1 -->|"1-3 params"| GRID["Grid Search<br/>Exhaustive, reliable<br/>< 100 combinations"]
-    Q1 -->|"4-7 params"| RANDOM["Random Search<br/>60+ trials<br/>Covers space efficiently"]
-    Q1 -->|"Many params +<br/>expensive model"| BAYES["Bayesian (Optuna)<br/>Smart trial selection<br/>Best for limited budget"]
+    subgraph "After Tuning"
+        GRID["Grid Search<br/>Joint α × degree"]
+        RANDOM["Random Search<br/>XGBoost params"]
+        BAYES["Bayesian Opt<br/>Optuna"]
+    end
     
-    GRID --> SCORE["scoring='neg_mean_absolute_error'<br/>5-fold CV"]
-    RANDOM --> SCORE
-    BAYES --> SCORE
+    GUESS --> GRID
+    GUESS --> RANDOM
+    GUESS --> BAYES
     
-    style START fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style GRID fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style RANDOM fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style BAYES fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    GRID --> RESULT["Optimized Ridge/Lasso<br/>$36k MAE"]
+    RANDOM --> RESULT2["Optimized XGBoost<br/>$32k MAE ✅"]
+    BAYES --> RESULT2
+    
+    style GUESS fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style RESULT fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style RESULT2 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
 ---
 
-## 6 · Regression-Specific Pitfalls
+## 7 · Regression-Specific Pitfalls
 
 ### Pitfall 1: Optimizing the Wrong Metric
 
@@ -707,148 +548,6 @@ flowchart TD
 
 ---
 
-## 7 · Code Skeleton — Full Tuning Pipeline
-
-```python
-import numpy as np
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.linear_model import Ridge, Lasso, ElasticNet
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import mean_absolute_error
-from scipy.stats import loguniform, uniform
-
-# Load and split
-data = fetch_california_housing()
-X, y = data.data, data.target
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-# ── Step 1: Grid search for Ridge (degree × α) ──────────────────────────
-ridge_pipe = Pipeline([
-    ('poly', PolynomialFeatures(include_bias=False)),
-    ('scaler', StandardScaler()),
-    ('model', Ridge())
-])
-
-ridge_params = {
-    'poly__degree': [1, 2, 3],
-    'model__alpha': np.logspace(-3, 3, 7)
-}
-
-ridge_cv = GridSearchCV(ridge_pipe, ridge_params, cv=5,
-                        scoring='neg_mean_absolute_error', n_jobs=-1)
-ridge_cv.fit(X_train, y_train)
-ridge_mae = mean_absolute_error(y_test, ridge_cv.predict(X_test)) * 100_000
-print(f"Ridge best: {ridge_cv.best_params_}")
-print(f"Ridge test MAE: ${ridge_mae:,.0f}")
-
-# ── Step 2: Random search for ElasticNet (α × l1_ratio × degree) ─────────
-enet_pipe = Pipeline([
-    ('poly', PolynomialFeatures(include_bias=False)),
-    ('scaler', StandardScaler()),
-    ('model', ElasticNet(max_iter=10000))
-])
-
-enet_params = {
-    'poly__degree': [1, 2, 3],
-    'model__alpha': loguniform(1e-4, 10),
-    'model__l1_ratio': uniform(0, 1),
-}
-
-enet_cv = RandomizedSearchCV(
-    enet_pipe, enet_params, n_iter=100, cv=5,
-    scoring='neg_mean_absolute_error', n_jobs=-1, random_state=42
-)
-enet_cv.fit(X_train, y_train)
-enet_mae = mean_absolute_error(y_test, enet_cv.predict(X_test)) * 100_000
-print(f"ElasticNet best: {enet_cv.best_params_}")
-print(f"ElasticNet test MAE: ${enet_mae:,.0f}")
-
-# ── Step 3: Bayesian optimization with Optuna ────────────────────────────
-import optuna
-optuna.logging.set_verbosity(optuna.logging.WARNING)
-
-from sklearn.model_selection import cross_val_score
-
-def objective(trial):
-    degree = trial.suggest_int('degree', 1, 3)
-    alpha = trial.suggest_float('alpha', 1e-4, 10, log=True)
-    l1_ratio = trial.suggest_float('l1_ratio', 0.0, 1.0)
-
-    pipe = Pipeline([
-        ('poly', PolynomialFeatures(degree=degree, include_bias=False)),
-        ('scaler', StandardScaler()),
-        ('model', ElasticNet(alpha=alpha, l1_ratio=l1_ratio, max_iter=10000))
-    ])
-    scores = cross_val_score(
-        pipe, X_train, y_train, cv=5,
-        scoring='neg_mean_absolute_error', n_jobs=-1
-    )
-    return -scores.mean()   # Optuna minimizes
-
-study = optuna.create_study(direction='minimize')
-study.optimize(objective, n_trials=100, show_progress_bar=False)
-
-best = study.best_params
-print(f"Optuna best params: {best}")
-print(f"Optuna CV MAE: ${study.best_value * 100_000:,.0f}")
-
-# Refit best params on full train set, evaluate on test
-optuna_pipe = Pipeline([
-    ('poly', PolynomialFeatures(degree=best['degree'], include_bias=False)),
-    ('scaler', StandardScaler()),
-    ('model', ElasticNet(
-        alpha=best['alpha'], l1_ratio=best['l1_ratio'], max_iter=10000
-    ))
-])
-optuna_pipe.fit(X_train, y_train)
-optuna_mae = mean_absolute_error(y_test, optuna_pipe.predict(X_test)) * 100_000
-print(f"Optuna test MAE: ${optuna_mae:,.0f}")
-
-# ── Step 4: XGBoost with random search ───────────────────────────────────
-from xgboost import XGBRegressor
-
-xgb = XGBRegressor(objective='reg:squarederror', n_jobs=-1, random_state=42)
-
-xgb_params = {
-    'n_estimators': [100, 300, 500, 1000],
-    'max_depth': [3, 5, 7],
-    'learning_rate': loguniform(0.01, 0.3),
-    'subsample': uniform(0.7, 0.3),
-    'colsample_bytree': uniform(0.7, 0.3),
-    'reg_alpha': loguniform(1e-4, 1),
-    'reg_lambda': loguniform(1e-4, 1),
-}
-
-xgb_cv = RandomizedSearchCV(
-    xgb, xgb_params, n_iter=100, cv=5,
-    scoring='neg_mean_absolute_error', n_jobs=-1, random_state=42
-)
-xgb_cv.fit(X_train, y_train)
-xgb_mae = mean_absolute_error(y_test, xgb_cv.predict(X_test)) * 100_000
-print(f"XGBoost best: {xgb_cv.best_params_}")
-print(f"XGBoost test MAE: ${xgb_mae:,.0f}")
-
-# ── Step 5: Model comparison ─────────────────────────────────────────────
-results = {
-    'Ridge (grid)':        ridge_mae,
-    'ElasticNet (random)': enet_mae,
-    'ElasticNet (Optuna)': optuna_mae,
-    'XGBoost (random)':    xgb_mae,
-}
-
-# ⚡ Constraint #1 + #2: XGBoost achieves $32k MAE, 5-fold CV confirms generalization
-print("\n=== Final Comparison ===")
-for name, mae in sorted(results.items(), key=lambda x: x[1]):
-    flag = " ✅" if mae < 40_000 else ""
-    print(f"  {name:25s}: ${mae:,.0f}{flag}")
-```
-
----
-
 ## 8 · Progress Check — SmartVal AI Grand Finale
 
 This is the final chapter of the regression track. We've gone from a guessed straight line in Ch.1 to a systematically optimized XGBoost ensemble in Ch.7. Here is the complete journey.
@@ -915,7 +614,7 @@ flowchart LR
 
 ✅ **Unlocked by the full regression track:**
 - Fit, tune, and validate any regression model on tabular data
-- Choose the right regularizer (Ridge/Lasso/ElasticNet) for the sparsity pattern
+- Choose the right regularizer (Ridge/Lasso) for the sparsity pattern
 - Know when to use grid, random, and Bayesian search (and why)
 - Evaluate honestly: MAE, RMSE, R², 5-fold CV — and which to trust
 - Use XGBoost for non-linear tabular regression without manual feature engineering
@@ -936,8 +635,6 @@ flowchart LR
 |-------|---------------|-------------|-------------------|
 | **Ridge** | α (L2 strength) | [0.001, 1000] log | `model__alpha` |
 | **Lasso** | α (L1 strength) | [0.0001, 0.1] log | `model__alpha` |
-| **Elastic Net** | α | [0.001, 1] log | `model__alpha` |
-| | l1_ratio | [0, 1] uniform | `model__l1_ratio` |
 | **Polynomial** | degree | {1, 2, 3} | `poly__degree` |
 | | interaction_only | {True, False} | `poly__interaction_only` |
 | **Decision Tree** | max_depth | {3, 5, 8, 12, None} | `max_depth` |

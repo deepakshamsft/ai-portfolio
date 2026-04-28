@@ -346,84 +346,7 @@ This enables distributed tracing (LangSmith/Jaeger) and correlation across agent
 
 ---
 
-## § 7 · Code Skeleton
-
-```python
-# Educational: A2A task submission and polling from scratch
-import uuid, time
-from enum import Enum
-from dataclasses import dataclass
-from typing import Optional
-
-class TaskState(Enum):
-    SUBMITTED = "submitted"
-    WORKING = "working"
-    INPUT_REQUIRED = "input-required"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-@dataclass
-class Task:
-    task_id: str
-    state: TaskState
-    result: Optional[dict] = None
-    error: Optional[str] = None
-
-class A2AClientSimple:
-    """Educational A2A client illustrating the task lifecycle."""
-    def __init__(self, agent_url: str):
-        self.agent_url = agent_url
-        self._tasks: dict[str, Task] = {}
-
-    def submit_task(self, message: str, correlation_id: str) -> str:
-        task_id = str(uuid.uuid4())
-        self._tasks[task_id] = Task(task_id=task_id, state=TaskState.SUBMITTED)
-        # In real A2A: POST /tasks/send with JSON body
-        return task_id
-
-    def poll_task(self, task_id: str) -> Task:
-        # In real A2A: GET /tasks/{task_id} or SSE stream
-        return self._tasks[task_id]
-
-    def wait_for_completion(self, task_id: str, timeout_sec: float = 3600) -> Task:
-        deadline = time.time() + timeout_sec
-        while time.time() < deadline:
-            task = self.poll_task(task_id)
-            if task.state in (TaskState.COMPLETED, TaskState.FAILED):
-                return task
-            time.sleep(5)
-        raise TimeoutError(f"Task {task_id} not completed within {timeout_sec}s")
-```
-
-```python
-# Production: A2A using the official SDK with SSE streaming
-from a2a.client import A2AClient
-from a2a.types import Message, TextPart, TaskState
-from httpx import AsyncClient
-import asyncio, uuid
-
-async def delegate_negotiation(po_id: str, supplier_id: str) -> dict:
-    """Delegate PO negotiation to the negotiation agent via A2A."""
-    async with AsyncClient() as http:
-        client = A2AClient(httpx_client=http,
-                           url="http://negotiation-agent-svc:8080")
-        correlation_id = f"po-{po_id}"
-        message = Message(
-            role="user",
-            parts=[TextPart(text=f"Negotiate terms for PO {po_id} with supplier {supplier_id}")],
-            metadata={"correlation_id": correlation_id}
-        )
-        # Stream task updates via SSE
-        async for event in client.send_message_streaming(message=message):
-            if event.result.status.state == TaskState.completed:
-                return event.result.artifacts[0].parts[0].text
-            elif event.result.status.state == TaskState.failed:
-                raise RuntimeError(f"Negotiation failed: {event.result.status.message}")
-```
-
----
-
-## § 8 · What Can Go Wrong
+## § 7 · What Can Go Wrong
 
 **❌ Agent discovery fails (404 on Agent Card)**  
 **Trap**: Orchestrator hardcodes agent URL, agent moves to new pod/cluster → 404  
@@ -459,7 +382,7 @@ async def delegate_negotiation(po_id: str, supplier_id: str) -> dict:
 
 ---
 
-## § 9 · Progress Check — What We Achieved
+## § 8 · Progress Check — What We Achieved
 
 ```mermaid
 graph LR
@@ -530,7 +453,7 @@ In a cloud deployment, managed identity is the correct pattern: each agent servi
 
 ---
 
-## § 10 · Bridge to the Next Chapter
+## § 9 · Bridge to the Next Chapter
 
 Ch.3 gave us cross-service agent delegation with lifecycle tracking and SSE streaming. But the orchestrator still *waits* (polls or streams) for each agent to complete before advancing the PO — 1-2 hours per task × 3 concurrent threads = 24 POs/day max. **Ch.4 (Event-Driven Agents)** decouples orchestrator from agent execution time via async message bus → submit 50 POs, receive 50 completion events hours later → **1,000 POs/day throughput unlocked**.
 

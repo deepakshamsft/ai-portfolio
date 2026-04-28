@@ -137,7 +137,7 @@ Before diving into `.tf` file syntax, here's the full workflow you'll follow. Ea
 - **Plan** — diff between desired and current state (shown before apply)
 - **Drift** — when someone manually changes infrastructure outside Terraform
 
-Sections 4–8 explain each component. Come back to this map when the detail feels overwhelming.
+Sections 4–7 explain each component. Come back to this map when the detail feels overwhelming.
 
 ---
 
@@ -203,6 +203,8 @@ The state file is the **source of truth** for what Terraform manages. If you del
 
 ### 4.3 · Drift Detection Compares State File Against Reality
 
+> 💡 **Intuition first:** **Terraform's state file prevents drift by acting as a single source of truth for your infrastructure**. Without state, Terraform would have to query every provider API ("does this container exist? what port is it using?") on every run — slow and error-prone. The state file caches this information and adds a **locking mechanism** (via remote backends like S3) to prevent two engineers from applying conflicting changes simultaneously. Think of state as **Terraform's memory**: it remembers what it built, compares it to what you want (your `.tf` files), and calculates the minimal diff. When someone makes manual changes outside Terraform, state detects **drift** — the gap between what Terraform thinks exists (state file) and what actually exists (reality).
+
 **Drift** happens when someone manually changes infrastructure (AWS console, Docker CLI, etc.) *outside* Terraform. Example:
 1. Terraform creates a container with port 8080
 2. You manually change the port to 9090 using Docker CLI
@@ -219,125 +221,9 @@ When you run `terraform plan`, Terraform:
 
 ---
 
-## 5 · Code Skeleton — The Three Core Terraform Files
+## 5 · What Can Go Wrong — Production Pitfalls and How to Avoid Them
 
-Every Terraform project has at least these three files:
-
-### 5.1 · main.tf — Resource Definitions
-
-```hcl
-# Configure the Docker provider
-terraform {
-  required_providers {
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
-    }
-  }
-}
-
-provider "docker" {
-  host = "npipe:////./pipe/docker_engine"  # Windows
-  # host = "unix:///var/run/docker.sock"  # Linux/Mac
-}
-
-# Define a Docker network
-resource "docker_network" "private_network" {
-  name = "my_network"
-}
-
-# Define a Docker container
-resource "docker_container" "nginx" {
-  name  = var.container_name
-  image = "nginx:latest"
-  
-  ports {
-    internal = 80
-    external = var.external_port
-  }
-  
-  networks_advanced {
-    name = docker_network.private_network.name
-  }
-  
-  volumes {
-    host_path      = "${path.cwd}/html"
-    container_path = "/usr/share/nginx/html"
-  }
-}
-```
-
-**Key components:**
-- **terraform block**: Declares required providers and versions
-- **provider block**: Configures provider (connection details)
-- **resource block**: Defines infrastructure components
-
-### 5.2 · variables.tf — Input Parameters
-
-```hcl
-variable "container_name" {
-  description = "Name of the Docker container"
-  type        = string
-  default     = "my_nginx"
-}
-
-variable "external_port" {
-  description = "External port to expose"
-  type        = number
-  default     = 8080
-}
-
-variable "environment" {
-  description = "Deployment environment (dev, staging, prod)"
-  type        = string
-  default     = "dev"
-}
-```
-
-**Why use variables?** Makes configuration reusable across environments. You can override defaults:
-```bash
-terraform apply -var="container_name=prod_nginx" -var="external_port=80"
-```
-
-Or create environment-specific `.tfvars` files:
-```hcl
-# prod.tfvars
-container_name = "prod_nginx"
-external_port  = 80
-environment    = "prod"
-```
-
-Apply with: `terraform apply -var-file="prod.tfvars"`
-
-### 5.3 · outputs.tf — Export Values
-
-```hcl
-output "container_id" {
-  description = "ID of the Docker container"
-  value       = docker_container.nginx.id
-}
-
-output "container_ip" {
-  description = "IP address of the container"
-  value       = docker_container.nginx.network_data[0].ip_address
-}
-
-output "access_url" {
-  description = "URL to access the container"
-  value       = "http://localhost:${var.external_port}"
-}
-```
-
-**Why use outputs?** 
-1. Display useful info after apply (container IP, URL)
-2. Pass values to other Terraform modules (composition)
-3. Extract values programmatically: `terraform output -json`
-
----
-
-## 6 · What Can Go Wrong — Production Pitfalls and How to Avoid Them
-
-### 6.1 · State File Corruption
+### 5.1 · State File Corruption
 
 **Symptom:** `terraform apply` fails with "resource already exists" or tries to recreate everything.
 
@@ -360,7 +246,7 @@ terraform {
 }
 ```
 
-### 6.2 · Provider Version Conflicts
+### 5.2 · Provider Version Conflicts
 
 **Symptom:** `terraform init` fails with "no matching version" or code works on your machine but fails in CI.
 
@@ -381,7 +267,7 @@ terraform {
 
 **Best practice:** Commit `.terraform.lock.hcl` to Git — locks exact provider versions across team.
 
-### 6.3 · Drift Detection Ignored
+### 5.3 · Drift Detection Ignored
 
 **Symptom:** Infrastructure behaves differently than code suggests — manual changes not tracked.
 
@@ -398,7 +284,7 @@ terraform plan -detailed-exitcode
 # Exit code 2 = changes detected (drift or unmerged code)
 ```
 
-### 6.4 · Secrets in State File
+### 5.4 · Secrets in State File
 
 **Symptom:** `terraform.tfstate` contains database passwords, API keys in plaintext.
 
@@ -417,7 +303,7 @@ output "db_password" {
 
 **Best practice:** Use separate state files per environment (dev, prod) — limits blast radius if state leaks.
 
-### 6.5 · Terraform Destroy in Production
+### 5.5 · Terraform Destroy in Production
 
 **Symptom:** Someone runs `terraform destroy` in production by mistake — deletes all infrastructure.
 
@@ -441,7 +327,7 @@ resource "aws_db_instance" "main" {
 
 ---
 
-## 7 · Progress Check — Test Your Understanding
+## 6 · Progress Check — Test Your Understanding
 
 Before moving to Ch.7, verify you can:
 
@@ -490,7 +376,7 @@ Before moving to Ch.7, verify you can:
 
 ---
 
-## 8 · Bridge to Ch.7 — Networking Makes Services Discoverable
+## 7 · Bridge to Ch.7 — Networking Makes Services Discoverable
 
 You've mastered Infrastructure as Code — you can provision Docker containers, networks, and volumes with Terraform. Changes are version-controlled, peer-reviewed, and reproducible. **But your services can't talk to each other yet.**
 

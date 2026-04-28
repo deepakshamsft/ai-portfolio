@@ -190,6 +190,13 @@ best_run = mlflow.search_runs(
 print(f"Best run: {best_run['run_id'][0]} with {best_run['metrics.test_accuracy'][0]:.2%} accuracy")
 ```
 
+> 💡 **What this MLflow UI enables:** Instead of manually comparing 12 runs in spreadsheets or Jupyter notebooks, you now:
+> - **Answer "which hyperparameters gave 94%?" in 10 seconds** (not 30 minutes of scrolling)
+> - **Visualize 50 experiments at once** in parallel coordinates plot (spot patterns like "batch_size=16 always beats 32")
+> - **Compare training curves side-by-side** (see if learning rate 2e-5 converges faster than 5e-5)
+> - **Filter runs programmatically** with SQL-like queries ("show me all runs where test_accuracy > 0.93 AND duration < 20 min")
+> - **Share results with teammates** via one URL (http://localhost:5000) instead of emailing CSV files
+
 ### Step 4: Register Best Model (Staging → Production)
 
 Once you've identified the best run, promote it to the **model registry**:
@@ -336,151 +343,7 @@ Change any one component → you get a different result. Keep all components the
 
 ---
 
-## 4 · Code Skeleton — MLflow Tracking + DVC Versioning
-
-### 4.1 · Setup MLflow Tracking (Local)
-
-```python
-import mlflow
-import mlflow.pytorch
-
-# Set tracking URI (default: ./mlruns/)
-mlflow.set_tracking_uri("file:./mlruns")
-
-# Set experiment name (organizes runs into folders)
-mlflow.set_experiment("bert-sentiment-classification")
-```
-
-### 4.2 · Log a Training Run
-
-```python
-def train_model(learning_rate, batch_size, warmup_steps, epochs=3):
-    """Train BERT and log everything to MLflow."""
-    
-    # Start run
-    with mlflow.start_run(run_name=f"bert-lr{learning_rate}-bs{batch_size}"):
-        
-        # 1. Log hyperparameters
-        mlflow.log_params({
-            "learning_rate": learning_rate,
-            "batch_size": batch_size,
-            "warmup_steps": warmup_steps,
-            "epochs": epochs,
-            "model": "bert-base-uncased",
-            "optimizer": "AdamW",
-            "random_seed": 42
-        })
-        
-        # 2. Train model (pseudocode)
-        model = BertForSequenceClassification.from_pretrained("bert-base-uncased")
-        optimizer = AdamW(model.parameters(), lr=learning_rate)
-        
-        for epoch in range(epochs):
-            train_loss = train_epoch(model, train_loader, optimizer)
-            val_acc = evaluate(model, val_loader)
-            
-            # Log metrics per epoch
-            mlflow.log_metrics({
-                "train_loss": train_loss,
-                "val_accuracy": val_acc
-            }, step=epoch)
-        
-        # 3. Final evaluation on test set
-        test_acc = evaluate(model, test_loader)
-        test_f1 = compute_f1(model, test_loader)
-        mlflow.log_metrics({
-            "test_accuracy": test_acc,
-            "test_f1": test_f1
-        })
-        
-        # 4. Save artifacts
-        torch.save(model.state_dict(), "model.pt")
-        mlflow.log_artifact("model.pt")
-        
-        # Optional: log confusion matrix plot
-        plot_confusion_matrix(model, test_loader, save_path="confusion_matrix.png")
-        mlflow.log_artifact("confusion_matrix.png")
-        
-        # Log model to registry (optional)
-        mlflow.pytorch.log_model(model, "model")
-        
-    # Run ends automatically when exiting the `with` block
-```
-
-### 4.3 · Search and Compare Runs
-
-```python
-# Search for runs with test accuracy > 0.93
-best_runs = mlflow.search_runs(
-    experiment_names=["bert-sentiment-classification"],
-    filter_string="metrics.test_accuracy > 0.93",
-    order_by=["metrics.test_accuracy DESC"]
-)
-
-print(best_runs[["run_id", "params.learning_rate", "metrics.test_accuracy"]])
-```
-
-### 4.4 · Load a Model from a Previous Run
-
-```python
-# Load model by run_id
-run_id = "7a3f9b2e-4c8d-4f9a-8b2c-1e5d7f9a3c6b"
-model = mlflow.pytorch.load_model(f"runs:/{run_id}/model")
-
-# Or load from model registry by stage
-model = mlflow.pyfunc.load_model("models:/bert-sentiment-classifier/Production")
-```
-
-### 4.5 · Version Dataset with DVC
-
-```bash
-# Initialize DVC (one-time setup)
-dvc init
-dvc remote add -d myremote s3://my-bucket/dvc-cache  # or Azure, GCS, SSH
-
-# Track a dataset
-dvc add data/imdb_train.csv
-git add data/imdb_train.csv.dvc data/.gitignore
-git commit -m "Add IMDB training data v1"
-
-# Push data to remote storage
-dvc push
-
-# Later: pull specific version
-git checkout <commit-hash>
-dvc pull  # Downloads data matching that commit's .dvc file
-```
-
-### 4.6 · Reproduce an Experiment from run_id
-
-```python
-def reproduce_experiment(run_id):
-    """Given a run_id, reconstruct the exact environment and retrain."""
-    
-    # 1. Fetch run metadata
-    run = mlflow.get_run(run_id)
-    params = run.data.params
-    git_commit = run.data.tags.get("mlflow.source.git.commit", None)
-    
-    # 2. Checkout code version
-    if git_commit:
-        os.system(f"git checkout {git_commit}")
-    
-    # 3. Restore data version (DVC automatically pulls based on Git commit)
-    os.system("dvc pull")
-    
-    # 4. Retrain with logged hyperparameters
-    train_model(
-        learning_rate=float(params["learning_rate"]),
-        batch_size=int(params["batch_size"]),
-        warmup_steps=int(params["warmup_steps"]),
-        epochs=int(params["epochs"])
-    )
-```
-
----
-
-## 5 · What Can Go Wrong — Tracking Pitfalls and Fixes
+## 4 · What Can Go Wrong — Tracking Pitfalls and Fixes
 
 | Pitfall | Symptom | Fix |
 |---|---|---|
@@ -495,7 +358,7 @@ def reproduce_experiment(run_id):
 
 ---
 
-## 6 · Progress Check — Can You Identify the Best Run?
+## 5 · Progress Check — Can You Identify the Best Run?
 
 **Scenario:** You're looking at the MLflow UI after running a hyperparameter sweep. The table shows:
 
@@ -544,7 +407,7 @@ def reproduce_experiment(run_id):
 
 ---
 
-## 7 · Bridge to Ch.10 — Production ML Monitoring & A/B Testing
+## 6 · Bridge to Ch.10 — Production ML Monitoring & A/B Testing
 
 You've just logged 100 experiments, registered the best model, and versioned your dataset. **Congratulations — your model is reproducible.** But the moment you deploy it to production, new questions emerge:
 

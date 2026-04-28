@@ -71,7 +71,7 @@ flowchart LR
 
 **The computational insight:** Polynomial features are about **efficient preprocessing**, not clever math tricks.
 
-### Why Preprocessing Matters
+### 1.1 · Why Preprocessing Matters
 
 **Without polynomial features (computing on-the-fly):**
 ```python
@@ -102,7 +102,7 @@ for epoch in range(10000):
 
 **The savings:** 330 million → 33,000 computations. That's a **10,000× speedup** on the non-linear part.
 
-### What's Actually Happening
+### 1.2 · What's Actually Happening
 
 When you call `PolynomialFeatures(degree=2)`:
 ```python
@@ -122,7 +122,7 @@ $$\hat{y} = w_1 \cdot \text{MedInc} + w_2 \cdot \text{MedInc}^2 + b$$
 
 That's a **dot product** — the fastest operation in linear algebra. No squaring, no powers, just multiply and add.
 
-### The "Trick" — Each Feature Gets Its Own Weight
+### 1.3 · The "Trick" — Each Feature Gets Its Own Weight
 
 **Here's the key insight:** The linear regression model has **no idea** that `MedInc²` came from `MedInc`. To the model, they look like two completely independent features:
 
@@ -149,7 +149,7 @@ If the model *knew* they were related, it might try to share weights or impose c
 
 **The result:** A linear model (simple, fast, interpretable) achieves non-linear predictions (curves, interactions) by treating engineered features as independent inputs.
 
-### The Linear Paradox
+### 1.4 · The Linear Paradox
 
 "Linear Regression" doesn't mean "draws straight lines" — it means **linear in how it combines features**:
 
@@ -159,7 +159,7 @@ The math is **linear** (just weighted addition), but the result is **non-linear*
 
 ---
 
-### The Feature Engineering Workflow
+### 1.5 · The Feature Engineering Workflow
 
 ```mermaid
 flowchart LR
@@ -178,7 +178,7 @@ flowchart LR
 
 ---
 
-#### California Housing Example — How Weights Balance Polynomial Terms
+#### 1.5.1 · California Housing Example — How Weights Balance Polynomial Terms
 
 **The Data:** MedInc → MedHouseVal curve showing diminishing returns at high incomes
 
@@ -201,7 +201,7 @@ $$\hat{y} = \underbrace{0.3}_{\text{base}} \cdot \text{MedInc} + \underbrace{0.0
 
 ---
 
-### Why Standardization is Critical
+#### 1.5.2 · Why Standardization is Critical
 
 Without scaling, weights don't reflect importance—they reflect feature magnitude:
 
@@ -217,7 +217,7 @@ Without scaling, weights don't reflect importance—they reflect feature magnitu
 
 ---
 
-#### Feature Explosion Scale
+#### 1.5.3 · Feature Explosion Scale
 
 | Raw features | Degree 2 | Degree 3 | Degree 4 |
 |-------------|----------|----------|----------|
@@ -300,7 +300,7 @@ The golden rule: **pick the degree with the lowest test MAE**, not the lowest tr
 
 ## 4 · Step by Step — The Feature Engineering Workflow
 
-### The Complete Pipeline
+### 4.1 · The Complete Pipeline
 
 ```python
 from sklearn.pipeline import Pipeline
@@ -329,7 +329,7 @@ print(f"MAE: ${mae:,.0f}")  # ~$48k (from $55k — 13% improvement!)
 
 ---
 
-### Degree Selection — Finding the Sweet Spot
+### 4.2 · Degree Selection — Finding the Sweet Spot
 
 **The golden rule:** Test multiple degrees and pick the one with lowest **test** MAE (not train MAE).
 
@@ -386,7 +386,7 @@ flowchart TD
 
 ## 5 · Key Diagrams
 
-### The Polynomial Combination Animation
+### 5.1 · The Polynomial Combination Animation
 
 ![Polynomial terms combining animation](img/ch04-polynomial-combination.gif)
 
@@ -394,13 +394,13 @@ flowchart TD
 
 ---
 
-### Feature Expansion Visualization
+### 5.2 · Feature Expansion Visualization
 
 ![Feature expansion from 8 to 44](img/ch04-feature-expansion-diagram.png)
 
 *Starting with 8 raw features, PolynomialFeatures(degree=2) expands them into 44 features: 8 original + 8 squared + 28 interaction terms. Each group captures a different type of relationship.*
 
-### Why Interactions Matter
+### 5.3 · Why Interactions Matter
 
 ```
 Without interaction (additive model):
@@ -418,7 +418,7 @@ With interaction:
   Difference: $1.6 (≈$160k) — coastal premium AMPLIFIED by income! ✅
 ```
 
-### Degree Selection Visual
+### 5.4 · Degree Selection Visual
 
 ![Degree selection U-curve](img/ch04-bias-variance-curve.png)
 
@@ -443,87 +443,9 @@ With interaction:
 
 ---
 
-## 7 · Code Skeleton
+## 7 · What Can Go Wrong
 
-```python
-import numpy as np
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.linear_model import LinearRegression
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import mean_absolute_error
-
-# 1. Load data
-data = fetch_california_housing()
-X, y = data.data, data.target
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-# 2. Build pipeline: Poly → Scale → Fit
-pipe = Pipeline([
-    ('poly', PolynomialFeatures(degree=2, include_bias=False)),
-    ('scaler', StandardScaler()),
-    ('model', LinearRegression())
-])
-
-# 3. Fit and evaluate
-pipe.fit(X_train, y_train)
-y_pred = pipe.predict(X_test)
-
-mae = mean_absolute_error(y_test, y_pred) * 100_000
-print(f"Degree 2 Polynomial Regression:")
-print(f"  Features: {pipe.named_steps['poly'].n_output_features_}")
-print(f"  MAE: ${mae:,.0f}")
-
-# 4. Cross-validate to check stability
-cv_scores = cross_val_score(pipe, X_train, y_train, 
-                            cv=5, scoring='neg_mean_absolute_error')
-cv_mae = -cv_scores.mean() * 100_000
-print(f"  CV MAE: ${cv_mae:,.0f}  (±${cv_scores.std() * 100_000:,.0f})")
-
-# 5. Degree sweep — find optimal degree
-for deg in [1, 2, 3, 4]:
-    p = Pipeline([
-        ('poly', PolynomialFeatures(degree=deg, include_bias=False)),
-        ('scaler', StandardScaler()),
-        ('model', LinearRegression())
-    ])
-    p.fit(X_train, y_train)
-    train_mae = mean_absolute_error(y_train, p.predict(X_train)) * 100_000
-    test_mae = mean_absolute_error(y_test, p.predict(X_test)) * 100_000
-    n_feats = p.named_steps['poly'].n_output_features_
-    gap = test_mae - train_mae
-    flag = " ⚠️ OVERFITTING" if gap > 5000 else ""
-    print(f"  Degree {deg}: {n_feats:4d} features | "
-          f"Train ${train_mae:,.0f} | Test ${test_mae:,.0f} | "
-          f"Gap ${gap:,.0f}{flag}")
-```
-
-### Inspecting Top Polynomial Features
-
-```python
-# Which polynomial features matter most?
-poly = pipe.named_steps['poly']
-feature_names = poly.get_feature_names_out(data.feature_names)
-weights = pipe.named_steps['model'].coef_
-
-top_features = sorted(
-    zip(feature_names, weights), key=lambda x: abs(x[1]), reverse=True
-)[:10]
-
-print("\nTop 10 polynomial features (by |weight|):")
-for name, w in top_features:
-    print(f"  {name:30s}: {w:+.4f}")
-```
-
----
-
-## 8 · What Can Go Wrong
-
-### Failure Mode 1 — Wrong Degree (Underfit or Overfit)
+### 7.1 · Failure Mode 1 — Wrong Degree (Underfit or Overfit)
 
 **Underfit at degree 1:** The linear model can only draw a straight line through the income-value scatter. Residuals show systematic curvature (all positive above $300k, all negative below $150k). No parameter combination can fix this — the model structurally cannot represent curves.
 
@@ -537,7 +459,7 @@ Test  MAE (U-shaped):  70k → 55k → 48k → 50k → 55k → 62k → 70k → 8
 Choose degree:                        ↑ 2 ← sweet spot
 ```
 
-### Failure Mode 2 — Feature Scaling Forgotten
+### 7.2 · Failure Mode 2 — Feature Scaling Forgotten
 
 After `PolynomialFeatures(degree=2)`, the feature ranges become:
 
@@ -561,7 +483,7 @@ Pipeline([
 
 Scaling before expansion is wrong because `(2x)² = 4x² ≠ x²` — the scaler changes the polynomial geometry.
 
-### Failure Mode 3 — Interaction Terms Inflating Multicollinearity
+### 7.3 · Failure Mode 3 — Interaction Terms Inflating Multicollinearity
 
 When you add `MedInc²` and `MedInc × HouseAge`, both are partly explained by `MedInc`. The correlation between `MedInc` and `MedInc²` on California Housing is **ρ ≈ 0.96** — near-perfect linear dependence.
 
@@ -578,7 +500,7 @@ where $R^2_j$ is the $R^2$ from regressing $x_j$ on all other features. When Med
 
 **Fix:** Standardize after expansion (reduces VIF), and/or use Lasso regularization (Ch.5) which sets correlated weights to zero automatically.
 
-### Diagnostic Flowchart
+### 7.4 · Diagnostic Flowchart
 
 ```mermaid
 flowchart TD
@@ -610,9 +532,9 @@ flowchart TD
 
 ---
 
-## 9 · Progress Check
+## 8 · Progress Check
 
-### What Polynomial Features Actually Unlocked
+### 8.1 · What Polynomial Features Actually Unlocked
 
 The two highest-impact additions on California Housing are `MedInc²` and `MedInc × Latitude`. Here is the empirical evidence:
 
@@ -653,7 +575,7 @@ flowchart LR
 
 > ⚡ **Constraint #1 status:** $48k — only $8k from the $40k target. Ch.5 regularization closes the final gap by suppressing the noisy polynomial features, leaving only the signal-carrying ones.
 
-### Unlocked Capabilities
+### 8.2 · Unlocked Capabilities
 
 ✅ **Unlocked:**
 - **Non-linear predictions** from a linear algorithm (polynomial features)
@@ -691,7 +613,7 @@ flowchart LR
 
 ---
 
-## 10 · Bridge to Chapter 5
+## 9 · Bridge to Chapter 5
 
 Ch.4 reached $48k MAE — tantalizingly close to the $40k target. The pipeline is:
 

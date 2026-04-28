@@ -1,0 +1,17 @@
+# Prometheus configuration for PixelSmith
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'pixelsmith'
+    static_configs:
+      - targets: ['pixelsmith-api:8000']
+        labels:
+          service: 'pixelsmith'
+          environment: 'production'
+  
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

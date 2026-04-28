@@ -11,13 +11,13 @@ canonical_chapters: ["notes/07-devops_fundamentals/ch01_docker_fundamentals/READ
 voice: second_person_practitioner
 register: technical_but_conversational
 concept_motivation: required_before_each_tool
-hands_on_walkthroughs: production_stack_flask_postgresql_redis_explicit_commands
+hands_on_walkthroughs: judicious_production_stack_commands_when_clarifying
 running_example: production_stack_only_no_synthetic_except_minimal_demos
 failure_first_pedagogy: true
 callout_system: {insight:"💡", warning:"⚠️", constraint:"⚡", optional_depth:"📖", forward_pointer:"➡️"}
 mermaid_color_palette: {primary:"#1e3a8a", success:"#15803d", caution:"#b45309", danger:"#b91c1c", info:"#1d4ed8"}
 image_background: dark_facecolor_1a1a2e_for_generated_diagrams
-section_template: [story_header, challenge_0, animation, core_idea_1, running_example_2, mental_model_3, step_by_step_4, key_diagrams_5, configuration_dial_6, code_skeleton_7, what_can_go_wrong_8, progress_check_N, bridge_N1]
+section_template: [story_header, challenge_0, animation, core_idea_1, running_example_2, mental_model_3, step_by_step_4, key_diagrams_5, configuration_dial_6, what_can_go_wrong_7, progress_check_N, bridge_N1]
 infrastructure_style: concrete_deployment_then_abstraction
 ascii_architecture_diagrams: required_for_multi_component_systems
 forward_backward_links: every_concept_links_to_where_introduced_and_where_reappears
@@ -162,10 +162,7 @@ Every chapter README follows this **extended structure**:
 ## 6 · The Configuration Dial
 (the main tunable parameter, its effect, typical starting value)
 
-## 7 · Code Skeleton
-(minimal shell commands or YAML — illustrative, copy-paste runnable)
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 (3–5 bullet traps, each one sentence + Fix)
 
 ## N-1 · Where This Reappears
@@ -660,6 +657,270 @@ Before publishing any chapter:
 - Labeled clearly: "Optional: Azure Deployment"
 - In supplemental notebooks: `notebook_supplement.ipynb`
 - Never required for core learning outcomes
+
+---
+
+## Track Grand Solution Template
+
+> **New pattern (2026):** Each major track (Regression, Classification, Neural Networks, etc.) now includes a `grand_solution.md` that synthesizes all chapters into a single revision document. This is for readers who need the big picture quickly or want a concise reference after completing all chapters.
+
+### Purpose & Audience
+
+**Target reader:** Someone who either:
+1. Doesn't have time to read all chapters but needs to understand the concepts
+2. Completed all chapters and wants a single-page revision guide
+3. Needs to explain the track's narrative arc to stakeholders
+
+**Not a replacement for:** Individual chapters. This is a synthesis, not a tutorial.
+
+### Structure (Fixed Order)
+
+Every `grand_solution.md` follows this **7-section template**:
+
+```markdown
+# [Track Name] Grand Solution — [Grand Challenge Name]
+
+> **For readers short on time:** [One-sentence summary of what this document does]
+
+---
+
+## Mission Accomplished: [Final Metric] ✅
+
+**The Challenge:** [One-sentence restatement of grand challenge]
+**The Result:** [Final metric achieved]
+**The Progression:** [ASCII diagram or table showing chapter-by-chapter improvement]
+
+---
+
+## The N Concepts — How Each Unlocked Progress
+
+### Ch.1: [Concept Name] — [One-Line Tagline]
+
+**What it is:** [2-3 sentences max, plain English]
+
+**What it unlocked:**
+- [Metric improvement]
+- [Specific capability]
+- [New dial/technique]
+
+**Production value:**
+- [Why this matters in deployed systems]
+- [Cost/performance trade-offs]
+- [When to use vs alternatives]
+
+**Key insight:** [One sentence — the "aha" moment]
+
+---
+
+[Repeat for all chapters in track]
+
+---
+
+## Production ML System Architecture
+
+[Mermaid diagram showing how all concepts integrate]
+
+### Deployment Pipeline (How Ch.X-Y Connect in Production)
+
+**1. Training Pipeline:**
+```python
+# [Code showing integration of all chapters]
+```
+
+**2. Inference API:**
+```python
+# [Code showing production prediction flow]
+```
+
+**3. Monitoring Dashboard:**
+```python
+# [Code showing health checks and alerts]
+```
+
+---
+
+## Key Production Patterns
+
+### 1. [Pattern Name] (Ch.X + Ch.Y + Ch.Z)
+**[Pattern description]**
+- [Rule 1]
+- [Rule 2]
+- [When to apply]
+
+[Repeat for 3-5 major patterns]
+
+---
+
+## The 5 Constraints — Final Status
+
+| # | Constraint | Target | Status | How We Achieved It |
+|---|------------|--------|--------|--------------------|
+| #1 | ACCURACY | [target] | ✅ [metric] | [Chapter + technique] |
+| ... | ... | ... | ... | ... |
+
+---
+
+## What's Next: Beyond [Track Name]
+
+**This track taught:** [3-5 key takeaways as checklist]
+
+**What remains for [Grand Challenge]:** [Gaps that require other tracks]
+
+**Continue to:** [Link to next track]
+
+---
+
+## Quick Reference: Chapter-to-Production Mapping
+
+| Chapter | Production Component | When To Use |
+|---------|---------------------|-------------|
+| Ch.1 | [Component] | [Decision rule] |
+| ... | ... | ... |
+
+---
+
+## The Takeaway
+
+[3-4 paragraphs summarizing the universal principles learned]
+
+**You now have:**
+- [Deliverable 1]
+- [Deliverable 2]
+- [Deliverable 3]
+
+**Next milestone:** [Preview of next track's goal]
+```
+
+---
+
+### Grand Solution Notebook Pattern (`grand_solution.ipynb`)
+
+> **New pattern (2026):** Alongside `grand_solution.md`, each major track now includes an executable `grand_solution.ipynb` notebook that consolidates all code examples into a single runnable demonstration.
+
+**Purpose:**
+- Provide an end-to-end executable walkthrough of the entire track
+- Consolidate code examples from all chapters in logical sequence
+- Allow learners to run the complete solution from top to bottom
+- Serve as a reference implementation for the grand challenge
+
+**Structure:**
+
+```
+Cell 1 (Markdown): Introduction
+  - Mission statement
+  - 5 constraints or grand challenge
+  - Chapter progression summary
+  - Note about prerequisites/setup
+
+Cell 2 (Markdown): Setup
+  - Required libraries
+  - Import statements
+
+Cell 3 (Python): Imports and setup code
+  - Import all necessary libraries
+  - Helper functions
+  - Configuration
+
+[For each chapter:]
+Cell N (Markdown): Ch.X: [Concept] — [Tagline]
+  - What it unlocks (2-3 bullets)
+  - Key concept (1 sentence)
+  - Production value (1-2 bullets)
+
+Cell N+1 (Python or Markdown): Code example
+  - Extract actual code from chapter
+  - Or show configuration snippets for infrastructure concepts
+  - Keep examples concise but complete
+
+[End:]
+Cell M (Markdown): Final Integration
+  - Mermaid diagram showing system architecture
+  - How all concepts connect
+
+Cell M+1 (Markdown): Summary
+  - Mission accomplished status table
+  - Key insights from journey
+  - Next steps
+```
+
+**Guidelines for DevOps/Infrastructure Tracks:**
+- **For Python code:** Use actual executable code in Python cells
+- **For shell commands:** Show commands in Markdown with syntax highlighting or use Python's `subprocess`
+- **For configuration files:** Display YAML/HCL/Nginx configs in Python strings or Markdown code blocks
+- **For demonstrations:** Use helper functions to display commands with descriptions
+- **Keep it educational:** Not all examples need to be runnable on reader's machine — focus on showing patterns
+
+**Example helper function for shell commands:**
+```python
+def show_command(cmd, description=""):
+    """Display a shell command with optional description"""
+    if description:
+        print(f"📋 {description}")
+    print(f"$ {cmd}\n")
+```
+
+**Cross-references:**
+- Update `grand_solution.md` to reference the notebook in the opening section
+- Add link to notebook in track README under "Quick Start" or "Getting Started"
+
+---
+
+### Voice & Style Rules for Grand Solutions
+
+**Tone:** Executive summary meets technical reference. You're briefing a senior engineer who's smart but time-constrained.
+
+**Voice patterns:**
+- ✅ **Direct:** "Ch.3 unlocked VIF auditing. This prevents multicollinearity."
+- ❌ **Verbose:** "In Chapter 3, we learned about an important technique called VIF auditing, which is a method that helps us identify and prevent issues related to multicollinearity in our features."
+- ✅ **Metric-focused:** "$70k → $32k MAE (54% improvement)"
+- ❌ **Vague:** "Much better accuracy than before"
+- ✅ **Production-grounded:** "VIF audit runs before every training job. Alert if VIF > 5."
+- ❌ **Academic:** "VIF is a useful diagnostic statistic for assessing multicollinearity."
+
+**Content density:**
+- Each chapter summary: 150-200 words max
+- Each "Key insight": One sentence, no exceptions
+- Code blocks: 15-25 lines max (illustrative, not exhaustive)
+- Mermaid diagrams: 1-2 per document (architecture + maybe progression)
+
+**What to include:**
+- ✅ Exact metrics at each stage ($70k, $55k, $48k, ...)
+- ✅ Specific hyperparameters that matter (α=1.0, degree=2, ...)
+- ✅ Production patterns (when/why to use each technique)
+- ✅ Chapter interdependencies ("Ch.4 requires Ch.3's scaling")
+- ✅ Mermaid flowchart showing full pipeline integration
+
+**What to exclude:**
+- ❌ Mathematical derivations (that's in individual chapters)
+- ❌ Historical context (who invented what, when)
+- ❌ Step-by-step tutorials (that's in chapter READMEs)
+- ❌ Exercise problems (that's in notebooks)
+- ❌ Duplicate content across sections (say it once, reference it later)
+
+**Formatting conventions:**
+- Use checkmark bullets for capabilities unlocked: ✅ ❌ ⚡ ➡️
+- Show progression as ASCII tables or code block diagrams
+- Use `inline code` for hyperparameters, `$metric$` for dollars
+- Chapter references: "Ch.3" or "Ch.5-7" (never "Chapter Five")
+- Bold for emphasis: **only** for metrics, constraints, or first-mention concepts
+
+**Structure discipline:**
+- **Every chapter summary** must have all 4 subsections (What it is / What it unlocked / Production value / Key insight)
+- **Production patterns** section must show code — not just prose
+- **Mermaid architecture diagram** is mandatory — shows end-to-end flow
+- **Quick Reference table** is mandatory — chapter → production component mapping
+
+**Update triggers:**
+When adding a new chapter to a track:
+1. Add chapter summary to "The N Concepts" section
+2. Update progression diagram/table with new metrics
+3. Add chapter to "Production Patterns" if it introduces a new pattern
+4. Update "Quick Reference" table with new chapter's production component
+5. Update final metrics in "Mission Accomplished" and "5 Constraints" sections
+
+---
+
+**Note:** Interview checklists are maintained in the centralized [Interview_guide.md](interview-guide.md) file, not in individual chapters.
 
 ---
 

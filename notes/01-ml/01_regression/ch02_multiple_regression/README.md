@@ -59,11 +59,11 @@ flowchart LR
     style TARGET fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
----
-
-## Animation
+### 0.1 · Animation
 
 ![Chapter animation](img/ch02-multiple-regression-needle.gif)
+
+---
 
 ## 1 · Core Idea
 
@@ -271,7 +271,7 @@ Xᵀ · e                                            (2×3) · (3×1) → (2×1)
 >
 > The transpose appears precisely at the chain-rule step: the Jacobian $\mathbf{X}$ maps weight-space to error-space ($d \to n$), and multiplying by $\mathbf{X}^\top$ maps back from error-space to weight-space ($n \to d$).
 >
-> 📖 **Jacobians and the full matrix chain rule** are derived in [MathUnderTheHood ch06 — Gradient & Chain Rule](../../../math_under_the_hood/ch06_gradient_chain_rule).
+> 📖 **Jacobians and the full matrix chain rule** are derived in [MathUnderTheHood ch06 — Gradient & Chain Rule](../../../00-math_under_the_hood/ch06_gradient_chain_rule).
 
 > 💡 **The transpose is the backprop rule.** In a neural network, `Xᵀ @ error` is exactly what the backward pass through a linear layer computes. Every time you call `loss.backward()` in PyTorch, this matrix multiply is running — one per layer. Understanding it here, for a 3-row California Housing dataset, is the entire conceptual foundation of neural network backpropagation.
 
@@ -444,7 +444,7 @@ A = (1/3) XᵀX,  where XᵀX entries are:
 
 Eigenvalues: $\lambda_1 \approx 2.39$, $\lambda_2 \approx 0.28$ → ratio ≈ 8.5. A mildly elongated bowl — gradient descent converges reasonably fast. This is the geometry you get **because** we standardized the features.
 
-> 📖 **Eigenvalues and quadratic forms** are covered in [MathUnderTheHood ch05 — Matrices](../../../math_under_the_hood/ch05_matrices).
+> 📖 **Eigenvalues and quadratic forms** are covered in [MathUnderTheHood ch05 — Matrices](../../../00-math_under_the_hood/ch05_matrices).
 
 ![Loss surface: unscaled features (elongated ellipse, zigzag path) vs. scaled features (circular bowl, smooth path)](img/loss_surface_ellipse.png)
 
@@ -485,7 +485,7 @@ In ordinary least squares, the exact variance of the estimated coefficient $\hat
 
 $$\text{Var}(\hat{w}_j) = \frac{\sigma^2}{n \cdot \text{Var}(x_j)} \cdot \underbrace{\frac{1}{1 - R^2_j}}_{\text{VIF}_j}$$
 
-where $\sigma^2$ is the true residual variance (irreducible noise in the target), $n$ is the number of samples, and $\text{Var}(x_j)$ is the variance of feature $j$.
+where $\sigma^2$ is the true residual variance (irreducible noise in the target), $n$ is the number of samples, $\text{Var}(x_j)$ is the variance of feature $j$, and $R^2_j$ is the R² you get when you regress feature $j$ on all *other* features (not on the target) — this measures how much feature $j$ overlaps with the rest of the feature set.
 
 | Term | Meaning |
 |------|---------|
@@ -556,11 +556,14 @@ Multicollinearity is exactly why you cannot read raw weights as a trustworthy ra
 
 ### 4.7 · Residuals
 
-A **residual** is the signed difference between each sample's actual value and the model's prediction:
+> **Quick review:** A **residual** is the signed difference between actual and predicted values: $e_i = y_i - \hat{y}_i$. See Ch.1 §4 for the full introduction to residuals and residual plots.
 
-$$e_i = y_i - \hat{y}_i$$
+In Ch.1 we learned residuals are the model's errors — the parts of reality it can't explain. In **multiple regression**, residuals become even more powerful because they can reveal which **feature interactions** or **non-linearities** your linear model is missing.
 
-Residuals are what the model *cannot explain*. Studying their distribution answers the core diagnostic question: **is the model's error random noise, or is there exploitable structure the linear model is missing?**
+**Key insight for multiple features:** With one feature ($y = wx + b$), a residual plot's U-shape tells you "add $x^2$." With multiple features, patterns in residuals can reveal:
+- **Missing interaction terms:** If the model under-predicts when both `MedInc` and `Latitude` are high, you need `MedInc × Latitude`.
+- **Feature-specific non-linearity:** Residuals plotted against a specific feature $x_j$ (not $\hat{y}$) can show that *that particular feature* needs $x_j^2$.
+- **Omitted important features:** If residuals correlate with time, geography, or categorical groups, you're missing a signal.
 
 #### Properties of well-behaved residuals
 
@@ -569,7 +572,7 @@ Under the Gauss-Markov assumptions (the conditions that guarantee OLS is the bes
 | Property | Formal condition | Violation signals |
 |---|---|---|
 | **Mean zero** | $\sum_i e_i = 0$ (always true for OLS with intercept) | Systematic bias in predictions |
-| **No pattern vs ŷ** | $e_i$ is independent of $\hat{y}_i$ | Non-linearity in the model |
+| **No pattern vs ŷ** | $e_i$ is independent of $\hat{y}_i$ | Non-linearity or missing features |
 | **Homoscedastic** | $\text{Var}(e_i)$ constant across $\hat{y}$ | Variance grows with target → try log transform |
 | **Uncorrelated with features** | $e_i$ independent of each $x_{ij}$ | Missing interaction term or non-linear feature |
 
@@ -593,6 +596,8 @@ If any of these are violated, linear regression is still valid for prediction �
                                features (→ Ch.4)
 ```
 
+**Beyond the standard residual plot ($e$ vs $\hat{y}$):** With multiple features, also plot $e_i$ against each feature $x_{ij}$ separately. If you see a pattern against `HouseAge` but not `MedInc`, you know `HouseAge` needs a polynomial term or binning.
+
 #### Concrete numbers from this chapter — Epoch 1 residuals
 
 At the start of gradient descent (all weights = 0), every prediction is 0.0. Residuals equal the targets:
@@ -604,6 +609,21 @@ At the start of gradient descent (all weights = 0), every prediction is 0.0. Res
 | 3 | 3.521 | 0.000 | **+3.521** | Model too low |
 
 All residuals positive — systematic underprediction. The gradient signal **X**ᵀ**e** points every weight upward. After two epochs the residuals mix sign, but district 3 (highest price) consistently shows the largest residual — a hint that a linear combination of MedInc and HouseAge may not fully capture the highest-value districts.
+
+#### Advanced: Partial Residual Plots for Multiple Regression
+
+When you have many features, the standard residual plot can hide feature-specific issues. **Partial residual plots** (also called **component+residual plots**) isolate each feature's relationship with the target:
+
+$$\text{Partial residual for } x_j = e_i + \hat{\beta}_j x_{ij}$$
+
+This adds back feature $j$'s contribution to the residual, letting you see if the relationship between $x_j$ and $y$ is truly linear. If you see a curve in the partial residual plot for `HouseAge`, you need `HouseAge²` even if the overall residual plot looks okay.
+
+**When to use:**
+- Standard residual plot ($e$ vs $\hat{y}$) looks random
+- But test MAE is still high
+- Suspect one specific feature needs transformation
+
+**Example:** California Housing with 8 features. Standard residual plot shows random scatter (✅), but MAE is stuck at $50k. Partial residual plot for `Latitude` shows a strong U-shape → add `Latitude²` → MAE drops to $42k.
 
 #### Code for residual analysis
 
@@ -631,7 +651,33 @@ plt.tight_layout()
 plt.savefig('img/ch02_residual_plots.png')
 ```
 
+**Advanced: Partial residual plot for one feature**
+
+```python
+# Assume model is trained, X_test has feature names
+feature_name = 'HouseAge'
+j = X_test.columns.get_loc(feature_name)
+
+# Partial residual = e + β_j · x_j
+partial_resid = residuals + model.coef_[j] * X_test_s[:, j]
+
+plt.scatter(X_test_s[:, j], partial_resid, alpha=0.3, s=10)
+plt.xlabel(f'{feature_name} (standardized)')
+plt.ylabel(f'Partial residual for {feature_name}')
+plt.title('If you see a curve here, add {feature_name}²')
+plt.axhline(0, linestyle='--', color='red')
+plt.show()
+```
+
 > 💡 **If the residual vs fitted plot shows a U-shape**, your linear model is systematically wrong in a predictable way — adding polynomial features (Ch.4) directly corrects this. **If it shows a funnel (variance grows with ŷ)**, try `np.log1p(y)` before fitting — log-transforming the target often stabilises variance for house-price or income-style targets.
+
+> ⚡ **Multiple regression diagnosis checklist:**
+> 1. Plot $e$ vs $\hat{y}$ → checks overall model specification
+> 2. Plot $e$ vs each $x_j$ → finds which feature needs transformation  
+> 3. Partial residual plots → isolates non-linearity when many features interact
+> 4. Histogram of $e$ → checks if errors are normal (Gauss-Markov assumption)
+>
+> If all four look good and MAE is still high → you need more features, not better modeling of current ones.
 
 ---
 
@@ -772,93 +818,7 @@ Ch.1 used 1 feature. Ch.2 uses 8. But what if some features are noise? Adding ga
 
 ---
 
-## 8 · Code Skeleton
-
-```python
-import numpy as np
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, r2_score
-
-# 1. Load ALL 8 features
-data = fetch_california_housing()
-X = data.data          # (20640, 8) — ALL features
-y = data.target        # MedHouseVal
-
-# 2. Split
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-# 3. Standardize (critical for gradient descent, good practice always)
-scaler = StandardScaler()
-X_train_s = scaler.fit_transform(X_train)
-X_test_s = scaler.transform(X_test)  # Use TRAIN statistics!
-
-# 4. Fit (Normal Equation — sklearn does this internally)
-model = LinearRegression()
-model.fit(X_train_s, y_train)
-
-# 5. Evaluate
-y_pred = model.predict(X_test_s)
-mae = mean_absolute_error(y_test, y_pred) * 100_000  # Convert to dollars
-r2 = r2_score(y_test, y_pred)
-n, d = X_test_s.shape
-adj_r2 = 1 - (1 - r2) * (n - 1) / (n - d - 1)
-
-print(f"MAE:  ${mae:,.0f}")
-print(f"R²:   {r2:.4f}")
-print(f"Adj R²: {adj_r2:.4f}")
-
-# 6. Feature importance (standardized weights)
-for name, w in sorted(
-    zip(data.feature_names, model.coef_), key=lambda x: abs(x[1]), reverse=True
-):
-    print(f"  {name:12s}: {w:+.4f}")
-```
-
-### VIF Check
-
-```python
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-
-# VIF must be computed on UN-standardized (but centered) data
-vif_data = np.column_stack([np.ones(X_train_s.shape[0]), X_train_s])
-for i, name in enumerate(data.feature_names):
-    vif = variance_inflation_factor(vif_data, i + 1)  # +1 to skip intercept
-    flag = " ⚠️" if vif > 5 else ""
-    print(f"  {name:12s}: VIF = {vif:.1f}{flag}")
-```
-
-### Manual Gradient Descent (Vectorized)
-
-```python
-# Educational: gradient descent from scratch with 8 features
-w = np.zeros(8)
-b = 0.0
-alpha = 0.01
-n = len(X_train_s)
-
-for epoch in range(300):
-    y_hat = X_train_s @ w + b          # (n,)  — vectorized forward pass
-    error = y_hat - y_train             # (n,)
-    
-    dw = (2 / n) * (X_train_s.T @ error)  # (8,) — gradient for ALL weights
-    db = (2 / n) * np.sum(error)           # scalar
-    
-    w -= alpha * dw
-    b -= alpha * db
-    
-    if epoch % 50 == 0:
-        mae = np.mean(np.abs(error)) * 100_000
-        print(f"Epoch {epoch:3d} | MAE: ${mae:,.0f}")
-```
-
----
-
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 - **Forgetting to standardize** — Without scaling, gradient descent takes enormous steps for high-range features (Population: 3–35,682) and tiny steps for low-range features (MedInc: 0.5–15). The optimizer oscillates along the Population axis while barely moving along MedInc. **Fix:** Always `StandardScaler()` before gradient-based training. Not needed for `sklearn.LinearRegression` (uses Normal Equation internally), but critical for manual GD and all neural networks later.
 
@@ -892,7 +852,7 @@ flowchart TD
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ✅ **Unlocked capabilities:**
 - **Multi-feature model**: Uses all 8 California Housing features simultaneously
@@ -932,7 +892,7 @@ flowchart LR
 
 ---
 
-## 11 · Bridge to Chapter 3
+## 10 · Bridge to Chapter 3
 
 Ch.2 showed that using all 8 features improves MAE from $70k to $55k. Before adding polynomial non-linearities, the next step is a diagnostic pass: **which of these 8 features is actually driving the model, which is redundant, and which is near-useless?** Ch.3 (Feature Scaling, Importance & Multicollinearity) opens with *why* standardization is a prerequisite for any importance ranking, then covers exactly those questions — univariate R² per feature, VIF for collinearity, and permutation importance for the joint picture.
 

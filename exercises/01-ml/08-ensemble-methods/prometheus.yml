@@ -1,0 +1,11 @@
+# Prometheus configuration for EnsembleAI
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'ensembleai-api'
+    static_configs:
+      - targets: ['ensembleai-api:5000']
+    metrics_path: '/metrics'

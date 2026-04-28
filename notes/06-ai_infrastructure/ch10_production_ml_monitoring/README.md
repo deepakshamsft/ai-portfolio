@@ -152,6 +152,8 @@ log_prediction({
 
 ### Step 2: Monitor Data Drift (Input Distribution Changes)
 
+> 💡 **Intuition first:** **Data drift measures how much the production input distribution has shifted away from training data**. If your model was trained on movie reviews (200 words, balanced sentiment) but production serves product reviews (50 words, 75% positive), the input distributions P(X<sub>train</sub>) and P(X<sub>prod</sub>) have diverged. Drift metrics like **KL divergence** and **PSI** (Population Stability Index) quantify this shift — high values mean "your model is seeing data it wasn't trained on, so performance may degrade." Think of drift detection as an **early warning system**: it alerts you *before* accuracy drops, giving you time to retrain.
+
 **After 1 week of production traffic**, compare production inputs vs. training data:
 
 ```python
@@ -380,230 +382,7 @@ TRAINING ENVIRONMENT                  PRODUCTION ENVIRONMENT
 
 ---
 
-## 4 · Code Skeleton — Evidently Monitoring + A/B Test Controller
-
-### 4.1 · Setup Production Logging
-
-```python
-import sqlite3
-from datetime import datetime
-
-# Initialize SQLite database for prediction logging
-conn = sqlite3.connect("production_predictions.db")
-cursor = conn.cursor()
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS predictions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp DATETIME,
-    model_version TEXT,
-    input_text TEXT,
-    prediction INTEGER,
-    confidence FLOAT,
-    latency_ms FLOAT,
-    user_id TEXT,
-    ground_truth INTEGER NULL  -- Filled later when labels arrive
-)
-""")
-conn.commit()
-
-def log_prediction(data):
-    """Log every prediction to SQLite."""
-    cursor.execute("""
-        INSERT INTO predictions (timestamp, model_version, input_text, prediction, confidence, latency_ms, user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        data["timestamp"],
-        data["model_version"],
-        data["input_text"],
-        data["prediction"],
-        data["confidence"],
-        data["latency_ms"],
-        data["user_id"]
-    ))
-    conn.commit()
-```
-
-### 4.2 · Generate Drift Report (Evidently AI)
-
-```python
-from evidently.report import Report
-from evidently.metric_preset import DataDriftPreset, ClassificationPreset
-import pandas as pd
-
-def generate_drift_report(training_data_path, production_data_query, output_html):
-    """Compare training vs. production data distributions."""
-    
-    # Load training data (reference)
-    training_df = pd.read_csv(training_data_path)
-    
-    # Load production data (last 7 days)
-    production_df = pd.read_sql(production_data_query, conn)
-    
-    # Generate report
-    report = Report(metrics=[
-        DataDriftPreset(),
-        ClassificationPreset()
-    ])
-    
-    report.run(reference_data=training_df, current_data=production_df)
-    report.save_html(output_html)
-    
-    # Extract drift scores
-    drift_detected = report.as_dict()["metrics"][0]["result"]["dataset_drift"]
-    
-    if drift_detected:
-        print("⚠️ Data drift detected — Review drift_report.html")
-        send_alert("Data drift detected in production")
-    else:
-        print("✅ No significant data drift")
-    
-    return drift_detected
-
-# Run daily
-generate_drift_report(
-    training_data_path="data/imdb_train.csv",
-    production_data_query="SELECT input_text, prediction FROM predictions WHERE timestamp > datetime('now', '-7 days')",
-    output_html="drift_report.html"
-)
-```
-
-### 4.3 · A/B Test Traffic Controller
-
-```python
-import hashlib
-
-def route_traffic(user_id, v2_percentage=10):
-    """Route traffic between v1 and v2 based on user_id hash."""
-    # Deterministic routing (same user always gets same version)
-    hash_value = int(hashlib.md5(user_id.encode()).hexdigest(), 16)
-    
-    if hash_value % 100 < v2_percentage:
-        return "v2"
-    else:
-        return "v1"
-
-def predict_with_ab_test(text, user_id, v2_percentage=10):
-    """Serve prediction from v1 or v2 based on A/B test config."""
-    
-    model_version = route_traffic(user_id, v2_percentage)
-    start_time = time.time()
-    
-    # Load model (cached in practice)
-    if model_version == "v1":
-        model = load_model("models:/bert-sentiment-classifier/v1")
-    else:
-        model = load_model("models:/bert-sentiment-classifier/v2")
-    
-    # Predict
-    prediction = model.predict(text)
-    confidence = model.predict_proba(text).max()
-    latency_ms = (time.time() - start_time) * 1000
-    
-    # Log prediction
-    log_prediction({
-        "timestamp": datetime.now(),
-        "model_version": model_version,
-        "input_text": text,
-        "prediction": prediction,
-        "confidence": confidence,
-        "latency_ms": latency_ms,
-        "user_id": user_id
-    })
-    
-    return prediction
-```
-
-### 4.4 · Compare A/B Test Metrics
-
-```python
-def compare_ab_metrics(metric="accuracy", last_hours=48):
-    """Compare v1 vs. v2 performance in A/B test."""
-    
-    # Query metrics for v1
-    v1_df = pd.read_sql(f"""
-        SELECT prediction, ground_truth
-        FROM predictions
-        WHERE model_version = 'v1'
-          AND ground_truth IS NOT NULL
-          AND timestamp > datetime('now', '-{last_hours} hours')
-    """, conn)
-    
-    # Query metrics for v2
-    v2_df = pd.read_sql(f"""
-        SELECT prediction, ground_truth
-        FROM predictions
-        WHERE model_version = 'v2'
-          AND ground_truth IS NOT NULL
-          AND timestamp > datetime('now', '-{last_hours} hours')
-    """, conn)
-    
-    # Compute accuracy
-    v1_accuracy = (v1_df["prediction"] == v1_df["ground_truth"]).mean()
-    v2_accuracy = (v2_df["prediction"] == v2_df["ground_truth"]).mean()
-    
-    print(f"v1 accuracy: {v1_accuracy:.2%} (n={len(v1_df)})")
-    print(f"v2 accuracy: {v2_accuracy:.2%} (n={len(v2_df)})")
-    
-    # Statistical significance (t-test)
-    from scipy.stats import ttest_ind
-    t_stat, p_value = ttest_ind(
-        v1_df["prediction"] == v1_df["ground_truth"],
-        v2_df["prediction"] == v2_df["ground_truth"]
-    )
-    
-    if p_value < 0.05 and v2_accuracy > v1_accuracy:
-        print(f"✅ v2 is significantly better (p={p_value:.4f})")
-        return "promote_v2"
-    elif p_value < 0.05 and v1_accuracy > v2_accuracy:
-        print(f"⚠️ v1 is significantly better (p={p_value:.4f}) — rollback v2")
-        return "rollback_to_v1"
-    else:
-        print(f"➡️ No significant difference (p={p_value:.4f})")
-        return "keep_testing"
-```
-
-### 4.5 · Automated Rollback
-
-```python
-def rollback_to_v1():
-    """Emergency rollback: switch all traffic to v1."""
-    
-    # Update traffic split (100% v1, 0% v2)
-    # In practice, this updates a config file or feature flag
-    update_config("v2_percentage", 0)
-    
-    # Log rollback event
-    cursor.execute("""
-        INSERT INTO deployment_events (timestamp, event_type, from_version, to_version, reason)
-        VALUES (?, 'rollback', 'v2', 'v1', 'accuracy < threshold')
-    """, (datetime.now(),))
-    conn.commit()
-    
-    # Send alert
-    send_alert("🚨 ROLLBACK: Model v2 → v1 due to performance degradation")
-    
-    print("✅ Rolled back to v1 (100% traffic)")
-
-def monitor_and_rollback(threshold_accuracy=0.90, check_interval_hours=1):
-    """Continuously monitor v2 accuracy and rollback if it drops."""
-    
-    while True:
-        v2_accuracy = get_accuracy(model="v2", last_hours=24)
-        
-        if v2_accuracy < threshold_accuracy:
-            print(f"⚠️ v2 accuracy {v2_accuracy:.2%} < threshold {threshold_accuracy:.2%}")
-            rollback_to_v1()
-            break
-        else:
-            print(f"✅ v2 accuracy {v2_accuracy:.2%} — OK")
-        
-        time.sleep(check_interval_hours * 3600)
-```
-
----
-
-## 5 · What Can Go Wrong — Monitoring Pitfalls and Fixes
+## 4 · What Can Go Wrong — Monitoring Pitfalls and Fixes
 
 | Pitfall | Symptom | Fix |
 |---|---|---|
@@ -618,7 +397,7 @@ def monitor_and_rollback(threshold_accuracy=0.90, check_interval_hours=1):
 
 ---
 
-## 6 · Progress Check — Given Drift Report, Decide: Rollback, Retrain, or Do Nothing?
+## 5 · Progress Check — Given Drift Report, Decide: Rollback, Retrain, or Do Nothing?
 
 **Scenario:** You've just reviewed the Evidently drift report after 7 days of production traffic. The table shows:
 
@@ -659,7 +438,7 @@ def monitor_and_rollback(threshold_accuracy=0.90, check_interval_hours=1):
 
 ---
 
-## 7 · Bridge to Future — Scaling to Multi-Model Systems
+## 6 · Bridge to Future — Scaling to Multi-Model Systems
 
 You've just built a robust monitoring + A/B testing pipeline for a single model. But production ML systems rarely deploy just one model. **What's next?**
 

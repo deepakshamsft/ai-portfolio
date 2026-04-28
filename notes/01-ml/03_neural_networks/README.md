@@ -1,14 +1,14 @@
 # Neural Networks Track
 
-> **The Mission**: Build **UnifiedAI** — prove that neural networks are universal function approximators that unify regression and classification under one architecture.
+> **The Mission**: Build **TransformerUnify** — prove that neural networks are universal function approximators that unify regression and classification under one architecture, AND that Transformers are mandatory for modern multi-modal AI.
 
 After mastering regression (Topic 01) and classification (Topic 02) as separate paradigms, this track reveals the deeper truth: **the same feedforward architecture + backpropagation → different output layer + loss function → solves both**. Everything from optimizers to regularization to monitoring works identically across tasks.
 
-The Regression track achieved <$40k MAE with classical linear and tree-based models. **This track's mission is to push further to ≤$28k MAE** and simultaneously reach ≥95% avg attribute accuracy on CelebA classification — proving that the same neural architecture handles both.
+The Regression track achieved <$40k MAE with tabular models alone. **This track's mission is to push further to ≤$35k MAE using multi-modal fusion** — combining tabular data (Ames Housing features), natural language descriptions (GPT-4 synthetic property listings), and aerial imagery (Google Street View) — proving that Transformers (Ch.9-10) are now **mandatory**, not optional, for handling text modality.
 
 ---
 
-## The Grand Challenge: Unification
+## The Grand Challenge: TransformerUnify — Multi-Modal Property Valuation
 
 | # | Claim | Evidence | Chapter |
 |---|-------|----------|---------|
@@ -19,36 +19,57 @@ The Regression track achieved <$40k MAE with classical linear and tree-based mod
 | **#5** | **Same sequential features** | RNNs/LSTMs handle time series (regression) and text (classification) | Ch.6 |
 | **#6** | **Same probabilistic foundation** | MSE derives from Gaussian MLE, BCE from Bernoulli MLE | Ch.7 |
 | **#7** | **Same monitoring** | TensorBoard tracks loss curves regardless of task | Ch.8 |
-| **#8** | **Same attention mechanism** | Q/K/V attention is task-agnostic | Ch.9–10 |
+| **#8** | **Transformers are mandatory** | Text descriptions REQUIRE Q/K/V attention (Ch.9) and multi-head self-attention (Ch.10) | Ch.9–10 |
 
-**Core Insight**: Swap the output activation (linear → sigmoid/softmax) and loss (MSE → BCE/CE), and the entire training pipeline — from forward pass to gradient update — is unchanged.
+**Core Insight**: Swap the output activation (linear → sigmoid/softmax) and loss (MSE → BCE/CE), and the entire training pipeline — from forward pass to gradient update — is unchanged. **New insight**: Multi-modal fusion with text requires Transformers — Ch.9-10 are no longer optional.
 
-> **Track Targets**: ≤$28k MAE on California Housing regression + ≥95% avg attribute accuracy on CelebA classification — using the same shared architecture, differing only in output head.
+> **Track Mission**: Achieve ≤$35k MAE on Ames Housing property valuation using **three modalities** — tabular features (dense encoder), natural language descriptions (Transformer encoder), and aerial images (CNN encoder). Each modality must contribute ≥$5k MAE improvement (ablation requirement).
 
 > ⚡ **Note on chapter numbering**: The AUTHORING_GUIDE references these chapters as Ch.3–Ch.10 in the old single-track layout. Within this track, they are numbered Ch.1–Ch.10.
 
-| # | Constraint | Target |
-|---|------------|--------|
-| **#1** | **ACCURACY** | ≤$28k MAE (regression) + ≥95% accuracy (classification) |
-| **#2** | **GENERALIZATION** | Generalise to unseen districts + new face identities |
-| **#3** | **MULTI-TASK** | Same architecture predicts value **and** classifies attributes |
-| **#4** | **INTERPRETABILITY** | Attention weights provide explainable feature attribution |
-| **#5** | **PRODUCTION** | <100ms inference, TensorBoard monitoring |
+### TransformerUnify Constraints
+
+| # | Constraint | Target | Required Chapters |
+|---|------------|--------|-------------------|
+| **#1** | **MULTI-MODAL FUSION** | ≤$35k MAE combining tabular + text + images | Ch.1–5 (dense + CNN), **Ch.9–10 (Transformers for text)** |
+| **#2** | **ABLATION PROOF** | Each modality improves MAE by ≥$5k vs. tabular-only baseline | Ch.1–2 (baseline), Ch.5 (images), **Ch.9–10 (text)** |
+| **#3** | **INTERPRETABILITY** | Attention heat maps showing which property description tokens drive valuation | **Ch.9 (attention mechanism)** |
+| **#4** | **PRODUCTION READY** | <150ms inference + TensorBoard loss/metric monitoring | Ch.8 (TensorBoard) |
+| **#5** | **GENERALIZATION** | Transfer to different city without retraining text encoder | Ch.4 (regularization), **Ch.10 (pre-trained Transformers)** |
+
+**Why Transformers are now MANDATORY**: Property descriptions like *"renovated kitchen, hardwood floors, walk to downtown"* contain rich semantic information that CNNs and RNNs cannot effectively encode. Only self-attention (Ch.9) and multi-head Transformers (Ch.10) can capture token relationships and contextual meaning required to meet constraint #2 (≥$5k text contribution) and #3 (interpretable attention).
 
 ---
 
 ## The Datasets
 
-Every chapter demonstrates unification using running examples that span regression and classification. The primary datasets are:
+Every chapter demonstrates unification using running examples that span regression and classification. The TransformerUnify grand challenge uses:
 
-| Dataset | Task | Features | Target |
-|---------|------|----------|--------|
-| **California Housing** | Regression | 8 census features (income, location, rooms…) | Median house value |
-| **CelebA** | Classification | 178×218 celebrity face images | 40 binary attributes (Smiling, Male, Young…) |
+### Grand Challenge Dataset: Multi-Modal Property Valuation
 
-> ⚠️ **Dataset note**: California Housing is used throughout (Ch.1–10). CelebA integration is planned but not yet fully implemented — several chapters (CNNs, RNNs, Transformers) currently use synthetic proxies (8×8 grids, sequence data, property text) as minimal illustrations before the full CelebA pipeline is added. The unification principle holds regardless.
+| Modality | Source | Features | Encoder |
+|----------|--------|----------|----------|
+| **Tabular** | Ames Housing (Kaggle) | 79 features (lot size, year built, quality ratings…) | Dense layers (Ch.1–2) |
+| **Text** | GPT-4 synthetic listings | Property descriptions (~200 tokens/listing) | **Transformer encoder (Ch.9–10)** |
+| **Images** | Google Street View API | 224×224 RGB aerial/street view | CNN encoder (Ch.5) |
 
-**Why these two?** California Housing is a familiar tabular regression problem from Topic 01. CelebA is a rich image classification problem. Showing the same network architecture handling both proves the unification thesis.
+**Target**: Sale price (regression) — ≤$35k MAE with all three modalities fused.
+
+### Pedagogical Datasets (Used in Individual Chapters)
+
+| Dataset | Task | Used In | Purpose |
+|---------|------|---------|----------|
+| **California Housing** | Regression | Ch.1–4 (foundational examples) | Simpler tabular baseline for teaching core concepts |
+| **CelebA** | Classification | Ch.5 (CNNs), planned for Ch.6, 9–10 | Image classification to prove unification principle |
+
+> ⚠️ **Dataset note**: Ch.1–4 use California Housing for foundational teaching (8 features, simpler than Ames). **Ch.5 onwards transitions to the full TransformerUnify challenge** using Ames Housing + text + images. CelebA is used in Ch.5 CNNs and will be integrated into Ch.6, 9–10 as the classification counterpart.
+
+**Why Ames + Text + Images?** The TransformerUnify challenge requires all 10 chapters to succeed:
+- **Tabular** (Ch.1–2): Dense encoder baseline
+- **Images** (Ch.5): CNN spatial features
+- **Text** (Ch.9–10): Transformer encoder for natural language — **this is what makes Ch.9-10 mandatory**
+- **Fusion** (Ch.8): TensorBoard monitoring of multi-modal training
+- **Transfer** (Ch.4, 10): Regularization + pre-trained text encoders for generalization
 
 ---
 
@@ -221,10 +242,21 @@ Work through Ch.1 → Ch.10 in order. Each chapter builds on previous concepts. 
 **"I need to understand Transformers"**
 → Ch.1–4, Ch.9–10 (Foundation + attention chapters)
 
+**"I need multi-modal AI / text encoding"**
+→ **Complete all 10 chapters** — TransformerUnify requires Transformers (Ch.9-10) for text modality
+
 **"I need the full picture"**
 → Complete all 10 chapters
 
-### By Unification Claim
+### By TransformerUnify Constraint
+
+- **#1 Multi-modal fusion**: Ch.1–5 (dense + CNN), **Ch.9–10 (Transformers for text)**
+- **#2 Ablation proof**: Ch.1–2 (baseline), Ch.5 (images), **Ch.9–10 (text contribution)**
+- **#3 Interpretability**: **Ch.9 (attention heat maps)**
+- **#4 Production ready**: Ch.8 (TensorBoard)
+- **#5 Generalization**: Ch.4 (regularization), **Ch.10 (pre-trained Transformers)**
+
+### By Original Unification Claim
 
 - **#1 Same architecture**: Ch.1, 2
 - **#2 Same training**: Ch.3
@@ -233,7 +265,7 @@ Work through Ch.1 → Ch.10 in order. Each chapter builds on previous concepts. 
 - **#5 Sequential features**: Ch.6
 - **#6 Probabilistic foundation**: Ch.7
 - **#7 Same monitoring**: Ch.8
-- **#8 Attention mechanism**: Ch.9, 10
+- **#8 Transformers mandatory**: Ch.9, 10
 
 ---
 
@@ -243,12 +275,12 @@ Before starting this track, you should have:
 
 - **Topics 01–02**: Regression and Classification fundamentals (linear models, loss functions, evaluation)
 - **Python**: NumPy, Pandas, Matplotlib
-- **Linear algebra**: Vectors, matrices, dot products — see [Math Ch.1](../../math_under_the_hood/ch01_linear_algebra) and [Math Ch.5](../../math_under_the_hood/ch05_matrices)
-- **Calculus**: Derivatives, chain rule — see [Math Ch.3](../../math_under_the_hood/ch03_calculus_intro), [Ch.4](../../math_under_the_hood/ch04_small_steps), [Ch.5](../../math_under_the_hood/ch05_matrices), [Ch.6](../../math_under_the_hood/ch06_gradient_chain_rule)
+- **Linear algebra**: Vectors, matrices, dot products — see [Math Ch.1](../../00-math_under_the_hood/ch01_linear_algebra) and [Math Ch.5](../../00-math_under_the_hood/ch05_matrices)
+- **Calculus**: Derivatives, chain rule — see [Math Ch.3](../../00-math_under_the_hood/ch03_calculus_intro), [Ch.4](../../00-math_under_the_hood/ch04_small_steps), [Ch.5](../../00-math_under_the_hood/ch05_matrices), [Ch.6](../../00-math_under_the_hood/ch06_gradient_chain_rule)
 
 **Recommended** (but not required):
 - PyTorch or Keras basics (both are taught from scratch in early chapters)
-- Probability (MLE concepts) — see [Math Ch.7](../../math_under_the_hood/ch07_probability_statistics)
+- Probability (MLE concepts) — see [Math Ch.7](../../00-math_under_the_hood/ch07_probability_statistics)
 
 ---
 
@@ -257,8 +289,8 @@ Before starting this track, you should have:
 After mastering neural networks:
 
 ### Deeper into specialized domains:
-- **[Multimodal AI](../../multimodal_ai)** — CLIP, diffusion models, text-to-image (builds on Ch.5 CNNs + Ch.10 Transformers)
-- **[AI Topics](../../ai)** — LLM fundamentals, prompt engineering, RAG (builds on Ch.10 Transformers)
+- **[Multimodal AI](../../05-multimodal_ai)** — CLIP, diffusion models, text-to-image (builds on Ch.5 CNNs + Ch.10 Transformers)
+- **[AI Topics](../../03-ai)** — LLM fundamentals, prompt engineering, RAG (builds on Ch.10 Transformers)
 
 ### Back to classical ML:
 - **[04-Recommender Systems](../04_recommender_systems)** — Collaborative filtering, matrix factorization

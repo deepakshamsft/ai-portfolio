@@ -40,7 +40,7 @@
 4. **Learning curves**: Diagnose bias vs variance → confirm regularization worked
 5. **Prediction intervals**: Not just "$380k" but "$380k ± $45k with 95% confidence"
 
-**The shift in SmartVal's story:** Ch.1-5 focused on building the model (features → polynomials → regularization → $38k MAE). Ch.6 focuses on **trusting** the model (evaluation → diagnostics → confidence intervals). This is what separates "I trained a model" from "I'm ready to deploy this model at scale."
+**The shift in SmartVal's story:** Chapters 1-5 focused on building the model (features → polynomials → regularization → $38k MAE). Chapter 6 focuses on **trusting** the model (evaluation → diagnostics → confidence intervals). This is what separates "I trained a model" from "I'm ready to deploy this model at scale."
 
 ```mermaid
 flowchart LR
@@ -72,17 +72,17 @@ flowchart LR
 
 ---
 
-## Animation
+## 1 · Animation
 
 ![Chapter animation](img/ch06-metrics-needle.gif)
 
 ---
 
-## 1 · The Metrics Journey — Your Model's Evolution
+## 2 · The Metrics Journey — Your Model's Evolution
 
 > This is the story the numbers alone don't tell. Follow SmartVal AI from Ch.1 to Ch.6 and watch how every metric moved — not just MAE.
 
-### The Full Picture
+### 2.1 · The Full Picture
 
 | Chapter | Model | Features | MAE | RMSE | R² | Adj. R² | MAPE | What moved the needle |
 |---------|-------|---------|-----|------|-----|---------|------|----------------------|
@@ -95,7 +95,7 @@ flowchart LR
 
 > ![Metrics journey Ch.1→Ch.6: MAE, RMSE, R² convergence chart](img/ch06-metrics-journey.png)
 
-### Three Key Insights from the Journey
+### 2.2 · Three Key Insights from the Journey
 
 **1. Ch.3 changed nothing numerically yet was critical.** MAE, RMSE, and R² stayed identical. But VIF audit revealed `AveRooms` and `AveBedrms` weights were wildly unstable. Without that audit, Ch.4's polynomial expansion would have amplified a broken foundation.
 
@@ -105,11 +105,11 @@ flowchart LR
 
 ---
 
-## 2 · Core Idea — Error-Based Metrics
+## 3 · Core Idea — Error-Based Metrics
 
 Each metric answers a different question. No single metric tells the full story.
 
-### MAE — Mean Absolute Error
+### 3.1 · MAE — Mean Absolute Error
 
 $$\text{MAE} = \frac{1}{n}\sum_{i=1}^{n}|y_i - \hat{y}_i|$$
 
@@ -121,7 +121,7 @@ $$\text{MAE} = \frac{1}{n}\sum_{i=1}^{n}|y_i - \hat{y}_i|$$
 - Robust to outliers (one $500k mistake doesn't dominate)
 - Median-optimal: minimizing MAE = predicting the conditional median
 
-### RMSE — Root Mean Squared Error
+### 3.2 · RMSE — Root Mean Squared Error
 
 $$\text{RMSE} = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}$$
 
@@ -138,7 +138,7 @@ Same MAE, but RMSE reveals Model B has one catastrophic prediction. **RMSE ≥ M
 
 
 
-### R² — Coefficient of Determination
+### 3.3 · R² — Coefficient of Determination
 
 $$R^2 = 1 - \frac{\sum(y_i - \hat{y}_i)^2}{\sum(y_i - \bar{y})^2}$$
 
@@ -152,7 +152,7 @@ $R^2 = 0.75$ → "The model explains 75% of house value variation."
 
 **SmartVal AI journey:** R² = 0.47 (Ch.1) → 0.61 (Ch.2) → 0.68 (Ch.5). Each jump represents more variance explained.
 
-### Metric Comparison Table
+### 3.4 · Metric Comparison Table
 
 | Metric | Formula | Units | Outlier-robust? | Best for |
 |--------|---------|-------|----------------|----------|
@@ -176,17 +176,17 @@ flowchart TD
 
 ---
 
-## 3 · Residual Diagnostics — Where Your Model Fails
+## 4 · Residual Diagnostics — Where Your Model Fails
 
-Residuals $e_i = y_i - \hat{y}_i$ are the fingerprints of model failure. Plotting them reveals patterns that aggregate metrics hide.
+**Residuals** are the prediction errors: $e_i = y_i - \hat{y}_i$ — the signed difference between the true value and your model's prediction for sample $i$. When the model overestimates, $e_i < 0$ (negative residual); when it underestimates, $e_i > 0$ (positive residual). Aggregate metrics like MAE hide *where* and *how* the model fails. Plotting residuals reveals patterns that those summary statistics miss — systematic biases, outliers, and sub-populations where the model breaks down.
 
-### Residual vs Predicted Plot
+### 4.1 · Residual vs Predicted Plot
 
 > See the generated residual diagnostic plot for the Ch.5 Ridge model:
 >
 > ![Residuals vs predicted: Ridge poly d=2, highlighting the luxury segment](img/ch06-residuals-vs-predicted.png)
 
-### What patterns mean
+### 4.2 · What patterns mean
 
 | Pattern | Diagnosis | Fix |
 |---------|-----------|-----|
@@ -195,7 +195,7 @@ Residuals $e_i = y_i - \hat{y}_i$ are the fingerprints of model failure. Plottin
 | Fan shape (wider at one end) | Heteroscedasticity | Log-transform target, or use weighted regression |
 | Clusters of positive/negative | Systematic bias in sub-populations | Segment analysis (by price range, by location) |
 
-### Q-Q Plot (Quantile-Quantile)
+### 4.3 · Q-Q Plot (Quantile-Quantile)
 
 Compares residual distribution against theoretical normal distribution:
 - **Points on diagonal** → residuals are normally distributed (good for confidence intervals)
@@ -206,7 +206,7 @@ Compares residual distribution against theoretical normal distribution:
 
 ---
 
-## 4 · Learning Curves — Diagnosing Bias vs Variance
+## 5 · Learning Curves — Diagnosing Bias vs Variance
 
 Plot train and validation MAE as a function of **training set size**:
 
@@ -223,7 +223,7 @@ Plot train and validation MAE as a function of **training set size**:
 
 ---
 
-## 5 · Cross-Validation — From Lucky Split to Confidence Interval
+## 6 · Cross-Validation — From Lucky Split to Confidence Interval
 
 A single train-test split is unreliable. **K-fold cross-validation** uses every sample for both training and testing:
 
@@ -266,7 +266,7 @@ CV MAE: $38,214 ± $1,843
 
 ---
 
-## 6 · When Metrics Disagree
+## 7 · When Metrics Disagree
 
 MAE says Model A wins. RMSE says Model B wins. Who's right?
 
@@ -296,11 +296,11 @@ flowchart TD
 
 ---
 
-## 7 · Prediction Intervals — Quantifying Uncertainty
+## 8 · Prediction Intervals — Quantifying Uncertainty
 
 A point prediction of "$380k" is incomplete. Stakeholders need: **"$380k ± $45k with 95% confidence."**
 
-### How Confidence Is Calculated
+### 8.1 · How Confidence Is Calculated
 
 **What "95% confidence" means:** If you built this model 100 times on different samples from the same population, approximately 95 of those models would produce intervals that contain the true value.
 
@@ -317,7 +317,7 @@ $$\text{95\% interval} = \hat{y} \pm 1.96 \times \text{RMSE} = \hat{y} \pm 1.96 
 
 This means: "You're 95% confident the true house value lies within ±$102k of your prediction."
 
-### Bootstrap Prediction Intervals (Non-Parametric Alternative)
+### 8.2 · Bootstrap Prediction Intervals (Non-Parametric Alternative)
 
 When residuals aren't normally distributed (common with skewed targets like house prices), bootstrap provides a non-parametric alternative:
 
@@ -336,7 +336,7 @@ upper = np.percentile(predictions, 97.5, axis=0)
 # → 95% prediction interval: [lower, upper]
 ```
 
-### Residual-Based Intervals (Parametric Method)
+### 8.3 · Residual-Based Intervals (Parametric Method)
 
 Using the formula explained above, assuming residuals are approximately normal:
 
@@ -346,9 +346,9 @@ Where $z_{0.975} = 1.96$ for 95% confidence (as derived from the normal distribu
 
 **California Housing:** RMSE ≈ $50k → 95% interval ≈ ±$98k (wide! Reflects model uncertainty on extreme values).
 
-### SmartVal Production Decision
+### 8.4 · SmartVal Production Decision
 
-**The formula:** For RMSE = $52k, the 95% prediction interval is $\hat{y} \pm 1.96 \times $52k = $\hat{y} \pm $102k.
+**The formula:** For RMSE = $52k, the 95% prediction interval is $\hat{y} \pm 1.96 \times 52\text{k} = \hat{y} \pm 102\text{k}$.
 
 **Example:** Model predicts $320k → interval is [$218k, $422k]
 
@@ -363,7 +363,7 @@ Where $z_{0.975} = 1.96$ for 95% confidence (as derived from the normal distribu
 
 ---
 
-## 8 · What Can Go Wrong
+## 9 · What Can Go Wrong
 
 - **Reporting only MAE without residual analysis.** $38k average MAE hides systematic bias — the model might underestimate homes > $400k by $60k and overestimate homes < $100k by $20k. The average is fine but the model is structurally wrong. **Fix:** Always plot residuals vs predicted values.
 
@@ -390,126 +390,6 @@ flowchart TD
     style FIX3 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style FIX4 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
-
----
-
-## 9 · Code Skeleton
-
-```python
-import numpy as np
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.linear_model import Ridge
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-
-# Load and split
-data = fetch_california_housing()
-X, y = data.data, data.target
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-# Best model from Ch.5
-pipe = Pipeline([
-    ('poly', PolynomialFeatures(degree=2, include_bias=False)),
-    ('scaler', StandardScaler()),
-    ('model', Ridge(alpha=1.0))
-])
-pipe.fit(X_train, y_train)
-y_pred = pipe.predict(X_test)
-
-# ── Multiple metrics ──────────────────────────────────────────────────────
-mae  = mean_absolute_error(y_test, y_pred) * 100_000
-rmse = np.sqrt(mean_squared_error(y_test, y_pred)) * 100_000
-r2   = r2_score(y_test, y_pred)
-
-print(f"MAE:        ${mae:,.0f}")
-print(f"RMSE:       ${rmse:,.0f}")
-print(f"R²:         {r2:.4f}")
-print(f"RMSE/MAE:   {rmse/mae:.2f}  (1.0 = uniform errors)")
-```
-
-```python
-# ── Cross-validation ──────────────────────────────────────────────────────
-cv_scores = cross_val_score(pipe, X_train, y_train,
-                            cv=5, scoring='neg_mean_absolute_error')
-cv_maes = -cv_scores * 100_000
-print(f"\n5-Fold CV MAE: ${cv_maes.mean():,.0f} ± ${cv_maes.std():,.0f}")
-for i, m in enumerate(cv_maes, 1):
-    print(f"  Fold {i}: ${m:,.0f}")
-```
-
-```python
-# ── Residual diagnostics ──────────────────────────────────────────────────
-import matplotlib.pyplot as plt
-
-residuals = (y_test - y_pred) * 100_000
-
-fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-
-# Predicted vs Actual
-axes[0].scatter(y_test * 100_000, y_pred * 100_000, alpha=0.2, s=10)
-axes[0].plot([0, 500_000], [0, 500_000], 'r--', linewidth=2)
-axes[0].set_xlabel('Actual ($)'); axes[0].set_ylabel('Predicted ($)')
-axes[0].set_title('Predicted vs Actual')
-
-# Residuals vs Predicted
-axes[1].scatter(y_pred * 100_000, residuals, alpha=0.2, s=10)
-axes[1].axhline(y=0, color='red', linewidth=2, linestyle='--')
-axes[1].set_xlabel('Predicted ($)'); axes[1].set_ylabel('Residual ($)')
-axes[1].set_title('Residuals vs Predicted')
-
-# Residual distribution
-axes[2].hist(residuals, bins=50, edgecolor='white', color='steelblue')
-axes[2].axvline(x=0, color='red', linewidth=2, linestyle='--')
-axes[2].set_xlabel('Residual ($)'); axes[2].set_ylabel('Count')
-axes[2].set_title('Residual Distribution')
-
-plt.tight_layout()
-plt.savefig('img/ch06-residual-diagnostics.png', dpi=150, bbox_inches='tight')
-plt.close()
-```
-
-```python
-# ── Learning curves ───────────────────────────────────────────────────────
-from sklearn.model_selection import learning_curve
-
-train_sizes, train_scores, val_scores = learning_curve(
-    pipe, X_train, y_train,
-    train_sizes=np.linspace(0.1, 1.0, 10),
-    scoring='neg_mean_absolute_error',
-    cv=5, n_jobs=-1
-)
-
-train_mae  = -train_scores.mean(axis=1) * 100_000
-val_mae    = -val_scores.mean(axis=1)   * 100_000
-train_std  = train_scores.std(axis=1)   * 100_000
-val_std    = val_scores.std(axis=1)     * 100_000
-n_train    = (train_sizes * len(X_train)).astype(int)
-
-fig, ax = plt.subplots(figsize=(8, 5))
-ax.plot(n_train, train_mae, 'o-', color='#4ade80', label='Train MAE')
-ax.plot(n_train, val_mae,   's-', color='#fb923c', label='Val MAE (CV)')
-ax.fill_between(n_train,
-                train_mae - train_std, train_mae + train_std,
-                alpha=0.2, color='#4ade80')
-ax.fill_between(n_train,
-                val_mae - val_std, val_mae + val_std,
-                alpha=0.2, color='#fb923c')
-ax.axhline(40_000, color='white', linestyle='--', linewidth=1, label='$40k target')
-ax.set_xlabel('Training set size'); ax.set_ylabel('MAE ($)')
-ax.set_title('Learning Curve — Ridge poly degree=2')
-ax.legend(); plt.tight_layout()
-plt.savefig('img/ch06-learning-curve.png', dpi=150, bbox_inches='tight')
-plt.close()
-print("Gap at full data:", f"${val_mae[-1]-train_mae[-1]:,.0f}")
-# Interpretation: small gap (< $5k) → slight overfitting; both curves convergent → ridge
-# is well-regularized.  If val_mae is still falling at the rightmost point → get more data.
-```
-
-
 
 ---
 
@@ -566,7 +446,7 @@ flowchart LR
 
 ## 11 · Bridge to Chapter 7
 
-**SmartVal AI status:** Ch.6 validated the $38k MAE with complete diagnostic confidence. Cross-validation proved it wasn't luck. Residual analysis identified the luxury home blind spot. Learning curves confirmed regularization worked. The model is production-ready with defined monitoring.
+**SmartVal AI status:** Chapter 6 validated the $38k MAE with complete diagnostic confidence. Cross-validation proved it wasn't luck. Residual analysis identified the luxury home blind spot. Learning curves confirmed regularization worked. The model is production-ready with defined monitoring.
 
 **But here's the uncomfortable truth: you guessed the hyperparameters.**
 
@@ -574,7 +454,7 @@ Ridge's α=1.0? Picked because "it felt reasonable." Polynomial degree=2? Seemed
 
 **The historical lesson:** In the 1980s-90s, ML researchers spent weeks hand-tuning neural networks — adjusting learning rates, layer sizes, activations one at a time. **James Bergstra & Yoshua Bengio (2012)** proved something embarrassing: **random search** — literally trying random combinations — often beat methodical grid search. The problem wasn't lack of rigor; it was the *curse of dimensionality* hiding in hyperparameter space.
 
-**Ch.7 eliminates the guesswork:**
+**Chapter 7 eliminates the guesswork:**
 - **Grid Search**: Exhaustively test α × degree combinations
 - **Random Search**: Sample space efficiently (better than grid for high dimensions)
 - **Bayesian Optimization**: Learn which regions are promising and adaptively focus

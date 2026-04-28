@@ -11,11 +11,11 @@ voice: second_person_practitioner
 register: technical_but_conversational
 pedagogy: failure_first
 formula_rule: verbal_gloss_required_within_three_lines
-numerical_walkthroughs: concrete_numbers_before_generalisation
+numerical_walkthroughs: judicious_when_clarifying_never_decorative
 callout_system: {insight:"💡", warning:"⚠️", constraint:"⚡", optional_depth:"📖", forward_pointer:"➡️"}
 mermaid_color_palette: {primary:"#1e3a8a", success:"#15803d", caution:"#b45309", danger:"#b91c1c", info:"#1d4ed8"}
 image_background: dark_facecolor_1a1a2e_for_generated_plots
-section_order: [story_header, challenge_0, animation, core_idea, running_example, math, step_by_step, key_diagrams, code_skeleton, failure_modes, progress_check, bridge]
+section_order: [story_header, challenge_0, animation, core_idea, running_example, math, step_by_step, key_diagrams, failure_modes, progress_check, bridge]
 red_lines: [no_formula_without_verbal_gloss, no_concept_without_running_example, no_section_without_forward_backward_context, no_math_without_numerical_example, no_callout_without_actionable_content, no_academic_register, no_fuzzy_metrics]
 -->
 
@@ -195,22 +195,54 @@ Xᵀ · e                                 (2×3) · (3×1) → (2×1)
                          └  -4.0  ┘
 ```
 
+**Rule 6: Intuition first, formalism second.** Explain the **why** before the **what**. A formula without motivation is decoration.
+
+❌ **Wrong (formalism first):**  
+> "The gradient is computed as ∇L = Xᵀ(ŷ - y). This gives us the direction to update weights."
+
+✅ **Right (intuition first):**  
+> "We need to know which direction makes loss smaller. If predictions are too high, reduce the weights. If too low, increase them. This 'which direction' question is answered by the gradient: ∇L = Xᵀ(ŷ - y)."
+
+**Rule 7: Prioritize geometric intuition over algebraic manipulation.** Use diagrams, analogies, and plain-English explanations. Save the algebra for optional depth boxes.
+
 ---
 
-## 8 · Numerical Walkthrough Pattern
+## 8 · Using Numerical Examples Judiciously
 
-Every mathematical concept must be demonstrated on actual numbers before it is generalised.
+Numerical examples are powerful pedagogical tools — but only when they **build intuition** rather than demonstrate arithmetic. Use them when concrete numbers make a concept clearer; skip them when they obscure the core idea.
 
-**The canonical walkthrough structure:**
+**When to use numerical walkthroughs:**
+- ✅ **Introducing a new algorithm** — show one complete iteration with explicit numbers to demystify the mechanics
+- ✅ **Debugging a concept** — when readers commonly misunderstand (e.g., gradient accumulation, broadcasting rules, attention weight normalization)
+- ✅ **Comparing alternatives** — show same example through two methods to highlight the difference (MAE vs MSE on same residuals)
+- ✅ **Validating implementation** — provide "ground truth" numbers readers can reproduce to verify their code
+
+**When to skip numerical walkthroughs:**
+- ❌ **Concept is already intuitive** — don't calculate 0.7 × 3.2 = 2.24 if the pattern is obvious
+- ❌ **Arithmetic obscures the idea** — if readers will focus on calculation details instead of the principle
+- ❌ **Same pattern as previous example** — don't repeat arithmetic for every hyperparameter or every layer
+- ❌ **Better shown visually** — use a plot or diagram instead of a table of numbers
+
+**The judicious walkthrough structure (when you do use one):**
 1. State the toy dataset as a markdown table with named columns (use the track's running example data, never purely synthetic)
 2. State initial conditions: `w = [0, 0]`, `b = 0.0`, `α = 0.1`
-3. Show forward pass: one column per intermediate operation, one row per example
-4. Show gradient as ASCII matrix multiply (for matrix operations)
-5. Show update step as explicit arithmetic: `w₁ = 0.0 − 0.1 × (−8.333) = 0.833`
-6. State loss before and after: "MSE dropped from 8.167 → 1.233: an 85% reduction in one epoch"
-7. **A verification sentence closes every walkthrough.** "The match is exact." "Loss halved in one step."
+3. Show **one complete iteration** with explicit arithmetic: `w₁ = 0.0 − 0.1 × (−8.333) = 0.833`
+4. State the outcome with a metric: "MSE dropped from 8.167 → 1.233: an 85% reduction in one epoch"
+5. **Close with what this demonstrates:** "This shows gradient descent finds the downhill direction — even with crude α = 0.1 — without trying every possible weight."
 
-For non-ML tracks: use the track's native metrics. AIInfrastructure walkthroughs compute VRAM arithmetic step by step. MultiAgentAI walkthroughs trace a single PO through the agent pipeline with real latency numbers.
+**Priority: Intuition over calculation.**  
+If a reader finishes a section thinking "I can do the arithmetic" instead of "I understand when to use this," the section failed.
+
+**Examples of intuition-building vs calculation-showing:**
+
+| Concept | ❌ Calculation-Heavy | ✅ Intuition-Building |
+|---------|---------------------|----------------------|
+| **Gradient Descent** | Show 10 iterations of w₁, w₂, w₃... with full arithmetic | Show ONE iteration with numbers, then explain "this is why it converges — the gradient gets smaller as we approach the minimum" with a plot |
+| **Batch Normalization** | Calculate μ, σ², normalized values for all 32 samples | Show one sample before/after normalization, explain "this centers activations so they don't explode or vanish," show distribution plot |
+| **Attention Weights** | Compute softmax(QKᵀ/√d) for all 512 tokens | Show 3-token example, explain "softmax picks the most relevant context," show attention heatmap |
+| **Learning Rate** | Show loss at α=0.001, 0.01, 0.1, 1.0... | Show one failure case (α too large → divergence), one success (α reasonable → convergence), explain the tradeoff |
+
+**The test:** Can the reader explain the concept to a colleague WITHOUT referring to specific numbers? If not, the section taught arithmetic, not understanding.
 
 ---
 
@@ -344,8 +376,7 @@ Every chapter follows this section sequence. Sections may be combined or have su
 ## 4 · How It Works — Step by Step  ← numbered walkthrough or flow diagram
 ## 5 · Key Diagrams                 ← Mermaid / ASCII art minimum 1
 ## 6 · The Hyperparameter Dial      ← main tunable, effect, typical value
-## 7 · Code Skeleton                ← educational + production versions
-## 8 · What Can Go Wrong            ← 3–5 failure modes, one sentence each
+## 7 · What Can Go Wrong            ← 3–5 failure modes, one sentence each
 ## N-1 · Where This Reappears       ← forward links
 ## N · Progress Check               ← fixed format above
 ## N+1 · Bridge to Next Chapter     ← one clause what this established + one clause what next adds
@@ -364,7 +395,7 @@ Absolute prohibitions. No exception, no track-level override:
 | 1 | **No formula without a verbal gloss** | Equations without explanation are decoration; the reader learns nothing |
 | 2 | **No concept without grounding in the running example** | Abstract explanations disconnect learning from practice |
 | 3 | **No section without forward/backward context** | Isolated concepts don't stick; only connected ones do |
-| 4 | **No math derivation without a numerical example** | Algebra without arithmetic is incomprehensible to practitioners |
+| 4 | **No math derivation without intuition-building support** | Use numerical examples when they clarify; use diagrams, verbal glosses, or analogies when numbers obscure the concept |
 | 5 | **No callout box without actionable content** | Every 💡⚠️⚡ ends with a Fix, Rule, or What-to-do |
 | 6 | **No academic register** | "It can be shown that" and "In this section we" are banned |
 | 7 | **No fuzzy metrics** | "Higher accuracy" is forbidden; "$55k MAE vs. $40k target" is required |
@@ -406,7 +437,7 @@ Each track's `AUTHORING_GUIDE.md` extends this document with:
 | Track | AUTHORING_GUIDE |
 |-------|----------------|
 | **ML** | [notes/01-ml/authoring-guide.md](01-ml/authoring-guide.md) — canonical style reference (deepest documentation) |
-| **AI** | [notes/03-ai/AUTHORING_GUIDE.md$103-ai/authoring-guide.md) |
+| **AI** | [notes/03-ai/AUTHORING_GUIDE.md03-ai/authoring-guide.md) |
 | **AIInfrastructure** | [notes/AIInfrastructure/AUTHORING_GUIDE.md](ai_infrastructure/authoring-guide.md) |
 | **MultiAgentAI** | [notes/MultiAgentAI/AUTHORING_GUIDE.md](multi_agent_ai/authoring-guide.md) |
 | **MultimodalAI** | [notes/MultimodalAI/AUTHORING_GUIDE.md](multimodal_ai/authoring-guide.md) |

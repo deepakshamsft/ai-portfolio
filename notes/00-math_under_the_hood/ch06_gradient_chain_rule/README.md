@@ -227,6 +227,8 @@ Stack $L$ layers and you have backprop.
 
 ### 5.1 · Worked Example — Forward and Backward by the Numbers
 
+> 💡 **Why this walkthrough matters — intuition first.** The algebra in §5 showed the **form** of the chain rule: $\nabla_\mathbf{x} L = W^\top \nabla_\mathbf{u} L$, $\nabla_W L = \nabla_\mathbf{u} L \, \mathbf{x}^\top$. But forms don't teach you how the chain rule *flows* through a network. This numerical trace shows **the rhythm**: forward pass computes outputs left-to-right (data flows forward), backward pass computes gradients right-to-left (responsibility flows backward). Each step is a concrete matrix multiplication — you'll see $(3 \times 2)$ weights multiply $(2 \times 1)$ inputs to give $(3 \times 1)$ pre-activations, then $(2 \times 3)$ transpose pulls $(3 \times 1)$ gradients back into $(2 \times 1)$ input space. **The dimensions tell the story** — every mismatch is a bug, every transpose is deliberate. Work through this once with pen and paper to verify every entry; afterward, you'll recognize the pattern in 100-layer networks without needing to trace each one.
+
 Let's trace **§5's one-layer network** with concrete values. Setup: 2-input, 3-neuron layer with sigmoid activation $\sigma(u) = 1/(1 + e^{-u})$, squared loss $L = \frac{1}{2}(\mathbf{h} - \mathbf{y}_{\text{target}})^\top (\mathbf{h} - \mathbf{y}_{\text{target}})$.
 
 **Given:**  
@@ -295,6 +297,14 @@ $$\nabla_W L = \begin{bmatrix} -0.062 \\ +0.079 \\ +0.120 \end{bmatrix}
 
 ---
 
+> ⚡ **What this multi-variable chain rule walkthrough demonstrates — Priority: Intuition over calculation.** Can you explain why the backward pass multiplies by $W^\top$ instead of $W$ (or $W^{-1}$) without re-deriving the Jacobian? The intuition: **the forward map expands dimensions** ($2$ inputs → $3$ neurons), so the backward map must **contract** them back ($3$ gradient components → $2$ input gradient components). The transpose $W^\top$ has shape $(2 \times 3)$, which is exactly what we need to pull a $(3 \times 1)$ gradient vector back into $(2 \times 1)$ input space. **Shape compatibility is the consistency check** — if your backward pass dimensions don't fit, you transposed the wrong matrix.
+>
+> **The test:** Without looking back at the calculation, predict the shape of $\nabla_\mathbf{b} L$ (the gradient with respect to the bias vector). Hint: $\mathbf{b} \in \mathbb{R}^3$, so $\nabla_\mathbf{b} L$ must also be... (Answer: $(3 \times 1)$ — same shape as $\mathbf{b}$. In fact, $\nabla_\mathbf{b} L = \nabla_\mathbf{u} L$ because $\frac{\partial u_i}{\partial b_i} = 1$.) If you can reason about gradient shapes without arithmetic, you understand the matrix chain rule's geometry. The 7-step trace above exists to show **one complete flow**; after this, you can trust the pattern for arbitrarily deep networks. The specific values (0.550, −0.062, +0.277, ...) demonstrated the algebra is consistent — they are not the concept.
+>
+> **Priority reminder:** ML frameworks (PyTorch, TensorFlow) implement this §5.1 walkthrough in their `.backward()` methods. You will **never** hand-compute these gradients in practice — autodiff does it for you. But when `.backward()` gives unexpected results (exploding gradients, vanishing gradients, shape errors), you need the intuition from this section to debug: "Did I transpose the wrong Jacobian? Is my activation's derivative zero everywhere? Are my layer dimensions mismatched?" That's why we traced the numbers once — so you recognize the pattern when it breaks.
+
+---
+
 ## 6 · Reverse-Mode vs Forward-Mode Autodiff
 
 For a composition $\mathbf{y} = \mathbf{f}_L \circ \cdots \circ \mathbf{f}_1(\mathbf{x})$, the matrix chain rule gives $J = J_L J_{L-1} \cdots J_1$. Matrix multiplication is associative, so we can multiply in any order — but the **cost** of multiplying in different orders can differ by orders of magnitude.
@@ -329,62 +339,7 @@ The middle panel of the hero image uses a Hessian with eigenvalues $\{0.7, 3.3\}
 
 ---
 
-## 9 · Code Skeleton
-
-```python
-# Educational: backpropagation through a 2-layer network from scratch
-import numpy as np
-
-def sigmoid(x): return 1 / (1 + np.exp(-x))
-def sigmoid_prime(x): return sigmoid(x) * (1 - sigmoid(x))
-
-# Forward pass: x -> h1 -> h2 -> loss
-def forward(x, W1, W2, y_true):
-    z1 = W1 @ x          # pre-activation layer 1
-    h1 = sigmoid(z1)     # activation
-    z2 = W2 @ h1         # pre-activation layer 2
-    h2 = sigmoid(z2)     # output
-    loss = 0.5 * np.sum((h2 - y_true) ** 2)
-    return z1, h1, z2, h2, loss
-
-# Backward pass: chain rule all the way to W1
-def backward(x, y_true, z1, h1, z2, h2, W1, W2):
-    dL_dh2 = h2 - y_true                           # dL/dh2
-    dL_dz2 = dL_dh2 * sigmoid_prime(z2)            # dL/dz2 (elementwise × σ')
-    dL_dW2 = np.outer(dL_dz2, h1)                  # dL/dW2 = δ2 · h1ᵀ
-    dL_dh1 = W2.T @ dL_dz2                         # dL/dh1 = W2ᵀ · δ2
-    dL_dz1 = dL_dh1 * sigmoid_prime(z1)            # dL/dz1
-    dL_dW1 = np.outer(dL_dz1, x)                   # dL/dW1 = δ1 · xᵀ
-    return dL_dW1, dL_dW2
-```
-
-```python
-# Production: automatic differentiation via PyTorch autograd
-import torch
-import torch.nn as nn
-
-class TwoLayerNet(nn.Module):
-    def __init__(self, d_in=2, d_hidden=3, d_out=1):
-        super().__init__()
-        self.layer1 = nn.Linear(d_in, d_hidden)
-        self.layer2 = nn.Linear(d_hidden, d_out)
-
-    def forward(self, x):
-        return torch.sigmoid(self.layer2(torch.sigmoid(self.layer1(x))))
-
-model = TwoLayerNet()
-optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-x = torch.tensor([0.5, -0.3])
-y_true = torch.tensor([1.0])
-
-loss = 0.5 * (model(x) - y_true).pow(2)
-loss.backward()   # PyTorch computes the SAME chain-rule derivation above
-optimizer.step()  # θ ← θ - η∇L
-```
-
----
-
-## 10 · Where This Reappears
+## 9 · Where This Reappears
 
 - **ML Ch.5 Backprop & Optimisers.** The layer-by-layer derivation above, scaled up to arbitrary architectures.
 - **ML Ch.4 Neural Networks.** Every training step is forward + backward = two tours of the computation graph.
@@ -394,7 +349,7 @@ optimizer.step()  # θ ← θ - η∇L
 
 ---
 
-## 11 · References
+## 10 · References
 
 ### Papers & Books
 - Nocedal & Wright, *Numerical Optimization*, Ch. 2.
@@ -419,7 +374,7 @@ optimizer.step()  # θ ← θ - η∇L
 
 ---
 
-## 12 · Progress Check — What We Can Solve Now
+## 11 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR

@@ -28,6 +28,136 @@ Every ML chapter derives the math from scratch before using it. All chapters in 
 
 ---
 
+## Recommended Full Path
+
+This curriculum takes you from software engineer to hireable AI engineer. Work at your own pace — the sequence below is ordered by dependency, not by deadline.
+
+### The Complete Learning Path
+
+```mermaid
+flowchart TB
+    subgraph Stage1[Stage 1: Foundations]
+        Math[00-math_under_the_hood<br/>Linear algebra, calculus, gradients]
+    end
+    
+    subgraph Stage2[Stage 2: Data Engineering]
+        Data[01-ml/00_data_fundamentals<br/>Pandas, EDA, drift detection]
+    end
+    
+    subgraph Stage3[Stage 3: Classical ML]
+        Regression[01-ml/01_regression]
+        Classification[01-ml/02_classification]
+        Regression --> Classification
+    end
+    
+    subgraph Stage4[Stage 4: Deep Learning]
+        NeuralNets[01-ml/03_neural_networks<br/>CNNs, RNNs, Transformers]
+    end
+    
+    subgraph Stage5[Stage 5: Specialization - Choose ONE]
+        AI[03-ai<br/>RAG, agents, tool use]
+        Multimodal[05-multimodal_ai<br/>Diffusion, CLIP, Stable Diffusion]
+        Infra[06-ai_infrastructure<br/>GPU, quantization, serving]
+    end
+    
+    subgraph Stage6[Stage 6: Production]
+        Advanced[02-advanced_deep_learning<br/>Detection, segmentation, compression]
+        DevOps[07-devops_fundamentals<br/>Docker, K8s, monitoring]
+        Advanced -.parallel.-> DevOps
+    end
+    
+    Math --> Data
+    Data --> Regression
+    Classification --> NeuralNets
+    NeuralNets --> AI
+    NeuralNets --> Multimodal
+    NeuralNets --> Infra
+    AI --> Advanced
+    Multimodal --> Advanced
+    Infra --> Advanced
+    
+    style Math fill:#e1f5ff
+    style Data fill:#e1f5ff
+    style Regression fill:#fff4e1
+    style Classification fill:#fff4e1
+    style NeuralNets fill:#fff4e1
+    style AI fill:#e8f5e9
+    style Multimodal fill:#e8f5e9
+    style Infra fill:#e8f5e9
+    style Advanced fill:#ffe1e1
+    style DevOps fill:#ffe1e1
+```
+
+### Prerequisites by Track
+
+| Track | Prerequisites | What You'll Build |
+|-------|--------------|-------------------|
+| **00-math_under_the_hood** | High-school algebra | Can derive gradient descent by hand |
+| **01-ml/00_data_fundamentals** | Math track OR equivalent calculus | RealtyML production data pipeline |
+| **01-ml/01_regression** | Data fundamentals | California Housing price predictor (MAE $70k → $32k) |
+| **01-ml/02_classification** | Regression | Binary/multi-class classifiers with precision/recall tuning |
+| **01-ml/03_neural_networks** | Regression + Classification | Transformer implementation from scratch |
+| **01-ml/04-08** (specializations) | Neural Networks Ch.1-6 | Recommender systems, anomaly detection, RL, clustering, ensembles |
+| **03-ai** | **ML Ch.18 (Transformers)** — MANDATORY | PizzaBot RAG pipeline with tool use |
+| **04-multi_agent_ai** | AI track Ch.1-6 | OrderFlow multi-agent purchase-order system |
+| **05-multimodal_ai** | **ML Ch.18 (Transformers)** + AI Ch.4 (Embeddings) | PixelSmith local image generation studio |
+| **06-ai_infrastructure** | ML Ch.4-8 (Neural Networks, CNNs, RNNs) | InferenceBase cost optimization (API $80k/mo → self-hosted) |
+| **07-devops_fundamentals** | None (can start anytime) | ProductionStack Flask API with 99% uptime |
+| **02-advanced_deep_learning** | **ML Ch.1-10 (all core ML) + CNNs** | ProductionCV shelf monitoring (6.8 MB model, 35ms latency) |
+
+**CRITICAL SEQUENCING**:
+- **02-advanced_deep_learning comes LAST** — do NOT start here. It assumes you already know CNNs, backpropagation, regularization, and hyperparameter tuning from ML Ch.1-10.
+- **Transformers (ML Ch.18) before AI/Multimodal** — you cannot understand RAG, CLIP, or Stable Diffusion without self-attention.
+- **Math before ML** — gradient descent appears in every chapter. Derive it once by hand, use it forever.
+
+### Why This Sequence?
+
+**Math first** (Stage 1): You'll see `∂L/∂w` hundreds of times. Derive it once by hand now, internalize it forever.
+
+**Data prep before modeling** (Stage 2): 80% of production ML failures are data quality issues. Learn to detect outliers, handle drift, and validate distributions BEFORE you waste time tuning a model on garbage data.
+
+**Transformers before specializations** (Stage 4):
+   Transformers are the foundation for:
+   - **AI track**: GPT-4 is a Transformer + RLHF
+   - **Multimodal track**: CLIP and Stable Diffusion use Transformer encoders
+   - **Advanced Deep Learning**: Vision Transformers replace CNNs in modern architectures  
+   
+   Nail self-attention in ML Ch.18, then specialize.
+
+**Advanced Deep Learning LAST**  
+   ResNets, YOLOv5, and Mask R-CNN assume you already understand:
+   - Loss functions and gradient descent (ML Ch.1-2)
+   - Backpropagation (ML Ch.5)
+   - CNNs and regularization (ML Ch.7, Ch.6)
+   - Hyperparameter tuning (ML Ch.6)  
+   
+   If you skip ML Ch.1-10 and jump straight to object detection, you'll be lost. The Advanced Deep Learning track is NOT a beginner-friendly entry point — it's a capstone.
+
+### Track Overview
+
+| Track | Dependency Chain |
+|-------|-----------------|
+| **00-math_under_the_hood** | Start here |
+| **01-ml/00_data_fundamentals** | Math → Data |
+| **01-ml (core: regression, classification, neural nets)** | Data → Regression → Classification → Neural Nets |
+| **01-ml (specializations: recommender, anomaly, RL, clustering, ensembles)** | Neural Nets → pick any |
+| **03-ai** | **ML Ch.18 Transformers** → AI |
+| **04-multi_agent_ai** | AI Ch.1-6 → Multi-Agent |
+| **05-multimodal_ai** | **ML Ch.18 Transformers** + AI Ch.4 → Multimodal |
+| **06-ai_infrastructure** | ML Ch.4-8 → Infrastructure |
+| **07-devops_fundamentals** | Can start anytime (no ML prereqs) |
+| **02-advanced_deep_learning** | **ML Ch.1-10 (all core)** + CNNs → Advanced Deep Learning |
+
+**Minimum path to "hireable"**: Math + Data + ML Core + AI track + DevOps.
+
+### What This Repo Does NOT Cover
+
+This curriculum targets software engineers becoming AI/ML practitioners — not data scientists, cloud platform specialists, or academic researchers. Topics that are better served by vendor-specific documentation (SQL, Spark, mobile ML SDKs, MLOps platforms), require a specialisation background beyond the assumed prerequisites (federated learning, graph neural networks, full Bayesian inference), or are planned for future versions (time series in v1.1, distributed training labs in v2.0) have been intentionally excluded to keep the path coherent and completable. For each excluded topic, the gaps register links to two or more external resources so learners know exactly where to go next.
+
+→ **Full list with rationale and external resources**: [README.md — What This Repo Does NOT Cover](../README.md#what-this-repo-does-not-cover)
+
+---
+
 ## Nomenclature
 
 | Term | Scope | Example |
@@ -50,7 +180,7 @@ Utility folders that appear alongside chapters:
 notes/
 ├── 00-math_under_the_hood/ ← Math foundations: linear & non-linear algebra, calculus, 1-D optimisation, matrices, gradients & chain rule, probability
 ├── 01-ml/               ← Machine Learning: topics grouped by domain (Regression, Classification, …)
-├─$103-ai/               ← Agentic AI: reasoning, retrieval, orchestration (+ notebooks)
+├─03-ai/               ← Agentic AI: reasoning, retrieval, orchestration (+ notebooks)
 ├── 04-multi_agent_ai/   ← Multi-agent protocols and coordination patterns (+ notebooks)
 ├── 05-multimodal_ai/    ← Diffusion, CLIP, vision transformers, text-to-video (+ notebooks)
 ├── 06-ai_infrastructure/ ← GPU hardware to production serving platforms (+ notebooks)
@@ -97,23 +227,23 @@ bash scripts/setup.sh
 
 ---
 
-## Track 2 — Agentic AI $103-ai/`)
+## Track 2 — Agentic AI 03-ai/`)
 
 Deep-dive notes explaining how LLMs become agents — from token prediction through tool use, retrieval, and orchestration. Running example: **Mamma Rosa's PizzaBot**.
 
 | Document | What it covers |
 |---|---|
-| [AIPrimer.md$103-ai/ai-primer.md) | Entry point — PizzaBot running example, conceptual arc, document map, and reading paths |
-| [LLMFundamentals/$103-ai/ch01_llm_fundamentals) | BPE tokenisation, pretraining → SFT → RLHF, temperature, context windows |
-| [PromptEngineering/$103-ai/ch02_prompt_engineering) | System prompts, few-shot, structured output, prompt injection |
-| [CoTReasoning/$103-ai/ch03_cot_reasoning) | Chain-of-Thought, hidden reasoning tokens, Self-Consistency, Tree of Thoughts |
-| [RAGAndEmbeddings/$103-ai/ch04_rag_and_embeddings) | Transformer encoders, contrastive training, chunking, full RAG pipeline |
-| [VectorDBs/$103-ai/ch05_vector_dbs) | ANN index types (HNSW, IVF, DiskANN), distance metrics, production architecture |
-| [ReActAndSemanticKernel/$103-ai/ch06_react_and_semantic_kernel) | ReAct loop, LangChain vs Semantic Kernel, LangGraph, Plan-and-Execute |
-| [EvaluatingAISystems/$103-ai/ch08_evaluating_ai_systems) | RAGAS metrics, LLM-as-judge, hallucination detection, pipeline evaluation |
-| [FineTuning/$103-ai/ch10_fine_tuning) | When to fine-tune vs RAG vs prompting, LoRA math, QLoRA |
-| [SafetyAndHallucination/$103-ai/ch07_safety_and_hallucination) | Hallucination types, mitigation stack, jailbreaks, alignment failures |
-| [CostAndLatency/$103-ai/ch09_cost_and_latency) | Token budgets, model cost tiers, KV caching, streaming |
+| [AIPrimer.md03-ai/ai-primer.md) | Entry point — PizzaBot running example, conceptual arc, document map, and reading paths |
+| [LLMFundamentals/03-ai/ch01_llm_fundamentals) | BPE tokenisation, pretraining → SFT → RLHF, temperature, context windows |
+| [PromptEngineering/03-ai/ch02_prompt_engineering) | System prompts, few-shot, structured output, prompt injection |
+| [CoTReasoning/03-ai/ch03_cot_reasoning) | Chain-of-Thought, hidden reasoning tokens, Self-Consistency, Tree of Thoughts |
+| [RAGAndEmbeddings/03-ai/ch04_rag_and_embeddings) | Transformer encoders, contrastive training, chunking, full RAG pipeline |
+| [VectorDBs/03-ai/ch05_vector_dbs) | ANN index types (HNSW, IVF, DiskANN), distance metrics, production architecture |
+| [ReActAndSemanticKernel/03-ai/ch06_react_and_semantic_kernel) | ReAct loop, LangChain vs Semantic Kernel, LangGraph, Plan-and-Execute |
+| [EvaluatingAISystems/03-ai/ch08_evaluating_ai_systems) | RAGAS metrics, LLM-as-judge, hallucination detection, pipeline evaluation |
+| [FineTuning/03-ai/ch10_fine_tuning) | When to fine-tune vs RAG vs prompting, LoRA math, QLoRA |
+| [SafetyAndHallucination/03-ai/ch07_safety_and_hallucination) | Hallucination types, mitigation stack, jailbreaks, alignment failures |
+| [CostAndLatency/03-ai/ch09_cost_and_latency) | Token budgets, model cost tiers, KV caching, streaming |
 | [InterviewGuides/](interview_guides) | Consolidated interview prep — rapid-fire Q&A plus index of every per-chapter Interview Checklist across all tracks |
 
 Every core note has a companion `_Supplement.md` for production-depth details. Read the core note first.

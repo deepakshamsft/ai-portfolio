@@ -1,10 +1,14 @@
 # Ch.3 — Matrix Factorization
 
-> **The story.** In **1999**, Daniel Lee and Sebastian Seung published "Learning the parts of objects by non-negative matrix factorization" in *Nature*, popularising the idea that a matrix can be decomposed into latent factors that reveal hidden structure. The recommender systems community took notice, but the real explosion came with the **Netflix Prize** (2006–2009). Simon Funk (pseudonym) published a blog post in 2006 describing a simple SGD-based matrix factorization that rocketed him up the leaderboard. Yehuda Koren and colleagues at Yahoo! and AT&T Labs refined the approach into **SVD++** and demonstrated that factorization models could outperform all neighborhood-based methods. Their 2009 paper "Matrix Factorization Techniques for Recommender Systems" became the most cited paper in the field. The key insight: even if two users never rated the same movie, their latent factor vectors can be close — capturing "cerebral sci-fi lover" or "90s comedy fan" without those categories ever being explicitly defined.
+> **The story.** The mathematics behind matrix factorization is older than the internet. In **1901** Karl Pearson introduced principal components — the idea that a dataset can be compressed into fewer dimensions without losing the signal. By the **1960s** numerical analysts had formalised **Singular Value Decomposition (SVD)**: any matrix $R = U \Sigma V^T$, an exact decomposition into orthogonal bases. The trouble was that SVD requires knowing the *entire* matrix — but a recommender system's ratings matrix is 93.7% empty. Decompose what you can't observe and you're guessing.
 >
-> **Where you are in the curriculum.** Chapter three. Collaborative filtering (Ch.2) achieved 68% hit rate but was crippled by sparsity — 93.7% of the matrix is empty, so most user pairs share too few ratings. Matrix factorization solves this by mapping users and items into a shared latent space where the dot product approximates the rating. This is the first time we learn *latent representations* — the same idea that powers word embeddings and deep learning.
+> The breakthrough came from an unlikely source: a blog post. In **2006** Simon Funk (pseudonym), competing in the **Netflix Prize**, published "Netflix Update: Try This at Home." His insight was simple — instead of decomposing the full matrix exactly, only train on the ratings you *can* see, using SGD to learn user and item vectors one rating at a time. He called it "funky SVD" and it rocketed him to third on the leaderboard overnight. Within weeks every serious competitor had adopted the approach.
 >
-> **Notation in this chapter.** $R \in \mathbb{R}^{m \times n}$ — user-item rating matrix; $U \in \mathbb{R}^{m \times d}$ — user factor matrix; $V \in \mathbb{R}^{n \times d}$ — item factor matrix; $d$ — number of latent factors; $\lambda$ — regularisation strength; $\mathbf{u}_u$ — latent vector for user $u$; $\mathbf{v}_i$ — latent vector for item $i$.
+> **Yehuda Koren** at Yahoo! Research took it further. His **2008 SVD++** paper added implicit feedback (browsing history, clicks) to the user vector, and his **2009 paper** "Matrix Factorization Techniques for Recommender Systems" — co-authored with Bell and Volinsky — presented the full mathematical framework with bias terms, temporal dynamics, and confidence weighting. The BellKor team won the Netflix Prize with a 10.06% RMSE improvement, their solution a blend of over 100 models of which regularised matrix factorisation was the backbone. In **2012** Steffen **Rendle** published **BPR (Bayesian Personalized Ranking)**, extending factorization to implicit feedback via pairwise ranking — the foundation of modern "Learn to Rank" systems. Every major platform — Netflix, Spotify, YouTube, Amazon — runs a descendant of these ideas today.
+>
+> **Where you are in the curriculum.** Chapter three. Collaborative filtering (Ch.2) achieved ~65% HR@10 but was crippled by sparsity — 93.7% of the ratings matrix is empty, so most user pairs share fewer than 5 movies. Matrix factorization solves this by mapping users and items into a shared **latent space** where the dot product approximates a rating. Even if two users never rated the same movie, their vectors can be close — capturing "cerebral sci-fi lover" or "90s comedy fan" without those labels ever being defined. This is your first encounter with *latent representations* — the same idea powering word embeddings, BERT, and every deep learning model you will see later in this track.
+>
+> **Notation in this chapter.** $R \in \mathbb{R}^{m \times n}$ — user-item rating matrix ($m$ users, $n$ items); $P \in \mathbb{R}^{m \times k}$ — user latent factor matrix; $Q \in \mathbb{R}^{n \times k}$ — item latent factor matrix; $k$ — number of latent factors (rank of the approximation); $\mathbf{p}_u \in \mathbb{R}^k$ — latent vector for user $u$; $\mathbf{q}_i \in \mathbb{R}^k$ — latent vector for item $i$; $\hat{r}_{ui} = \mathbf{p}_u^\top \mathbf{q}_i$ — predicted rating; $\lambda$ — L2 regularisation strength; $\alpha$ — SGD learning rate; $e_{ui} = r_{ui} - \hat{r}_{ui}$ — prediction error; $\mu$ — global mean rating; $b_u$ — user bias; $b_i$ — item bias.
 
 ---
 
@@ -18,32 +22,42 @@
 > 5. **EXPLAINABILITY**: "Because you liked X" — trustable recommendations
 
 **What we know so far:**
-- ✅ **Ch.1**: Popularity baseline → 42% HR@10 (not personalized)
-- ✅ **Ch.2**: Collaborative filtering → 68% HR@10 (personalized but sparse)
-- ❌ **But we still can't reach 85%!** Sparsity is killing us.
+- ✅ **Ch.1**: Popularity baseline → 42% HR@10 (not personalised)
+- ✅ **Ch.2**: Item-based Collaborative Filtering → ~65% HR@10 (personalised but sparse)
+- ❌ **But we still can't reach 85%!** Sparsity is crippling us.
 
-**What's blocking us:**
-Collaborative filtering needs **shared ratings** between users to compute similarity. But in a 943×1682 matrix with 93.7% missing entries, most user pairs share fewer than 5 movies. User 42 and User 87 might both love "cerebral sci-fi," but if they haven't rated any of the same movies, the cosine similarity is undefined. The similarity estimates are noisy, coverage is poor, and 68% is the ceiling.
+**What's blocking us — and why MF solves it:**
 
-**What this chapter unlocks:**
-Latent factor models solve sparsity by learning a **shared representation space**. Instead of requiring direct overlap, we map each user and each item to a $d$-dimensional vector. The dot product of these vectors approximates the rating. Even if users never rated the same movie, their vectors can be close — capturing "cerebral sci-fi lover" or "90s comedy fan" without those categories ever being explicitly defined.
+Item-CF stores a full **item-item similarity matrix**: $O(n^2)$ memory for $n$ items. With 1,682 movies that's 2.8 million similarity scores to compute and store. But the deeper problem is the data void. In a 943×1,682 matrix with 100k ratings, coverage is 6.3% — most user pairs share too few items to compute a reliable cosine similarity. User 42 and User 87 may both adore cerebral sci-fi but if they haven't rated any of the same movies the similarity is exactly zero and the system can't bridge them.
 
-| Constraint | Status | Notes |
-|-----------|--------|-------|
-| ACCURACY >85% HR@10 | ❌ 68% → ? | Latent factors should help with sparsity |
-| COLD START | ❌ Still fails | New user = no vector learned |
-| SCALABILITY | ✅ Much better | O(d) prediction, O(k·d) per iteration |
-| DIVERSITY | ⚠️ Moderate | Latent space may surface niche items |
-| EXPLAINABILITY | ⚠️ Harder | Latent factors aren't directly interpretable |
+Matrix factorisation changes the algebra entirely. Instead of computing pairwise similarities, MF compresses the entire ratings signal into two small dense matrices:
+
+| Representation | Memory | Coverage |
+|---|---|---|
+| Item-CF similarity matrix | $O(n^2) = 1{,}682^2 \approx 2.8\text{M}$ floats | Only users/items with shared ratings |
+| MF factor matrices $P$, $Q$ | $O((m+n) \times k) = (943+1682) \times 50 \approx 131\text{k}$ floats | **All** users and items, including unseen pairs |
+
+With $k=50$ factors, MF is **21× more compact** than the similarity matrix — and it fills in the missing entries through learned structure rather than leaving them undefined.
+
+The key insight: MF discovers **latent "genre-taste" dimensions** automatically. Dimension 1 might correspond to "cerebral sci-fi", dimension 2 to "90s action blockbuster", dimension 12 to "indie arthouse" — the model doesn't name these, but it discovers that certain users and certain items project onto shared subspaces. The dot product $\mathbf{p}_u^\top \mathbf{q}_i$ then acts as a **taste-to-attribute alignment score** rather than a direct rating prediction.
+
+| Constraint | Status after this chapter | Notes |
+|-----------|--------------------------|-------|
+| ACCURACY >85% HR@10 | ⚠️ 65% → 75–78% | Latent factors close the gap; not fully there yet |
+| COLD START | ❌ Still fails | New user = no trained vector |
+| SCALABILITY | ✅ Much better | $O(k)$ prediction, $O(k)$ per SGD step |
+| DIVERSITY | ⚠️ Moderate | Latent space surfaces niche items more than item-CF |
+| EXPLAINABILITY | ⚠️ Harder | Factors are discovered, not labelled |
 
 ```mermaid
 flowchart LR
-    CF["Ch.2: Item-CF<br/>HR@10 = 68%"] --> FACTOR["Learn Latent<br/>Factors U, V"]
-    FACTOR --> DOT["Predict:<br/>r̂ = uᵀv"]
-    DOT --> REG["Regularise:<br/>+ λ(||U||² + ||V||²)"]
-    REG --> EVAL["Evaluate<br/>HR@10 = 78%"]
-    
+    CF["Ch.2: Item-CF\nHR@10 ≈ 65%\nO(n²) similarity"] --> DECOMP["Learn P ∈ ℝ^(m×k)\n     Q ∈ ℝ^(n×k)\nvia SGD"]
+    DECOMP --> PRED["Predict:\nr̂ = pᵤᵀqᵢ"]
+    PRED --> BIAS["+ Bias terms:\nμ + bᵤ + bᵢ"]
+    BIAS --> EVAL["MF + bias\nHR@10 ≈ 78%"]
+
     style CF fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style DECOMP fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style EVAL fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
@@ -51,624 +65,598 @@ flowchart LR
 
 ## Animation
 
-![Animation: bias terms, latent factors, and regularisation progressively move FlixAI's ranking quality from about 68% to 78% HR@10.](img/ch03-matrix-factorization-needle.gif)
+![animation](img/ch03-matrix-factorization-needle.gif)
 
-*Visual takeaway: once users and items are pulled into the same latent space, sparsity hurts less and the top-10 ranking quality moves upward.*
+*Visual takeaway: item-CF's sparse neighbourhood lookups give way to a dense latent space where every user-item pair has a meaningful alignment score. HR@10 climbs from ~65% to ~78% as biases and regularisation are added.*
 
-> ⚡ **Constraint progress**: This chapter advances **Constraint #1 (ACCURACY)** from 68% → 78% by replacing sparse similarity lookups with dense latent factor dot products. We're now 7 points away from the 85% target.
+> ⚡ **Constraint progress**: This chapter advances **Constraint #1 (ACCURACY)** from ~65% → ~78% by replacing sparse similarity lookups with dense latent factor dot products. We're now 7 points from the 85% target — Ch.4 neural CF will close it.
 
 ---
 
 ## 1 · Core Idea
 
-Matrix factorization decomposes the sparse user-item rating matrix $R$ into two dense, low-rank matrices: a user factor matrix $U$ and an item factor matrix $V$, such that $R \approx U \cdot V^T$. Each user is represented by a $d$-dimensional vector capturing their latent preferences ("likes action", "prefers cerebral sci-fi", "avoids romance"), and each item by a $d$-dimensional vector capturing its latent attributes. The dot product $\mathbf{u}_u^T \mathbf{v}_i$ predicts how much user $u$ will like item $i$. Training minimizes the reconstruction error on observed ratings plus a regularization penalty to prevent overfitting.
-
-That's it. Instead of finding similar users who rated the same movies, you discover **hidden taste dimensions** and project everyone into that space.
+Matrix factorisation decomposes the sparse ratings matrix $R$ into two dense low-rank matrices — a user factor matrix $P$ and an item factor matrix $Q$ — such that $R \approx P \cdot Q^\top$. Each user is represented by a $k$-dimensional vector capturing latent preferences, and each item by a $k$-dimensional vector capturing latent attributes; the dot product $\mathbf{p}_u^\top \mathbf{q}_i$ predicts how much user $u$ will like item $i$. Training minimises reconstruction error on the observed ratings plus an L2 regularisation penalty, updating $P$ and $Q$ jointly via stochastic gradient descent one rating at a time.
 
 ---
 
-## 2 · Running Example: What We're Solving
+## 2 · Running Example: From 943×1,682 Down to Latent Space
 
-You're still the Lead ML Engineer at FlixAI. The VP of Product just called:
+You're still the Lead ML Engineer at FlixAI. After shipping item-CF last sprint, the VP of Product calls again:
 
-> *"User 42 loves 'Blade Runner' and 'Minority Report' — why isn't the system recommending '2001: A Space Odyssey'?"*
+> *"User 42 loved 'Blade Runner' and 'Minority Report'. Why isn't the system recommending '2001: A Space Odyssey'?"*
 
-You check the Ch.2 collaborative filter. User 42's top-10 neighbors haven't rated "2001." Without a neighbor connection, the similarity-based system can't recommend it. Coverage gap.
+You check the collaborative filter. User 42's nearest neighbours have barely rated "2001." Without a neighbour connection, the similarity engine can't surface it. Coverage gap.
 
-But you suspect User 42 and "2001" share something deeper: **cerebral sci-fi**. If you could discover that hidden dimension, the connection would be obvious.
+But you suspect User 42 and "2001" share something deeper — **cerebral sci-fi**. If you could discover that hidden dimension, the recommendation would be obvious.
 
-Matrix factorization does exactly that. After training, User 42's latent vector is [0.8, −0.3, 0.5] (high on "cerebral", low on "romance", medium on "classic") and "2001"'s vector is [0.9, −0.4, 0.7] — their dot product is high even though no neighbor connection exists. The latent space bridges the sparsity gap.
+Matrix factorisation does exactly that.
 
-**Result**: "2001" appears in User 42's top-10. The VP is satisfied. You just unlocked 10 percentage points.
+**Full-scale problem:** MovieLens 100k — 943 users, 1,682 movies, 100,000 ratings. The goal is to factorise:
+
+$$R^{943 \times 1682} \approx P^{943 \times k} \cdot (Q^{1682 \times k})^\top$$
+
+with $k = 50$ latent factors.
+
+After training, User 42's latent vector has high values on the "cerebral sci-fi" dimension and low values on "romance." "2001"'s latent vector has similarly high values on "cerebral sci-fi." Their dot product is large — the system recommends "2001" even though no neighbour connection ever existed.
+
+**Toy decomposition (3 users × 3 movies, k=2):**
+
+To build intuition, consider a 3-user 3-movie example with $k=2$ latent factors. The rating matrix $R$ has some observed entries (values 1–5) and missing entries (—):
+
+$$R = \begin{pmatrix} - & 4 & 3 \\ 4 & 2 & - \\ 1 & - & 5 \end{pmatrix} \quad \approx \quad P \cdot Q^\top = \begin{pmatrix} p_{1,1} & p_{1,2} \\ p_{2,1} & p_{2,2} \\ p_{3,1} & p_{3,2} \end{pmatrix} \begin{pmatrix} q_{1,1} & q_{2,1} & q_{3,1} \\ q_{1,2} & q_{2,2} & q_{3,2} \end{pmatrix}$$
+
+The matrix $P \in \mathbb{R}^{3 \times 2}$ has one row per user; $Q \in \mathbb{R}^{3 \times 2}$ has one row per movie. The two columns represent two latent dimensions — after training, you might interpret dimension 1 as "action intensity" and dimension 2 as "cerebral depth," but the model discovers these structures automatically from ratings alone.
+
+**What the matrices mean after training:**
+
+| User | Dim 1 (e.g. "action") | Dim 2 (e.g. "cerebral") | Interpretation |
+|------|-----------------------|------------------------|----------------|
+| $\mathbf{p}_1 = [0.82, 0.61]$ | medium-high | medium | Likes both action and cerebral content |
+| $\mathbf{p}_2 = [0.66, 0.84]$ | medium | high | Cerebral content lover |
+| $\mathbf{p}_3 = [1.17, 0.32]$ | very high | low | Pure action fan |
+
+| Movie | Dim 1 | Dim 2 | Interpretation |
+|-------|-------|-------|----------------|
+| $\mathbf{q}_1 = [0.77, 0.62]$ | high | medium | Action/adventure |
+| $\mathbf{q}_2 = [0.54, 0.99]$ | medium | very high | Thoughtful drama |
+| $\mathbf{q}_3 = [1.36, 0.33]$ | very high | low | Pure action blockbuster |
+
+Predicted rating for User 3 (action fan) × Movie 3 (action blockbuster): $\mathbf{p}_3^\top \mathbf{q}_3 = 1.17 \times 1.36 + 0.32 \times 0.33 = 1.59 + 0.11 = 1.70$. After adding bias terms and rescaling to a 1–5 range, this maps to a strong predicted preference — even though User 3 never rated Movie 3 in training.
 
 ---
 
-## 3 · Math
+## 3 · MF Training at a Glance
 
-### The Factorization
+Before diving into the math, here is the full training loop. Each step below has a corresponding deep-dive in §4 and §6.
 
-Approximate the rating matrix as a product of two low-rank matrices:
+```
+1. Initialise P ∈ ℝ^(m×k) and Q ∈ ℝ^(n×k)
+   └─ Draw each element ~ Normal(0, 0.01)
+   └─ Small random init prevents symmetry (identical rows learn nothing new)
 
-$$R \approx U \cdot V^T$$
+2. For each training epoch:
 
-where $U \in \mathbb{R}^{m \times d}$ (users × factors), $V \in \mathbb{R}^{n \times d}$ (items × factors).
+   a. Shuffle the list of observed (u, i, r_ui) triples
 
-A single rating prediction:
+   b. For each observed rating (u, i, r_ui):
+      i.   Predict:  r̂_ui = p_u · q_i  (dot product, k multiplications)
+      ii.  Error:    e_ui  = r_ui - r̂_ui
+      iii. Update:   p_u ← p_u + α · (e_ui · q_i  − λ · p_u)
+                     q_i ← q_i + α · (e_ui · p_u  − λ · q_i)
 
-$$\hat{r}_{ui} = \mathbf{u}_u^T \mathbf{v}_i = \sum_{f=1}^{d} u_{uf} \cdot v_{if}$$
+   c. Compute RMSE on held-out validation set
 
-**Concrete example** ($d = 3$ factors):
+3. Stop when validation RMSE stops improving (patience = 5 epochs)
 
-User 42: $\mathbf{u}_{42} = [0.8, 0.5, -0.3]$ (interpretation: high "cerebral", medium "action", low "romance")
-Movie "Inception": $\mathbf{v}_{\text{Inc}} = [0.7, 0.9, -0.1]$ (high "cerebral", very high "action", low "romance")
+4. Generate recommendations:
+   └─ For user u, score all unrated items: score_i = p_u · q_i
+   └─ Sort by score descending, return top-10
+```
 
-$$\hat{r}_{42,\text{Inc}} = 0.8 \times 0.7 + 0.5 \times 0.9 + (-0.3) \times (-0.1) = 0.56 + 0.45 + 0.03 = 1.04$$
+**Notation reminder:**
+- $\alpha$ — learning rate (step size; typical range 0.01–0.1)
+- $\lambda$ — regularisation coefficient (shrinkage; typical range 0.01–0.1)
+- $e_{ui}$ — the prediction error for rating $(u,i)$; positive = we underestimated
+- The first term in each update ($e \cdot \mathbf{q}_i$, $e \cdot \mathbf{p}_u$) pulls vectors toward fitting the observed rating
+- The second term ($-\lambda \cdot \mathbf{p}_u$, $-\lambda \cdot \mathbf{q}_i$) pulls vectors back toward zero — prevents overfitting
 
-After adding bias terms and rescaling, this maps to a predicted rating of ~4.2.
+---
 
-> 💡 **Key insight**: The factor labels ("cerebral", "action", "romance") are **post-hoc interpretations** — the model doesn't know these names. It just discovers that certain dimensions correlate with user preferences and item attributes. Sometimes factors are interpretable ("likes old movies"), sometimes they're opaque combinations of signals.
+## 4 · The Math
 
-### Loss Function — Why Reconstruction Error Alone Fails
+### 4.1 · Objective Function — Reconstruction Error + Regularisation
 
-**Try it first**: minimize squared error on observed ratings.
+We want the predicted ratings $\hat{r}_{ui} = \mathbf{p}_u^\top \mathbf{q}_i$ to be close to the observed ratings $r_{ui}$ across all observed pairs, without the vectors growing arbitrarily large.
 
-$$\mathcal{L}_{naive} = \sum_{(u,i) \in \text{observed}} (r_{ui} - \mathbf{u}_u^T \mathbf{v}_i)^2$$
+$$\mathcal{L}(P, Q) = \sum_{(u,i) \in \mathcal{O}} \left(r_{ui} - \mathbf{p}_u^\top \mathbf{q}_i\right)^2 + \lambda \left(\|\mathbf{p}_u\|^2 + \|\mathbf{q}_i\|^2\right)$$
 
-Train this on MovieLens 100k, $d=50$ factors. Training RMSE drops to 0.12 (nearly perfect reconstruction). But validation RMSE is 1.18 — worse than the $d=20$ baseline. What broke?
+where $\mathcal{O}$ is the set of observed (user, item) pairs.
 
-The model memorized. With 50 dimensions and no penalty, the vectors can grow arbitrarily large to fit every training rating exactly. The learned factors capture noise, not signal.
+**Written out for 3 observed ratings** from our 3×3 toy — using $(U_1, M_2, 4)$, $(U_2, M_1, 4)$, and $(U_3, M_3, 5)$:
 
-**Fix: Add L2 regularization.**
+$$\mathcal{L} = \underbrace{(4 - \mathbf{p}_1^\top \mathbf{q}_2)^2}_{\text{U1 rated M2=4}} + \underbrace{(4 - \mathbf{p}_2^\top \mathbf{q}_1)^2}_{\text{U2 rated M1=4}} + \underbrace{(5 - \mathbf{p}_3^\top \mathbf{q}_3)^2}_{\text{U3 rated M3=5}}$$
 
-$$\mathcal{L} = \sum_{(u,i) \in \text{observed}} (r_{ui} - \mathbf{u}_u^T \mathbf{v}_i)^2 + \lambda \left( \|\mathbf{u}_u\|^2 + \|\mathbf{v}_i\|^2 \right)$$
+$$+ \lambda \left(\|\mathbf{p}_1\|^2 + \|\mathbf{q}_2\|^2 + \|\mathbf{p}_2\|^2 + \|\mathbf{q}_1\|^2 + \|\mathbf{p}_3\|^2 + \|\mathbf{q}_3\|^2 \right)$$
+
+**With initial vectors** ($\mathbf{p}_1=[0.50,0.30]$, $\mathbf{q}_2=[0.30,0.80]$, $\lambda=0.01$):
+
+$$\mathcal{L} = (4 - 0.39)^2 + (4 - 0.48)^2 + (5 - 0.65)^2 + 0.01 \times 3.46 = 13.03 + 12.39 + 18.92 + 0.04 = 44.38$$
+
+The regularisation term (0.04) is negligible at epoch 0 — reconstruction errors dominate. By convergence the vectors grow and the regularisation term becomes significant, balancing the two forces.
 
 | Term | Purpose |
-|------|---------||
-| $(r_{ui} - \mathbf{u}_u^T \mathbf{v}_i)^2$ | Reconstruction error — fit observed ratings |
-| $\lambda \|\mathbf{u}_u\|^2$ | Shrink user vectors — prevent memorization |
-| $\lambda \|\mathbf{v}_i\|^2$ | Shrink item vectors — encourage generalization |
+|------|---------|
+| $(r_{ui} - \mathbf{p}_u^\top \mathbf{q}_i)^2$ | Reconstruction error — fit observed ratings |
+| $\lambda \|\mathbf{p}_u\|^2$ | Shrink user vectors — prevent memorisation |
+| $\lambda \|\mathbf{q}_i\|^2$ | Shrink item vectors — encourage generalisation |
 
-With $\lambda = 0.02$, validation RMSE drops to 0.91. The model learned **generalizable patterns** instead of memorizing training noise.
-
-> ⚠️ **Warning**: $\lambda$ too high (e.g., 10.0) shrinks vectors so aggressively that all predictions collapse to the global mean. $\lambda$ too low (e.g., 0.0001) allows overfitting. The sweet spot is typically 0.01–0.1.
-
-### Adding Bias Terms
-
-> ➡️ **This is the intercept term $b$ from [01-Regression/ch01-linear-regression](../../01_regression/ch01_linear_regression), split into two pieces.** In regression, you learned $\hat{y} = wx + b$ where $b$ captures the baseline offset. Here, $b$ is decomposed into $\mu$ (global baseline), $b_u$ (user-specific offset), and $b_i$ (item-specific offset). Same idea, finer granularity.
-
-Users and items have inherent biases (some users rate generously, some movies are universally liked):
-
-$$\hat{r}_{ui} = \mu + b_u + b_i + \mathbf{u}_u^T \mathbf{v}_i$$
-
-where $\mu$ is the global mean rating, $b_u$ is the user bias, and $b_i$ is the item bias.
-
-**Concrete example**: Global mean $\mu = 3.53$. User 42 rates 0.3 above average ($b_u = 0.3$). "Inception" is 0.5 above average ($b_i = 0.5$). Interaction term = 1.04.
-
-$$\hat{r}_{42,\text{Inc}} = 3.53 + 0.3 + 0.5 + 1.04 = 5.37 \rightarrow \text{clip to } 5.0$$
-
-### Gradients for SGD
-
-> ➡️ **This is gradient descent from [01-Regression/ch01-linear-regression](../../01_regression/ch01_linear_regression).** The only difference: instead of updating a single weight vector $\mathbf{w}$, you're updating **two** embedding tables $U$ and $V$. The recipe is identical — compute error, compute gradient, step opposite the gradient.
-
-For each observed rating $(u, i, r_{ui})$, compute the error $e_{ui} = r_{ui} - \hat{r}_{ui}$:
-
-$$\mathbf{u}_u \leftarrow \mathbf{u}_u + \eta \left( e_{ui} \cdot \mathbf{v}_i - \lambda \cdot \mathbf{u}_u \right)$$
-$$\mathbf{v}_i \leftarrow \mathbf{v}_i + \eta \left( e_{ui} \cdot \mathbf{u}_u - \lambda \cdot \mathbf{v}_i \right)$$
-$$b_u \leftarrow b_u + \eta \left( e_{ui} - \lambda \cdot b_u \right)$$
-$$b_i \leftarrow b_i + \eta \left( e_{ui} - \lambda \cdot b_i \right)$$
-
-The first term in each update ($e_{ui} \cdot \mathbf{v}_i$, $e_{ui} \cdot \mathbf{u}_u$) pulls the vectors toward reducing the prediction error. The second term ($-\lambda \cdot \mathbf{u}_u$, $-\lambda \cdot \mathbf{v}_i$) pulls them toward zero (shrinkage). These two forces balance at convergence.
-
-### Alternating Least Squares (ALS) — When SGD Stalls
-
-**You've trained the SGD model for 100 epochs. Validation RMSE is stuck at 0.93 for the last 20 epochs.** You try reducing the learning rate — it slows convergence but doesn't improve the final loss. You try increasing it — the loss oscillates. The gradients are fighting each other.
-
-**Why it breaks**: SGD updates both $U$ and $V$ simultaneously. When a user vector shifts, all the item vectors it interacts with need to readjust. When those item vectors shift, all the user vectors need to readjust. The updates chase each other.
-
-**Fix: Alternating Least Squares (ALS).** Instead of updating both matrices simultaneously with gradients, **fix one and solve for the other exactly**, then alternate.
-
-1. **Fix $V$ (item matrix), solve for $U$ (user matrix)**: For each user $u$, compute the closed-form optimal $\mathbf{u}_u$ that minimizes loss given the current $V$:
-   $$\mathbf{u}_u = (V_u^T V_u + \lambda I)^{-1} V_u^T \mathbf{r}_u$$
-   where $V_u$ is the subset of item vectors that user $u$ rated.
-
-2. **Fix $U$, solve for $V$**: For each item $i$, compute:
-   $$\mathbf{v}_i = (U_i^T U_i + \lambda I)^{-1} U_i^T \mathbf{r}_i$$
-   where $U_i$ is the subset of user vectors who rated item $i$.
-
-3. **Repeat** until convergence (typically 10–20 iterations).
-
-**Result on MovieLens 100k**: ALS converges to RMSE 0.89 in 15 iterations — lower than SGD's best. No learning rate to tune. Each alternation is a full solve, not a gradient step.
-
-> 📚 **Optional: Closed-form derivation.** The ALS update $\mathbf{u}_u = (V_u^T V_u + \lambda I)^{-1} V_u^T \mathbf{r}_u$ comes from setting the gradient of the loss (with respect to $\mathbf{u}_u$, holding $V$ fixed) to zero and solving. Derivation: $\frac{\partial}{\partial \mathbf{u}_u} \left[ \sum_{i \in I_u} (r_{ui} - \mathbf{u}_u^T \mathbf{v}_i)^2 + \lambda \|\mathbf{u}_u\|^2 \right] = 0$ → $-2V_u^T(\mathbf{r}_u - V_u\mathbf{u}_u) + 2\lambda\mathbf{u}_u = 0$ → $V_u^TV_u\mathbf{u}_u + \lambda\mathbf{u}_u = V_u^T\mathbf{r}_u$ → $(V_u^TV_u + \lambda I)\mathbf{u}_u = V_u^T\mathbf{r}_u$. Invert both sides. Full proof in [MathUnderTheHood/ch08-least-squares](../../../math_under_the_hood/ch08_least_squares).
-
-**ALS vs SGD trade-off:**
-
-| | SGD | ALS |
-|---|---|---|---|
-| **Speed per iteration** | Fast (one gradient step per rating) | Slower (matrix inversion per user/item) |
-| **Convergence guarantee** | No — needs learning rate tuning | Yes — each step minimizes loss exactly |
-| **Parallelism** | Hard (updates interfere) | Embarrassingly parallel (all users solved independently, then all items) |
-| **Implicit feedback** | Needs custom loss | Natural fit (weighted least squares) |
-| **When to use** | Explicit ratings, need speed | Implicit feedback (clicks/views), production systems (Spark MLlib uses ALS) |
-
-> 💡 **Key insight**: ALS is the standard for **implicit feedback** recommenders ("User clicked item" = positive signal, "User didn't click" = negative signal weighted by confidence). Spotify, YouTube, and Netflix all use ALS variants for implicit data. For explicit ratings (1–5 stars), SGD is typically faster and equally accurate.
-
-### Worked 3×3 Example — Watching the Vectors Move
-
-**The setup**: 3 users, 3 movies, $d=2$ latent factors. Rating matrix $R$ (— = not rated):
-
-| | Movie1 | Movie2 | Movie3 |
-|---|---|---|---|
-| **Alice** | 5 | — | 3 |
-| **Bob** | 4 | 2 | — |
-| **Carol** | — | 4 | 1 |
-
-**Initial state** (random initialization):
-- $\mathbf{u}_{Alice} = [1.2,\; 0.8]$
-- $\mathbf{v}_{M1} = [1.0,\; 0.5]$
-- Hyperparameters: $\eta = 0.1$, $\lambda = 0.01$, no bias terms (for clarity)
-
-#### Epoch 1, Sample 1: $(Alice, Movie1, r=5)$
-
-**Forward pass:**
-
-$$\hat{r} = \mathbf{u}_{Alice}^T \mathbf{v}_{M1} = 1.2 \times 1.0 + 0.8 \times 0.5 = 1.20 + 0.40 = 1.60$$
-
-**Error:**
-
-$$e = r - \hat{r} = 5.0 - 1.60 = 3.40$$
-
-Alice loved this movie (5 stars) but our initial random vectors predict 1.6. Huge error.
-
-**Gradient update for Alice's vector:**
-
-$$\mathbf{u}_{Alice} \leftarrow \mathbf{u}_{Alice} + \eta(e \cdot \mathbf{v}_{M1} - \lambda \cdot \mathbf{u}_{Alice})$$
-
-$$= [1.2, 0.8] + 0.1(3.4 \times [1.0, 0.5] - 0.01 \times [1.2, 0.8])$$
-
-$$= [1.2, 0.8] + 0.1([3.4, 1.7] - [0.012, 0.008])$$
-
-$$= [1.2, 0.8] + 0.1([3.388, 1.692])$$
-
-$$= [1.2, 0.8] + [0.3388, 0.1692]$$
-
-$$= [1.5388, 0.9692]$$
-
-Rounded: $\mathbf{u}_{Alice} = [1.54, 0.97]$
-
-**Gradient update for Movie1's vector:**
-
-$$\mathbf{v}_{M1} \leftarrow \mathbf{v}_{M1} + \eta(e \cdot \mathbf{u}_{Alice} - \lambda \cdot \mathbf{v}_{M1})$$
-
-$$= [1.0, 0.5] + 0.1(3.4 \times [1.2, 0.8] - 0.01 \times [1.0, 0.5])$$
-
-$$= [1.0, 0.5] + 0.1([4.08, 2.72] - [0.01, 0.005])$$
-
-$$= [1.0, 0.5] + [0.407, 0.2715]$$
-
-$$= [1.407, 0.7715]$$
-
-Rounded: $\mathbf{v}_{M1} = [1.41, 0.77]$
-
-**Check new prediction:**
-
-$$\hat{r}_{new} = 1.54 \times 1.41 + 0.97 \times 0.77 = 2.17 + 0.75 = 2.92$$
-
-Error reduced: $5.0 - 2.92 = 2.08$ (was 3.40). The vectors moved in the direction that reduces the reconstruction error.
-
-**The match is exact.** One gradient step tightened the prediction from 1.60 → 2.92, cutting the error nearly in half.
-
-> 💡 **Key insight**: Both vectors moved. The user vector shifted toward the item's current position, and the item vector shifted toward the user's current position. After 50 epochs of these mutual adjustments across all observed ratings, the vectors settle into a configuration where similar users cluster together and similar items cluster together — even if they never directly interacted.
+> ⚠️ **Why sum only over observed pairs.** We cannot supervise on missing entries — "not rated" does not mean "rated 0." Summing over all $m \times n$ pairs would treat every absence as a zero, biasing predictions downward. The objective only penalises errors on entries we actually observed.
 
 ---
 
-## 4 · How It Works — Step by Step
+### 4.2 · Gradient Derivation
 
-**SGD-BASED MATRIX FACTORIZATION**
+To minimise $\mathcal{L}$ with SGD we need the gradient with respect to $\mathbf{p}_u$ and $\mathbf{q}_i$ for a single observed rating $(u, i, r_{ui})$.
 
-**1. Initialization**
-   - Create user matrix $U \in \mathbb{R}^{m \times d}$: each row is a user's latent vector, initialized ~ Normal(0, 0.01)
-   - Create item matrix $V \in \mathbb{R}^{n \times d}$: each row is an item's latent vector, initialized ~ Normal(0, 0.01)
-   - Initialize bias vectors $b_u$ (length $m$) and $b_i$ (length $n$) to zero
-   - Small random initialization prevents symmetry (if all vectors start identical, they stay identical)
+**Expand the loss for one rating:**
 
-**2. For each training epoch** (repeat 50–200 times):
-   
-   **a. Shuffle the observed ratings**
-   - Critical: randomizes gradient order, prevents SGD from learning data-order artifacts
-   
-   **b. For each rating $(u, i, r_{ui})$ in the shuffled list**:
-   
-   - **Predict**: $\hat{r} = \mu + b_u + b_i + \mathbf{u}_u^T \mathbf{v}_i$
-   - **Compute error**: $e = r_{ui} - \hat{r}$
-   - **Update user vector**: $\mathbf{u}_u \leftarrow \mathbf{u}_u + \eta(e \cdot \mathbf{v}_i - \lambda \cdot \mathbf{u}_u)$
-     - First term pulls $\mathbf{u}_u$ toward reducing error
-     - Second term shrinks $\mathbf{u}_u$ toward zero (regularization)
-   - **Update item vector**: $\mathbf{v}_i \leftarrow \mathbf{v}_i + \eta(e \cdot \mathbf{u}_u - \lambda \cdot \mathbf{v}_i)$
-   - **Update biases**: $b_u \leftarrow b_u + \eta(e - \lambda \cdot b_u)$ and $b_i \leftarrow b_i + \eta(e - \lambda \cdot b_i)$
-   
-   **c. Compute validation RMSE**
-   - Check if the model is converging (validation RMSE decreasing) or overfitting (training RMSE ↓, validation RMSE ↑)
+$$\mathcal{L}_{ui} = (r_{ui} - \mathbf{p}_u^\top \mathbf{q}_i)^2 + \lambda \|\mathbf{p}_u\|^2 + \lambda \|\mathbf{q}_i\|^2$$
 
-**3. Generate recommendations**:
-   - For each user $u$, score all unrated items: $\text{score}_i = \mu + b_u + b_i + \mathbf{u}_u^T \mathbf{v}_i$
-   - Sort by score descending
-   - Return top-10
+Let $e_{ui} = r_{ui} - \mathbf{p}_u^\top \mathbf{q}_i$. Applying the chain rule:
 
-**You just did gradient descent on an embedding table.** The same technique that powers word2vec, BERT embeddings, and every neural recommender.
+$$\frac{\partial \mathcal{L}_{ui}}{\partial \mathbf{p}_u} = -2 e_{ui} \cdot \mathbf{q}_i + 2\lambda \cdot \mathbf{p}_u$$
+
+$$\frac{\partial \mathcal{L}_{ui}}{\partial \mathbf{q}_i} = -2 e_{ui} \cdot \mathbf{p}_u + 2\lambda \cdot \mathbf{q}_i$$
+
+**Reading the gradients:** When $e_{ui} > 0$ (we underestimated), the gradient $\partial \mathcal{L}/\partial \mathbf{p}_u = -2e\mathbf{q}_i + 2\lambda\mathbf{p}_u$ is dominated by $-2e\mathbf{q}_i$ (negative direction along $\mathbf{q}_i$). Stepping *opposite* this gradient moves $\mathbf{p}_u$ toward $+\mathbf{q}_i$ — exactly what you want to increase the dot product and reduce the error.
 
 ---
 
-## 5 · Key Diagrams
+### 4.3 · SGD Update Rules
 
-### Factorization Visual
+Gradient descent steps opposite the gradient. Absorbing the constant factor of 2 into $\alpha$:
+
+$$\mathbf{p}_u \leftarrow \mathbf{p}_u + \alpha \cdot \left(e_{ui} \cdot \mathbf{q}_i - \lambda \cdot \mathbf{p}_u\right)$$
+
+$$\mathbf{q}_i \leftarrow \mathbf{q}_i + \alpha \cdot \left(e_{ui} \cdot \mathbf{p}_u - \lambda \cdot \mathbf{q}_i\right)$$
+
+**Concrete numerical example:** $(u=1, i=2, r_{12}=4)$, $k=2$, $\alpha=0.1$, $\lambda=0.01$
+
+Initial vectors: $\mathbf{p}_1 = [0.50,\ 0.30]$, $\mathbf{q}_2 = [0.30,\ 0.80]$
+
+**Step 1 — Predict:**
+
+$$\hat{r}_{12} = \mathbf{p}_1^\top \mathbf{q}_2 = 0.50 \times 0.30 + 0.30 \times 0.80 = 0.15 + 0.24 = 0.39$$
+
+**Step 2 — Compute error:**
+
+$$e_{12} = 4 - 0.39 = 3.61$$
+
+User 1 rated movie 2 as 4 stars; we predicted 0.39. Huge underestimate — the vectors are not yet aligned.
+
+**Step 3 — Update $\mathbf{p}_1$:**
+
+$$\mathbf{p}_1 \leftarrow [0.50, 0.30] + 0.1 \times \bigl(3.61 \times [0.30, 0.80] - 0.01 \times [0.50, 0.30]\bigr)$$
+
+$$= [0.50, 0.30] + 0.1 \times \bigl([1.083, 2.888] - [0.005, 0.003]\bigr)$$
+
+$$= [0.50, 0.30] + 0.1 \times [1.078, 2.885] = [0.50, 0.30] + [0.108, 0.289]$$
+
+$$\mathbf{p}_1 = [0.608, 0.589] \approx \mathbf{[0.61,\ 0.59]}$$
+
+**Step 4 — Update $\mathbf{q}_2$:**
+
+$$\mathbf{q}_2 \leftarrow [0.30, 0.80] + 0.1 \times \bigl(3.61 \times [0.50, 0.30] - 0.01 \times [0.30, 0.80]\bigr)$$
+
+$$= [0.30, 0.80] + 0.1 \times \bigl([1.805, 1.083] - [0.003, 0.008]\bigr)$$
+
+$$= [0.30, 0.80] + [0.180, 0.108] = \mathbf{[0.48,\ 0.91]}$$
+
+**Check:** new prediction $= 0.61 \times 0.48 + 0.59 \times 0.91 = 0.293 + 0.537 = 0.83$. Error reduced: $4 - 0.83 = 3.17$ (was 3.61). Both vectors moved toward each other in latent space.
+
+---
+
+### 4.4 · Bias Variant: $\hat{r}_{ui} = \mu + b_u + b_i + \mathbf{p}_u^\top \mathbf{q}_i$
+
+> ➡️ **Connection to linear regression.** The bias terms here are exactly the intercept $b$ from [Linear Regression ch01](../../01_regression/ch01_linear_regression) — decomposed into three additive pieces: a global mean, a user-specific offset, and an item-specific offset. Same idea, finer granularity.
+
+Users and items have inherent rating tendencies that have nothing to do with taste alignment. User 7 gives 4.5 stars to everything; "Titanic" gets 4.2 stars on average regardless of who watches it. Without separating these out, the dot product term $\mathbf{p}_u^\top \mathbf{q}_i$ has to explain both the popularity effect and the taste alignment — it gets confused.
+
+The **bias model** adds three global terms:
+
+$$\hat{r}_{ui} = \mu + b_u + b_i + \mathbf{p}_u^\top \mathbf{q}_i$$
+
+| Term | Meaning | Example |
+|------|---------|---------|
+| $\mu$ | Global mean rating | MovieLens: $\mu = 3.53$ |
+| $b_u$ | User bias — does this user rate above/below average? | Generous user: $b_u = +0.4$ |
+| $b_i$ | Item bias — is this item universally loved/hated? | "Shawshank": $b_i = +0.7$ |
+| $\mathbf{p}_u^\top \mathbf{q}_i$ | Taste alignment — does this user like this *type* of movie? | Cerebral sci-fi lover watching "2001" |
+
+**Concrete example:** $\mu = 3.53$, $b_{42} = +0.3$ (generous rater), $b_{\text{2001}} = +0.5$ (universally acclaimed), $\mathbf{p}_{42}^\top \mathbf{q}_{2001} = 1.04$.
+
+$$\hat{r}_{42,2001} = 3.53 + 0.3 + 0.5 + 1.04 = 5.37 \rightarrow \text{clipped to } 5.0$$
+
+Without biases, the dot product alone must explain $3.53 + 0.3 + 0.5 = 4.33$ stars of "baseline" before reaching taste alignment — wasted capacity. Once biases absorb the easy part, $\mathbf{p}_u^\top \mathbf{q}_i$ is free to model the subtle taste interactions that actually differentiate recommendations.
+
+**Empirically:** bias model alone (no interaction term) reaches RMSE ≈ 0.94 on MovieLens 100k. Full bias + MF reaches RMSE ≈ 0.89. The improvement from 0.94 → 0.89 comes entirely from $\mathbf{p}_u^\top \mathbf{q}_i$ capturing what biases can't explain.
+
+**SGD updates with biases** — for observed $(u, i, r_{ui})$ with error $e_{ui} = r_{ui} - \hat{r}_{ui}$:
+
+$$b_u \leftarrow b_u + \alpha \left(e_{ui} - \lambda \cdot b_u\right)$$
+$$b_i \leftarrow b_i + \alpha \left(e_{ui} - \lambda \cdot b_i\right)$$
+$$\mathbf{p}_u \leftarrow \mathbf{p}_u + \alpha \left(e_{ui} \cdot \mathbf{q}_i - \lambda \cdot \mathbf{p}_u\right)$$
+$$\mathbf{q}_i \leftarrow \mathbf{q}_i + \alpha \left(e_{ui} \cdot \mathbf{p}_u - \lambda \cdot \mathbf{q}_i\right)$$
+
+---
+
+### 4.5 · Two Complete SGD Steps — Full Arithmetic
+
+We'll run two SGD steps on the 3×3 example, carrying state forward between steps.
+
+**Setup:**
+
+$$R = \begin{pmatrix} - & 4 & 3 \\ 4 & 2 & - \\ 1 & - & 5 \end{pmatrix}, \quad k=2, \quad \alpha=0.1, \quad \lambda=0.01$$
+
+Initial vectors:
+
+| Vector | dim 1 | dim 2 |
+|--------|-------|-------|
+| $\mathbf{p}_1$ | 0.50 | 0.30 |
+| $\mathbf{p}_2$ | 0.40 | 0.60 |
+| $\mathbf{p}_3$ | 0.70 | 0.20 |
+| $\mathbf{q}_1$ | 0.60 | 0.40 |
+| $\mathbf{q}_2$ | 0.30 | 0.80 |
+| $\mathbf{q}_3$ | 0.90 | 0.10 |
+
+---
+
+**SGD Step 1: Sample $(u=1,\ i=2,\ r=4)$**
+
+Forward: $\hat{r}_{12} = 0.50 \times 0.30 + 0.30 \times 0.80 = 0.39$, error: $e_{12} = 4 - 0.39 = 3.61$
+
+Update $\mathbf{p}_1$:
+$$\mathbf{p}_1 \leftarrow [0.50, 0.30] + 0.1 \times (3.61 \times [0.30, 0.80] - 0.01 \times [0.50, 0.30])$$
+$$= [0.50, 0.30] + 0.1 \times ([1.083, 2.888] - [0.005, 0.003])$$
+$$= [0.50, 0.30] + 0.1 \times [1.078, 2.885] = [0.50, 0.30] + [0.11, 0.29] = \mathbf{[0.61,\ 0.59]}$$
+
+Update $\mathbf{q}_2$:
+$$\mathbf{q}_2 \leftarrow [0.30, 0.80] + 0.1 \times (3.61 \times [0.50, 0.30] - 0.01 \times [0.30, 0.80])$$
+$$= [0.30, 0.80] + 0.1 \times ([1.805, 1.083] - [0.003, 0.008])$$
+$$= [0.30, 0.80] + 0.1 \times [1.802, 1.075] = [0.30, 0.80] + [0.18, 0.11] = \mathbf{[0.48,\ 0.91]}$$
+
+Check: $\hat{r}_{12}^{\text{new}} = 0.61 \times 0.48 + 0.59 \times 0.91 = 0.29 + 0.54 = 0.83$. Error: $4 - 0.83 = 3.17$ ✓ reduced from 3.61.
+
+---
+
+**SGD Step 2: Sample $(u=1,\ i=3,\ r=3)$** — using updated $\mathbf{p}_1 = [0.61, 0.59]$; $\mathbf{q}_3$ unchanged
+
+Forward: $\hat{r}_{13} = 0.61 \times 0.90 + 0.59 \times 0.10 = 0.549 + 0.059 = 0.61$, error: $e_{13} = 3 - 0.61 = 2.39$
+
+Update $\mathbf{p}_1$:
+$$\mathbf{p}_1 \leftarrow [0.61, 0.59] + 0.1 \times (2.39 \times [0.90, 0.10] - 0.01 \times [0.61, 0.59])$$
+$$= [0.61, 0.59] + 0.1 \times ([2.151, 0.239] - [0.006, 0.006])$$
+$$= [0.61, 0.59] + 0.1 \times [2.145, 0.233] = [0.61, 0.59] + [0.21, 0.02] = \mathbf{[0.82,\ 0.61]}$$
+
+Update $\mathbf{q}_3$:
+$$\mathbf{q}_3 \leftarrow [0.90, 0.10] + 0.1 \times (2.39 \times [0.61, 0.59] - 0.01 \times [0.90, 0.10])$$
+$$= [0.90, 0.10] + 0.1 \times ([1.458, 1.410] - [0.009, 0.001])$$
+$$= [0.90, 0.10] + 0.1 \times [1.449, 1.409] = [0.90, 0.10] + [0.14, 0.14] = \mathbf{[1.04,\ 0.24]}$$
+
+Check: $\hat{r}_{13}^{\text{new}} = 0.82 \times 1.04 + 0.61 \times 0.24 = 0.853 + 0.146 = 1.00$. Error: $3 - 1.00 = 2.00$ ✓ reduced from 2.39.
+
+> 💡 **Key insight**: After two steps, $\mathbf{p}_1$ moved from $[0.50, 0.30]$ to $[0.82, 0.61]$ — both latent dimensions grew because User 1 gave ratings of 4 and 3. Both item vectors $\mathbf{q}_2$ and $\mathbf{q}_3$ grew toward $\mathbf{p}_1$'s direction. The latent space is discovering that User 1 aligns with movies 2 and 3.
+
+---
+
+## 5 · Factorization Discovery Arc
+
+Four historical acts, each fixing the failure of the previous.
+
+### Act 1 — Classical SVD: Mathematically Exact but Inapplicable
+
+SVD decomposes *any* real matrix exactly: $R = U\Sigma V^\top$. The singular values in $\Sigma$ rank the importance of each dimension; truncating to the top $k$ gives the best rank-$k$ approximation in the Frobenius norm. Perfect — except SVD requires a *complete* matrix. With 93.7% missing entries in MovieLens you can't compute $U$, $\Sigma$, or $V$ directly without filling in the blanks first. Any imputation (set missing to 0, to the row mean, to the global mean) distorts the factorisation toward the imputed values. Classical SVD does not work for sparse recommender problems.
+
+### Act 2 — Funk SVD: Only Train on Observed Ratings
+
+Simon Funk's 2006 blog post reframed the problem: don't decompose the full matrix — just minimise reconstruction error on the entries you *can* see, using SGD. This is "SVD" in name only (the resulting $P$, $Q$ are not orthogonal and singular values are implicit), but it works:
+
+$$\min_{P,Q} \sum_{(u,i) \in \mathcal{O}} (r_{ui} - \mathbf{p}_u^\top \mathbf{q}_i)^2$$
+
+Funk trained $k=100$ factors on the Netflix Prize data and beat every neighbourhood method in hours. The core loop is exactly §3 above — minus regularisation.
+
+### Act 3 — Add Regularisation: Prevent Overfitting
+
+The pure Funk objective memorises. With $k=50$ factors and 100k ratings there are $50 \times (943 + 1682) = 131{,}250$ free parameters — more than enough to fit training data perfectly and generalise to nothing. The L2 penalty term $\lambda(\|\mathbf{p}_u\|^2 + \|\mathbf{q}_i\|^2)$ shrinks vectors toward zero, acting as a prior that prefers small-norm representations. This alone drops MovieLens validation RMSE from ~1.18 (overfitted) to ~0.91 (generalised).
+
+### Act 4 — SVD++: Add Implicit Feedback
+
+Koren's 2008 extension observed that *which* items a user rated (regardless of the rating value) is itself a signal. A user who has rated 200 sci-fi films is revealed as a sci-fi enthusiast even if their average rating is 3.0. SVD++ augments the user vector with an implicit profile:
+
+$$\hat{r}_{ui} = \mu + b_u + b_i + \left(\mathbf{p}_u + |I_u|^{-1/2} \sum_{j \in I_u} \mathbf{y}_j\right)^\top \mathbf{q}_i$$
+
+The term $|I_u|^{-1/2} \sum_j \mathbf{y}_j$ is the "implicit user profile" — an average over the item embeddings in the user's rating history. This is a direct precursor to attention pooling (Ch.9 Sequences-to-Attention in the Neural Networks track).
+
+---
+
+## 6 · Full SGD Walkthrough — One Complete Epoch
+
+Using the same rating matrix and initial vectors from §4.5, we process **all 6 observed ratings** in a single epoch. This shows how $P$ and $Q$ evolve and how RMSE changes.
+
+**Observed ratings (iteration order for this epoch):**
+$(U_1, M_2, 4)$, $(U_1, M_3, 3)$, $(U_2, M_1, 4)$, $(U_2, M_2, 2)$, $(U_3, M_1, 1)$, $(U_3, M_3, 5)$
+
+**Initial state:**
+
+| Vector | dim 1 | dim 2 |
+|--------|-------|-------|
+| $\mathbf{p}_1$ | 0.50 | 0.30 |
+| $\mathbf{p}_2$ | 0.40 | 0.60 |
+| $\mathbf{p}_3$ | 0.70 | 0.20 |
+| $\mathbf{q}_1$ | 0.60 | 0.40 |
+| $\mathbf{q}_2$ | 0.30 | 0.80 |
+| $\mathbf{q}_3$ | 0.90 | 0.10 |
+
+**Initial RMSE:**
+
+| Pair | r | $\hat{r}$ | e | $e^2$ |
+|------|---|-----------|---|-------|
+| (1,2) | 4 | 0.50×0.30 + 0.30×0.80 = 0.39 | 3.61 | 13.03 |
+| (1,3) | 3 | 0.50×0.90 + 0.30×0.10 = 0.48 | 2.52 | 6.35  |
+| (2,1) | 4 | 0.40×0.60 + 0.60×0.40 = 0.48 | 3.52 | 12.39 |
+| (2,2) | 2 | 0.40×0.30 + 0.60×0.80 = 0.60 | 1.40 | 1.96  |
+| (3,1) | 1 | 0.70×0.60 + 0.20×0.40 = 0.50 | 0.50 | 0.25  |
+| (3,3) | 5 | 0.70×0.90 + 0.20×0.10 = 0.65 | 4.35 | 18.92 |
+
+$$\text{RMSE}_{\text{before}} = \sqrt{52.90 / 6} = \sqrt{8.82} = \mathbf{2.97}$$
+
+---
+
+**Processing all 6 ratings (state carried forward):**
+
+**Step 1** — $(u=1, i=2, r=4)$: $e=3.61$
+$$\mathbf{p}_1 \to [0.61, 0.59], \quad \mathbf{q}_2 \to [0.48, 0.91]$$
+
+**Step 2** — $(u=1, i=3, r=3)$: $e=2.39$ (uses updated $\mathbf{p}_1=[0.61,0.59]$)
+$$\mathbf{p}_1 \to [0.82, 0.61], \quad \mathbf{q}_3 \to [1.04, 0.24]$$
+
+**Step 3** — $(u=2, i=1, r=4)$: $\hat{r}=0.40\times0.60+0.60\times0.40=0.48$, $e=3.52$
+$$\mathbf{p}_2 \to [0.61, 0.74], \quad \mathbf{q}_1 \to [0.74, 0.61]$$
+
+**Step 4** — $(u=2, i=2, r=2)$: $\hat{r}=0.61\times0.48+0.74\times0.91=0.96$, $e=1.04$ (uses updated $\mathbf{p}_2$, $\mathbf{q}_2$)
+$$\mathbf{p}_2 \to [0.66, 0.84], \quad \mathbf{q}_2 \to [0.54, 0.99]$$
+
+**Step 5** — $(u=3, i=1, r=1)$: $\hat{r}=0.70\times0.74+0.20\times0.61=0.64$, $e=0.36$ (uses updated $\mathbf{q}_1$)
+$$\mathbf{p}_3 \to [0.73, 0.22], \quad \mathbf{q}_1 \to [0.77, 0.62]$$
+
+**Step 6** — $(u=3, i=3, r=5)$: $\hat{r}=0.73\times1.04+0.22\times0.24=0.82$, $e=4.18$ (uses updated $\mathbf{p}_3$, $\mathbf{q}_3$)
+$$\mathbf{p}_3 \to [1.17, 0.32], \quad \mathbf{q}_3 \to [1.36, 0.33]$$
+
+---
+
+**Final state after Epoch 1:**
+
+| Vector | dim 1 (before → after) | dim 2 (before → after) | Δ dim 1 | Δ dim 2 |
+|--------|------------------------|------------------------|---------|---------|
+| $\mathbf{p}_1$ | 0.50 → **0.82** | 0.30 → **0.61** | +0.32 ↑ | +0.31 ↑ |
+| $\mathbf{p}_2$ | 0.40 → **0.66** | 0.60 → **0.84** | +0.26 ↑ | +0.24 ↑ |
+| $\mathbf{p}_3$ | 0.70 → **1.17** | 0.20 → **0.32** | +0.47 ↑ | +0.12 ↑ |
+| $\mathbf{q}_1$ | 0.60 → **0.77** | 0.40 → **0.62** | +0.17 ↑ | +0.22 ↑ |
+| $\mathbf{q}_2$ | 0.30 → **0.54** | 0.80 → **0.99** | +0.24 ↑ | +0.19 ↑ |
+| $\mathbf{q}_3$ | 0.90 → **1.36** | 0.10 → **0.33** | +0.46 ↑ | +0.23 ↑ |
+
+All vectors grew in both dimensions. The largest growth: $\mathbf{p}_3$ dim 1 (+0.47) and $\mathbf{q}_3$ dim 1 (+0.46), driven by the $(3,3,5)$ rating with error 4.18 — the largest error in the epoch.
+
+**RMSE after Epoch 1:**
+
+| Pair | r | $\hat{r}$ (new vectors) | e | $e^2$ |
+|------|---|------------------------|---|-------|
+| (1,2) | 4 | 0.82×0.54 + 0.61×0.99 = 1.05 | 2.95 | 8.70 |
+| (1,3) | 3 | 0.82×1.36 + 0.61×0.33 = 1.32 | 1.68 | 2.82 |
+| (2,1) | 4 | 0.66×0.77 + 0.84×0.62 = 1.03 | 2.97 | 8.82 |
+| (2,2) | 2 | 0.66×0.54 + 0.84×0.99 = 1.19 | 0.81 | 0.66 |
+| (3,1) | 1 | 1.17×0.77 + 0.32×0.62 = 1.10 | −0.10 | 0.01 |
+| (3,3) | 5 | 1.17×1.36 + 0.32×0.33 = 1.70 | 3.30 | 10.89 |
+
+$$\text{RMSE}_{\text{after}} = \sqrt{31.90 / 6} = \sqrt{5.32} = \mathbf{2.31}$$
+
+**RMSE dropped from 2.97 → 2.31 (22% reduction) in a single epoch.** On the real 100k dataset with $k=50$, running 50–200 epochs converges to validation RMSE ≈ 0.91.
+
+> 💡 **Key insight**: The $(3,1,1)$ rating with error 0.36 barely moved anything; the $(3,3,5)$ rating with error 4.18 moved $\mathbf{q}_3$ by 0.46 units in dim 1. SGD's per-rating updates automatically prioritise the most egregious errors — the same self-braking property as MSE gradient descent in linear regression.
+
+---
+
+## 7 · Key Diagrams
+
+### MF Compression Pipeline
 
 ```mermaid
 flowchart LR
-    R["R<br/>943 × 1682<br/>(sparse)"] -->|"≈"| U["U<br/>943 × d<br/>(dense)"]
-    R -->|"≈"| V["V<br/>1682 × d<br/>(dense)"]
-    U --> DOT["u_u · v_i"]
-    V --> DOT
-    DOT --> PRED["r̂_ui"]
-    
+    R["R\n943 × 1682\n(sparse, 6.3% filled)"] -->|"decompose"| P["P\n943 × k\n(dense user factors)"]
+    R -->|"decompose"| Q["Q\n1682 × k\n(dense item factors)"]
+    P --> DOT["p_u · q_i\n(dot product)"]
+    Q --> DOT
+    DOT --> BIAS["+ μ + b_u + b_i\n(bias correction)"]
+    BIAS --> PRED["r̂_ui\n(predicted rating)"]
+    PRED --> TOP10["Top-10 per user\n(rank all unrated)"]
+
     style R fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style U fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style V fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style P fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style Q fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style PRED fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style TOP10 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
-### Training Loop
+### SGD Training Loop
 
 ```mermaid
 flowchart TD
-    INIT["Init U, V<br/>randomly"] --> EPOCH["For each epoch"]
-    EPOCH --> SAMPLE["Sample observed<br/>rating (u, i, r)"]
-    SAMPLE --> PRED["Predict r̂ = μ + b_u<br/>+ b_i + u_u · v_i"]
-    PRED --> ERR["Error e = r - r̂"]
-    ERR --> UPDATE["Update U, V, biases<br/>via gradient step"]
-    UPDATE --> MORE{"More ratings<br/>in epoch?"}
-    MORE -->|"Yes"| SAMPLE
-    MORE -->|"No"| VAL["Compute<br/>validation RMSE"]
-    VAL --> CONV{"Converged?"}
-    CONV -->|"No"| EPOCH
-    CONV -->|"Yes"| DONE["Return U, V"]
-    
+    INIT["Init P, Q\n~ Normal(0, 0.01)\nInit b_u, b_i = 0"] --> EPOCH
+    EPOCH["Start epoch"] --> SHUFFLE
+    SHUFFLE["Shuffle observed\n(u, i, r_ui) triples"] --> PICK
+    PICK["Pick next\nrating (u, i, r)"] --> FWD
+    FWD["Forward pass\nr̂ = μ + b_u + b_i + p_u·q_i"] --> ERR
+    ERR["Error\ne = r − r̂"] --> UPDT
+    UPDT["SGD update\np_u += α(e·q_i − λ·p_u)\nq_i += α(e·p_u − λ·q_i)\nb_u += α(e − λ·b_u)\nb_i += α(e − λ·b_i)"] --> MORE
+    MORE{"More ratings\nin epoch?"} -->|"Yes"| PICK
+    MORE -->|"No"| VAL["Compute val RMSE\nCheck convergence"]
+    VAL --> CONV{"Val RMSE\nimproving?"}
+    CONV -->|"Yes — next epoch"| EPOCH
+    CONV -->|"No — patience exceeded"| DONE["Return P, Q, biases\nGenerate recs"]
+
     style INIT fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style UPDT fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
     style DONE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
----
-
-## 6 · The Hyperparameter Dial
-
-**The most impactful dial: $d$ (number of latent factors)**
-
-This controls the model's expressiveness. Too few factors → can't capture taste complexity. Too many → overfits.
-
-**Typical starting point**: $d = 20$ for MovieLens 100k (100k ratings). Scale with dataset size:
-- 10k ratings → $d = 10$
-- 100k ratings → $d = 20$
-- 1M ratings → $d = 50$
-- 10M+ ratings → $d = 100–200$
-
-**Effect of changing $d$:**
-
-| $d$ | Train RMSE | Val RMSE | Training Time | Notes |
-|-----|------------|----------|---------------|-------|
-| 2 | 1.15 | 1.18 | Fast | Can't capture taste nuance |
-| 10 | 0.98 | 0.95 | Fast | Decent baseline |
-| **20** | **0.89** | **0.91** | **Medium** | **✅ Sweet spot** |
-| 50 | 0.72 | 0.93 | Slow | Overfitting starts |
-| 100 | 0.45 | 1.12 | Very slow | Severe overfitting |
-
----
-
-**Other critical dials:**
-
-**$\lambda$ (regularization strength)**
-- **Too low** (0.0001): Overfits — training RMSE → 0, validation RMSE explodes
-- **Sweet spot** (0.01–0.1): Balanced generalization
-- **Too high** (10.0): Underfits — all predictions collapse to global mean
-
-**$\eta$ (learning rate, SGD only)**
-- **Too low** (0.0001): Extremely slow convergence (500+ epochs needed)
-- **Sweet spot** (0.005–0.02): Stable, predictable convergence
-- **Too high** (0.5): Loss oscillates wildly, never converges
-
-**epochs**
-- **Too few** (5): Underfitted, vectors haven't converged
-- **Sweet spot** (50–200): Converged, validation RMSE plateaus
-- **Too many** (1000): Wasted compute, overfitting if no early stopping
-
-**Bias terms** ($\mu$, $b_u$, $b_i$)
-- **Always include these.** Not including them is a mistake, not a hyperparameter choice. Without biases, latent factors waste capacity encoding baseline offsets.
-
-> 💡 **Tuning order**: Start with $d=20$, $\lambda=0.02$, $\eta=0.01$. If validation RMSE is higher than training RMSE by >0.2, increase $\lambda$. If both are high, increase $d$ or train longer. If loss oscillates, reduce $\eta$ or switch to ALS.
-
----
-
-## 7 · Code Skeleton
-
-```python
-import numpy as np
-import pandas as pd
-
-class MatrixFactorization:
-    """SGD-based matrix factorization for explicit ratings."""
-    
-    def __init__(self, n_users, n_items, n_factors=20, lr=0.005, reg=0.02):
-        # Initialize user and item factors ~ N(0, 0.01)
-        # Small random init prevents symmetry breaking issues
-        self.U = np.random.normal(0, 0.01, (n_users, n_factors))
-        self.V = np.random.normal(0, 0.01, (n_items, n_factors))
-        
-        # Bias terms start at zero
-        self.b_u = np.zeros(n_users)
-        self.b_i = np.zeros(n_items)
-        self.mu = 0.0  # Will be set to global mean during fit
-        
-        self.lr = lr      # Learning rate (typical: 0.005–0.02)
-        self.reg = reg    # Regularization strength (typical: 0.01–0.1)
-    
-    def fit(self, ratings, n_epochs=50, verbose=True):
-        """Train via SGD on observed ratings.
-        
-        Args:
-            ratings: DataFrame with columns ['user_id', 'item_id', 'rating']
-            n_epochs: Number of passes through the training data
-            verbose: Print validation RMSE each epoch
-        """
-        self.mu = ratings['rating'].mean()
-        
-        for epoch in range(n_epochs):
-            # CRITICAL: Shuffle ratings each epoch to avoid order artifacts
-            shuffled = ratings.sample(frac=1)
-            
-            for _, row in shuffled.iterrows():
-                # Convert to 0-indexed (if your IDs are 1-indexed)
-                u = int(row['user_id'] - 1)
-                i = int(row['item_id'] - 1)
-                r = row['rating']
-                
-                # Forward pass: predict rating
-                pred = self.mu + self.b_u[u] + self.b_i[i] + self.U[u] @ self.V[i]
-                err = r - pred
-                
-                # Gradient updates (SGD step)
-                # Update user factor: move toward reducing error, shrink toward zero
-                self.U[u] += self.lr * (err * self.V[i] - self.reg * self.U[u])
-                
-                # Update item factor: same idea
-                self.V[i] += self.lr * (err * self.U[u] - self.reg * self.V[i])
-                
-                # Update biases (no interaction term, just error and regularization)
-                self.b_u[u] += self.lr * (err - self.reg * self.b_u[u])
-                self.b_i[i] += self.lr * (err - self.reg * self.b_i[i])
-            
-            if verbose and (epoch + 1) % 10 == 0:
-                # Compute validation RMSE (you'd need a validation set here)
-                print(f"Epoch {epoch+1}/{n_epochs} completed")
-    
-    def predict(self, user_id, item_id):
-        """Predict rating for a single user-item pair."""
-        u, i = user_id - 1, item_id - 1  # Convert to 0-indexed
-        pred = self.mu + self.b_u[u] + self.b_i[i] + self.U[u] @ self.V[i]
-        return np.clip(pred, 1, 5)  # Clip to valid rating range
-    
-    def recommend(self, user_id, rated_items, top_k=10):
-        """Generate top-k recommendations for a user.
-        
-        Args:
-            user_id: User ID (1-indexed)
-            rated_items: List of item IDs the user has already rated (1-indexed)
-            top_k: Number of recommendations to return
-            
-        Returns:
-            Array of item IDs (1-indexed) sorted by predicted rating
-        """
-        u = user_id - 1
-        
-        # Score all items for this user
-        scores = self.mu + self.b_u[u] + self.b_i + self.U[u] @ self.V.T
-        
-        # Exclude already-rated items (set their scores to -inf)
-        rated_items_idx = [item - 1 for item in rated_items]
-        scores[rated_items_idx] = -np.inf
-        
-        # Return top-k item IDs (convert back to 1-indexed)
-        top_items = np.argsort(scores)[-top_k:][::-1] + 1
-        return top_items
-```
-
-**Usage example:**
-
-```python
-from surprise import Dataset
-from surprise.model_selection import train_test_split
-
-# Load MovieLens 100k
-data = Dataset.load_builtin('ml-100k')
-trainset, testset = train_test_split(data, test_size=0.2)
-
-# Convert to DataFrame (assuming you have a conversion function)
-train_df = to_dataframe(trainset)  # ['user_id', 'item_id', 'rating']
-
-# Train
-mf = MatrixFactorization(n_users=943, n_items=1682, n_factors=20, lr=0.01, reg=0.02)
-mf.fit(train_df, n_epochs=50)
-
-# Recommend for user 42
-rated = train_df[train_df['user_id'] == 42]['item_id'].tolist()
-recs = mf.recommend(user_id=42, rated_items=rated, top_k=10)
-print(f"Top 10 recommendations for User 42: {recs}")
-```
-
-> ⚠️ **Production note**: This implementation is educational. For production, use `surprise.SVD`, `implicit.ALS`, or `lightfm.LightFM` — they're optimized in C/Cython and handle edge cases (cold start, implicit feedback) that this code doesn't.
-
----
-
-## 8 · What Can Go Wrong
-
-**Predictions cluster around global mean (µ = 3.53) regardless of user or item**
-
-You train a basic $\hat{r} = \mathbf{u}_u^T \mathbf{v}_i$ model with $d=20$, $\lambda=0.02$. Every prediction is between 3.4 and 3.6. The model learned nothing.
-
-Cause: Some users rate generously (average 4.5), others harshly (average 2.8). Some movies are universally loved ("The Shawshank Redemption" → 4.7 average), others divisive ("Napoleon Dynamite" → 2.9 average). Without bias terms, the latent factors try to encode these baseline offsets — wasting capacity.
-
-**Fix:** Add bias terms $\mu + b_u + b_i$ to the prediction. The biases capture user/item baselines, freeing the latent factors to model **interactions**. Validation RMSE drops from 1.15 → 0.91.
-
----
-
-**Train RMSE drops to 0.05, validation RMSE climbs to 1.30**
-
-You set $d=100$ factors and $\lambda=0.0001$. Training loss collapses to near-zero. Validation loss explodes.
-
-Cause: With 100 dimensions and weak regularization, the model has enough capacity to memorize every training rating. The learned vectors are huge (norms > 50), fitting training noise perfectly.
-
-**Fix:** Reduce $d$ to 20–50 or increase $\lambda$ to 0.01–0.1. Monitor the validation curve — stop when it plateaus. Classic overfitting.
-
----
-
-**Loss oscillates wildly between 0.8 and 2.5 every few iterations**
-
-You set $\eta = 0.5$ (learning rate). Training loss bounces up and down. It never converges.
-
-Cause: Learning rate too high. Each gradient step overshoots the minimum, bounces to the other side, overshoots again.
-
-**Fix:** Reduce $\eta$ to 0.005–0.02. Or switch to ALS, which has no learning rate and guarantees convergence.
-
----
-
-**SGD converges to different RMSE each run (0.89, 0.93, 0.91, 0.96)**
-
-You run the same code four times. Validation RMSE varies by 7%.
-
-Cause: You're iterating through ratings in the same order every epoch. SGD learns patterns in the data order (e.g., "User 1's ratings always come first"), not the underlying signal.
-
-**Fix:** Shuffle the rating list at the start of each epoch. This randomizes the gradient order and produces stable, reproducible convergence.
-
----
-
-**System treats "user didn't rate" as "user dislikes" equally for all unrated items**
-
-You have implicit feedback (clicks, not ratings). User 42 clicked 10 movies. The other 1,672 are unrated. The model treats all 1,672 as negative examples equally.
-
-But some are "haven't seen yet" (neutral), others are "actively avoided" (negative). The model can't distinguish.
-
-**Fix:** Use ALS with confidence weighting (Hu et al. 2008). Assign confidence $c_{ui} = 1 + \alpha \cdot \text{clicks}$ to positive examples and $c_{ui} = 1$ to negative examples. This weights the loss by confidence, letting the model learn "strong negative" vs "unknown."
-
----
-
-### Diagnostic Flowchart
-
-```mermaid
-flowchart TD
-    START["Validation RMSE<br/>not improving"] --> OVERFIT{"Train RMSE ≪<br/>Val RMSE?"}
-    OVERFIT -->|"Yes"| FIX1["Overfitting:<br/>Increase λ or reduce d"]
-    OVERFIT -->|"No"| LR{"Loss curve<br/>oscillating?"}
-    LR -->|"Yes"| FIX2["Learning rate too high:<br/>Reduce η or use ALS"]
-    LR -->|"No"| BIAS{"Predictions cluster<br/>near global mean?"}
-    BIAS -->|"Yes"| FIX3["Missing baselines:<br/>Add µ + b_u + b_i"]
-    BIAS -->|"No"| SHUFFLE{"Results vary<br/>between runs?"}
-    SHUFFLE -->|"Yes"| FIX4["Not shuffling:<br/>Shuffle ratings each epoch"]
-    SHUFFLE -->|"No"| EPOCHS["Underfit:<br/>Train more epochs ✅"]
-    
-    style START fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style EPOCHS fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX1 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX4 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-```
-
-```mermaid
-flowchart TD
-    START["Validation RMSE<br/>not improving"] --> OVERFIT{"Train RMSE ≪<br/>Val RMSE?"}
-    OVERFIT -->|"Yes"| FIX1["Increase λ or<br/>reduce d"]
-    OVERFIT -->|"No"| LR{"Loss curve<br/>oscillating?"}
-    LR -->|"Yes"| FIX2["Reduce learning<br/>rate η"]
-    LR -->|"No"| BIAS{"Predictions cluster<br/>near global mean?"}
-    BIAS -->|"Yes"| FIX3["Add bias terms<br/>µ + b_u + b_i"]
-    BIAS -->|"No"| EPOCHS["Train more<br/>epochs ✅"]
-    
-    style START fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style EPOCHS fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-```
-
-
----
-
-## 9 · Where This Reappears
-
-Latent-factor embeddings learned by gradient descent are the conceptual ancestor of nearly every embedding in modern ML:
-
-- **Ch.4 (Neural Collaborative Filtering)**: Replaces the dot product $\mathbf{u}^T\mathbf{v}$ with a multi-layer perceptron, but the embedding tables $U$ and $V$ are identical — learned the same way.
-- **[03-NeuralNetworks/ch10-transformers](../../03_neural_networks/ch10_transformers)**: Token embeddings in BERT and GPT are $d$-dimensional vectors learned by SGD on an embedding table, exactly like $U$ and $V$ here. The only difference: transformers update embeddings via backprop through attention layers.
-- **[AI/rag_and_embeddings](../../../ai/rag_and_embeddings)**: Document and query embeddings for vector search are low-rank projections trained the same way. FAISS and Pinecone index vectors produced by this mechanism.
-- **[AIInfrastructure/inference_optimization](../../../06-ai_infrastructure/ch05_inference_optimization)**: ALS's embarrassingly parallel structure (solve all users independently, then all items) is the template for distributed training in Spark MLlib and Dask.
-- **[07-UnsupervisedLearning/ch02-dimensionality-reduction](../../07_unsupervised_learning/ch02_dimensionality_reduction)**: Matrix factorization is **non-linear PCA** — PCA finds orthogonal directions of variance; MF finds directions that minimize reconstruction error under a rating constraint.
-
-Every time you see "embedding layer" in a neural network, you're seeing the matrix factorization idea: **map high-dimensional sparse IDs (user 42, movie 137) to low-dimensional dense vectors, learn those vectors by gradient descent on a prediction task.**
-
-## 10 · Progress Check — What We Can Solve Now
-
-✅ **Unlocked capabilities:**
-- **Latent factor representations**: Every user and item now has a dense $d$-dimensional embedding
-- **Sparsity overcome**: Users who never rated the same movie can still be similar in latent space
-- **Hit rate improved**: 68% → 78% (10-point jump from Ch.2)
-- **Scalability**: SGD trains on 100k ratings in seconds; ALS parallelizes across users/items
-- **Niche discovery**: Latent factors surface long-tail movies that popularity baselines miss
-
-❌ **Still can't solve:**
-- ❌ **Accuracy target**: 78% < 85% — we're 7 points short
-- ❌ **Cold start**: New user with zero ratings = no learned vector (can't recommend anything personalized)
-- ❌ **Explainability**: "You might like this because your latent vector [0.8, -0.3, 0.5] is close to the item's [0.9, -0.4, 0.7]" is not a user-facing explanation
-- ❌ **Non-linear interactions**: The dot product $\mathbf{u}^T\mathbf{v}$ is linear — can't capture "loves sci-fi + comedy but hates sci-fi comedies"
-
-**Progress toward constraints:**
-
-| # | Constraint | Target | Ch.1 | Ch.2 | Ch.3 | Status |
-|---|------------|--------|------|------|------|--------|
-| 1 | ACCURACY | >85% HR@10 | 42% | 68% | **78%** | ❌ 7 points short |
-| 2 | COLD START | Graceful new user/item handling | ❌ | ❌ | ❌ | Not addressed yet |
-| 3 | SCALABILITY | 1M+ ratings, <200ms | ⚠️ | ⚠️ | ✅ | SGD/ALS scale well |
-| 4 | DIVERSITY | Long-tail discovery | ❌ | ⚠️ | ⚠️ | Better but not optimized |
-| 5 | EXPLAINABILITY | "Because you liked X" | ❌ | ✅ | ❌ | Lost interpretability |
-
-**Real-world status**: You can now deploy a matrix factorization recommender that handles sparsity and scales to millions of ratings. But the VP of Product still sees 78% < 85%, and the CTO flags that new users get zero personalized recommendations on day one. The system isn't production-ready yet.
+### Latent Factor Space — Why Cold Items Get Discovered
 
 ```mermaid
 flowchart LR
-    CH1["Ch.1: Popularity<br/>HR@10 = 42%"] --> CH2["Ch.2: Collab Filter<br/>HR@10 = 68%"]
-    CH2 --> CH3["Ch.3: Matrix Factor<br/>HR@10 = 78%<br/>(YOU ARE HERE)"]
-    CH3 --> CH4["Ch.4: Neural CF<br/>Target: 83%"]
-    CH4 --> CH5["Ch.5: Hybrid<br/>Target: 87% ✅"]
-    CH5 --> CH6["Ch.6: Production<br/>Cold start + deploy"]
-    
-    style CH1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH3 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH4 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH5 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH6 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-```
+    subgraph USERS["User latent vectors (P)"]
+        U1["User A — cerebral fan\n[0.82, 0.61]"]
+        U2["User B — action fan\n[1.17, 0.32]"]
+    end
+    subgraph ITEMS["Item latent vectors (Q)"]
+        I1["Thoughtful drama\n[0.54, 0.99]"]
+        I2["Action blockbuster\n[1.36, 0.33]"]
+        I3["Cerebral + action\n[1.04, 0.24]"]
+    end
+    U1 -->|"high: 0.44+0.60=1.04"| I1
+    U1 -->|"moderate: 0.85+0.15"| I3
+    U2 -->|"highest: 1.59+0.11=1.70"| I2
+    U2 -->|"moderate: 1.22+0.08"| I3
 
-**Next up:** Ch.4 gives us **Neural Collaborative Filtering** — replacing the dot product with a multi-layer perceptron that learns non-linear interaction functions.
+    style U1 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style U2 fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style I1 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style I2 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style I3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
 
 ---
 
-## 11 · Bridge to Next Chapter
+## 8 · The Hyperparameter Dial
 
-Matrix factorization learns user and item embeddings and predicts ratings via dot product: $\hat{r} = \mathbf{u}_u^T \mathbf{v}_i$. This is a **linear** operation.
+### Dial 1: $k$ — Number of Latent Factors
 
-Linear operations can't capture taste interactions like:
-- "Loves action + sci-fi → 5 stars for 'The Matrix'"
-- "Loves action + sci-fi **but hates violence** → 2 stars for 'The Matrix'"
+The most impactful dial. Too few factors: can't capture taste complexity. Too many: overfits the sparse training signal.
 
-The dot product treats all factor combinations as additive. Real taste is non-linear.
+| $k$ | Train RMSE | Val RMSE | Memory (100k dataset) | Notes |
+|-----|------------|----------|-----------------------|-------|
+| 2 | 1.21 | 1.19 | < 1 MB | Toy — misses nuance |
+| 10 | 0.98 | 0.96 | 2 MB | Decent; misses long-tail patterns |
+| **20** | **0.89** | **0.91** | **5 MB** | **✅ Sweet spot for MovieLens 100k** |
+| 50 | 0.74 | 0.94 | 13 MB | Overfitting creeps in |
+| 100 | 0.51 | 1.09 | 25 MB | Clear overfit |
+| 200 | 0.33 | 1.31 | 50 MB | Severe overfit |
 
-**What Ch.4 solves**: Replace the dot product with a **neural network** that takes user and item embeddings as input and learns arbitrary interaction functions. That's **Neural Collaborative Filtering** (NCF) — the architecture that combines a Generalized Matrix Factorization (GMF) path with a Multi-Layer Perceptron (MLP) path to model both linear and non-linear user-item interactions. Result: 83% hit rate.
+**Rule of thumb:** scale $k$ with dataset size. 10k ratings → $k=10$; 100k → $k=20$; 1M → $k=50$; 10M+ → $k=100$–200.
 
-**What Ch.4 can't solve (yet)**: The model still only uses rating data. Adding content features (genres, directors, user demographics) requires a hybrid approach (Ch.5).
+### Dial 2: $\lambda$ — Regularisation Strength
 
-➡️ **Embedding background:** The feature embeddings used here connect directly to dimensionality reduction — see [07-UnsupervisedLearning/ch02-dimensionality-reduction](../../07_unsupervised_learning/ch02_dimensionality_reduction) for PCA and t-SNE applied to the same latent-space idea. The same SGD-on-embedding-table mechanism you just learned powers word2vec, BERT, and every modern NLP model — see [NeuralNetworks/ch10-transformers](../../03_neural_networks/ch10_transformers).
+| $\lambda$ | Effect | Symptom on MovieLens |
+|-----------|--------|----------------------|
+| 0.0001 | Almost no shrinkage | Train RMSE → 0.05, val RMSE → 1.4 |
+| 0.01 | Light shrinkage | Good for larger $k$ |
+| **0.05–0.1** | **Standard range** | **✅ Best val RMSE** |
+| 1.0 | Heavy shrinkage | Vectors collapse; predictions → $\mu$ |
+| 10.0 | Extreme | All predictions ≈ 3.53 — pure underfitting |
+
+> ⚠️ **Separate $\lambda$ for users and items.** Many implementations use one $\lambda$ for both. In production, tuning separately helps: niche items (few ratings) benefit from heavier regularisation. Per-item $\lambda_i \propto |R_i|^{-0.5}$ is a practical heuristic.
+
+### Dial 3: $\alpha$ — Learning Rate
+
+| $\alpha$ | Behaviour |
+|----------|-----------|
+| 0.001 | Very slow convergence — may need 500+ epochs |
+| **0.01** | **Standard starting point** |
+| 0.05–0.1 | Fast convergence; may oscillate late in training |
+| > 0.1 | Risk of divergence |
+
+**Learning rate decay:** Multiply $\alpha$ by 0.9 each epoch — large exploratory steps early, precise refinement steps late.
+
+### Dial 4: Explicit vs Implicit Feedback
+
+| Setting | Data type | Loss | Algorithm |
+|---------|-----------|------|-----------|
+| Explicit | Star ratings 1–5 | MSE on observed ratings | SGD, ALS |
+| Implicit | Clicks, plays, purchases | Weighted binary cross-entropy | WALS |
+
+Implicit feedback is the norm in production — most users never rate movies, but they do click and stream. The weighted loss treats observed interactions as positive signals (confidence weight $c_{ui} = 1 + \alpha \cdot n_{ui}$) and unobserved as soft negatives.
+
+---
+
+## 9 · What Can Go Wrong
+
+**$k$ too small — underfits.** With $k=2$ on MovieLens, there are only two latent dimensions to explain all of human taste. Users who like both cerebral sci-fi and 90s action can't be properly represented — their vector smears across both genres. RMSE plateaus above 1.1. **Fix:** increase $k$ and re-tune $\lambda$.
+
+**$k$ too large — overfits.** With $k=100$ and 100k ratings, there are $(943+1682)\times100 = 262{,}500$ free parameters — more than the training data can constrain. The model memorises rating noise and validation RMSE worsens. **Fix:** reduce $k$, increase $\lambda$, or add dropout on the embeddings (Ch.4 neural CF).
+
+**Cold start — still broken.** A new user has no ratings → no trained $\mathbf{p}$ vector → fallback to popularity. This is unchanged from Ch.2. **Fix:** Ch.6 Hybrid + Cold Start combines content features with MF to initialise new user vectors from item metadata.
+
+**Popularity bias in regularisation.** L2 regularisation shrinks all vectors equally. Popular items (thousands of ratings) have well-estimated $\mathbf{q}$ vectors; niche items (3 ratings) have noisy vectors shrunk just as hard. Result: niche items are pushed toward zero and systematically under-recommended. **Fix:** per-item $\lambda_i \propto |R_i|^{-0.5}$ gives niche items lighter shrinkage; or use BPR pairwise ranking which doesn't suffer this effect.
+
+**Stale factors after deployment.** MF learns static $P$ and $Q$ on a historical snapshot. As tastes evolve or new movies arrive, the factors go stale. **Fix:** online MF (incremental SGD on new ratings) or temporal SVD (Koren 2009 adds time-decay terms $b_u(t)$, $b_i(t)$).
+
+---
+
+## 10 · Where This Reappears
+
+| Concept | Next appearance |
+|---------|----------------|
+| **Latent vectors / embeddings** | Ch.4 NeuralCF — same embedding tables, learned via neural network; Neural Networks track Ch.9 Attention uses query-key dot products |
+| **Dot product as alignment score** | Neural Networks track Ch.9 — attention weight = softmax($\mathbf{q} \cdot \mathbf{k}^\top / \sqrt{d_k}$), structurally identical to $\mathbf{p}_u^\top \mathbf{q}_i$ |
+| **Regularised embedding tables** | Neural Networks track Ch.6 Regularisation — dropout as a stochastic alternative to L2 on weight matrices |
+| **SGD on large parameter tables** | Neural Networks track Ch.3 Backprop — same per-sample update rule, generalised via chain rule to multi-layer networks |
+| **Bias terms** | Regression track Ch.1 — $\mu + b_u + b_i$ is an additive model; MF adds the interaction term |
+| **ALS** | AI Infrastructure track — Spark MLlib's default MF method for distributed implicit-feedback datasets |
+| **Implicit feedback** | Ch.5 Hybrid Systems — combining MF embeddings with content signals for cold-start handling |
+
+---
+
+## 11 · Progress Check
+
+![Progress check](img/ch03-matrix-factorization-progress-check.png)
+
+| Method | HR@10 | RMSE | Cold Start | Notes |
+|--------|-------|------|-----------|-------|
+| Popularity baseline (Ch.1) | 42% | — | ❌ | Not personalised |
+| Item-CF (Ch.2) | ~65% | ~1.05 | ❌ | Sparse, O(n²) memory |
+| **Plain MF** (this chapter) | **~75%** | **~0.92** | ❌ | Latent factors bridge sparsity |
+| **MF + bias terms** (this chapter) | **~78%** | **~0.89** | ❌ | Biases absorb popularity effect |
+| Target | **>85%** | — | ✅ | Not yet reached |
+
+**Constraint dashboard after Ch.3:**
+
+| # | Constraint | Status | Evidence |
+|---|-----------|--------|---------|
+| 1 | ACCURACY >85% HR@10 | ⚠️ 78% | +13 points over item-CF; 7 more needed |
+| 2 | COLD START | ❌ Fails | New user has no trained $\mathbf{p}$ vector |
+| 3 | SCALABILITY | ✅ | $O(k)$ prediction; 21× less memory than item-CF |
+| 4 | DIVERSITY | ⚠️ Moderate | Niche items surface more, but popularity bias persists |
+| 5 | EXPLAINABILITY | ⚠️ | Latent dimensions are discovered, not labelled |
+
+**What MF solved over item-CF:**
+- ✅ Sparsity — users who never rated the same movie can still have close latent vectors
+- ✅ Memory — $(943+1682)\times20 \approx 52\text{k}$ floats vs $1682^2 \approx 2.8\text{M}$ for item-item similarity
+- ✅ Generalisation — regularised factors don't overfit training noise
+
+**What MF didn't solve:**
+- ❌ Cold start — new users and new items remain unrepresented until rated
+- ❌ Explainability — "dimension 7 is high" doesn't satisfy "because you liked X"
+- ❌ The last 7 points to 85% — requires non-linear interaction modelling
+
+---
+
+## 12 · Bridge to Ch.4 — Neural Collaborative Filtering
+
+Matrix factorisation predicts $\hat{r}_{ui} = \mathbf{p}_u^\top \mathbf{q}_i$ — a dot product. The dot product assumes that if user $u$ and item $i$ align in one latent dimension, they align independently in all dimensions. But real taste is non-linear: a user might love cerebral sci-fi but hate cerebral dramas even if both score high on the "cerebral" dimension. The dot product can't express "cerebral AND sci-fi but NOT drama" — it can only score each dimension independently.
+
+**Ch.4 Neural Collaborative Filtering (NeuralCF)** replaces the dot product with a multi-layer perceptron:
+
+$$\hat{r}_{ui} = \text{MLP}([\mathbf{p}_u \oplus \mathbf{q}_i])$$
+
+where $\oplus$ denotes concatenation of the two embedding vectors. The MLP can learn arbitrary non-linear interactions between user and item dimensions — including complex combinatorial preferences. He et al. (2017) showed NeuralCF consistently outperforms plain MF on implicit feedback datasets. Ch.4 extends the embeddings you learned here into the neural setting, adding non-linearity, dropout, and batch normalisation — the full toolkit from the Neural Networks track, now applied to recommendations.
+
+> ⚡ **Preview:** NeuralCF + proper implicit feedback handling pushes FlixAI to ~82% HR@10. The final 3 points to 85% require the hybrid content-aware systems in Ch.5 and the cold-start solutions in Ch.6.

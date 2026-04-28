@@ -404,39 +404,7 @@ Left: the columns of $A$ tell you *where the basis vectors land*. Middle: every 
 
 ---
 
-## 6 · Code Skeleton
-
-```python
-import numpy as np
-
-# --- three views of Ax ---
-A = np.array([[1.5, 0.5],
- [0.3, 1.2]])
-x = np.array([0.7, 0.4])
-b1 = A @ x
-b2 = np.array([A[0] @ x, A[1] @ x]) # row view
-b3 = x[0] * A[:, 0] + x[1] * A[:, 1] # column view
-assert np.allclose(b1, b2) and np.allclose(b1, b3)
-
-# --- free-kick fit via normal equations ---
-rng = np.random.default_rng(0)
-v0y, h0, g = 6.5, 0.0, 9.81
-t = np.linspace(0.02, 1.3, 20)
-y = h0 + v0y * t - 0.5 * g * t ** 2 + rng.normal(0, 0.05, t.shape)
-
-X = np.column_stack([np.ones_like(t), t, t ** 2])
-w_hat, *_ = np.linalg.lstsq(X, y, rcond=None) # preferred
-# equivalent, slower, less stable:
-# w_hat = np.linalg.solve(X.T @ X, X.T @ y)
-
-print(f"ŵ₀ (h0) = {w_hat[0]:+.3f} (true {h0})")
-print(f"ŵ₁ (v0y) = {w_hat[1]:+.3f} (true {v0y})")
-print(f"ŵ₂ (-g/2) = {w_hat[2]:+.3f} (true {-g/2:.3f})")
-```
-
----
-
-## 7 · What Can Go Wrong
+## 6 · What Can Go Wrong
 
 - **Shape mismatches.** The commonest bug. Print `.shape` after every operation while you're learning.
 - **`np.dot` vs `np.matmul` vs `@`.** For 2-D × 2-D, all three agree. For 1-D, they differ (dot product vs broadcasted matrix product). Use `@` — it's unambiguous and matches the math.
@@ -447,17 +415,17 @@ print(f"ŵ₂ (-g/2) = {w_hat[2]:+.3f} (true {-g/2:.3f})")
 
 ---
 
-## 8 · Exercises
+## 7 · Exercises
 
 *Three short ones — the shape drill alone catches most matrix bugs you'll ever write.*
 
 1. **Shape drill.** $A$ is $3 \times 5$, $B$ is $5 \times 2$, $\mathbf{x}$ is a 5-vector. Which of $A\mathbf{x}$, $AB$, $BA$, $A^\top A$, $A^\top \mathbf{x}$ are legal, and what shape does each produce?
 2. **Columns are images.** Verify numerically that `A @ np.eye(n)[:, k]` returns the $k$-th column of $A$ for any $A$. What does that tell you about the *transformation* view of a matrix?
-3. **Recover physics.** With the 30-sample free-kick fit from Section 6, vary the noise standard deviation from 0.01 to 0.5 and plot the estimated $\hat{v}_{0y}$ against noise level. How does estimation error grow — linearly, quadratically, or something else?
+3. **Recover physics.** With the 30-sample free-kick fit from Section 5, vary the noise standard deviation from 0.01 to 0.5 and plot the estimated $\hat{v}_{0y}$ against noise level. How does estimation error grow — linearly, quadratically, or something else?
 
 ---
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 - **Pre-Req Ch.6.** Chain rule in matrix form — the gradient-of-a-composition machinery that `torch.autograd` automates.
 - **Pre-Req Ch.7.** Covariance matrices ($\Sigma = \mathbf{X}^\top \mathbf{X} / n$ after centring) and multivariate Gaussians.
@@ -469,7 +437,7 @@ print(f"ŵ₂ (-g/2) = {w_hat[2]:+.3f} (true {-g/2:.3f})")
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR
@@ -512,7 +480,7 @@ Without matrices, this would be 500 separate equations — completely impractica
 
 ---
 
-## 11 · References
+## 10 · References
 
 - **Gilbert Strang — *Introduction to Linear Algebra* (MIT OCW 18.06).** The canonical undergraduate text and free video lectures; the "three views of $A\mathbf{x} = \mathbf{b}$" framing of Section 3.6 is lifted directly from his lectures.
 - **Jon Krohn — *Linear Algebra II: Tensors, Matrices & Dimensions*.** Video companion, builds on the Ch.1 segment.

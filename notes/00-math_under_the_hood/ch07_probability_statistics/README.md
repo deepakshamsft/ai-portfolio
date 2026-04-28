@@ -450,48 +450,7 @@ That mapping is the single most useful mental model in supervised learning.
 
 ---
 
-## 9 · Code Skeleton
-
-```python
-# Educational: Maximum Likelihood Estimation from scratch (Gaussian)
-import numpy as np
-
-def gaussian_mle(samples: np.ndarray) -> tuple[float, float]:
-    """
-    MLE for a Gaussian distribution.
-    Returns (mu_hat, sigma2_hat) — the parameters that maximise log-likelihood.
-    """
-    n = len(samples)
-    mu_hat = samples.mean()                     # d/d_mu log L = 0 => mu = sample mean
-    sigma2_hat = ((samples - mu_hat) ** 2).mean()  # biased MLE estimator
-    return mu_hat, sigma2_hat
-
-# Simulate 500 noisy free-kick distances
-rng = np.random.default_rng(42)
-true_mu, true_sigma = 18.5, 0.8              # metres from goal
-distances = rng.normal(true_mu, true_sigma, size=500)
-
-mu_hat, sigma2_hat = gaussian_mle(distances)
-print(f"MLE estimate: μ̂={mu_hat:.2f}m, σ̂²={sigma2_hat:.4f}m² (true: μ={true_mu}, σ²={true_sigma**2})")
-```
-
-```python
-# Production: MLE fitting via scipy.stats (equivalent to above)
-from scipy.stats import norm
-import numpy as np
-
-distances = np.random.default_rng(42).normal(18.5, 0.8, size=500)
-mu_hat, sigma_hat = norm.fit(distances)       # MLE by default
-print(f"scipy MLE: μ̂={mu_hat:.2f}, σ̂={sigma_hat:.4f}")
-
-# Confidence interval: P(kick clears 1.8m wall, travelling >16.5m)
-p_clear = 1 - norm.cdf(16.5, loc=mu_hat, scale=sigma_hat)
-print(f"P(distance > 16.5m) = {p_clear:.3f}")
-```
-
----
-
-## 10 · Where This Reappears
+## 9 · Where This Reappears
 
 - **ML Ch.1 Linear Regression.** MSE loss is MLE under Gaussian noise — the derivation in §7 *is* Ch.1's theoretical backbone.
 - **ML Ch.2 Logistic Regression.** Cross-entropy loss is MLE under a Bernoulli likelihood on the labels.
@@ -502,7 +461,7 @@ print(f"P(distance > 16.5m) = {p_clear:.3f}")
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 
 ```mermaid
@@ -559,7 +518,7 @@ graph LR
 
 ---
 
-## 12 · References
+## 11 · References
 
 - Wasserman, *All of Statistics* — the single densest statistics reference for ML practitioners.
 - Bishop, *Pattern Recognition and Machine Learning*, Ch. 1–2.

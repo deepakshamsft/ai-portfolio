@@ -487,167 +487,7 @@ Constraint: α · β² · γ² ≈ 2 (FLOPs scale as width² and resolution²)
 
 ---
 
-## 8 · Code Skeleton
-
-```python
-import torch
-import torch.nn as nn
-
-class DepthwiseSeparableConv(nn.Module):
-    """Depthwise Separable Convolution: Depthwise + Pointwise"""
-    def __init__(self, in_channels, out_channels, stride=1):
-        super().__init__()
-        # Depthwise: one filter per input channel
-        self.depthwise = nn.Conv2d(in_channels, in_channels, kernel_size=3,
-                                   stride=stride, padding=1, groups=in_channels, bias=False)
-        self.bn1 = nn.BatchNorm2d(in_channels)
-        self.relu1 = nn.ReLU6(inplace=True)
-        
-        # Pointwise: 1×1 conv to mix channels
-        self.pointwise = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.relu2 = nn.ReLU6(inplace=True)
-    
-    def forward(self, x):
-        x = self.depthwise(x)
-        x = self.bn1(x)
-        x = self.relu1(x)
-        
-        x = self.pointwise(x)
-        x = self.bn2(x)
-        x = self.relu2(x)
-        
-        return x
-
-
-class InvertedResidual(nn.Module):
-    """MobileNetV2 Inverted Residual Block"""
-    def __init__(self, in_channels, out_channels, stride, expansion_ratio=6):
-        super().__init__()
-        self.stride = stride
-        self.use_residual = (stride == 1 and in_channels == out_channels)
-        
-        hidden_dim = in_channels * expansion_ratio
-        
-        layers = []
-        # Expansion (1×1 pointwise) — skip if expansion_ratio == 1
-        if expansion_ratio != 1:
-            layers.extend([
-                nn.Conv2d(in_channels, hidden_dim, kernel_size=1, bias=False),
-                nn.BatchNorm2d(hidden_dim),
-                nn.ReLU6(inplace=True)
-            ])
-        
-        # Depthwise (3×3)
-        layers.extend([
-            nn.Conv2d(hidden_dim, hidden_dim, kernel_size=3, stride=stride,
-                     padding=1, groups=hidden_dim, bias=False),
-            nn.BatchNorm2d(hidden_dim),
-            nn.ReLU6(inplace=True)
-        ])
-        
-        # Projection (1×1 pointwise, LINEAR — no ReLU!)
-        layers.extend([
-            nn.Conv2d(hidden_dim, out_channels, kernel_size=1, bias=False),
-            nn.BatchNorm2d(out_channels)
-        ])
-        
-        self.conv = nn.Sequential(*layers)
-    
-    def forward(self, x):
-        if self.use_residual:
-            return x + self.conv(x)  # Skip connection
-        else:
-            return self.conv(x)
-
-
-class MobileNetV2(nn.Module):
-    """MobileNetV2 architecture (Sandler et al., 2018)"""
-    def __init__(self, num_classes=1000, width_mult=1.0):
-        super().__init__()
-        
-        # Initial conv
-        input_channels = int(32 * width_mult)
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(3, input_channels, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(input_channels),
-            nn.ReLU6(inplace=True)
-        )
-        
-        # Inverted residual blocks
-        # [expansion_ratio, out_channels, num_blocks, stride]
-        block_config = [
-            [1, 16, 1, 1],
-            [6, 24, 2, 2],
-            [6, 32, 3, 2],
-            [6, 64, 4, 2],
-            [6, 96, 3, 1],
-            [6, 160, 3, 2],
-            [6, 320, 1, 1],
-        ]
-        
-        layers = []
-        for t, c, n, s in block_config:
-            out_channels = int(c * width_mult)
-            for i in range(n):
-                stride = s if i == 0 else 1
-                layers.append(InvertedResidual(input_channels, out_channels, stride, t))
-                input_channels = out_channels
-        
-        self.blocks = nn.Sequential(*layers)
-        
-        # Final conv
-        last_channels = int(1280 * width_mult) if width_mult > 1.0 else 1280
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(input_channels, last_channels, kernel_size=1, bias=False),
-            nn.BatchNorm2d(last_channels),
-            nn.ReLU6(inplace=True)
-        )
-        
-        # Classifier
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.classifier = nn.Linear(last_channels, num_classes)
-    
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.blocks(x)
-        x = self.conv2(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
-        return x
-
-
-def mobilenet_v2(num_classes=1000, width_mult=1.0, pretrained=False):
-    """MobileNetV2 with optional width multiplier"""
-    model = MobileNetV2(num_classes=num_classes, width_mult=width_mult)
-    if pretrained:
-        # Load ImageNet weights (requires torchvision)
-        from torchvision.models import mobilenet_v2 as tv_mobilenet_v2
-        pretrained_dict = tv_mobilenet_v2(pretrained=True).state_dict()
-        model.load_state_dict(pretrained_dict, strict=False)
-    return model
-
-
-# Example: Train on retail shelf dataset
-if __name__ == "__main__":
-    # Full MobileNetV2
-    model = mobilenet_v2(num_classes=20, width_mult=1.0)
-    print(f'MobileNetV2 (α=1.0): {sum(p.numel() for p in model.parameters()):,} parameters')
-    
-    # Efficient variant for edge deployment
-    model_efficient = mobilenet_v2(num_classes=20, width_mult=0.75)
-    print(f'MobileNetV2 (α=0.75): {sum(p.numel() for p in model_efficient.parameters()):,} parameters')
-    
-    # Forward pass test
-    dummy_input = torch.randn(8, 3, 224, 224)
-    output = model(dummy_input)
-    print(f'Output shape: {output.shape}')  # [8, 20]
-```
-
----
-
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 ### 9.1 Forgetting Linear Bottleneck (ReLU After Final Projection)
 
@@ -736,7 +576,7 @@ model_quantized = quant.convert(model_prepared)
 
 ---
 
-## 10 · Where This Reappears
+## 9 · Where This Reappears
 
 - **Ch.3 (Two-Stage Detectors)** — Faster R-CNN with MobileNetV2 backbone for mobile object detection
 - **Ch.4 (One-Stage Detectors)** — YOLOv5-Nano and SSD-MobileNet for real-time edge detection
@@ -747,7 +587,7 @@ model_quantized = quant.convert(model_prepared)
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 ![ProductionCV progress after Ch.2](img/ch02-progress-check.png)
 
@@ -784,7 +624,7 @@ model_quantized = quant.convert(model_prepared)
 
 ---
 
-## 12 · Bridge to Ch.3 — Two-Stage Object Detection
+## 11 · Bridge to Ch.3 — Two-Stage Object Detection
 
 Ch.2 gave you efficient architectures — MobileNetV2 and EfficientNet achieve ResNet-50 accuracy with 5× fewer parameters and 3× faster inference. You now have a viable edge deployment backbone (14 MB, 35ms).
 

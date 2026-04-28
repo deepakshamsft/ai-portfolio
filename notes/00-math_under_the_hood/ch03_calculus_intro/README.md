@@ -458,33 +458,7 @@ Left: as $\Delta t$ shrinks from 0.60 to 0.08, the secant slope slides from +0.8
 
 ---
 
-## 7 · Code Skeleton
-
-```python
-import numpy as np
-
-v0y, g = 6.5, 9.81
-h = lambda t: v0y * t - 0.5 * g * t ** 2
-v = lambda t: v0y - g * t # analytic derivative
-
-# --- numerical derivative at t = 0.5 using the secant definition ---
-t0 = 0.5
-for dt in [1e-1, 1e-3, 1e-6]:
- est = (h(t0 + dt) - h(t0)) / dt
- print(f"dt = {dt:.0e} estimate = {est:+.6f} true = {v(t0):+.6f}")
-
-# --- numerical integral of v(t) from 0 to t_apex via left-rectangle sum ---
-t_apex = v0y / g
-for n in [4, 16, 64, 1024]:
- edges = np.linspace(0, t_apex, n + 1)
- left_pts = edges[:-1]
- est = np.sum(v(left_pts) * np.diff(edges))
- print(f"n = {n:5d} sum = {est:.6f} exact = {h(t_apex):.6f}")
-```
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 - **$\Delta t$ too small.** Numerical derivatives are a balance: large $\Delta t$ has truncation error, tiny $\Delta t$ has round-off error from finite-precision subtraction. "Catastrophic cancellation" is the official name. A rule of thumb: $\Delta t \approx \sqrt{\varepsilon_\text{mach}} \approx 10^{-8}$ for 64-bit floats.
 - **Non-differentiable points.** The ReLU function (ML Ch.4) is not differentiable at 0. We use subgradients in practice — a small concession the framework hides.
@@ -494,7 +468,7 @@ for n in [4, 16, 64, 1024]:
 
 ---
 
-## 9 · Exercises
+## 8 · Exercises
 
 *Three short ones. The chain rule and the derivative-as-limit are the load-bearing ideas — the rest is muscle memory you'll build later.*
 

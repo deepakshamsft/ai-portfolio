@@ -404,172 +404,7 @@ Total latency: 1,400ms p95 (50% reduction!)
 
 ---
 
-## 4 · Code Skeleton — Feast Feature Store (Local)
-
-### 4.1 · Install Feast
-
-```bash
-pip install feast[redis]  # Include Redis online store support
-```
-
-### 4.2 · Initialize Feature Repository
-
-```bash
-feast init my_feature_repo
-cd my_feature_repo
-```
-
-This creates:
-```
-my_feature_repo/
-├── feature_store.yaml  ← Config file (online/offline store settings)
-├── features.py         ← Feature definitions
-└── data/              ← Sample data sources
-```
-
-### 4.3 · Define Feature Views
-
-**File: `features.py`**
-```python
-from feast import FeatureView, Field, Entity, FileSource
-from feast.types import Float32, Int64, String, Array
-from datetime import timedelta
-
-# Define entity (primary key for feature lookups)
-user = Entity(
-    name="user",
-    join_keys=["user_id"],
-    description="User entity for document processing"
-)
-
-# Define data source (where raw data lives)
-user_stats_source = FileSource(
-    path="data/user_stats.parquet",  # In production: BigQuery table or S3 path
-    timestamp_field="event_timestamp",
-    created_timestamp_column="created_at"
-)
-
-# Define feature view (logical grouping of features)
-user_features = FeatureView(
-    name="user_features",
-    entities=[user],
-    schema=[
-        Field(name="avg_confidence_score", dtype=Float32),
-        Field(name="total_pages_processed", dtype=Int64),
-        Field(name="days_since_signup", dtype=Int64),
-        Field(name="last_10_doc_types", dtype=Array(String)),
-    ],
-    source=user_stats_source,
-    ttl=timedelta(days=30),  # Features expire after 30 days
-    online=True,  # Enable online serving
-    tags={"team": "ml-infrastructure", "priority": "high"}
-)
-```
-
-### 4.4 · Configure Stores
-
-**File: `feature_store.yaml`**
-```yaml
-project: inferencebase_features
-provider: local  # Use 'aws', 'gcp', or 'azure' for cloud
-
-registry: data/registry.db  # SQLite registry (use PostgreSQL in production)
-
-online_store:
-  type: redis
-  connection_string: "localhost:6379"  # Redis server
-
-offline_store:
-  type: file  # Local Parquet files (use BigQuery/Snowflake in production)
-```
-
-### 4.5 · Materialize Features to Online Store
-
-```bash
-# Apply feature definitions to registry
-feast apply
-
-# Materialize features for the last 7 days
-feast materialize-incremental $(date -u -d '7 days ago' +"%Y-%m-%dT%H:%M:%S")
-```
-
-**What happens:**
-1. Reads `data/user_stats.parquet`
-2. Filters rows with `event_timestamp` in last 7 days
-3. Computes aggregations defined in feature view
-4. Writes results to Redis (`user:12345:avg_confidence_score → 0.94`)
-5. Updates registry with materialization timestamp
-
-### 4.6 · Fetch Online Features (Serving)
-
-```python
-from feast import FeatureStore
-
-# Initialize feature store
-fs = FeatureStore(repo_path=".")
-
-# Fetch features for inference (single user)
-entity_rows = [{"user_id": 12345}]
-
-features = fs.get_online_features(
-    features=[
-        "user_features:avg_confidence_score",
-        "user_features:total_pages_processed",
-        "user_features:days_since_signup"
-    ],
-    entity_rows=entity_rows
-).to_dict()
-
-print(features)
-# Output: {
-#   'user_id': [12345],
-#   'avg_confidence_score': [0.94],
-#   'total_pages_processed': [1250],
-#   'days_since_signup': [180]
-# }
-```
-
-**Latency:** ~5ms (Redis lookup)
-
-### 4.7 · Fetch Historical Features (Training)
-
-```python
-import pandas as pd
-from feast import FeatureStore
-
-fs = FeatureStore(repo_path=".")
-
-# Training dataset: user_id + timestamp for each example
-entity_df = pd.DataFrame({
-    "user_id": [12345, 67890, 11111],
-    "event_timestamp": [
-        pd.Timestamp("2024-01-15 10:00:00", tz="UTC"),
-        pd.Timestamp("2024-01-15 11:00:00", tz="UTC"),
-        pd.Timestamp("2024-01-15 12:00:00", tz="UTC")
-    ]
-})
-
-# Fetch point-in-time correct features
-training_df = fs.get_historical_features(
-    entity_df=entity_df,
-    features=[
-        "user_features:avg_confidence_score",
-        "user_features:total_pages_processed"
-    ]
-).to_df()
-
-print(training_df)
-#    user_id event_timestamp         avg_confidence_score  total_pages_processed
-# 0    12345  2024-01-15 10:00:00              0.89                      1100
-# 1    67890  2024-01-15 11:00:00              0.92                       850
-# 2    11111  2024-01-15 12:00:00              0.87                      2000
-
-# Note: Features are computed using only data BEFORE each event_timestamp (no leakage!)
-```
-
----
-
-## 5 · Feature Store Comparison — Feast vs Tecton vs AWS SageMaker
+## 4 · Feature Store Comparison — Feast vs Tecton vs AWS SageMaker
 
 | Feature | **Feast** (Open Source) | **Tecton** (Commercial) | **AWS SageMaker Feature Store** |
 |---|---|---|---|
@@ -610,7 +445,7 @@ print(training_df)
 
 ---
 
-## 6 · What Can Go Wrong — Feature Store Footguns
+## 5 · What Can Go Wrong — Feature Store Footguns
 
 ### Footgun #1: Training-Serving Skew (Silent Accuracy Degradation)
 
@@ -763,7 +598,7 @@ feast materialize ...  # Recompute features using old definitions
 
 ---
 
-## 7 · Progress Check — What We've Accomplished
+## 6 · Progress Check — What We've Accomplished
 
 🎉 **Feature store infrastructure deployed** — training and serving use identical feature definitions
 

@@ -189,37 +189,7 @@ Left: a straight line is the wrong tool for a parabolic path. Middle: $a$ contro
 
 ---
 
-## 6 · Code Skeleton
-
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-
-# --- simulate a knuckleball free kick ---
-v0, theta, g = 25.0, np.radians(15), 9.81
-v0y = v0 * np.sin(theta)
-t = np.linspace(0, 1.0, 30)
-y = v0y * t - 0.5 * g * t ** 2 # true curve
-y_noisy = y + np.random.normal(0, 0.03, t.shape) # measurement noise
-
-# --- engineer features: [t, t^2] ---
-poly = PolynomialFeatures(degree=2, include_bias=False)
-T = poly.fit_transform(t.reshape(-1, 1)) # shape (N, 2)
-
-# --- fit linearly on those features ---
-model = LinearRegression().fit(T, y_noisy)
-w1, w2 = model.coef_
-b = model.intercept_
-print(f"fitted w1 (~v0y) : {w1:+.3f} (true: {v0y:+.3f})")
-print(f"fitted w2 (~-g/2 = -4.905): {w2:+.3f}")
-print(f"fitted b (~h0 = 0) : {b:+.3f}")
-```
-
----
-
-## 7 · What Can Go Wrong
+## 6 · What Can Go Wrong
 
 - **Over-fitting with high degree.** Polynomial fits of degree 10 on 15 samples will pass through every point *and* oscillate wildly between them — Runge's phenomenon. Keep the degree low, or use a spline / regularisation.
 - **Numerical ill-conditioning.** Columns $x, x^2, x^3, \ldots$ become highly correlated. For degrees beyond 5, centre and scale $x$ first, or switch to orthogonal polynomials (e.g. Chebyshev).
@@ -229,7 +199,7 @@ print(f"fitted b (~h0 = 0) : {b:+.3f}")
 
 ---
 
-## 8 · Exercises
+## 7 · Exercises
 
 *Three quick ones — the goal is to internalise the trick, not to memorise identities.*
 
@@ -239,7 +209,7 @@ print(f"fitted b (~h0 = 0) : {b:+.3f}")
 
 ---
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 - **Pre-Req Ch.4** — when the loss surface over $(a, b, c)$ isn't solvable in closed form, we walk downhill on it.
 - **Pre-Req Ch.5** — the least-squares fit of Section 6 is literally $\hat{\mathbf{w}} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$ with $\mathbf{X}$ being the polynomial-feature matrix.
@@ -249,7 +219,7 @@ print(f"fitted b (~h0 = 0) : {b:+.3f}")
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR
@@ -286,7 +256,7 @@ graph LR
 
 ---
 
-## 11 · References
+## 10 · References
 
 - **Jon Krohn — Linear Algebra for Machine Learning.** Segment on "feature engineering" links directly to this chapter.
 - **Hastie, Tibshirani, Friedman — *Elements of Statistical Learning*, Ch.5 "Basis Expansions and Regularization".** The canonical, deeper treatment.

@@ -235,102 +235,7 @@ Three types:
 
 ---
 
-## 4 · Code Skeleton — Production-Ready Compose Template
-
-```yaml
-version: '3.9'
-
-services:
-  # Web tier
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: myapp:${VERSION:-latest}
-    ports:
-      - "${WEB_PORT:-5000}:5000"
-    environment:
-      DATABASE_URL: postgresql://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}
-      REDIS_URL: redis://cache:6379
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-    depends_on:
-      db:
-        condition: service_healthy
-      cache:
-        condition: service_started
-    restart: unless-stopped
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Data tier
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    restart: unless-stopped
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  # Cache tier
-  cache:
-    image: redis:7-alpine
-    restart: unless-stopped
-    networks:
-      - app-network
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  postgres-data:
-  redis-data:
-```
-
-**Environment variables** (`.env` file):
-```bash
-VERSION=1.0.0
-WEB_PORT=5000
-DB_USER=appuser
-DB_PASS=secret123
-DB_NAME=production_db
-LOG_LEVEL=info
-```
-
-Compose reads `.env` automatically. Never commit secrets to Git — use `.env.example` as a template:
-```bash
-cp .env.example .env
-# Edit .env with real values
-```
-
-**Health checks**: The `web` service won't receive traffic until its `/health` endpoint returns 200. This prevents routing requests to containers still initializing.
-
-**Restart policies**:
-- `unless-stopped`: Restart automatically except after manual `docker compose stop`.
-- `on-failure`: Restart only if the container exits with non-zero status.
-
----
-
-## 5 · What Can Go Wrong — Service Startup Ordering, Network Isolation, Port Conflicts
+## 4 · What Can Go Wrong — Service Startup Ordering, Network Isolation, Port Conflicts
 
 ### Failure 1: Race Condition on Database Readiness
 
@@ -436,7 +341,7 @@ Alternatively, use `network_mode: host` (Linux only) to share the host's network
 
 ---
 
-## 6 · Progress Check — Debug a Broken Compose File
+## 5 · Progress Check — Debug a Broken Compose File
 
 **Scenario**: Your team gives you this `docker-compose.yml`:
 
@@ -523,7 +428,7 @@ docker compose up -d --scale api=3
 
 ---
 
-## 7 · Bridge to Ch.3 — Compose Works on One Machine; Kubernetes Scales Across Many
+## 6 · Bridge to Ch.3 — Compose Works on One Machine; Kubernetes Scales Across Many
 
 **What you've learned**: Docker Compose orchestrates multi-container applications with declarative service definitions, health checks, and persistent volumes. You can run a production-grade 3-tier stack (web + cache + database) locally with one command.
 

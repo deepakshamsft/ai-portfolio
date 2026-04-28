@@ -10,31 +10,259 @@ Modern generative AI systems — the ones that turn a text prompt into a photore
 
 ---
 
+## The Grand Challenge: VisualForge Studio
+
+> **The Mission**: Build **VisualForge Studio** — a local AI creative pipeline that replaces $600k/year freelancer costs while maintaining professional-grade quality on $5k hardware with zero cloud fees.
+
+This is not a toy image generator. Every chapter threads through a single production challenge: you're the Lead ML Engineer at **Aperture Creative**, a boutique marketing agency that just lost 60% of its budget. The Creative Director needs to maintain 2,000 assets/year output (product shots, social ads, explainer videos, voiceovers) with a skeleton crew and no Midjourney/Runway subscriptions. You must prove that local AI can deliver stock-photo-grade quality at 10× throughput while running on hardware you can expense on a startup credit card.
+
+---
+
+### The 6 Core Constraints
+
+| # | Constraint | Target | Why It Matters | Measurement Protocol |
+|---|------------|--------|----------------|---------------------|
+| **#1** | **QUALITY** | ≥4.0/5.0 HPSv2 score | Professional stock photo grade — clients reject anything below Unsplash/Pexels quality. Industry standard: 4.0-4.3 for paid stock libraries | Run HPSv2 aesthetic predictor on 100-image sample. Blind review by 3 designers (accept/reject). Field test: client approval rate >90% |
+| **#2** | **SPEED** | <30 seconds per 512×512 image | Real-time client iteration during calls. Midjourney: ~15s. Waiting 2+ minutes kills momentum in creative reviews | Median generation time across 50 prompts on RTX 3060. Include model load time (cold start) |
+| **#3** | **COST** | <$5,000 hardware, $0/month cloud | Bootstrapped startup — no budget for A100 rentals or API subscriptions. Must pay back investment in <3 months | One-time: RTX 3060 + RAM upgrade. Recurring: $0 (local inference only). ROI: $600k savings ÷ $5k = 2.5 months |
+| **#4** | **CONTROL** | <5% unusable generations | Wasted iterations burn time and frustrate designers. CFG + ControlNet must reliably hit compositional requirements | Track "regeneration needed" rate over 200 diverse prompts (portraits, products, landscapes). "Unusable" = fails composition, anatomy, or brand guidelines |
+| **#5** | **THROUGHPUT** | 100+ assets/day sustained | Agency baseline: 10 assets/day (2 designers × 5 assets each). Need 10× capacity to replace 3 departed freelancers | 8-hour workday simulation: automated batch pipeline generating hero images, variations, social crops. Measure total accepted assets |
+| **#6** | **VERSATILITY** | 4 modalities working together | Real campaigns need text→image (hero shots), image→video (product demos), image→caption (alt text), text→speech (voiceovers) | Build end-to-end campaign: text prompt → hero image → 3s product video → image caption → voiceover. All steps <5 min total |
+
+---
+
+### Progressive Capability Unlock
+
+| Ch | Title | What Unlocks | Constraints | Status |
+|----|-------|--------------|-------------|--------|
+| **1** | [Multimodal Foundations](ch01_multimodal_foundations/multimodal-foundations.md) | Understand tensors, modality gap, why raw pixels don't work | Foundation knowledge | Concepts only |
+| **2** | [Vision Transformers](ch02_vision_transformers/vision-transformers.md) | Patch embeddings, ViT architecture, how images become tokens | Image representation | No generation yet |
+| **3** | [CLIP](ch03_clip/clip.md) | **Text-image alignment, semantic search, zero-shot classification** | Foundation for #6 | Retrieval only |
+| **4** | [Diffusion Models](ch04_diffusion_models/diffusion-models.md) | **DDPM generation, forward/reverse process, denoising** | **#1 Partial (quality), #4 Partial (control)** | MNIST: 28×28, slow |
+| **5** | [Schedulers](ch05_schedulers/schedulers.md) | **DDIM, DPM-Solver — 4-step generation instead of 1,000** | **#2 ✅ <30s target viable!** | 10× faster sampling |
+| **6** | [Latent Diffusion](ch06_latent_diffusion/latent-diffusion.md) | **VAE compression, Stable Diffusion architecture, 512×512 generation** | **#1 ✅ 4.2 HPSv2! #3 ✅ $5k HW!** | SD runs locally! |
+| **7** | [Guidance & Conditioning](ch07_guidance_conditioning/guidance-conditioning.md) | **CFG, negative prompts, semantic steering** | **#4 ✅ <3% unusable!** | Composition control |
+| **8** | [Text-to-Image](ch08_text_to_image/text-to-image.md) | **ControlNet, img2img, inpainting, prompt engineering** | **#4 refined, #5 Partial** | Production pipeline |
+| **9** | [Text-to-Video](ch09_text_to_video/text-to-video.md) | **Temporal consistency, AnimateDiff, video diffusion** | **#6 Partial (modality 2/4)** | 3s clips locally |
+| **10** | [Multimodal LLMs](ch10_multimodal_llms/multimodal-llms.md) | **LLaVA, image captioning, VQA, projection layer** | **#6 Partial (modality 3/4)** | Alt text generation |
+| **11** | [Audio Generation](ch11_audio_generation/README.md) | **MMS TTS, text-to-speech, waveform synthesis** | **#6 ✅ All 4 modalities!** | Voiceover complete |
+| **12** | [Generative Evaluation](ch12_generative_evaluation/generative-evaluation.md) | **HPSv2, FID, CLIP score, human preference alignment** | **#1 measurement ✅** | Quality validation |
+| **13** | [Local Diffusion Lab](ch13_local_diffusion_lab/local-diffusion-lab.md) | **End-to-end capstone: DDPM from scratch + local SD pipeline** | **#5 ✅ 120 assets/day!** | 🎉 **ALL CONSTRAINTS MET!** |
+
+---
+
+### Narrative Arc: From Theory to Production Pipeline
+
+#### 🎬 Act 1: Foundation (Ch.1-3)
+**Understand the representation problem**
+
+- **Ch.1**: Why raw pixels fail → Modality gap, tensor representation
+- **Ch.2**: Vision Transformers → Patch embeddings, attention over images
+- **Ch.3**: CLIP → Text-image alignment, semantic space
+
+**Status**: ❌❌❌❌❌❌ No generation capability yet. Only retrieval and classification.
+
+---
+
+#### ⚡ Act 2: Generation Breakthrough (Ch.4-6)
+**Build the core text-to-image pipeline**
+
+- **Ch.4**: Diffusion Models → **#1 Partial, #4 Partial** (DDPM works but slow, 28×28 only)
+- **Ch.5**: Schedulers → **#2 ✅** 4-step DDIM makes <30s viable! 🎉
+- **Ch.6**: Latent Diffusion → **#1 ✅ #3 ✅** HPSv2 4.2, SD runs on $5k hardware! 🎉
+
+**Status**: ✅✅✅❌❌❌ Quality + Speed + Cost achieved! 512×512 images in 25s.
+
+---
+
+#### 🚀 Act 3: Control & Composition (Ch.7-8)
+**Eliminate unusable generations, build production workflow**
+
+- **Ch.7**: Guidance & Conditioning → **#4 ✅** CFG + negative prompts = <3% unusable! 🎉
+- **Ch.8**: Text-to-Image → ControlNet, img2img, inpainting, prompt engineering
+
+**Status**: ✅✅✅✅❌❌ Core image pipeline production-ready!
+
+---
+
+#### 📊 Act 4: Multimodal Expansion (Ch.9-11)
+**Add video, captioning, audio for full campaign creation**
+
+- **Ch.9**: Text-to-Video → AnimateDiff, temporal consistency (modality 2/4)
+- **Ch.10**: Multimodal LLMs → LLaVA captioning (modality 3/4)
+- **Ch.11**: Audio Generation → **#6 ✅** MMS TTS voiceovers (modality 4/4)! 🎉
+
+**Status**: ✅✅✅✅❌✅ All modalities working! Throughput optimization remains.
+
+---
+
+#### 🧠 Act 5: Validation & Scale (Ch.12-13)
+**Measure quality rigorously, prove throughput at scale**
+
+- **Ch.12**: Generative Evaluation → HPSv2, FID, CLIP score, blind review
+- **Ch.13**: Local Diffusion Lab → **#5 ✅** Batch pipeline achieves 120 assets/day! 🎉
+
+**Status**: ✅✅✅✅✅✅ **ALL 6 CONSTRAINTS SATISFIED — PRODUCTION READY!**
+
+---
+
+### The Business Context: Aperture Creative Agency
+
+**Current baseline (before budget cuts):**
+- 5 in-house designers + 3 freelancers (avg. $75k/yr each)
+- Freelancer annual cost: 3 × $200k = **$600,000/year**
+- Output: 2,000 assets/year (product shots, social ads, explainer videos, voiceovers)
+- Quality: Stock photo grade (Unsplash/Pexels equivalent)
+- Turnaround: 2-3 days per asset batch
+
+**After 60% budget cut:**
+- Lost 3 freelancers = lost 750 assets/year capacity
+- 2 remaining designers = 1,250 assets/year (shortfall of 750)
+- Client commitments unchanged = existential crisis
+
+**Creative Director's challenge:** "We can't afford Midjourney Enterprise ($60k/yr) or Runway ($12k/yr) or ComfyUI cloud rentals. Either you build me a local AI pipeline that matches freelancer quality on hardware I can expense in one purchase order — or I'm outsourcing to agencies in lower-cost markets and we're done."
+
+**Your progression:**
+
+```
+After Ch.1-3:  "Okay, I understand the theory. But can we actually generate images?"
+After Ch.4:    "DDPM works... but 28×28 is unusable. And 1,000 steps takes 4 minutes."
+After Ch.5:    "4-step DDIM is 10× faster! But MNIST isn't stock photos."
+After Ch.6:    "Wait... Stable Diffusion runs locally? In 25 seconds? And it looks professional?!"
+After Ch.7:    "CFG tuning dropped unusable gens from 22% to 3%. This is getting real."
+After Ch.8:    "ControlNet means I can give designers compositional control. They're believers now."
+After Ch.9-11: "We have video, captions, and voiceovers. Full campaign creation in one pipeline."
+After Ch.12:   "HPSv2 4.2 = matches paid stock libraries. Blind test: clients can't tell the difference."
+After Ch.13:   🎉 "Batch pipeline churns out 120 assets/day. Payback in 2.5 months. This saved the agency."
+```
+
+**Financial impact:**
+- Hardware investment: **$5,000** (RTX 3060 12GB, RAM upgrade, storage)
+- Annual cloud fees: **$0** (fully local inference)
+- Freelancer savings: **$600,000/year**
+- **Payback period: 2.5 months**
+- Year 1 ROI: **11,900%**
+
+---
+
+### What You'll Build
+
+By the end of this track, you'll have:
+
+1. ✅ **Vision understanding** of patch embeddings, ViT architecture, modality gap (Foundation)
+2. ✅ **CLIP alignment** enabling semantic search and text-image retrieval (Constraint #6 foundation)
+3. ✅ **Diffusion mastery** from DDPM forward/reverse process to latent diffusion (Constraints #1, #2, #3)
+4. ✅ **Control systems** via CFG, negative prompts, ControlNet for composition (Constraint #4)
+5. ✅ **Multi-modal pipeline** integrating text→image, image→video, image→caption, text→speech (Constraint #6)
+6. ✅ **Evaluation rigor** using HPSv2, FID, CLIP score, human preference (Constraint #1 validation)
+7. ✅ **Production deployment** with batch processing, quality gates, throughput optimization (Constraint #5)
+8. 🎓 **Deep understanding** of when to use pixel-space vs latent-space diffusion, DDPM vs DDIM vs DPM-Solver, and how to ship generative AI on constrained hardware
+
+---
+
+### Measurement Protocols (How Each Constraint Is Validated)
+
+#### Constraint #1: Quality (≥4.0/5.0 HPSv2)
+**Automated**: Run [HPSv2 aesthetic predictor](https://github.com/tgxs002/HPSv2) (human preference model trained on 430k comparisons) on 100-image sample. Must average ≥4.0/5.0.
+
+**Human validation**: Blind review by 3 professional designers. Each rates 50 images (accept/reject for client use). Acceptance rate must exceed 90%.
+
+**Field test**: Deploy to real client projects for 2 weeks. Track client approval rate (first draft accepted without revision). Target: >90%.
+
+#### Constraint #2: Speed (<30s per 512×512 image)
+**Benchmark**: Generate 50 diverse prompts (portraits, products, landscapes, abstract) on target hardware (RTX 3060 12GB). Measure:
+- Median generation time (must be <30s)
+- p95 generation time (must be <45s)
+- Cold start overhead (model loading, first inference)
+
+**Real-world test**: Designer iteration session. Measure time from "I want to change X" to new image on screen. Target: <40s including prompt modification.
+
+#### Constraint #3: Cost (<$5k hardware, $0/month cloud)
+**Hardware audit**: 
+- GPU: RTX 3060 12GB (~$350-400)
+- RAM: 32GB DDR4 (~$80)
+- Storage: 2TB NVMe (~$120)
+- Workstation upgrade budget: ~$4,500 remaining
+
+**Recurring costs**: 
+- Cloud API fees: $0 (local inference only)
+- Electricity: ~$15/month (negligible vs $600k freelancer savings)
+
+**ROI calculation**: $600k annual savings ÷ $5k investment = **2.5-month payback period**.
+
+#### Constraint #4: Control (<5% unusable)
+**Test set**: 200 diverse prompts across:
+- Portraits (lighting, pose, expression)
+- Products (angle, background, shadows)
+- Landscapes (composition, time of day)
+- Abstract (color palette, mood)
+
+**Unusable criteria**: Generation fails if it violates:
+- Composition guidelines (rule of thirds, focal point)
+- Anatomy errors (extra fingers, distorted faces)
+- Brand guidelines (wrong colors, mood, style)
+
+**Measurement**: Designer review. Tag each generation as "accepted", "needs minor edit", or "unusable". <5% must be "unusable" (i.e., regeneration required).
+
+#### Constraint #5: Throughput (100+ assets/day)
+**8-hour workday simulation**:
+1. Automated batch pipeline generates 150 hero images (50 prompts × 3 variations each)
+2. Designer reviews and accepts best candidates (target: 2 min per prompt batch)
+3. Generate social media crops (3 aspect ratios per accepted image)
+4. Track total accepted assets ready for client delivery
+
+**Success**: ≥100 client-ready assets in 8 hours (designer + AI collaboration). Breakdown:
+- 40 hero images (50 prompts → 40 accepted after review)
+- 120 social crops (40 images × 3 aspect ratios)
+- **Total: 160 assets/day** (exceeds 100 target)
+
+#### Constraint #6: Versatility (4 modalities)
+**End-to-end campaign test**: Build complete product launch in <5 minutes total:
+1. **Text → Image**: "A sleek smartwatch on a minimalist desk, golden hour lighting" → 512×512 hero image (25s)
+2. **Image → Video**: Animate hero image with subtle parallax (3s clip, 60s generation)
+3. **Image → Caption**: LLaVA generates alt text: "Modern smartwatch with black band displayed on white desk surface, bathed in warm natural light from the right" (5s)
+4. **Text → Speech**: MMS TTS voiceover: "Introducing the Apex Watch — where design meets precision" (10s)
+
+**Total pipeline time**: <2 minutes. **Success**: All 4 modalities produce professional-grade output without manual intervention.
+
+---
+
 ## The Running Example — PixelSmith
 
-Every note in this track is anchored to a single growing system: **PixelSmith**, a local AI-powered creative studio you are building from scratch.
+Every note in this track is anchored to a single growing system: **PixelSmith**, the local AI-powered creative studio you are building from scratch to power **VisualForge Studio**.
+
+Think of PixelSmith as the technical implementation behind VisualForge Studio's business mission. While VisualForge Studio is the production pipeline serving Aperture Creative's clients, PixelSmith is the educational artifact you build chapter-by-chapter to understand every component: from raw pixel tensors through patch embeddings, CLIP alignment, diffusion denoising, latent-space compression, and finally multimodal integration.
 
 ```
 PixelSmith v1 (after Foundations):
   Input: raw image file → Output: pixel tensor, patch embeddings
+  VisualForge capability: None yet (understanding representation)
 
 PixelSmith v2 (after CLIP):
   Input: text query → Output: ranked images by semantic similarity
+  VisualForge capability: Asset library semantic search
 
 PixelSmith v3 (after Diffusion Models):
   Input: noise → Output: generated image (DDPM from scratch)
+  VisualForge capability: Generation proof-of-concept (MNIST only)
 
 PixelSmith v4 (after Latent Diffusion):
   Input: text prompt → Output: generated image (Stable Diffusion, locally)
+  VisualForge capability: 🎉 CORE PIPELINE — professional 512×512 images in 25s
 
 PixelSmith v5 (after ControlNet / img2img):
   Input: text prompt + sketch → Output: controlled generated image
+  VisualForge capability: Compositional control for designer workflows
 
-PixelSmith v6 (after Multimodal LLMs):
+PixelSmith v6 (after Multimodal LLMs + Audio):
   Input: photograph + question → Output: natural language answer
+  Input: text script → Output: voiceover waveform
+  VisualForge capability: Image captioning + TTS for complete campaigns
 ```
 
 The key constraint: **PixelSmith must run on a stock developer laptop** — no A100, no cloud GPU budget. This forces every chapter to confront the same question production engineers face: *how do you get serious generative AI to run where you actually are?*
+
+By Ch.13, PixelSmith v6 becomes the foundation for VisualForge Studio's production pipeline: batch processing, quality gates, throughput optimization, and multi-modal asset generation — all validated against the 6 constraints that determine if Aperture Creative survives.
 
 ---
 
@@ -225,6 +453,26 @@ MultimodalFoundations
                                                               └─▶ LocalDiffusionLab (capstone)
 ```
 
+### By VisualForge Constraint
+
+**Need to hit quality targets?**  
+→ [Ch.4 Diffusion Models](ch04_diffusion_models/diffusion-models.md), [Ch.6 Latent Diffusion](ch06_latent_diffusion/latent-diffusion.md), [Ch.12 Generative Evaluation](ch12_generative_evaluation/generative-evaluation.md) **(Constraint #1)**
+
+**Need faster generation?**  
+→ [Ch.5 Schedulers](ch05_schedulers/schedulers.md), [Ch.6 Latent Diffusion](ch06_latent_diffusion/latent-diffusion.md) **(Constraint #2)**
+
+**Budget-constrained hardware?**  
+→ [Ch.6 Latent Diffusion](ch06_latent_diffusion/latent-diffusion.md), [Ch.13 Local Diffusion Lab](ch13_local_diffusion_lab/local-diffusion-lab.md) **(Constraint #3)**
+
+**Need compositional control?**  
+→ [Ch.7 Guidance & Conditioning](ch07_guidance_conditioning/guidance-conditioning.md), [Ch.8 Text-to-Image](ch08_text_to_image/text-to-image.md) **(Constraint #4)**
+
+**Need batch production throughput?**  
+→ [Ch.8 Text-to-Image](ch08_text_to_image/text-to-image.md), [Ch.13 Local Diffusion Lab](ch13_local_diffusion_lab/local-diffusion-lab.md) **(Constraint #5)**
+
+**Need multi-modal capabilities?**  
+→ [Ch.3 CLIP](ch03_clip/clip.md), [Ch.9 Text-to-Video](ch09_text_to_video/text-to-video.md), [Ch.10 Multimodal LLMs](ch10_multimodal_llms/multimodal-llms.md), [Ch.11 Audio Generation](ch11_audio_generation/README.md) **(Constraint #6)**
+
 ---
 
 ## How This Track Connects to the AI Track and ML Track
@@ -232,12 +480,12 @@ MultimodalFoundations
 | Concept from this track | Prerequisite from other tracks |
 |------------------------|-------------------------------|
 | Patch embeddings in ViT | Transformer architecture → [ML Ch.18 — Transformers](../ml/03_neural_networks/ch10_transformers/README.md) |
-| InfoNCE contrastive loss | Embedding training objectives → [RAGAndEmbeddings.md](.$103-ai/ch04_rag_and_embeddings/rag-and-embeddings.md) |
-| CLIP text encoder inside Stable Diffusion | Tokenisation + transformer encoder → [LLMFundamentals.md](.$103-ai/ch01_llm_fundamentals/llm-fundamentals.md) |
+| InfoNCE contrastive loss | Embedding training objectives → [RAGAndEmbeddings.md](.03-ai/ch04_rag_and_embeddings/rag-and-embeddings.md) |
+| CLIP text encoder inside Stable Diffusion | Tokenisation + transformer encoder → [LLMFundamentals.md](.03-ai/ch01_llm_fundamentals/llm-fundamentals.md) |
 | CFG conditioning via cross-attention | Attention mechanics → [ML Ch.18 — Transformers](../ml/03_neural_networks/ch10_transformers/README.md) |
 | VAE (encoder-decoder architecture) | Neural network layers + backprop → [ML Ch.4](../ml/03_neural_networks/ch02_neural_networks/README.md) + [ML Ch.5](../ml/03_neural_networks/ch03_backprop_optimisers/README.md) |
-| Fine-tuning LLaVA on visual instructions | Fine-tuning concepts → [FineTuning.md](.$103-ai/ch10_fine_tuning/fine-tuning.md) |
-| FID as a distribution-level metric | Evaluation concepts → [EvaluatingAISystems.md](.$103-ai/ch08_evaluating_ai_systems/evaluating-ai-systems.md) |
+| Fine-tuning LLaVA on visual instructions | Fine-tuning concepts → [FineTuning.md](.03-ai/ch10_fine_tuning/fine-tuning.md) |
+| FID as a distribution-level metric | Evaluation concepts → [EvaluatingAISystems.md](.03-ai/ch08_evaluating_ai_systems/evaluating-ai-systems.md) |
 
 ---
 
@@ -310,20 +558,22 @@ Every note follows this template (same order as the ML and AI tracks):
 
 ### What PixelSmith Is
 
-PixelSmith is a local AI creative studio. Think of it as a minimal, from-scratch recreation of the core inference pipeline behind tools like DALL-E or Stable Diffusion — built piece by piece as you work through the notes. At the end of the track, the notebook in `LocalDiffusionLab/` ties every component together into a runnable end-to-end pipeline.
+PixelSmith is the **educational artifact** — a minimal, from-scratch recreation of the core inference pipeline you'll use to build **VisualForge Studio** (the production challenge). Think of PixelSmith as your learning sandbox and VisualForge as the business application. As you work through the notes, PixelSmith grows from simple tensor operations to a complete multi-modal generation pipeline. At the end of the track, the notebook in `LocalDiffusionLab/` ties every component together into a runnable end-to-end system that demonstrates all 6 VisualForge constraints in action.
 
 ### Why This Running Example Works
 
-| Property | Why it matters |
-|----------|---------------|
-| Fully local | You never need an API key or a cloud account — every chapter runs offline |
-| Progressive | Each chapter adds exactly one new concept to the same growing system |
-| Grounded | Every abstraction (patch embeddings, latent space, noise schedule) is demonstrated with real tensor operations you can inspect |
-| Honest about constraints | A stock machine cannot run Stable Diffusion XL in full float32, so the notes explain *why*, not just *what* |
+| Property | Why it matters | VisualForge connection |
+|----------|---------------|------------------------|
+| Fully local | You never need an API key or a cloud account — every chapter runs offline | **Constraint #3**: Zero cloud costs, $5k hardware budget |
+| Progressive | Each chapter adds exactly one new concept to the same growing system | Maps directly to 13-chapter capability unlock table |
+| Grounded | Every abstraction (patch embeddings, latent space, noise schedule) is demonstrated with real tensor operations you can inspect | Understand *why* it works, not just *how* to use the API |
+| Honest about constraints | A stock machine cannot run Stable Diffusion XL in full float32, so the notes explain *why*, not just *what* | **Constraint #2**: Speed optimization isn't optional — it's survival |
 
 ### What PixelSmith Is Not
 
 PixelSmith is **not** a production image editor, a fine-tuning service, or a LoRA training pipeline. It is a teaching artefact — the simplest system that lets you verify you understand each concept with code you wrote or can read line-by-line.
+
+**VisualForge Studio** is where you take that understanding and apply it to production constraints: batch processing, quality gates, client iteration workflows, and the business metrics that determine if the agency survives the budget cuts.
 
 ---
 
@@ -334,7 +584,7 @@ Before starting Chapter 1, you should be comfortable with:
 | Prerequisite | Where to build it if needed |
 |-------------|----------------------------|
 | What a transformer is and how attention works | [ML Ch.17 — From Sequences to Attention](../ml/03_neural_networks/ch09_sequences_to_attention/README.md) then [ML Ch.18 — Transformers](../ml/03_neural_networks/ch10_transformers/README.md) |
-| What embeddings are and why cosine similarity matters | [RAGAndEmbeddings.md](.$103-ai/ch04_rag_and_embeddings/rag-and-embeddings.md) |
+| What embeddings are and why cosine similarity matters | [RAGAndEmbeddings.md](.03-ai/ch04_rag_and_embeddings/rag-and-embeddings.md) |
 | Basic PyTorch tensor operations (`torch.Tensor`, `.view()`, matrix multiply) | [ML Ch.4 — Neural Networks](../ml/03_neural_networks/ch02_neural_networks/README.md) |
 | What a convolutional layer does (for comparison with ViT) | [ML Ch.7 — CNNs](../ml/03_neural_networks/ch05_cnns/README.md) |
 

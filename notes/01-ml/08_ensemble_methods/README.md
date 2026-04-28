@@ -10,11 +10,11 @@ Ensemble methods are the most consistent winners in production ML. Every Kaggle 
 
 | # | Constraint | Target | Why It Matters |
 |---|------------|--------|----------------|
-| **#1** | **IMPROVEMENT** | >5% better than best single model (MAE or accuracy) | If the ensemble doesn't meaningfully beat the best member, the added complexity isn't justified |
-| **#2** | **DIVERSITY** | Ensemble members must be sufficiently different | Correlated models average to the same answer — diversity is the engine of ensemble power |
-| **#3** | **EFFICIENCY** | Ensemble latency < 5× single model | Production systems have SLA budgets. 1000 trees can't take 10 seconds per prediction |
-| **#4** | **INTERPRETABILITY** | SHAP explains ensemble decisions | Black-box ensembles are unacceptable for regulated industries — must explain every prediction |
-| **#5** | **ROBUSTNESS** | Ensemble more stable than any single model | Ensembles should reduce variance across seeds, folds, and data perturbations |
+| **#1** | **IMPROVEMENT** | >5% relative improvement over best single model baseline (MAE or accuracy) | If the ensemble doesn't meaningfully beat the best member, the added complexity isn't justified. Baseline: best single model trained with same features/preprocessing |
+| **#2** | **DIVERSITY** | Average pairwise correlation < 0.75 across ensemble member predictions | Correlated models average to the same answer — diversity is the engine of ensemble power. Threshold based on Breiman (2001): correlation >0.75 reduces ensemble variance by <2× |
+| **#3** | **EFFICIENCY** | Ensemble latency < 5× fastest single model | Production systems have SLA budgets. 1000 trees can't take 10 seconds per prediction. Factor of 5 reflects typical production tolerance for ensemble overhead |
+| **#4** | **INTERPRETABILITY** | Top-5 SHAP features explain ≥70% of prediction magnitude for ≥90% of predictions | Black-box ensembles are unacceptable for regulated industries — must explain every prediction. Threshold ensures compliance-ready explanations (Lundberg & Lee, 2017) |
+| **#5** | **ROBUSTNESS** | Ensemble CV std dev ≤ 50% of best single model's CV std dev | Ensembles should reduce variance across seeds, folds, and data perturbations. Variance reduction is the theoretical foundation of bagging (Breiman, 1996) |
 
 ---
 

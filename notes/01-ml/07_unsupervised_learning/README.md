@@ -128,4 +128,4 @@ X = df[['Fresh', 'Milk', 'Grocery', 'Frozen', 'Detergents_Paper', 'Delicatessen'
 - **K-Means / DBSCAN fundamentals** are revisited in the Regression track (SmartVal AI neighbourhood-clustering context) and Recommender Systems (user segment cold-start priors)
 - **PCA for feature compression** reappears in the Neural Networks track (Ch.8 TensorBoard projector for embedding visualisation)
 - **Silhouette and Davies-Bouldin** metrics provide the evaluation vocabulary used in Ensemble Methods cluster-ensemble experiments
-- **Cluster-based user segmentation** feeds directly into [04-RecommenderSystems](../04_recommender_systems/README.md) as a cold-start strategy for new users with no rating history
+- **Cluster-based user segmentation** feeds directly into [04_recommender_systems](../04_recommender_systems/README.md) as a cold-start strategy for new users with no rating history

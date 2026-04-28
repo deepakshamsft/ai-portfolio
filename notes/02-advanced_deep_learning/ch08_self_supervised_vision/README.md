@@ -216,6 +216,8 @@ $$
 
 Where $H(p, q) = -\sum_{k=1}^{K} p_k \log q_k$ is cross-entropy.
 
+**In plain English:** You crop the same shelf image 10 different ways (2 wide crops, 8 zoomed-in patches). The teacher network — which updates slowly via momentum — processes only the 2 wide crops and outputs "this image cluster belongs to representation vector $p_t$." The student network processes all 10 crops and must predict the same representation $p_t$ from every crop, even the tiny zoomed patches. This forces the student to learn features that are **consistent across scales and viewpoints** — which turns out to be exactly what "object boundaries" and "product logos" are. No labels needed; the consistency requirement alone discovers objects.
+
 **Intuition:**
 - For each teacher prediction $p_t^{(j)}$ (from a global crop)
 - Student must match it from all other crops $p_s^{(i)}$ (both global and local)
@@ -516,219 +518,7 @@ The network learned to segment products from background without bounding box lab
 
 ---
 
-## 7 · Code Skeleton — DINO Self-Distillation
-
-```python
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
-
-class DINOHead(nn.Module):
-    """Projection head for DINO"""
-    def __init__(self, in_dim, hidden_dim=2048, bottleneck_dim=256, out_dim=65536):
-        super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, bottleneck_dim)
-        )
-        self.last_layer = nn.Linear(bottleneck_dim, out_dim, bias=False)
-    
-    def forward(self, x):
-        x = self.mlp(x)
-        x = F.normalize(x, dim=-1, p=2)
-        x = self.last_layer(x)
-        return x
-
-class DINOLoss(nn.Module):
-    def __init__(self, out_dim, student_temp=0.1, teacher_temp=0.04, center_momentum=0.9):
-        super().__init__()
-        self.student_temp = student_temp
-        self.teacher_temp = teacher_temp
-        self.center_momentum = center_momentum
-        self.register_buffer("center", torch.zeros(1, out_dim))
-    
-    def forward(self, student_output, teacher_output):
-        """
-        student_output: [B*10, out_dim] (all crops)
-        teacher_output: [B*2, out_dim] (global crops only)
-        """
-        # Centering teacher output
-        teacher_output = teacher_output - self.center
-        
-        # Sharpening with temperature
-        student_out = student_output / self.student_temp
-        teacher_out = F.softmax(teacher_output / self.teacher_temp, dim=-1)
-        
-        # Cross-entropy loss
-        loss = -torch.sum(teacher_out * F.log_softmax(student_out, dim=-1), dim=-1)
-        loss = loss.mean()
-        
-        # Update center (momentum)
-        self.update_center(teacher_output)
-        
-        return loss
-    
-    @torch.no_grad()
-    def update_center(self, teacher_output):
-        batch_center = torch.mean(teacher_output, dim=0, keepdim=True)
-        self.center = self.center * self.center_momentum + batch_center * (1 - self.center_momentum)
-
-# Training loop
-student = VisionTransformer(...)  # ViT-Small or ResNet-50
-teacher = VisionTransformer(...)  # Same architecture
-teacher.load_state_dict(student.state_dict())  # Initialize teacher = student
-
-# Freeze teacher (no gradient)
-for p in teacher.parameters():
-    p.requires_grad = False
-
-dino_loss = DINOLoss(out_dim=65536)
-optimizer = torch.optim.AdamW(student.parameters(), lr=0.0005)
-
-momentum_schedule = cosine_scheduler(base_value=0.996, final_value=1.0, epochs=800)
-
-for epoch in range(800):
-    for images in unlabeled_dataloader:
-        # Multi-crop augmentation (2 global + 8 local)
-        global_crops = [global_transform(img) for img in images]  # 2×
-        local_crops = [local_transform(img) for img in images]    # 8×
-        
-        # Student forward on all crops
-        student_output = student(torch.cat(global_crops + local_crops))
-        
-        # Teacher forward on global crops only (no gradient)
-        with torch.no_grad():
-            teacher_output = teacher(torch.cat(global_crops))
-        
-        # DINO loss
-        loss = dino_loss(student_output, teacher_output)
-        
-        # Student update
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-        # Teacher momentum update
-        m = momentum_schedule[epoch]
-        for param_s, param_t in zip(student.parameters(), teacher.parameters()):
-            param_t.data.mul_(m).add_((1 - m) * param_s.detach().data)
-```
-
----
-
-## 8 · Code Skeleton — MAE Masked Autoencoder
-
-```python
-import torch
-import torch.nn as nn
-
-class MAE(nn.Module):
-    def __init__(self, img_size=224, patch_size=16, in_channels=3,
-                 encoder_dim=768, encoder_depth=12, encoder_heads=12,
-                 decoder_dim=512, decoder_depth=8, decoder_heads=8,
-                 mask_ratio=0.75):
-        super().__init__()
-        self.patch_size = patch_size
-        self.num_patches = (img_size // patch_size) ** 2
-        self.mask_ratio = mask_ratio
-        
-        # Patch embedding
-        self.patch_embed = nn.Conv2d(in_channels, encoder_dim, 
-                                     kernel_size=patch_size, stride=patch_size)
-        
-        # Positional encoding
-        self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, encoder_dim))
-        
-        # Encoder (ViT)
-        self.encoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(encoder_dim, encoder_heads, dim_feedforward=encoder_dim*4),
-            num_layers=encoder_depth
-        )
-        
-        # Decoder
-        self.decoder_embed = nn.Linear(encoder_dim, decoder_dim)
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_dim))
-        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, decoder_dim))
-        self.decoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(decoder_dim, decoder_heads, dim_feedforward=decoder_dim*4),
-            num_layers=decoder_depth
-        )
-        
-        # Reconstruction head
-        self.decoder_pred = nn.Linear(decoder_dim, patch_size**2 * in_channels)
-    
-    def random_masking(self, x):
-        """Randomly mask 75% of patches"""
-        N, L, D = x.shape  # batch, length, dim
-        len_keep = int(L * (1 - self.mask_ratio))
-        
-        # Random shuffle
-        noise = torch.rand(N, L, device=x.device)
-        ids_shuffle = torch.argsort(noise, dim=1)
-        ids_restore = torch.argsort(ids_shuffle, dim=1)
-        
-        # Keep first len_keep patches
-        ids_keep = ids_shuffle[:, :len_keep]
-        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).expand(-1, -1, D))
-        
-        # Binary mask: 0 is keep, 1 is remove
-        mask = torch.ones([N, L], device=x.device)
-        mask[:, :len_keep] = 0
-        mask = torch.gather(mask, dim=1, index=ids_restore)
-        
-        return x_masked, mask, ids_restore
-    
-    def forward(self, imgs):
-        # Patchify
-        x = self.patch_embed(imgs)  # [B, D, H/P, W/P]
-        x = x.flatten(2).transpose(1, 2)  # [B, N, D]
-        x = x + self.pos_embed
-        
-        # Masking
-        x, mask, ids_restore = self.random_masking(x)
-        
-        # Encoder (only visible patches)
-        latent = self.encoder(x)
-        
-        # Decoder
-        latent = self.decoder_embed(latent)
-        
-        # Add mask tokens
-        mask_tokens = self.mask_token.repeat(latent.shape[0], ids_restore.shape[1] - latent.shape[1], 1)
-        x_full = torch.cat([latent, mask_tokens], dim=1)
-        x_full = torch.gather(x_full, dim=1, index=ids_restore.unsqueeze(-1).expand(-1, -1, latent.shape[2]))
-        x_full = x_full + self.decoder_pos_embed
-        
-        # Decoder forward
-        x_full = self.decoder(x_full)
-        
-        # Reconstruct pixels
-        pred = self.decoder_pred(x_full)  # [B, N, patch_size^2 * 3]
-        
-        return pred, mask
-
-# Loss function
-def mae_loss(imgs, pred, mask):
-    """MSE loss on masked patches only"""
-    # Patchify target
-    target = patchify(imgs, patch_size=16)  # [B, N, patch_size^2 * 3]
-    
-    # MSE loss
-    loss = (pred - target) ** 2
-    loss = loss.mean(dim=-1)  # Mean per patch
-    
-    # Only on masked patches
-    loss = (loss * mask).sum() / mask.sum()
-    return loss
-```
-
----
-
-## 9 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 ⚠️ **DINO: Collapse without centering**
 - **Symptom**: All outputs become identical, loss = 0 but model learned nothing
@@ -762,7 +552,7 @@ def mae_loss(imgs, pred, mask):
 
 ---
 
-## 10 · Where This Reappears
+## 8 · Where This Reappears
 
 **Multimodal AI Track — Vision-Language Models**
 - **CLIP** (Radford et al., 2021): Contrastive pretraining on (image, text) pairs
@@ -787,7 +577,7 @@ def mae_loss(imgs, pred, mask):
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ![Progress check dashboard](img/ch08-progress-check.png)
 
@@ -836,7 +626,7 @@ This enables:
 
 ---
 
-## 12 · Bridge to the Next Chapter
+## 10 · Bridge to the Next Chapter
 
 This chapter gave you **DINO and MAE** — two self-supervised methods that surpass contrastive learning:
 - **DINO**: Self-distillation with no negatives → attention maps emerge automatically → 86% mAP

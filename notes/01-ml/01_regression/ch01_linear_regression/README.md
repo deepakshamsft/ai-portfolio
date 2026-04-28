@@ -131,7 +131,7 @@ The model has **no non-linearity** — it can only produce straight-line predict
 
 ### 4.2 · The Normal Equation Solves for Weights in One Matrix Operation
 
-> 📖 **Closed-form solution:** When data is small and noise is Gaussian, you can solve for weights algebraically rather than iterating. The full derivation — setting $\nabla L = 0$ and solving the resulting linear system — lives in [MathUnderTheHood ch05 — Matrices](../../../math_under_the_hood/ch05_matrices). For this chapter, gradient descent is the focus because it scales to every model we build later.
+> 📖 **Closed-form solution:** When data is small and noise is Gaussian, you can solve for weights algebraically rather than iterating. The full derivation — setting $\nabla L = 0$ and solving the resulting linear system — lives in [MathUnderTheHood ch05 — Matrices](../../../00-math_under_the_hood/ch05_matrices). For this chapter, gradient descent is the focus because it scales to every model we build later.
 
 The MSE loss has a closed-form minimum. Set $\nabla_{\mathbf{W}} L = 0$ and solve:
 
@@ -149,7 +149,7 @@ $$\det(X^\top X) = 3 \times 14 - 6 \times 6 = 6 \qquad (X^\top X)^{-1} = \tfrac{
 
 $$\hat{\beta} = \tfrac{1}{6}\begin{bmatrix}14 & -6\\-6 & 3\end{bmatrix}\begin{bmatrix}11\\24\end{bmatrix} = \tfrac{1}{6}\begin{bmatrix}10\\6\end{bmatrix} = \begin{bmatrix}1.67\\1.00\end{bmatrix}$$
 
-| $x$ | $y$ | $\hat{y} = 1.00x + 1.67$ | residual |
+| $x$ | $y$ | $\hat{y} = 1.00x + 1.67$ | residual $e = y - \hat{y}$ |
 |-----|-----|--------------------------|----------|
 | 1 | 2 | 2.67 | −0.67 |
 | 2 | 4 | 3.67 | +0.33 |
@@ -157,7 +157,124 @@ $$\hat{\beta} = \tfrac{1}{6}\begin{bmatrix}14 & -6\\-6 & 3\end{bmatrix}\begin{bm
 
 MSE $= (0.45 + 0.11 + 0.11)/3 = 0.22$. Verify: gradient $\nabla_\beta \text{MSE} = 0$ at these weights (by construction).
 
-> � **When to prefer the Normal Equation over gradient descent**
+#### What Are Residuals?
+
+A **residual** is the difference between what actually happened and what your model predicted:
+
+$$e_i = y_i - \hat{y}_i$$
+
+**In plain English:** residuals are the errors — the parts of reality your model couldn't explain.
+
+- **Negative residual** ($e < 0$): Model predicted too high
+- **Positive residual** ($e > 0$): Model predicted too low  
+- **Residual = 0**: Model nailed it perfectly
+
+**From the toy data above:**
+- Row 1: $e = 2 - 2.67 = -0.67$ → model over-predicted by $0.67$
+- Row 2: $e = 4 - 3.67 = +0.33$ → model under-predicted by $0.33$
+- Row 3: $e = 5 - 4.67 = +0.33$ → model under-predicted by $0.33$
+
+**Why residuals matter more than raw error metrics.** MSE gives you one number ($0.22$). Residuals give you $n$ numbers — one per sample. Looking at the *pattern* of these errors tells you **what's broken** in ways a single loss value cannot.
+
+#### Residual Plots — The Model's X-Ray
+
+The most powerful diagnostic tool in regression is the **residual plot**: scatter the residuals $e_i$ on the y-axis against the predictions $\hat{y}_i$ on the x-axis.
+
+**Three patterns you'll see:**
+
+```
+Pattern 1: Random Cloud (✅ Good)          Pattern 2: U-Shape Curve (❌ Non-linear)
+     e                                          e
+     |  · ·  ·                                  |     ·
+     | ·  · · ·                                 |   ·   ·
+   0 +────────── ŷ                            0 +────────── ŷ
+     | · ·  ·                                   |   ·   ·
+     | ·   ·  ·                                 |     ·
+
+No pattern = linear model is correct         Curve = model is systematically wrong
+Residuals are just random noise               Add x², x³ features (Ch.4)
+
+
+Pattern 3: Funnel (❌ Heteroscedasticity)    Pattern 4: Bands (❌ Discrete Target)
+     e                                          e
+     |    ·                                     | ----·----
+     |  ·  ·                                    | ----·----
+   0 +────────── ŷ                            0 +────────── ŷ
+     | ·  ·  ·                                  | ----·----
+     |·  ·   ·   ·                              | ----·----
+
+Variance grows with ŷ                         Target has jumps (price tiers, ratings)
+Log-transform y before fitting                Classification problem, not regression
+```
+
+**What each pattern means:**
+
+| Pattern | What it means | What to do |
+|---------|---------------|------------|
+| **Random cloud around zero** | ✅ Model is well-specified | Keep going — you're done |
+| **U-shape or ∩-shape** | Relationship is non-linear | Add polynomial features ($x^2, x^3$) — see Ch.4 |
+| **Funnel (spreads out)** | Variance grows with predictions | Try `y_log = np.log(y)` as target |
+| **Stripes or bands** | Target is discrete/categorical | Wrong problem type — use classification |
+| **One cluster of huge errors** | Outliers dominating loss | Use Huber or MAE loss (see §5) |
+
+**RealtyML example — California Housing.** After training on 3 districts:
+
+```
+Residuals at epoch 0 (all weights = 0, every ŷ = 0):
+
+District  y_actual  ŷ     e = y - ŷ   Interpretation
+   1      4.526    0.00   +4.526      Model way too low
+   2      3.585    0.00   +3.585      Model way too low  
+   3      3.521    0.00   +3.521      Model way too low
+```
+
+All residuals positive → systematic underprediction. The gradient $\mathbf{X}^\top \mathbf{e}$ will push all weights upward.
+
+```
+After 10 epochs (model partially trained):
+
+District  y_actual  ŷ      e = y - ŷ   Interpretation
+   1      4.526    4.20    +0.326      Close — slight under
+   2      3.585    3.70    -0.115      Close — slight over
+   3      3.521    3.90    -0.379      Largest error — luxury district
+```
+
+Residuals now mix positive and negative (good!), but district 3 still has the largest error. **This tells you:** a simple linear combination of `MedInc` and `HouseAge` may not fully capture luxury coastal districts. You might need interaction terms (`MedInc × Latitude`) or non-linear features — patterns the residual plot reveals but the MSE number hides.
+
+**How to make residual plots in code:**
+
+```python
+import matplotlib.pyplot as plt
+
+# After training
+y_pred = model.predict(X_test)
+residuals = y_test - y_pred  # e_i = y_i - ŷ_i
+
+# Residual plot
+plt.figure(figsize=(10, 5))
+
+plt.subplot(1, 2, 1)
+plt.scatter(y_pred, residuals, alpha=0.5, s=10)
+plt.axhline(0, color='red', linestyle='--', linewidth=2)
+plt.xlabel('Predicted values ŷ')
+plt.ylabel('Residuals  e = y − ŷ')
+plt.title('Residual Plot — Look for Patterns')
+
+plt.subplot(1, 2, 2)
+plt.hist(residuals, bins=50, edgecolor='black')
+plt.xlabel('Residual value')
+plt.title('Residual Distribution (should be normal)')
+
+plt.tight_layout()
+plt.show()
+```
+
+**Left plot:** If you see random scatter → ✅ model is good. If you see a curve, funnel, or stripes → ❌ model assumptions violated.  
+**Right plot:** If histogram is bell-shaped (normal) → ✅ OLS assumptions hold. If heavily skewed or multi-modal → ❌ consider robust losses (MAE, Huber).
+
+> ⚡ **Why we care about residuals and not just MSE.** MSE = 0.22 tells you the model has error. The residual plot tells you *why*: maybe you're missing $x^2$, maybe outliers are pulling the line, maybe you need a log transform. One number measures performance; $n$ residuals diagnose the fix.
+
+> 💡 **When to prefer the Normal Equation over gradient descent**
 
 | Criterion | Normal Equation | Gradient Descent |
 |---|---|---|
@@ -942,7 +1059,7 @@ For Ch.1's single-feature model: `w ≈ 0.60` after standardisation. With only o
 
 ## 7 · Diagrams Reveal the Loss Bowl, Gradient Paths, and Convergence Dynamics
 
-### Loss Landscape
+### 7.1 · Loss Landscape
 
 The MSE loss surface for a single-weight model is a **convex bowl** — there is exactly one minimum, which gradient descent will always find given a small enough learning rate.
 
@@ -959,7 +1076,7 @@ Loss
  minimum
 ```
 
-### Gradient Descent Variants
+### 7.2 · Gradient Descent Variants
 
 ```mermaid
 flowchart LR
@@ -967,7 +1084,7 @@ flowchart LR
  B -->|"trade stability for speed"| C["SGD\n1 example/step\nnoisy but fast"]
 ```
 
-### Learning Rate Effect
+### 7.3 · Learning Rate Effect
 
 ```
 Good α: loss ──┐
@@ -981,19 +1098,19 @@ Too low: loss ──────────────────────
 
 ![Regression line and gradient descent learning rate comparison](img/gradient-descent-paths.png)
 
-### Animation — derivative slices compound into the curve
+### 7.4 · Animation — derivative slices compound into the curve
 
 Calculus-intuition check before we touch the loss surface: **every smooth curve is a quilt of tiny straight lines.** Zoom into any point on a circle and the arc looks straight — that locally-straight segment *is* the derivative at that point. Pull the camera back and those millions of tiny straight segments, laid edge-to-edge, are what we see as "the circle". The same is true of any smooth $f(x)$ — it looks blank from far away, but zoom in and it's made of microscopic tangents, each with its own slope $f'(x)$. This is why the first-order approximation $f(x + dx) \approx f(x) + f'(x) dx$ exists at all, and it's the reason gradient descent works one small step at a time: step sizes have to be small enough that this *locally straight* picture is still trustworthy.
 
 ![A circle and a curve, each shown as a quilt of tiny straight tangent segments revealed by zooming in and out](img/derivative_to_curve.gif)
 
-### Animation — gradient descent: small step vs too-large step
+### 7.5 · Animation — gradient descent: small step vs too-large step
 
 Same loss bowl, same start point, same gradient formula — the **only** difference is the learning rate $\eta$. On the left ($\eta = 0.15$) each step is small enough that the slope estimate stays accurate, and the ball walks down into the minimum. On the right ($\eta = 1.02$) each step overshoots the basin; the next gradient points the other way and is evaluated even farther out, so the iterates spiral outward and never settle. This is why "small steps" isn't a stylistic preference — it's the condition that keeps the linear approximation valid.
 
 ![Gradient descent: small-eta convergence vs large-eta overshoot](img/gradient_descent_steps.gif)
 
-### Feature → Prediction Flow (single input)
+### 7.6 · Feature → Prediction Flow (single input)
 
 ```mermaid
 flowchart LR
@@ -1002,7 +1119,7 @@ flowchart LR
 
 ---
 
-## 7.1 · Calculus Derivation — Where ∂MSE/∂W Comes From
+### 7.7 · Calculus Derivation — Where ∂MSE/∂W Comes From
 
 > §4 used the formula `∂MSE/∂W = (2/N)·Xᵀ(ŷ − y)` without proof. Here is the chain rule that produces it — one step at a time.
 
@@ -1024,7 +1141,7 @@ $$L = \frac{1}{N} \|X\mathbf{W} + b - \mathbf{y}\|^2 \implies \frac{\partial L}{
 
 This is the matrix form you see in production code: `(2/n) * X.T @ error` — each column of $X$ dots against the entire error vector to produce one component of $\nabla_\mathbf{W} L$.
 
-> For a deeper walk through the multivariate chain rule and Jacobians that make this generalisation rigorous, see [MathUnderTheHood ch06 — Gradient & Chain Rule](../../../math_under_the_hood/ch06_gradient_chain_rule).
+> For a deeper walk through the multivariate chain rule and Jacobians that make this generalisation rigorous, see [MathUnderTheHood ch06 — Gradient & Chain Rule](../../../00-math_under_the_hood/ch06_gradient_chain_rule).
 
 ---
 

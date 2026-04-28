@@ -119,6 +119,8 @@ No orchestrator thread blocked. **50 concurrent POs in-flight** at any moment (l
 
 ### Where Synchronous Stops Working
 
+> 💡 **Async prevents blocking:** In synchronous orchestration, when Agent A calls Agent B and waits for a response, that orchestrator thread is **stuck** — it can't process other tasks while waiting. If Agent B takes 2 hours (e.g., waiting for supplier quotes), that thread is blocked for 2 hours. With only 3 threads, max throughput = 3 tasks/2 hours = 36 tasks/day. Async pub/sub breaks this: Agent A publishes an event ("I need quotes") and **immediately returns** — no waiting. When Agent B finishes (2 hours later), it publishes a "quotes ready" event. Agent A's thread processed 100 other tasks in those 2 hours. Throughput jumps from 36/day to 1,000+/day using the same 3 threads. The magic: **decoupling producer availability from consumer speed**.
+
 A synchronous orchestrator is effectively a state machine that blocks. The orchestrator calls Agent A, waits, gets a result, calls Agent B, waits. While waiting, the orchestrator thread (or async coroutine) holds state in memory and cannot serve another task.
 
 This is acceptable when:
@@ -326,63 +328,7 @@ For supplier quote collection (fan-out $k=4$ suppliers): $T_{\text{fanout}} = \m
 
 ---
 
-## 6 · Code Skeleton
-
-```python
-# Educational: minimal async pub/sub from scratch
-import asyncio
-from collections import defaultdict
-from typing import Callable, Any
-
-class SimpleEventBus:
-    """In-process event bus for illustrating pub/sub agent coordination."""
-    def __init__(self):
-        self._subscribers: dict[str, list[Callable]] = defaultdict(list)
-
-    def subscribe(self, topic: str, handler: Callable) -> None:
-        self._subscribers[topic].append(handler)
-
-    async def publish(self, topic: str, message: Any) -> None:
-        for handler in self._subscribers[topic]:
-            await handler(message)
-
-bus = SimpleEventBus()
-
-# Fan-out: publish to 4 supplier agents in parallel
-async def request_quotes(po_id: str, suppliers: list[str]):
-    tasks = [bus.publish(f"quote.request.{s}", {"po_id": po_id, "supplier": s})
-             for s in suppliers]
-    await asyncio.gather(*tasks)  # fire all simultaneously
-```
-
-```python
-# Production: Redis Streams with consumer groups for OrderFlow
-import redis.asyncio as aioredis
-import json, uuid
-
-client = aioredis.from_url("redis://redis-svc:6379")
-
-async def publish_event(stream: str, event: dict) -> str:
-    event_id = await client.xadd(stream, {"data": json.dumps(event)})
-    return event_id
-
-async def consume_events(stream: str, group: str, consumer: str, handler):
-    try:
-        await client.xgroup_create(stream, group, id="0", mkstream=True)
-    except Exception:
-        pass  # group already exists
-    while True:
-        msgs = await client.xreadgroup(group, consumer, {stream: ">"}, count=10, block=5000)
-        for _, entries in (msgs or []):
-            for msg_id, fields in entries:
-                event = json.loads(fields[b"data"])
-                await handler(event)
-                await client.xack(stream, group, msg_id)  # mark processed
-```
-
----
-
-## 7 · What Can Go Wrong
+## 6 · What Can Go Wrong
 
 ⚠️ **Trap 1: No idempotency → duplicate actions**
 - **Problem**: At-least-once delivery means messages can be processed twice. Without deduplication, you send duplicate emails, charge cards twice, submit duplicate POs.
@@ -406,7 +352,7 @@ async def consume_events(stream: str, group: str, consumer: str, handler):
 
 ---
 
-## 8 · Where This Reappears
+## 7 · Where This Reappears
 
 | Chapter | How event-driven patterns appear |
 |---------|----------------------------------|
@@ -418,7 +364,7 @@ async def consume_events(stream: str, group: str, consumer: str, handler):
 
 ---
 
-## 9 · Progress Check — What We Can Solve Now
+## 8 · Progress Check — What We Can Solve Now
 
 ✅ **Unlocked capabilities**:
 - ✅ **Async event-driven messaging**: Agents publish to Azure Service Bus — no blocking orchestrator threads
@@ -492,7 +438,7 @@ Result: ✅ Reliability improved (0.2% failure rate, no cascading failures)
 
 ---
 
-## 10 · Bridge to Ch.5
+## 9 · Bridge to Ch.5
 
 Ch.4 unlocked **1,000 POs/day throughput** (120% of target ✅) via async messaging, but agents operate in isolation — Pricing agent can't see what Negotiation agent learned, Approval agent can't see what Pricing agent quoted → redundant API calls, repeated work, 8hr median latency (2× the <4hr target). Ch.5 (**Shared Memory & Blackboard Architectures**) introduces a **Redis-backed blackboard** where all agents read/write shared PO state → Pricing agent writes `order:2024-1847:quotes`, Negotiation agent reads it → **eliminates redundant work** → **<4hr latency target** ✅.
 

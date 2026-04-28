@@ -326,7 +326,7 @@ If usage exceeds 80% → trim oldest messages, keep system + recent context
 **5. Audit trail gaps with structured handoff** — Compliance audit asks "Why did NegotiationAgent accept this price?" Structured payload has result but not reasoning.
    - **Fix**: Log every agent's full message history to database with PO correlation ID. Query logs for audit reconstruction. Context passes only results; logs preserve reasoning.
 
-## 9 · Progress Check — What We Can Solve Now
+## 8 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR
@@ -388,7 +388,7 @@ Result: ✅ Context overflow eliminated (Constraint #4 foundation complete)
 
 ---
 
-## 8 · The Math
+## 7 · The Math
 
 ### Context Budget Allocation
 
@@ -423,70 +423,11 @@ where $k$ is chosen such that $\sum_{i \in \text{keep}} |m_i| \leq B$.
 | $B$ | Trimming budget threshold |
 | $k$ | Number of recent turns preserved after trimming |
 
----
 
-## 7 · Code Skeleton
-
-```python
-# Educational: message handoff strategies from scratch
-from typing import Literal
-import json
-
-def build_structured_handoff(agent_name: str, result: dict) -> list:
-    """
-    Strategy 2 — Structured Handoff Payload.
-    Returns a minimal 2-message list for the downstream agent.
-    """
-    return [
-        {"role": "system", "content": f"You are the {agent_name}. Process the following result."},
-        {"role": "user", "content": json.dumps(result)}
-    ]
-
-def count_tokens(messages: list) -> int:
-    """Rough estimate: 4 chars ≈ 1 token."""
-    return sum(len(json.dumps(m)) // 4 for m in messages)
-
-def trim_history(messages: list, budget: int) -> list:
-    """Keep system + trim oldest non-system messages until within budget."""
-    system = [m for m in messages if m["role"] == "system"]
-    rest = [m for m in messages if m["role"] != "system"]
-    while count_tokens(system + rest) > budget and len(rest) > 1:
-        rest.pop(0)
-    return system + rest
-```
-
-```python
-# Production: typed agent context with Pydantic + OpenAI format compliance
-from pydantic import BaseModel
-from typing import Optional, List, Literal
-from openai import OpenAI
-
-class Message(BaseModel):
-    role: Literal["system", "user", "assistant", "tool"]
-    content: Optional[str] = None
-    tool_calls: Optional[list] = None
-    tool_call_id: Optional[str] = None
-    name: Optional[str] = None  # agent identifier for distributed tracing
-
-class AgentContext(BaseModel):
-    agent_id: str
-    messages: List[Message]
-    token_budget: int = 8000
-
-    def add(self, msg: Message) -> None:
-        self.messages.append(msg)
-        serialised = [m.model_dump(exclude_none=True) for m in self.messages]
-        if count_tokens(serialised) > self.token_budget:
-            trimmed = trim_history(serialised, self.token_budget)
-            self.messages = [Message(**m) for m in trimmed]
-
-    def to_openai(self) -> list:
-        return [m.model_dump(exclude_none=True) for m in self.messages]
-```
 
 ---
 
-## 10 · Bridge to Chapter 2
+## 9 · Bridge to Chapter 2
 
 Ch.1 established **structured message passing** between agents — the OpenAI message envelope (`role`, `content`, `tool_calls`) as the lingua franca, three handoff strategies (full history, structured payload, shared store), and context budget management to avoid overflow. We decomposed single monolithic agent into 8 specialists, each operating within 3k-4k token budget.
 
@@ -534,8 +475,8 @@ Token cost compounds multiplicatively: a 4-agent chain where each agent accumula
 
 ## Prerequisites
 
-- [AI / ReActAndSemanticKernel](../.$103-ai/ch06_react_and_semantic_kernel/react-and-semantic-kernel.md) — single-agent ReAct loop before decomposing it
-- [AI / PromptEngineering](../.$103-ai/ch02_prompt_engineering/prompt-engineering.md) — system prompt construction for agent roles
+- [AI / ReActAndSemanticKernel](../.03-ai/ch06_react_and_semantic_kernel/react-and-semantic-kernel.md) — single-agent ReAct loop before decomposing it
+- [AI / PromptEngineering](../.03-ai/ch02_prompt_engineering/prompt-engineering.md) — system prompt construction for agent roles
 
 ## Next
 

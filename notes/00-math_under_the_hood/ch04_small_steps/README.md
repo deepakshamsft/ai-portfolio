@@ -140,6 +140,12 @@ $$R'(\theta) = \frac{2v_0^2}{g} \cos(2\theta) \approx 127.4 \times \cos(2\theta)
 
 This is **exactly what the animation shows** — the ball races downhill early, then inches toward the minimum. The difference? Now you see the forces (gradients) and positions (angles, ranges) as concrete numbers, not just visual motion. More importantly, you can trace **every number back to the 4-step recipe** from §1. That recipe — *start, measure slope, step, repeat* — is gradient descent. Everything else in this chapter is about why it works (§3.3), when it fails (§3.4–3.5), and when to stop (§3.6).
 
+---
+
+> ⚡ **What this walkthrough demonstrates — Priority: Intuition over calculation.** Can you explain why the algorithm takes large steps early (11.2° jump at iteration 0) and tiny steps late (0.2° at iteration 4) without memorizing the specific numbers? The intuition: the gradient $R'(\theta) \propto \cos(2\theta)$ is steep far from the optimum (at 20°, $\cos(40°) = 0.766$) and flattens near the peak (at 37.5°, $\cos(75°) \approx 0.017$). **The step size tracks the urgency** — "far away, move fast; close, move carefully." If you understand that adaptive rhythm, you understand gradient descent's core behavior. The arithmetic above (97.6, 43.6, 11.1, ...) is *evidence* of that rhythm, not the concept itself.
+>
+> **The test:** Without looking back at the table, sketch what iteration 10 would look like — would the step be closer to 0.5° or 5°? (Answer: ~0.1° — the gradient is nearly zero by then.) If you can predict that qualitatively, the walkthrough succeeded. The 5-iteration trace exists to establish the pattern; once you see it, the remaining 45 iterations are "more of the same, shrinking."
+
 ### 3.3 · Why small steps work — Taylor's theorem in one line
 
 Near a point $\theta_k$, any smooth function is approximately
@@ -216,39 +222,7 @@ Left: on a convex curve, the starting point doesn't matter — everyone arrives.
 
 ---
 
-## 6 · Code Skeleton
-
-```python
-import numpy as np
-
-v0, g = 25.0, 9.81
-
-def R(theta): # range, theta in RADIANS
- return v0 ** 2 / g * np.sin(2 * theta)
-
-def dR(theta): # derivative w.r.t. theta (rad)
- return 2 * v0 ** 2 / g * np.cos(2 * theta)
-
-def maximise(start_deg, eta, tol=1e-6, max_iter=500):
- theta = np.radians(start_deg)
- history = [theta]
- for k in range(max_iter):
- g_k = dR(theta)
- if abs(g_k) < tol:
- break
- theta = theta + eta * g_k # ASCENT (+); use - for descent
- history.append(theta)
- return np.degrees(theta), np.degrees(history), k + 1
-
-best, traj, steps = maximise(start_deg=20, eta=0.6)
-print(f"converged to θ = {best:.4f}° in {steps} steps")
-```
-
-Note the step size here ($\eta = 0.6$) is in *radian* space; the hero image uses degree-space so $\eta$ looks much larger (35) to produce the same effect.
-
----
-
-## 7 · What Can Go Wrong
+## 6 · What Can Go Wrong
 
 - **Wrong sign.** Forgetting that maximisation is ascent ($+$) and minimisation is descent ($-$) sends you straight away from the answer at top speed. Symptom: loss *increases* every step.
 - **Units matter for $\eta$.** If you switch from radians to degrees, your effective step size rescales by $\approx 57$. Always re-tune $\eta$ after changing coordinates.
@@ -259,7 +233,7 @@ Note the step size here ($\eta = 0.6$) is in *radian* space; the hero image uses
 
 ---
 
-## 8 · Exercises
+## 7 · Exercises
 
 *Three short ones — each is a one-line code change that teaches one failure mode of gradient descent.*
 
@@ -269,7 +243,7 @@ Note the step size here ($\eta = 0.6$) is in *radian* space; the hero image uses
 
 ---
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 - **Pre-Req Ch.6.** The update $\theta \leftarrow \theta - \eta \nabla f(\theta)$ is the vector version of this chapter — same logic, with many dimensions.
 - **ML Ch.1 Linear Regression.** Stochastic gradient descent on the MSE loss. Convex, so Ch.4's easy case applies.
@@ -281,7 +255,7 @@ Read back to Armstrong's line with fresh eyes: *"one small step… one giant lea
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR
@@ -326,7 +300,7 @@ graph LR
 
 ---
 
-## 11 · References
+## 10 · References
 
 - **Jon Krohn — *Calculus 2 for Machine Learning*.** The gradient-descent episode uses the same geometric framing as this chapter.
 - **3Blue1Brown — *Gradient descent, how neural networks learn*.** The 2-D visual intuition in ep. 2 maps directly onto the left panel of our hero image.

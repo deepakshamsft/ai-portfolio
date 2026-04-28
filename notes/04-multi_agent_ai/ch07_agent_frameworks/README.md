@@ -303,81 +303,6 @@ Optimisation: route the trace through minimum-cost paths using conditional edges
 
 ---
 
-## Code Skeleton
-
-```python
-# Educational: minimal state machine graph from scratch
-from dataclasses import dataclass, field
-from typing import Callable, Any
-
-@dataclass
-class GraphState:
-    po_id: str
-    status: str = "pending"
-    price: float = 0.0
-    approved: bool = False
-    history: list = field(default_factory=list)
-
-def intake_node(state: GraphState) -> GraphState:
-    state.status = "validated"
-    state.history.append("intake_completed")
-    return state
-
-def pricing_node(state: GraphState) -> GraphState:
-    state.price = 14.20  # would call real API
-    state.history.append("price_retrieved")
-    return state
-
-def route_after_pricing(state: GraphState) -> str:
-    """Conditional edge: skip negotiation if price is fair."""
-    return "approve" if state.price < 15.00 else "negotiate"
-
-# Execute graph manually (illustrates LangGraph's execution model)
-state = GraphState(po_id="PO-4812")
-state = intake_node(state)
-state = pricing_node(state)
-next_node = route_after_pricing(state)
-print(f"Route to: {next_node}")
-```
-
-```python
-# Production: LangGraph state machine for OrderFlow PO processing
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
-from typing import TypedDict, Literal
-from langchain_openai import ChatOpenAI
-
-class POState(TypedDict):
-    po_id: str
-    status: str
-    price: float
-    approved: bool
-    messages: list
-
-def build_orderflow_graph() -> StateGraph:
-    graph = StateGraph(POState)
-    llm = ChatOpenAI(model="gpt-4o-mini")
-
-    graph.add_node("intake", lambda s: {**s, "status": "validated"})
-    graph.add_node("pricing", lambda s: {**s, "price": 14.20})  # replace with real tool call
-    graph.add_node("negotiation", lambda s: {**s, "price": s["price"] * 0.95})
-    graph.add_node("approval", lambda s: {**s, "approved": True})
-
-    graph.set_entry_point("intake")
-    graph.add_edge("intake", "pricing")
-    graph.add_conditional_edges(
-        "pricing",
-        lambda s: "approval" if s["price"] < 15.00 else "negotiation"
-    )
-    graph.add_edge("negotiation", "approval")
-    graph.add_edge("approval", END)
-
-    checkpointer = MemorySaver()  # swap for RedisCheckpointer in production
-    return graph.compile(checkpointer=checkpointer)
-```
-
----
-
 ## 4 · How It Works — OrderFlow Deployment Step-by-Step
 
 **The migration path:** You've built OrderFlow's custom orchestration (Ch.1–Ch.6 proof-of-concept). Production requires checkpointing, observability, human-in-the-loop. You're evaluating three frameworks.
@@ -842,7 +767,7 @@ In all three, MCP tools appear as callables that the agent framework can invoke.
 ## Prerequisites
 
 - All prior chapters — this chapter assumes all the primitives are understood: message formats (Ch.1), MCP (Ch.2), A2A (Ch.3), event-driven (Ch.4), shared memory (Ch.5), trust (Ch.6)
-- [AI / ReActAndSemanticKernel](../.$103-ai/ch06_react_and_semantic_kernel/react-and-semantic-kernel.md) — SK plugin basics
+- [AI / ReActAndSemanticKernel](../.03-ai/ch06_react_and_semantic_kernel/react-and-semantic-kernel.md) — SK plugin basics
 
 ## This is the Final Chapter in the Track
 

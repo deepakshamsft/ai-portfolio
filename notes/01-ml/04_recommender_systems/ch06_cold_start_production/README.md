@@ -1,748 +1,662 @@
-# Ch.6 — Cold Start & Production
+# Ch.6 — Cold Start & Production Serving
 
-> **The story.** The cold start problem was formally described in **2002** by Andrew Schein et al. in "Methods and Metrics for Cold-Start Recommendations." But the practical solutions emerged from production systems. In **2010**, Yahoo! published their work on contextual bandits for news recommendation — the **LinUCB algorithm** (Lihong Li et al., "A Contextual-Bandit Approach to Personalized News Article Recommendation") — showing that exploration (trying uncertain articles) was essential alongside exploitation (showing known-good articles). Netflix's **2012** engineering blog ("It's All A/B") detailed their rigorous online experimentation framework: every recommendation algorithm change runs through A/B tests with millions of users before deployment — offline metrics are necessary but insufficient. Spotify's **Discover Weekly** (launched 2015) solved cold start for new songs by combining collaborative filtering with audio content analysis — if a song *sounds like* what you like, recommend it even with zero plays. Today, production recommender systems at scale are not single models but **pipelines**: candidate generation → ranking → re-ranking → serving, with bandit-based exploration at each stage.
+> **The story.** The cold start problem was formally described in **2002** by Andrew Schein et al. in "Methods and Metrics for Cold-Start Recommendations," but the production solutions emerged from hard lessons at scale. **Netflix's 2012** engineering blog ("It's All A/B") changed how the industry thought about evaluation: every algorithm change — no matter how promising offline — must run through live A/B tests before deployment, because real users behave nothing like held-out test sets. In **2015**, Spotify's *Discover Weekly* solved cold start for new songs by combining collaborative filtering with raw audio content analysis: if a song *sounds like* what you like, recommend it even with zero plays — audio embeddings replace the missing rating signal. **Lin et al. (2019)** formalised the warm-up transition in "Warm Up Cold-Start Advertisements," showing that blending content features with early collaborative signals dramatically outperforms either alone — and that the blend weight should shift automatically as evidence accumulates. The production gap that opens here is between research and reality: an offline 87% HR@10 in a notebook is not the same as 87% HR@10 in production, where new users arrive every second with zero history, new items launch with zero ratings, and the SLA is **100ms** hard ceiling. Closing that gap requires bandit exploration, two-stage retrieval, and continuous A/B monitoring.
 >
-> **Where you are in the curriculum.** This is **Chapter 6 — the final chapter** of the Recommender Systems track. You've built FlixAI from a 42% popularity baseline (Ch.1) through collaborative filtering (Ch.2, 68% HR@10), matrix factorization (Ch.3, 78%), neural embeddings (Ch.4, 83%), to a hybrid system (Ch.5, **87% HR@10 ✓ accuracy target achieved**). But 15% of monthly traffic is **new signups with zero watch history**, and **new releases have no ratings on day one**. The hybrid model (Ch.5) is helpless for cold users and items. This chapter solves cold start via bandit exploration, covers A/B testing for online evaluation, and builds the production serving architecture to satisfy the final two constraints: **#2 Cold Start** and **#3 Scalability**.
+> **Where you are in the curriculum.** This is **Chapter 6 — the final chapter** of the Recommender Systems track. You have built FlixAI from a 42% popularity baseline (Ch.1) through collaborative filtering (Ch.2, 68% HR@10), matrix factorization (Ch.3, 78%), neural embeddings (Ch.4, 83%), to a hybrid DCN system (Ch.5, **87% HR@10 ✅ accuracy target achieved**). The accuracy constraint is satisfied — but 15% of monthly traffic is **new signups with zero watch history**, and every new movie launches with zero ratings on day one. The hybrid model is helpless for both. This chapter solves cold start via content-based initialisation and bandit exploration, builds the production two-stage retrieval pipeline, designs A/B testing for online validation, and delivers the monitoring infrastructure. By the end, **all 5 FlixAI constraints are satisfied** and the system is live in production.
 >
-> **Notation in this chapter.** $\epsilon$ — exploration rate (probability of random selection); $\text{UCB}(a)$ — upper confidence bound for arm (item) $a$; $\hat{\theta}_a$ — learned parameters for arm $a$ in LinUCB; $c$ — exploration coefficient (typically 1–2); $T_a$ — number of times arm $a$ was pulled (shown to users); $t$ — total number of recommendations made; $A_a$ — design matrix for arm $a$; $\mathbf{x}$ — user context vector (age, genre preferences); $\gamma$ — epsilon decay rate (0.99); $\epsilon_{\min}$ — minimum exploration rate (0.05); $\Delta$ — minimum detectable effect in A/B test (e.g., 0.02 for 2% lift).
+> **Notation in this chapter.** $\mu_i$ — estimated click-through rate (mean reward) for arm (item) $i$; $n_i$ — number of times arm $i$ has been pulled (shown); $N$ — total number of pulls across all arms; $\text{UCB1}(i) = \mu_i + \sqrt{2 \ln N / n_i}$ — upper confidence bound score for arm $i$; $\mathbf{g} \in \mathbb{R}^{18}$ — user genre preference vector (one entry per MovieLens genre, values 1–5); $K$ — number of ANN candidates retrieved; $HR@10$ — hit rate at 10 (fraction of users for whom at least one relevant item appears in the top-10); $\sigma$ — standard deviation of HR@10 across users (used in A/B sample size formula); $\delta$ — minimum detectable effect (MDE) in an A/B test; $\epsilon$ — exploration rate; $\gamma$ — epsilon decay rate (0.99); $\epsilon_{\min}$ — minimum exploration rate (0.05); $t$ — total interactions so far for this user.
 
 ---
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FlixAI** — >85% hit rate@10 across 5 constraints.
+> 🎯 **The mission**: Launch **FlixAI** — >85% hit rate@10 across all 5 constraints. This is the final blocker.
 
 **What we unlocked in Ch.5:**
-- ✅ Hybrid system = **87% HR@10** (accuracy target met!)
+- ✅ Hybrid DCN = **87% HR@10** (accuracy target exceeded!)
 - ✅ Diversity via MMR re-ranking — top-10 spans 6+ genres
-- ✅ Explainable: "Because it's sci-fi and you loved *Inception*"
-- ❌ Cold start: new users/items have no embeddings → no predictions
+- ✅ Explainability — "Because it's sci-fi and you loved *Inception*"
+- ❌ **Cold start: new users and new items have no embeddings**
+- ❌ **Serving: no production pipeline, no latency budget enforced**
 
-**What's blocking production:**
+**The five blockers to production launch:**
 
-1. **New user arrives (15% of traffic)**: Sarah signs up → zero watch history → Ch.4's neural CF has no user embedding → Ch.3's matrix factorization has no row in the ratings matrix → Ch.2's collaborative filter has no "similar users" → what do we show her?
+1. **New user arrives (15% of traffic):** Sarah signs up → zero watch history → the hybrid model has no user embedding → matrix factorization has no row in the ratings matrix → collaborative filter has no "similar users" → system defaults to generic popularity list → Sarah churns within 3 sessions.
 
-2. **New item launches**: *Dune: Part 3* released today → zero ratings → no item embedding → Ch.4's model can't score it → never appears in recommendations despite being a blockbuster
+2. **New item launches:** *Dune: Part 3* releases today → zero ratings → no item embedding → the model can't score it → a blockbuster never appears in any recommendation despite massive audience demand.
 
-3. **Exploration gap**: If we always show high-confidence items (exploit), we never learn about uncertain ones → Sarah's hidden love for foreign films goes undiscovered → recommendations plateau at "good enough" instead of "excellent"
+3. **Exploration gap:** Always showing high-confidence items (pure exploitation) means we never learn that Sarah secretly loves Korean thrillers. Recommendations plateau at "good enough" rather than "personalised" — user lifetime value stagnates.
 
-4. **Offline ≠ online**: Ch.5's 87% HR@10 was measured on held-out MovieLens test set → but real users browse differently, have recency bias, and churn if first 3 recommendations miss → need A/B testing on live traffic
+4. **Offline ≠ online:** Ch.5's 87% HR@10 was measured on a held-out MovieLens split. Real users browse differently, have recency bias, and churn if the first three recommendations miss. An algorithm must be validated on live traffic before full rollout.
 
-5. **Serving at scale**: Ch.5's hybrid model scores all 1,682 movies per request → works in notebooks, fails in production → need <200ms latency for millions of users
+5. **Latency SLA — <100ms hard ceiling:** Ch.5's hybrid model scores all 1,682 MovieLens items per request. At inference time that takes ~350ms. At million-user scale the queue depth explodes and p99 latency exceeds 2 seconds — unacceptable.
 
-| Constraint | Ch.5 Status | Ch.6 Goal | What Unlocks It |
-|-----------|-------------|-----------|-----------------|
-| **#1 ACCURACY** >85% HR@10 | ✅ 87% | ✅ **Maintain** | Keep hybrid model, add exploration |
-| **#2 COLD START** | ❌ Helpless | ✅ **Solve** | Bandits + content fallback + onboarding |
-| **#3 SCALABILITY** | ⚠️ Slow | ✅ **Solve** | Two-stage pipeline (ANN + ranking) |
-| **#4 DIVERSITY** | ✅ MMR | ✅ **Maintain** | Re-ranking from Ch.5 |
-| **#5 EXPLAINABILITY** | ✅ Metadata | ✅ **Maintain** | Content features from Ch.5 |
+| Constraint | Ch.5 Status | Ch.6 Goal | Mechanism |
+|-----------|-------------|-----------|-----------|
+| **#1 ACCURACY** >85% HR@10 | ✅ 87% | ✅ **Maintain ≥87%** | Hybrid model preserved; bandit exploration adds signal |
+| **#2 COLD START** | ❌ Helpless for new users | ✅ **Solved** | Content embedding + UCB1 bandit + onboarding survey |
+| **#3 SCALABILITY** <100ms | ❌ ~350ms | ✅ **Solved** | Two-stage: ANN retrieval (10ms) + ranker (70ms) |
+| **#4 DIVERSITY** | ✅ MMR re-ranking | ✅ **Maintained** | MMR re-ranking from Ch.5 preserved |
+| **#5 EXPLAINABILITY** | ✅ Content features | ✅ **Maintained** | Explanations from Ch.5 preserved |
 
 ```mermaid
 flowchart LR
-    HYBRID["Ch.5: Hybrid<br/>HR@10 = 87%<br/>⚠️ Cold users fail"] --> COLD["Ch.6: Solve Cold Start<br/>(bandits + content)<br/>✓ New users served"]
-    COLD --> AB["A/B Testing<br/>Framework<br/>✓ Online validation"]
-    AB --> SERVE["Production<br/>Architecture<br/>✓ <200ms latency"]
-    SERVE --> DONE["All 5 Constraints<br/>Satisfied ✅"]
-    
+    HYBRID["Ch.5: Hybrid DCN<br/>HR@10 = 87% ✅<br/>⚠️ Cold users fail<br/>⚠️ ~350ms latency"] --> COLD["Cold Start Solved<br/>Content embedding<br/>+ UCB1 bandit"]
+    COLD --> PIPE["Two-Stage Pipeline<br/>ANN + ranker<br/>< 100ms SLA"]
+    PIPE --> AB["A/B Testing<br/>+ Monitoring<br/>Online validation"]
+    AB --> DONE["🎉 All 5 Constraints<br/>Satisfied<br/>FlixAI is LIVE"]
+
     style HYBRID fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style DONE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style COLD fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style PIPE fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style AB fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style DONE fill:#15803d,stroke:#e2e8f0,stroke-width:3px,color:#ffffff
 ```
 
 ---
 
 ## Animation
 
-![Chapter animation](img/ch06-cold-start-production-needle.gif)
+![animation](img/ch06-cold-start-production-needle.gif)
+
+---
 
 ## 1 · Core Idea
 
-Cold start is the **chicken-and-egg problem**: we need ratings data to recommend, but we need to recommend to collect ratings data. A pure collaborative filter is helpless for new users (no watch history) and new items (no ratings). The solution combines three strategies:
+Cold start is the **chicken-and-egg problem of recommendation**: we need ratings data to personalise, but we need to recommend to collect ratings data. Three strategies break the cycle:
 
-1. **Content-based fallback** for new items — use genre, director, cast metadata until collaborative signals accumulate (e.g., *Blade Runner 2049* gets recommended to sci-fi fans on day one, even with zero ratings)
-2. **Bandit exploration** for new users — balance exploitation (show high-confidence items) with exploration (try uncertain items to learn preferences fast)
-3. **A/B testing** for online evaluation — offline hit rate doesn't measure real engagement; must test model changes on live traffic before full rollout
+1. **Content-based initialisation** for new users — use the onboarding survey (genre preferences, age group) to build an initial embedding. Even five answers give enough signal to serve a reasonable top-10 from day one. For new items, use genre, director, and cast metadata until collaborative signals accumulate. *Blade Runner 2049* can be recommended to sci-fi fans on launch day without a single rating.
 
-This chapter closes the production gap: Ch.5 achieved 87% hit rate on warm users, but 15% of traffic is cold. We build the cold-start router, implement ε-greedy and UCB bandits, and design the A/B testing framework.
+2. **Bandit exploration** — treat each new interaction as a pull of a multi-armed bandit. The UCB1 algorithm (Upper Confidence Bound) scores each item as *estimated reward + uncertainty bonus*. Items shown rarely have a large uncertainty bonus, so the system automatically tries them until their true quality is measured. As evidence accumulates the bonus shrinks and the estimated reward takes over. Cold start ends not at a fixed threshold but gradually, as the bandit's uncertainty collapses.
 
----
+3. **Two-stage retrieval pipeline** — candidate generation (ANN index, 10ms, returns 100 candidates) + precise ranking (full hybrid model, 70ms, scores top-100) + re-ranking (MMR diversity, 10ms) + serving (JSON response, 10ms) = **<100ms total**. The key insight: you cannot score all 1,682 items per request at scale, but you *can* retrieve a coarse candidate set in milliseconds and then apply the expensive model to only those.
 
-## 2 · Running Example — Sarah's First 50 Interactions
-
-New user **Sarah** (age 25) signs up for FlixAI. During onboarding, she selects 3 favourite genres: **sci-fi, thriller, drama**. The system has zero watch history — no collaborative signal.
-
-**Interaction 1-10 (Cold start, ε=0.3 exploration):**
-The system shows 7 safe recommendations (top content-based picks: *Blade Runner*, *The Silence of the Lambs*, *Shawshank Redemption*) and 3 exploratory ones (a documentary *Baraka*, an animated film *Spirited Away*, a foreign thriller *Oldboy*).
-
-Sarah clicks *Oldboy* (Korean thriller) — **first signal acquired**. The system now knows:
-- ✅ Likes foreign films (even when not in onboarding preferences)
-- ✅ Thriller preference confirmed
-- ❓ Sci-fi and drama still uncertain
-
-**Interaction 11-50 (Warm user, ε=0.1 exploration):**
-The system blends content-based (30%) with collaborative filtering (70%). After 50 interactions, Sarah has rated 12 movies:
-- 5 thrillers (4-5 stars each) → strong signal
-- 3 foreign films (4-5 stars) → discovered preference
-- 2 sci-fi films (2-3 stars) → weaker than expected
-- 2 dramas (4 stars) → confirmed
-
-**Interaction 51+ (Established user, ε=0.05 exploration):**
-Sarah is now fully handled by the hybrid model (Ch.5). Her latent factors have converged: she clusters with users who love **psychological thrillers** and **international cinema** — not generic sci-fi. The exploration rate drops to 5%, and recommendations become highly personalized.
-
-> 💡 **From zero to personalized in 50 interactions.** Cold start is not a permanent state — it's a transition phase. Bandit exploration accelerates learning by trying uncertain items early, then backing off as confidence grows.
+These three strategies together close both remaining constraints: cold start (#2) and scalability (#3). Combined with A/B testing for online validation, FlixAI's production system satisfies every constraint in the original brief.
 
 ---
 
-## 3 · Math
+## 2 · Running Example — Two Cold Start Scenarios
 
-### The Exploration-Exploitation Tradeoff
+### Scenario A: New user signs up — Sarah
 
-**Exploitation**: Recommend items the model is confident about (high predicted score from Ch.5 hybrid model).
-**Exploration**: Recommend uncertain items to learn whether the user likes them.
+**Sarah (age 24) signs up for FlixAI.** During a 60-second onboarding survey she rates genre preferences:
 
-Pure exploitation converges to a suboptimal policy — you never discover that Sarah loves foreign films if you only show her sci-fi (her onboarding preference). Pure exploration wastes the user's attention — showing 10 random movies every session leads to immediate churn. Bandits balance both.
+| Genre | Rating (1–5) |
+|-------|-------------|
+| Action | 5 |
+| Romance | 1 |
+| Comedy | 3 |
+| Sci-fi | 4 |
+| Thriller | 5 |
+| Drama | 2 |
 
-> ⚡ **Constraint #2 (Cold Start) depends on this tradeoff.** Ch.2's collaborative filter needed dense rating data. Ch.3's matrix factorization (SVD) required complete user-item interactions to learn latent factors. Ch.4's neural CF couldn't embed new users with zero history. The hybrid model (Ch.5) solved warm-start, but bandits are the bridge from cold to warm — they **actively learn** preferences through strategic exploration.
+The system has zero watch history — no collaborative signal exists. Step 1: convert the survey into an initial embedding. The genre preference vector $\mathbf{g} = [5, 1, 3, 4, 5, 2, \ldots]$ (normalised to unit length) seeds Sarah's embedding before any watch events. The system retrieves the 100 movies closest to this genre vector in embedding space and serves the top-10 after UCB1 exploration scoring.
 
-> ➡️ **This tradeoff is the foundation of Reinforcement Learning.** The cold-start problem ("learn while recommending") is the multi-armed bandit problem. RL Track Ch.1 generalizes this: actions affect future states, and you must explore to discover optimal policies. Every RL algorithm balances exploration (try uncertain actions) with exploitation (use known-good actions).
+**First 10 interactions (cold user, ε = 0.30):**
+- 7 high-confidence picks: content-based candidates (*Blade Runner*, *The Silence of the Lambs*, *Heat*)
+- 3 exploratory picks: uncertain items the bandit hasn't measured yet (*Oldboy*, *Spirited Away*, *City of God*)
+- Sarah clicks *Oldboy* → **first collaborative signal acquired**
 
-### Epsilon-Greedy
+**After 50 interactions (warm user, ε = 0.10):**
+Sarah's preferences have converged: she clusters with users who love *psychological thrillers* and *international cinema*. The exploration rate has decayed from 0.30 to 0.10, and collaborative filtering contributes 70% of the ranking score.
 
-The simplest bandit strategy:
+> 💡 **Cold start is a transition, not a permanent state.** The bandit accelerates learning by deliberately trying uncertain items early, then backs off as confidence grows. Sarah moves from generic-content recommendations to personalised ones in ~50 interactions — about 2–3 days of normal use.
 
-$$a_t = \begin{cases} \arg\max_a \hat{r}(a) & \text{with probability } 1 - \epsilon \\[0.5em] \text{random item} & \text{with probability } \epsilon \end{cases}$$
+### Scenario B: New movie launches — *Dune: Part 3*
 
-where $a_t$ is the item selected at time $t$, and $\hat{r}(a)$ is the model's predicted rating for item $a$.
+**The studio releases *Dune: Part 3* today.** Zero ratings in the database. The item has no collaborative embedding. The content feature vector includes: genre=[Sci-fi, Adventure], director=[Denis Villeneuve], cast=[Timothée Chalamet, Zendaya].
 
-**Concrete example (Sarah's first recommendation)**: With $\epsilon = 0.3$ (cold start setting), the system:
-- With 70% probability: shows the top-10 items by content-based score
-- With 30% probability: replaces 3 of the top-10 with random items
+**Day 0 (zero ratings):** The system serves *Dune: Part 3* to all users whose content embedding is near the sci-fi/adventure prototype. UCB1 assigns a **large exploration bonus** ($n_i$ is small → $\sqrt{2 \ln N / n_i}$ is large → item is aggressively surfaced to potential fans).
 
-This ensures Sarah sees some "safe" picks (sci-fi/thriller from her onboarding) but also gets exposed to unexpected genres (documentary, animation) to discover hidden preferences.
+**Day 3 (500 ratings):** Collaborative signal accumulates. The item embedding is initialised from its content vector and updated with early ratings. UCB1's uncertainty bonus shrinks as $n_i$ grows.
 
-**Decaying epsilon**: Start with high exploration ($\epsilon = 0.3$) and decay as we learn:
+**Day 30 (5,000 ratings):** *Dune: Part 3* graduates from content-only to full collaborative. Its item embedding now sits near *Dune (2021)* and *Arrival* in the latent space.
 
-$$\epsilon_t = \max(\epsilon_{\min}, \epsilon_0 \cdot \gamma^t)$$
+---
 
-where $t$ is the number of interactions for this user, $\gamma = 0.99$ is the decay rate, and $\epsilon_{\min} = 0.05$ is the floor.
+## 3 · Production Pipeline at a Glance
 
-**Numerical example**: User has 20 interactions, $\epsilon_0 = 0.3$, $\gamma = 0.99$, $\epsilon_{\min} = 0.05$:
+The production pipeline replaces "score all 1,682 movies" with a four-stage funnel that respects the 100ms SLA:
 
-$$\epsilon_{20} = \max(0.05, 0.3 \times 0.99^{20}) = \max(0.05, 0.3 \times 0.8179) = \max(0.05, 0.2454) = 0.2454$$
+```
+User request arrives (t = 0ms)
+│
+├─ [Stage 1 — ANN Retrieval: 10ms]
+│   Input: user embedding (survey or collaborative)
+│   Method: FAISS / Annoy index over 1,682 item embeddings
+│   Output: 100 coarse candidates
+│   Why fast: precomputed item embeddings + approximate index tree
+│
+├─ [Stage 2 — Precise Ranking: 70ms]
+│   Input: 100 ANN candidates
+│   Method: Full hybrid DCN model (Ch.5)
+│   Output: 100 items with precise relevance scores
+│   Why only 100: ANN over-retrieves; ranker is expensive
+│
+├─ [Stage 3 — Re-ranking for Diversity: 10ms]
+│   Input: top-50 ranked items
+│   Method: MMR (Maximal Marginal Relevance, from Ch.5)
+│   Output: top-10 with genre diversity enforced
+│
+└─ [Stage 4 — Serving: 10ms]
+    Input: top-10 items + scores + explanations
+    Method: JSON serialisation + Redis metadata cache
+    Output: response to frontend
+    Total: 10 + 70 + 10 + 10 = 100ms ✅
+```
 
-After 20 interactions, exploration has decayed from 30% to 24.5%. After 100 interactions:
+**Cold user routing** (prepended before Stage 1):
 
-$$\epsilon_{100} = \max(0.05, 0.3 \times 0.99^{100}) = \max(0.05, 0.3 \times 0.366) = \max(0.05, 0.110) = 0.110$$
+```
+IF n_interactions < 10:
+    user_embedding = content_embedding_from_survey(survey_responses)
+    exploration_rate = 0.30        # high: learn fast
+ELIF n_interactions < 50:
+    user_embedding = blend(content_emb, collab_emb, alpha=0.30)
+    exploration_rate = 0.10
+ELSE:
+    user_embedding = collaborative_embedding
+    exploration_rate = 0.05
+```
 
-Still exploring 11%, but much lower than the initial 30%.
+**New item routing** (injected into Stage 1 candidate pool):
 
-### Upper Confidence Bound (UCB)
+```
+IF item.n_ratings < 10:
+    item_embedding = content_embedding_from_metadata(genre, director, cast)
+    ucb1_bonus = min(sqrt(2*ln(N)/max(n_i,1)), MAX_BONUS)
+ELIF item.n_ratings < 100:
+    item_embedding = blend(content_emb, collab_emb, alpha=0.30)
+ELSE:
+    item_embedding = collaborative_embedding    # graduated
+```
 
-Prefer items with high predicted score OR high uncertainty:
+**Feedback loop (nightly retraining):**
+- Collect all impressions + clicks from past 24 hours
+- Retrain hybrid DCN on updated rating matrix
+- Update bandit reward estimates for all arms
+- Items with ≥100 ratings graduate to collaborative embedding
+- Deploy updated model at 2am (after A/B gate check)
 
-$$\text{UCB}(a) = \hat{r}(a) + c \sqrt{\frac{\ln t}{T_a}}$$
+> ⚡ **Constraint #3 (Scalability) is solved by the funnel shape.** 1,682 items → 100 ANN → 10 served. The expensive model only touches 100 items. This pattern is universal: every large-scale recommender (YouTube, Spotify, Amazon) uses the same two-tower retrieval-then-ranking architecture.
+
+
+## 4 · Math
+
+### 4.1 · Initial Embedding from Survey Responses
+
+When a new user completes the onboarding survey, their first embedding is a **weighted sum of genre prototype vectors**. Each genre $g$ has a learnt prototype $\mathbf{e}_g \in \mathbb{R}^{32}$ from the item embedding space (Ch.4 neural CF output).
+
+**Survey response:** Action = 5, Romance = 1, Comedy = 3 (other genres omitted for clarity)
+
+**Normalised weights** (divide each score by the sum so they add to 1):
+
+$$\text{sum} = 5 + 1 + 3 = 9$$
+
+$$w_{\text{Action}} = \frac{5}{9} \approx 0.556, \quad w_{\text{Romance}} = \frac{1}{9} \approx 0.111, \quad w_{\text{Comedy}} = \frac{3}{9} \approx 0.333$$
+
+**Initial user embedding** (weighted centroid of genre prototypes):
+
+$$\mathbf{u}_0 = w_{\text{Action}} \cdot \mathbf{e}_{\text{Action}} + w_{\text{Romance}} \cdot \mathbf{e}_{\text{Romance}} + w_{\text{Comedy}} \cdot \mathbf{e}_{\text{Comedy}}$$
+
+$$\mathbf{u}_0 = 0.556 \cdot \mathbf{e}_{\text{Action}} + 0.111 \cdot \mathbf{e}_{\text{Romance}} + 0.333 \cdot \mathbf{e}_{\text{Comedy}}$$
+
+The result is a 32-dimensional vector that lives in the same space as item embeddings. ANN retrieval immediately finds the 100 nearest items in under 10ms. This embedding is updated after every interaction as new ratings arrive.
+
+> 💡 **Same embedding space.** Because genre prototypes are learned from the same item embedding matrix as collaborative vectors, the cold-start user embedding is directly comparable to warm-user embeddings and to item embeddings. No separate cold-start model is needed — just a different input to the same lookup.
+
+### 4.2 · UCB1 for New Item Exploration
+
+**UCB1 formula:**
+
+$$\text{UCB1}(i) = \mu_i + \sqrt{\frac{2 \ln N}{n_i}}$$
 
 | Term | Meaning |
 |------|---------|
-| $\hat{r}(a)$ | Predicted score for item $a$ (exploitation) — from Ch.5 hybrid model |
-| $c$ | Exploration coefficient (typically 1–2) |
-| $t$ | Total number of recommendations made so far (all users, all items) |
-| $T_a$ | Number of times item $a$ has been shown to any user |
+| $\mu_i$ | Estimated mean reward (click-through rate) for item $i$ |
+| $n_i$ | Number of times item $i$ has been shown |
+| $N$ | Total number of shows across all arms |
 
-Items recommended rarely have high $\sqrt{\ln t / T_a}$ → get explored. As $T_a$ grows, the bonus shrinks → exploitation dominates.
+**Concrete example — 3 new items, $N = 10$ total shows:**
 
-> 💡 **UCB is "optimism under uncertainty."** When uncertain about an item (low $T_a$), assume it could be great and try it. As you gather evidence (increasing $T_a$), the uncertainty bonus decays and the true predicted score $\hat{r}(a)$ dominates. This principle appears in Bayesian optimization (Ch.19 Hyperparameter Tuning) and active learning.
+$$\ln 10 = 2.303$$
 
-**Concrete example**: Movie A: predicted score 4.2, shown 100 times. Movie B: predicted score 3.8, shown 3 times. With $c = 1.5$, $t = 1000$:
+| Item | $n_i$ | $\mu_i$ | Exploration bonus $\sqrt{2 \ln 10 / n_i}$ | UCB1 score |
+|------|--------|---------|------------------------------------------|------------|
+| Item A | 2 | 0.70 | $\sqrt{2 \times 2.303 / 2} = \sqrt{2.303} = 1.518$ | $0.70 + 1.518 = \mathbf{2.218}$ |
+| Item B | 5 | 0.65 | $\sqrt{2 \times 2.303 / 5} = \sqrt{0.921} = 0.960$ | $0.65 + 0.960 = \mathbf{1.610}$ |
+| Item C | 1 | 0.80 | $\sqrt{2 \times 2.303 / 1} = \sqrt{4.606} = 2.146$ | $0.80 + 2.146 = \mathbf{2.946}$ |
 
-$$\text{UCB}(A) = 4.2 + 1.5\sqrt{\frac{\ln 1000}{100}} = 4.2 + 1.5 \times 0.26 = 4.59$$
-$$\text{UCB}(B) = 3.8 + 1.5\sqrt{\frac{\ln 1000}{3}} = 3.8 + 1.5 \times 1.52 = 6.08$$
+**Decision:** Item C is selected next ($\text{UCB1} = 2.946$). Despite having only 1 observation, Item C wins because its uncertainty bonus ($\sqrt{4.606} = 2.146$) overwhelms Items A and B. The algorithm is *optimistic under uncertainty*: it acts as though Item C might be the best arm until more evidence decides otherwise.
 
-Movie B wins despite lower predicted score — its uncertainty bonus is huge.
+After serving Item C five more times and measuring $\mu_C = 0.72$, its $n_i = 6$ and UCB1 drops to $0.72 + \sqrt{4.606/6} = 0.72 + 0.876 = 1.596$ — now below Item A. The bandit self-corrects.
 
-### LinUCB (Contextual Bandit)
+> 💡 **UCB1 is "optimism in the face of uncertainty."** This principle reappears in Bayesian optimisation (hyperparameter tuning, Ch.19) and Monte Carlo Tree Search (RL track). The UCB formula is the same; only the domain changes.
 
-Use user context (features) to personalise the bandit:
+### 4.3 · Two-Stage Retrieval: HR@10 Across the Funnel
 
-$$\text{UCB}(a | \mathbf{x}) = \hat{\theta}_a^T \mathbf{x} + c \sqrt{\mathbf{x}^T A_a^{-1} \mathbf{x}}$$
+$$\text{HR@10} = \frac{1}{|U|} \sum_{u \in U} \mathbf{1}[\text{relevant item} \in \text{top-10 for user } u]$$
 
-where $\mathbf{x}$ is the user's context vector, $\hat{\theta}_a$ are learned parameters for arm (item) $a$, and $A_a$ is the design matrix for arm $a$.
-
-This personalises exploration: a new user who selected "sci-fi" during onboarding gets sci-fi explorations, not random genres.
-
-### Cold Start Strategies
-
-| Strategy | For New Users | For New Items | Where It Came From |
-|----------|---------------|---------------|--------------------|
-| **Popularity fallback** | Show globally popular items (Ch.1 baseline) | N/A | Ch.1 — 42% HR@10, no personalization |
-| **Content-based** | Use demographic-based recommendations | Use item metadata (genre, director, cast) | Introduced in Ch.5 §2 as fusion component |
-| **Bandit exploration** | ε-greedy or UCB with high exploration rate | UCB with high uncertainty bonus | **This chapter** — active learning |
-| **Onboarding quiz** | Ask for genre preferences during signup | N/A | Standard industry practice (Spotify, Netflix) |
-| **Hybrid transition** | Start content → blend in collaborative as data accumulates | Start metadata-only → fade in collaborative embedding (Ch.4) | Ch.5 hybrid architecture |
-
-> 💡 **Each strategy has a failure mode.** Popularity works but isn't personalized (Ch.1's lesson). Content-based misses collaborative signals (can't discover "users like you also liked"). Bandit exploration without decay annoys established users. The production system (§4) combines all five strategies, routing users to the right one based on interaction count.
-
-### A/B Testing for Recommendations
-
-**Statistical setup**: Test whether model B improves over model A.
-
-$$H_0: \mu_A = \mu_B \quad \text{vs} \quad H_1: \mu_A \neq \mu_B$$
-
-where $\mu_A$ and $\mu_B$ are the true hit rates for models A and B.
-
-**Minimum sample size** per group (for detecting a 2% lift in HR@10):
-
-$$n = \frac{(z_{\alpha/2} + z_\beta)^2 \cdot 2\hat{p}(1-\hat{p})}{(\Delta)^2}$$
-
-With $\hat{p} = 0.87$ (current HR@10 from Ch.5 hybrid model), $\Delta = 0.02$ (minimum detectable effect), $\alpha = 0.05$ (5% false positive rate), $\beta = 0.2$ (80% power):
-
-$$z_{\alpha/2} = 1.96, \quad z_\beta = 0.84$$
-
-$$n = \frac{(1.96 + 0.84)^2 \cdot 2 \times 0.87 \times 0.13}{0.02^2} = \frac{7.84 \times 0.2262}{0.0004} = \frac{1.773}{0.0004} \approx 4{,}432 \text{ users per group}$$
-
-You need **8,864 total users** (4,432 in control, 4,432 in treatment) to detect a 2% improvement with statistical confidence.
-
-**Concrete FlixAI scenario**: 
-You want to A/B test the new cold-start bandit system (treatment) against the old popularity fallback (control).
-
-**Day 1-14**: Split new signups 50/50. Track hit rate @ top-10 for each group:
-
-| Group | Users | HR@10 | Clicks/session |
-|-------|-------|-------|----------------|
-| Control (popularity) | 4,500 | 0.42 | 3.2 |
-| Treatment (bandit) | 4,500 | 0.51 | 4.1 |
-
-**Two-proportion z-test**:
-
-$$\hat{p}_{\text{pool}} = \frac{0.42 \times 4500 + 0.51 \times 4500}{4500 + 4500} = \frac{1890 + 2295}{9000} = 0.465$$
-
-$$SE = \sqrt{0.465 \times 0.535 \times \left(\frac{1}{4500} + \frac{1}{4500}\right)} = \sqrt{0.249 \times 0.000444} = \sqrt{0.0001106} = 0.0105$$
-
-$$z = \frac{0.51 - 0.42}{0.0105} = \frac{0.09}{0.0105} = 8.57$$
-
-$$p \text{-value} = 2 \times (1 - \Phi(8.57)) < 0.0001$$
-
-**Result**: $p < 0.001$ — **highly significant**. The bandit system improves cold-start HR@10 from 42% to 51%, a 21% relative lift. Ship it to 100% of traffic.
-
-> ⚠️ **Warning — Don't A/B test on the test set!** The MovieLens test set in this chapter is for offline evaluation only. Real A/B tests run on live production traffic with users who weren't in your training data. Offline metrics (Ch.1-5) measure model quality; online A/B tests measure business impact.
-
-### Worked 3×3 Example — UCB Cold-Start Exploration
-
-Three candidate items for new user Sarah (content preferences: sci-fi, thriller), $t = 61$ total recommendations made by the system so far, exploration coefficient $c = 1.5$:
-
-**The candidates (real MovieLens titles):**
-
-| Movie | Title | Genre | Predicted $\hat{r}$ | Times shown $T_a$ |
-|-------|-------|-------|-------------------|------------------|
-| Movie1 | *Blade Runner* (1982) | Sci-fi | 4.2 | 48 |
-| Movie2 | *The Silence of the Lambs* (1991) | Thriller | 3.8 | 10 |
-| Movie3 | *Baraka* (1992) | Documentary | 2.9 | 3 |
-
-**Step 1: Compute the exploration bonus for each item**
-
-The uncertainty bonus is $c\sqrt{\ln t / T_a}$ — items shown rarely get a large bonus.
-
-**Movie1 (Blade Runner):**
-$$\text{Bonus}_1 = 1.5 \times \sqrt{\frac{\ln 61}{48}} = 1.5 \times \sqrt{\frac{4.111}{48}} = 1.5 \times \sqrt{0.0856} = 1.5 \times 0.2926 = 0.439$$
-
-**Movie2 (Silence of the Lambs):**
-$$\text{Bonus}_2 = 1.5 \times \sqrt{\frac{\ln 61}{10}} = 1.5 \times \sqrt{\frac{4.111}{10}} = 1.5 \times \sqrt{0.4111} = 1.5 \times 0.6412 = 0.962$$
-
-**Movie3 (Baraka):**
-$$\text{Bonus}_3 = 1.5 \times \sqrt{\frac{\ln 61}{3}} = 1.5 \times \sqrt{\frac{4.111}{3}} = 1.5 \times \sqrt{1.3703} = 1.5 \times 1.1706 = 1.756$$
-
-**Step 2: Compute UCB score = predicted score + exploration bonus**
-
-| Movie | Predicted $\hat{r}$ | Exploration Bonus | $\text{UCB}$ |
-|-------|-------------------|-------------------|-------------|
-| Movie1 (Blade Runner) | 4.2 | 0.44 | **4.64** |
-| Movie2 (Silence of the Lambs) | 3.8 | 0.96 | **4.76** |
-| Movie3 (Baraka) | 2.9 | 1.76 | **4.66** |
-
-**Winner: Movie2 (The Silence of the Lambs) with UCB = 4.76**
-
-Note that Movie3 (Baraka) nearly wins despite having the lowest predicted score — it's been shown only 3 times, so its uncertainty bonus is huge. After a few more impressions, that bonus will shrink and the sci-fi/thriller preferences will dominate.
-
-> 💡 **The match is exact.** The UCB formula automatically balances exploitation (high $\hat{r}$) with exploration (low $T_a$). Items you're uncertain about get tried until you've learned their true quality.
-
-### Worked 5-Row Example — LinUCB Context-Aware Bandits
-
-LinUCB personalises exploration using user context. Five new users arrive, each with different onboarding preferences. We have three arms (items) to choose from: *Star Wars* (sci-fi), *The Godfather* (drama), *Toy Story* (animation).
-
-**User context vectors** (from onboarding quiz: [age_norm, loves_scifi, loves_drama, loves_animation]):
-
-| User | Age | Context $\mathbf{x}$ | True preference |
-|------|-----|---------------------|----------------|
-| Alice | 25 | [0.25, 1, 0, 0] | Sci-fi fan |
-| Bob | 45 | [0.65, 0, 1, 0] | Drama fan |
-| Carol | 8 | [0.08, 0, 0, 1] | Animation fan |
-| Dan | 30 | [0.40, 0.5, 0.5, 0] | Mixed sci-fi/drama |
-| Eve | 22 | [0.22, 0, 0, 0] | No preference yet |
-
-**Simplified LinUCB (first impression — no data yet):**
-
-Before any impressions, all arms have equal uncertainty. The algorithm explores based on context similarity:
-- Alice's context [0.25, 1, 0, 0] has high `loves_scifi` → *Star Wars* gets explored
-- Bob's context [0.65, 0, 1, 0] has high `loves_drama` → *The Godfather* gets explored
-- Carol's context [0.08, 0, 0, 1] has high `loves_animation` → *Toy Story* gets explored
-
-After 10 rounds of feedback, the learned parameters $\hat{\theta}_{\text{StarWars}}$ become:
-
-$$\hat{\theta}_{\text{StarWars}} = [0.5, 3.2, -0.8, -1.5]$$
-
-This means: *Star Wars* is liked by sci-fi fans (coefficient 3.2 on `loves_scifi`), disliked by animation fans (coefficient -1.5).
-
-**For new user Dan** with context $\mathbf{x} = [0.40, 0.5, 0.5, 0]$:
-
-$$\text{Predicted score} = \hat{\theta}^T \mathbf{x} = 0.5(0.40) + 3.2(0.5) + (-0.8)(0.5) + (-1.5)(0) = 0.2 + 1.6 - 0.4 + 0 = 1.4$$
-
-With uncertainty bonus (omitted for brevity), LinUCB picks *Star Wars* for Dan because he has `loves_scifi = 0.5`.
-
-> 💡 **Contextual bandits personalise exploration.** A generic UCB would treat all new users identically. LinUCB uses onboarding data to explore intelligently: sci-fi fans get sci-fi explorations, not random documentaries.
-
-## 4 · How It Works — Step by Step
-
-**PRODUCTION RECOMMENDATION PIPELINE — FROM REQUEST TO RESPONSE**
+In the two-stage pipeline, HR@10 decomposes into a recall-precision product:
 
 ```
-┌───────────────────────────────────────────────────────────────────┐
-│ STEP 1: USER ARRIVES → Route to appropriate recommendation strategy │
-└───────────────────────────────────────────────────────────────────┘
-
-Lookup user_id in interaction database:
-  │
-  ├─ IF new user (< 10 interactions):
-  │   ├─ Extract onboarding preferences (genres selected, age)
-  │   ├─ Generate content-based candidates using genre + popularity
-  │   ├─ Apply ε-greedy with ε=0.3 (30% exploration)
-  │   └─ Example: Sarah (interaction #3) → 7 sci-fi/thriller + 3 random
-  │
-  ├─ IF warm user (10-50 interactions):
-  │   ├─ Blend content-based (30%) + collaborative (70%)
-  │   ├─ User embedding exists but still uncertain
-  │   ├─ Apply ε-greedy with ε=0.1 (10% exploration)
-  │   └─ Example: Sarah (interaction #25) → hybrid model with light exploration
-  │
-  └─ IF established user (>50 interactions):
-      ├─ Full hybrid model (Ch.5)
-      ├─ User embedding has converged
-      ├─ Apply ε-greedy with ε=0.05 (5% exploration)
-      └─ Example: Sarah (interaction #80) → personalized, minimal exploration
-
-┌───────────────────────────────────────────────────────────────────┐
-│ STEP 2: CANDIDATE GENERATION (FAST, BROAD) → Retrieve 500 candidates │
-└───────────────────────────────────────────────────────────────────┘
-
-Use Approximate Nearest Neighbors (ANN) index:
-  ├─ For cold users: ANN on content features (genre embedding)
-  ├─ For warm users: ANN on user embedding
-  ├─ For established users: ANN on hybrid embedding
-  └─ Returns 500 candidates in <10ms (FAISS or Annoy index)
-
-┌───────────────────────────────────────────────────────────────────┐
-│ STEP 3: RANKING (SLOW, PRECISE) → Score all 500 with full model │
-└───────────────────────────────────────────────────────────────────┘
-
-Apply full hybrid model (Ch.5) to each candidate:
-  ├─ Collaborative score: dot product of user/item embeddings
-  ├─ Content score: genre + director features × learned weights
-  ├─ Fused score: weighted average (weights from Ch.5)
-  └─ Takes ~100ms for 500 candidates (GPU inference)
-
-┌───────────────────────────────────────────────────────────────────┐
-│ STEP 4: RE-RANKING (DIVERSITY) → MMR on top-50, return top-10 │
-└───────────────────────────────────────────────────────────────────┘
-
-Maximal Marginal Relevance (from Ch.5):
-  ├─ Select top-1 by score
-  ├─ For positions 2-10: pick items that are relevant BUT dissimilar to already-selected
-  └─ Prevents "10 superhero movies" → ensures genre diversity
-
-┌───────────────────────────────────────────────────────────────────┐
-│ STEP 5: SERVING → Return JSON, cache, log │
-└───────────────────────────────────────────────────────────────────┘
-
-  ├─ Cache popular item embeddings (Redis) → avoid recomputing
-  ├─ Return top-10 as JSON with scores + explanations
-  ├─ Total latency: <200ms (10ms ANN + 100ms ranking + 50ms re-rank + 40ms overhead)
-  └─ Log impression + context for retraining
-
-┌───────────────────────────────────────────────────────────────────┐
-│ STEP 6: FEEDBACK LOOP → Retrain nightly │
-└───────────────────────────────────────────────────────────────────┘
-
-  ├─ Collect all impressions + clicks from past 24 hours
-  ├─ Retrain hybrid model (Ch.5) on updated ratings
-  ├─ Update user/item embeddings for new interactions
-  ├─ New items that got >10 ratings graduate from content-only to collaborative
-  └─ Deploy updated model next morning (A/B test first!)
+All 1,682 items
+      │
+      ▼  ANN retrieves 100 candidates
+  [ANN recall@100: did the relevant item survive retrieval?]
+      │
+      ▼  Ranker selects top-10 from 100
+  [Ranker precision: is the relevant item in the top-10?]
+      │
+      ▼  HR@10 measured here
 ```
 
-> 💡 **Two-stage architecture is standard at scale.** Candidate generation must be fast (ANN index) because you can't score all 1,682 movies. Ranking can be slow because you only score the top-500. This pattern appears in search engines (retrieve 1000 docs, re-rank top-50) and every modern recommender system.
+**Worked example:**
+
+- ANN recall@100 = 0.94 (6% of users lose their relevant item at retrieval)
+- Ranker: P(item in top-10 | item in top-100) = 0.91
+
+$$\text{HR@10}_{\text{two-stage}} = \text{recall@100} \times P(\text{top-10} \mid \text{top-100}) = 0.94 \times 0.91 \approx \mathbf{0.855}$$
+
+A single-stage exact ranker (all 1,682 items) achieves HR@10 = 0.87. The two-stage system loses ~0.015 points but cuts latency from 350ms to 100ms. The **engineering tradeoff** is explicit: −1.5pp accuracy for ×3.5 latency improvement. Product management accepts this — user experience research consistently shows latency >200ms causes measurable retention drop-off; a 1.5pp accuracy difference does not.
+
+> ⚡ **Recall@K is the retrieval metric.** If the relevant item never makes it into the 100 candidates, the ranker cannot recover it. Increasing $K$ (more candidates) improves recall but increases ranking cost. Production systems typically target recall@K ≥ 0.92 with $K$ = 100–500.
+
+### 4.4 · A/B Test Sample Size
+
+**Test hypothesis:** Is the cold-start bandit better than popularity fallback for new users?
+
+$$H_0: \mu_{\text{control}} = \mu_{\text{treatment}} \quad \text{vs} \quad H_1: \mu_{\text{control}} \neq \mu_{\text{treatment}}$$
+
+**Simplified sample size formula** (Normal approximation, two-sided, $\alpha = 0.05$, $\beta = 0.2$, power = 80%):
+
+$$n = \frac{16\sigma^2}{\delta^2}$$
+
+where $\sigma$ = standard deviation of HR@10 across users, $\delta$ = minimum detectable effect (MDE).
+
+**Numeric example:** $\sigma = 0.10$, $\delta = 0.02$ (want to detect a 2 percentage-point lift):
+
+$$n = \frac{16 \times (0.10)^2}{(0.02)^2} = \frac{16 \times 0.01}{0.0004} = \frac{0.16}{0.0004} = \mathbf{400 \text{ users per variant}}$$
+
+Total experiment size: 400 (control) + 400 (treatment) = **800 new signups**. At FlixAI's signup rate of ~200/day, the experiment reaches the required sample in **4 days**.
+
+**Where the constant 16 comes from:** The exact factor is $(z_{\alpha/2} + z_\beta)^2 \times 2 = (1.96 + 0.842)^2 \times 2 = (2.802)^2 \times 2 = 7.85 \times 2 = 15.70 \approx 16$. Rounded to 16 for mental arithmetic.
+
+> ⚠️ **Never A/B test on the MovieLens test set.** The held-out split is for offline evaluation only. Real A/B tests run on live traffic — users never seen in training. Offline HR@10 measures model quality; online A/B tests measure business impact. These are different questions.
+
+**Offline vs online metrics — the full comparison:**
+
+| Metric | Where measured | What it captures | Limitation |
+|--------|---------------|-----------------|------------|
+| HR@10 (offline) | Held-out test set | Ranking accuracy on historical data | Doesn't capture churn, session depth, recency bias |
+| HR@10 (online) | Live A/B test | User satisfaction with top-10 on real traffic | Slower; needs statistical power |
+| 7-day retention | Live A/B test | Whether recommendations keep users coming back | Confounded by external factors (seasonality) |
+| p99 latency | Production logs | Whether system meets SLA | Infrastructure-dependent; varies with load |
+
+> 📌 **Practitioner rule:** Always validate with offline HR@10 first (cheap, fast). If offline HR@10 holds steady, deploy to a 1% traffic slice and check p99 latency. Only then run a full-power A/B test. This sequence minimises the risk of shipping a latency regression to 100% of users.
 
 ---
 
-## 5 · Key Diagrams
+## 5 · Production Arc — Four Acts
 
-### Cold Start Transition
+### Act 1: The Research-to-Production Gap
+
+The Ch.5 hybrid model achieves 87% HR@10 on the MovieLens held-out set. The team is excited. Then the CTO asks two questions.
+
+First: "What does Sarah see when she signs up right now?" The answer: the top-10 most popular movies globally — the Ch.1 popularity baseline from two chapters ago. 87% for warm users is irrelevant if 15% of traffic sees a 42% experience.
+
+Second: "What's the latency?" Loading the full hybrid model and scoring 1,682 items takes 350ms per request. At 100 concurrent users this is fine; at 10,000 concurrent users the queue depth explodes and p99 latency exceeds 2 seconds.
+
+The research system works in a notebook. It fails in production. The production gap is real.
+
+### Act 2: Two-Stage Retrieval Fixes Latency
+
+The engineering insight: candidate generation and precise ranking have different speed-accuracy requirements. FAISS builds an approximate nearest-neighbour index over all 1,682 item embeddings in seconds. Given Sarah's initial genre embedding, FAISS returns 100 approximate nearest items in under 10ms. The hybrid model then scores those 100 items in ~70ms. Total: 80ms — inside the 100ms SLA with margin.
+
+The cost: ANN introduces recall error (~6% of users lose their relevant item at retrieval). The tradeoff: −1.5pp of HR@10 (87% → 85.5%) for a 3.5× latency reduction (350ms → 100ms). User experience research confirms: latency >200ms causes measurable retention drop-off; a 1.5pp accuracy difference does not.
+
+| Architecture | HR@10 | p50 Latency | p99 Latency | Cost/1M requests |
+|---|---|---|---|---|
+| Single-stage (all 1,682 scored) | 87.0% | 320ms | 490ms | $12.40 |
+| Two-stage (ANN + rank top-100) | 85.5% | 78ms | 102ms | $1.80 |
+| Two-stage (ANN + rank top-500) | 86.8% | 78ms | 198ms | $6.20 |
+
+The sweet spot is $K = 100$ candidates: recall@100 = 0.94 preserves 85.5% HR@10 while keeping p99 at 102ms and slashing cost by 85%. Increasing to $K = 500$ buys 1.3pp of HR@10 but pushes p99 above 150ms — still acceptable but with reduced margin.
+
+### Act 3: Cold Start Solved with Content Initialisation
+
+Sarah's survey [Action=5, Romance=1, Comedy=3] is converted to a weighted genre embedding $\mathbf{u}_0$ in 0.2ms. The ANN query retrieves 100 content-similar items. The ranker weights content features at 70% (no collaborative signal yet). Sarah's first session sees: *Heat*, *The Dark Knight*, *Inception*, *Blade Runner*, *Mad Max: Fury Road* — a coherent action/sci-fi/thriller list plus 3 UCB1 exploratory picks. Sarah clicks *Oldboy*. The system records the click and updates her embedding. That single signal shifts the [Thriller, Foreign] dimensions. By interaction 20 the system blends 30% collaborative signal. By interaction 50 she is fully warm.
+
+### Act 4: A/B Testing Validates and Monitors
+
+The cold-start system is ready, but the team doesn't push to 100% of traffic. A 50/50 A/B test is launched for all new signups over 4 days (800 users):
+
+- **Control:** old popularity fallback for new users
+- **Treatment:** content-embedding + UCB1 bandit
+
+| Metric | Control (popularity) | Treatment (bandit) | Lift |
+|--------|---------------------|-------------------|------|
+| HR@10 day-1 | 0.42 | 0.61 | **+45% relative** |
+| 7-day retention | 38% | 54% | **+42% relative** |
+| Interactions to "warm" | — | 48 avg | — |
+
+p-value < 0.001. The bandit ships to 100% of new signups. Monitoring is configured: HR@10 dashboards, latency p50/p95/p99, cold-user fraction, item graduation rate. The feedback loop runs nightly. **FlixAI is live in production. All 5 constraints satisfied.**
+
+---
+
+## 6 · Cold Start Walkthrough — Step by Step
+
+Complete numeric walkthrough for new user Sarah from zero history to first warm recommendation.
+
+**Setup:** Sarah selects [Action=5, Romance=1, Comedy=3] during onboarding. The bandit currently tracks 3 new items: Item A ($n_A=2, \mu_A=0.70$), Item B ($n_B=5, \mu_B=0.65$), Item C ($n_C=1, \mu_C=0.80$). $N = 10$ total shows so far.
+
+---
+
+**Step 1 · Build initial embedding (0.2ms)**
+
+$$w_{\text{Action}} = 5/9 = 0.556, \quad w_{\text{Romance}} = 1/9 = 0.111, \quad w_{\text{Comedy}} = 3/9 = 0.333$$
+
+$$\mathbf{u}_0 = 0.556 \cdot \mathbf{e}_{\text{Action}} + 0.111 \cdot \mathbf{e}_{\text{Romance}} + 0.333 \cdot \mathbf{e}_{\text{Comedy}}$$
+
+Result: 32-dimensional vector, unit-normalised ($\|\mathbf{u}_0\| = 1$).
+
+---
+
+**Step 2 · ANN retrieval (8ms)**
+
+FAISS index returns 100 nearest items to $\mathbf{u}_0$.
+
+Top-5 by ANN cosine similarity: *Heat* (0.91), *The Dark Knight* (0.89), *Die Hard* (0.88), *Inception* (0.85), *Blade Runner* (0.82).
+
+**Metric outcome after Step 2:**
+- Recall@100 = 0.94 — ANN captured 94% of relevant items in candidate pool
+- Latency: 8ms ✅ (budget: 10ms)
+- Content-only embedding already surfaces action/sci-fi cluster — even with zero watch history, survey preferences yield actionable candidates
+
+---
+
+**Step 3 · UCB1 scoring of bandit items (1ms)**
+
+$$\text{UCB1}(C) = 0.80 + \sqrt{4.606} = 0.80 + 2.146 = \mathbf{2.946}$$
+
+$$\text{UCB1}(A) = 0.70 + \sqrt{2.303} = 0.70 + 1.518 = \mathbf{2.218}$$
+
+$$\text{UCB1}(B) = 0.65 + \sqrt{0.921} = 0.65 + 0.960 = \mathbf{1.610}$$
+
+Item C selected as top bandit pick. *Oldboy* also qualifies as a second exploratory pick (shown 3 times, UCB1 = 2.050).
+
+---
+
+**Step 4 · Compose top-10 with MMR diversity (10ms)**
+
+7 high-confidence + 3 exploratory picks:
+
+| Rank | Title | Source | Score |
+|------|-------|---------|-------|
+| 1 | *Heat* | Content ranker | 0.91 |
+| 2 | *The Dark Knight* | Content ranker | 0.89 |
+| 3 | *Die Hard* | Content ranker | 0.88 |
+| 4 | *Inception* | Content ranker | 0.85 |
+| 5 | *Blade Runner* | Content ranker | 0.82 |
+| 6 | *Mad Max: Fury Road* | Content ranker | 0.79 |
+| 7 | *Se7en* | Content ranker | 0.76 |
+| 8 | **Item C** (new movie) | UCB1 bandit | 2.946 UCB |
+| 9 | **Item A** (new movie) | UCB1 bandit | 2.218 UCB |
+| 10 | *Oldboy* | UCB1 bandit | 2.050 UCB |
+
+MMR confirms genre diversity: action, thriller, sci-fi, Korean thriller all present. **Total latency: ~98ms ✅**
+
+**Metric outcome after Step 4:**
+- Cold user (session 1) HR@10 = 61% — content embedding + bandit exploration delivers 6 in 10 new users a relevant recommendation on first session
+- Diversity: 5 genres represented (action, thriller, sci-fi, noir, Korean cinema) — no genre dominates
+- Exploration rate ε=0.30 means 3 of 10 slots reserved for uncertainty reduction — system learns Sarah's true preferences in 5-10 interactions
+- Latency SLA satisfied: 98ms < 100ms hard ceiling ✅
+
+---
+
+**Step 5 · Sarah clicks *Oldboy* — first feedback signal**
+
+**Bandit update for *Oldboy*** ($n: 3 \to 4$, reward = 1):
+
+$$\mu_{\text{Oldboy, new}} = \frac{3 \times 0.50 + 1}{4} = \frac{2.50}{4} = 0.625$$
+
+**User embedding update** (exponential moving average):
+
+$$\mathbf{u}_1 = 0.9 \cdot \mathbf{u}_0 + 0.1 \cdot \mathbf{e}_{\text{Oldboy}}$$
+
+*Oldboy*'s content vector is high on [Thriller=1.0, Foreign=1.0] → Sarah's embedding shifts toward these dimensions. Future ANN queries will surface more foreign thrillers.
+
+---
+
+**Step 6 · Exploration rate decays with interaction count**
+
+$$\epsilon_{1} = \max(0.05,\ 0.30 \times 0.99^{1}) = 0.297$$
+
+$$\epsilon_{50} = \max(0.05,\ 0.30 \times 0.99^{50}) = \max(0.05,\ 0.181) = 0.181$$
+
+$$\epsilon_{100} = \max(0.05,\ 0.30 \times 0.99^{100}) = \max(0.05,\ 0.110) = 0.110$$
+
+Exploration is still active at 11% at interaction 100, but the dominant signal is now the growing collaborative embedding. Sarah's cold start phase effectively ends around interaction 50 when collaborative weight exceeds content weight.
+
+**Second session — what changes for Sarah:**
+
+At session 2, Sarah now has 1 click signal (Oldboy). Her embedding has shifted. The ANN query retrieves a slightly different 100-candidate set: now includes *Parasite*, *A Bittersweet Life*, and *The Handmaiden* (all Korean/foreign thrillers). The content-to-collaborative blend ratio is still 70/30 (only 1 interaction), but the direction of the embedding has changed. The system has already learned one important thing about Sarah: when uncertain, explore toward foreign cinema.
+
+By session 10 (roughly 10 total clicks), her recommendation set has stabilised around foreign thrillers and psychological dramas — far from the generic "action/sci-fi" survey response. The bandit's exploration budget is now focused on niche documentaries and world cinema rather than mainstream action films. The cold start problem for Sarah is effectively solved.
+
+**Walkthrough summary — Sarah's cold start in numbers:**
+
+| Step | Action | Latency | HR@10 equivalent |
+|------|--------|---------|-----------------|
+| 1 | Build survey embedding | 0.2ms | — |
+| 2 | ANN retrieval (100 candidates) | 8ms | recall@100 = 0.94 |
+| 3 | UCB1 scoring + bandit picks | 1ms | 3 exploratory slots |
+| 4 | Hybrid DCN ranking + MMR | 80ms | 85.5% → composed top-10 |
+| 5 | Serve + log | 10ms | — |
+| 5-click feedback | Embed update | 0.5ms | first CF signal |
+| Session 2 | Embedding shifted toward foreign | — | HR@10 rising |
+| Session 10 | Preferences stabilised | — | 74% (warm blend) |
+| Interaction 50 | Full collaborative active | — | **87% HR@10** |
+
+---
+
+## 7 · Key Diagrams
+
+### Diagram 1: Cold Start State Machine
 
 ```mermaid
 flowchart LR
-    NEW["New User<br/>0 interactions"] -->|"Onboarding<br/>quiz"| CONTENT["Content-Based<br/>+ ε=0.3 exploration"]
-    CONTENT -->|"10 interactions"| BLEND["Blend<br/>Content 30%<br/>Collab 70%<br/>ε=0.1"]
-    BLEND -->|"50 interactions"| FULL["Full Hybrid<br/>Model<br/>ε=0.05"]
-    
+    NEW["New User<br/>0 to 9 interactions<br/>Content embedding<br/>epsilon = 0.30<br/>HR@10 approx 61%"]
+    WARM["Warming Up<br/>10 to 49 interactions<br/>Blend 30/70<br/>epsilon = 0.10<br/>HR@10 approx 74%"]
+    HOT["Established<br/>50 plus interactions<br/>Full hybrid DCN<br/>epsilon = 0.05<br/>HR@10 approx 87%"]
+
+    NEW -->|"10 interactions<br/>content yields to CF"| WARM
+    WARM -->|"50 interactions<br/>CF dominates"| HOT
+    HOT -->|"Ongoing:<br/>nightly retrain + A/B gate"| HOT
+
     style NEW fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CONTENT fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style BLEND fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FULL fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style WARM fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style HOT fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
-### Production Architecture
+### Diagram 2: Production Serving Pipeline with SLA Budget
 
 ```mermaid
 flowchart TB
-    REQ["User Request"] --> GATE{"User Type?"}
-    GATE -->|"New"| COLD["Cold Start<br/>Pipeline"]
-    GATE -->|"Warm"| BLEND["Blended<br/>Pipeline"]
-    GATE -->|"Established"| FULL["Full Hybrid<br/>Pipeline"]
-    
-    COLD --> CAND["Candidate<br/>Generation<br/>(500 items)"]
-    BLEND --> CAND
-    FULL --> CAND
-    
-    CAND --> RANK["Ranking<br/>(Hybrid Model)"]
-    RANK --> RERANK["Re-Ranking<br/>(MMR Diversity)"]
-    RERANK --> SERVE["Serve Top-10<br/>< 200ms"]
-    
-    SERVE --> LOG["Log<br/>Impressions"]
-    LOG --> RETRAIN["Daily<br/>Retrain"]
-    RETRAIN --> CAND
-    
-    style REQ fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style SERVE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style LOG fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    REQ["User Request<br/>t = 0ms"] --> ROUTE{"Cold / Warm / Hot?<br/>(interaction count lookup)"}
+
+    COLD_EMB["Survey to weighted<br/>genre embedding<br/>0.2ms"]
+    COLLAB_EMB["Collaborative<br/>embedding lookup<br/>0.1ms"]
+
+    ANN["ANN Retrieval (FAISS)<br/>1682 items to 100 candidates<br/>10ms"]
+
+    RANK["Hybrid DCN Ranker<br/>100 candidates to top-50<br/>70ms"]
+
+    MMR["MMR Re-ranking<br/>top-50 to top-10<br/>10ms"]
+
+    SERVE["JSON Serving<br/>plus Redis metadata cache<br/>10ms"]
+
+    LOG["Impression Logger<br/>(async, no latency cost)"]
+
+    RESP["Response returned<br/>Total approx 100ms"]
+
+    REQ --> ROUTE
+    ROUTE -->|"cold"| COLD_EMB
+    ROUTE -->|"warm or hot"| COLLAB_EMB
+    COLD_EMB --> ANN
+    COLLAB_EMB --> ANN
+    ANN --> RANK
+    RANK --> MMR
+    MMR --> SERVE
+    SERVE --> LOG
+    SERVE --> RESP
+
+    style REQ fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style ROUTE fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style COLD_EMB fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style COLLAB_EMB fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style ANN fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style RANK fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style MMR fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style SERVE fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style RESP fill:#15803d,stroke:#e2e8f0,stroke-width:3px,color:#ffffff
+    style LOG fill:#15803d,stroke:#e2e8f0,stroke-width:1px,color:#ffffff
 ```
 
-### A/B Testing Framework
+---
+
+## 8 · Hyperparameter Dial
+
+| Dial | Too Low | Sweet Spot | Too High |
+|------|---------|------------|----------|
+| **ANN n_candidates ($K$)** | Recall@K drops — relevant item filtered before ranking | $K = 100$–$500$; recall@100 ≈ 0.92–0.95 | Ranker receives too many items → latency SLA violated |
+| **Bandit exploration factor ($\epsilon_0$)** | Over-exploits early — cold users get monotone results, preferences undiscovered | $\epsilon_0 = 0.30$ for cold users (decays to 0.05); UCB1 self-regulates via $N$ and $n_i$ | Over-explores — warm users see irrelevant items; first-session churn rises |
+| **A/B test sample size ($n$)** | Underpowered — can't detect real lift; risk shipping regressions | $n = 16\sigma^2/\delta^2$; for $\sigma=0.1, \delta=0.02 \Rightarrow n=400$/variant | Over-powered — delays deployment; opportunity cost of holding users in control |
+
+**Key interactions between dials:**
+
+- Increasing $K$ (more ANN candidates) partially compensates for a weaker ranker — higher recall at the cost of more ranking work. Tune $K$ first, then size the ranker budget.
+- UCB1's self-regulating exploration means you don't need to manually schedule $\epsilon$ decay — the bonus collapses automatically as $n_i$ grows. UCB1 is preferred over $\epsilon$-greedy for new-item exploration. Use $\epsilon$-greedy for new-user exploration where interaction count is the natural decay clock.
+- A/B test MDE $\delta$ must be chosen *before* looking at data. Post-hoc adjustment inflates Type I error (this is p-value hacking).
+
+---
+
+## 9 · What Can Go Wrong
+
+### Cold Start Failures
+
+**Survey fatigue → random answers.** Asking >10 genre questions drives abandonment. Users skip or answer randomly → bad initial embedding → recommendations worse than a popularity fallback → negative first impression that drives churn. **Fix:** Limit to 5 genres; supplement with implicit signals (time-on-genre-page browsing before signup).
+
+**Survey-preference mismatch.** Sarah says she loves "Action" but her eventual click history shows mostly "Thriller." The initial embedding overshoots action items. Early recommendations miss. **Fix:** This is expected and self-correcting via the bandit. The real risk is a system *without* a bandit: stuck on the survey embedding forever, the mismatch is permanent. Always pair content initialisation with bandit exploration.
+
+**Cold item never enters the candidate pool.** A new movie's content embedding places it in a dense neighbourhood of well-established films — the ANN query never retrieves it. UCB1's exploration bonus is irrelevant if the item isn't in the candidate set. **Fix:** Inject a "novelty bucket" — all items added in the last 48 hours are force-included in the ANN candidate pool, bypassing similarity retrieval for their first two days.
+
+### Bandit Failures
+
+**Exploration collapses too early for power users.** With $\gamma = 0.99$, the floor $\epsilon_{\min} = 0.05$ is reached at $t \approx 181$ interactions. A power user who watches 10 movies per day hits this after 18 days and stops exploring new items prematurely. **Fix:** Tie decay to *days active* (calendar time), not raw interaction count.
+
+**Reward contamination.** HR@10 counts a click on any of the 10 items, but clicks driven by trending prominence (not personalisation) pollute the bandit's reward signal. **Fix:** Apply inverse propensity scoring — weight rewards by $1/P(\text{item shown at position } k)$ to correct for position bias.
+
+**UCB1 instability at startup.** When $N = 0$ or $n_i = 0$, the formula $\sqrt{2 \ln N / n_i}$ is undefined. **Fix:** Set minimum values $N = 1$, $n_i = 1$ for the formula; or use Thompson Sampling (Beta distribution) which is well-defined with zero observations.
+
+### A/B Testing Failures
+
+**Novelty effect inflation.** Users in treatment click more in week one simply because recommendations look different — not because they are better. This inflates the measured lift. **Fix:** Run the experiment ≥2 weeks; check whether the lift persists beyond week 1.
+
+**Network interference (SUTVA violation).** A user in treatment watches a movie and recommends it to a friend in control. Treatment "leaks" into control — standard statistics assume unit independence. **Fix:** Randomise at household or registration-cohort level rather than individual user level.
+
+**Peeking and stopping early.** Checking p-values daily and stopping when p < 0.05 inflates Type I error to ~20% (not 5%). **Fix:** Pre-register the sample size and analysis date. Use sequential testing (mSPRT, alpha-spending) if continuous monitoring is required.
+
+
+### Monitoring & SLA Failures
+
+**Silent HR@10 regression goes undetected.** After nightly retraining, a data pipeline bug introduces duplicate ratings into the training set, inflating scores for a handful of popular items. The hybrid model still runs without error, but HR@10 silently drops from 87% to 81%. No alert fires. The team only notices when the next A/B test is run two weeks later. **Fix:** Set up automated HR@10 regression tests on a held-out evaluation slice after every model deployment. Alert if HR@10 drops >1.5pp from the previous deployment's baseline.
+
+**Latency creep at p99.** The system's p50 latency stays at 90ms, but p99 slowly drifts from 100ms to 140ms over three months as the user base grows and the FAISS index expands from 1,682 to 15,000 items (new content library). The SLA violation is invisible in average metrics. **Fix:** Track p50, p95, and p99 latency separately. Set SLA alerts at p99 > 110ms (10% above target) and p99 > 150ms (page-the-on-call level). Rebuild the FAISS index with quantisation when the item catalogue exceeds 10,000 entries.
+
+**Cold-user fraction rising.** Marketing runs a campaign; new signup rate triples. The fraction of cold users in the recommendation pool rises from 15% to 40%. The bandit's reward estimates become noisy (each arm gets fewer evaluations per day). HR@10 for new users drops from 61% to 53%. **Fix:** Monitor cold-user fraction as a first-class metric. When it exceeds 30%, temporarily increase UCB1's exploration budget (raise $c$ in $c\sqrt{2\ln N/n_i}$) to accelerate preference learning for the influx of new users.
+
+**Item graduation bottleneck.** A new release gets 80 ratings in the first 24 hours — just below the 100-rating graduation threshold. The content embedding is clearly outdated (early fans loved it; the broader audience rates it 3 stars). UCB1 keeps surfacing it aggressively because $n_i$ is low. Users who don't like it see it repeatedly. **Fix:** Lower the graduation threshold to 50 ratings and add a secondary check: if $\mu_i$ drops by more than 0.15 in a 12-hour window, reduce the UCB1 exploration coefficient for that item to throttle further exposure while more ratings accumulate.
+
+
+---
+
+## 10 · Where This Reappears
+
+**Reinforcement Learning track (RL Ch.1):** The multi-armed bandit is the simplest RL problem. UCB1 is the greedy policy of contextual bandits. RL generalises this: actions affect future state (the user's embedding evolves after each recommendation), and you must model the Markov structure to optimise long-run reward (LTV) rather than the next click alone.
+
+**AI Infrastructure track (AI Infra Ch.3 — Serving):** The two-stage ANN + ranker pipeline is the canonical production serving architecture. FAISS, ScaNN, and Annoy implement the retrieval layer. gRPC services and TorchServe implement the ranker. Latency monitoring (p99 SLA alerts) and deployment pipelines are core curriculum there.
+
+**Multi-Agent AI track:** In agent frameworks, tool-selection scoring uses the same explore-exploit tradeoff — an agent that always calls its "best" tool misses better options available via underexplored tools. Monte Carlo Tree Search uses UCB1 as its node selection policy: the exploration bonus prevents premature commitment to a suboptimal action branch.
+
+**AI track (Evals & Prompt Engineering):** A/B testing methodology transfers directly to LLM evaluation. The sample size formula $n = 16\sigma^2/\delta^2$ applies with HR@10 replaced by task success rate or human preference rate. The warning about peeking at p-values applies equally.
+
+**This chapter ↔ Ch.5 hybrid model:** The cold-start content embedding (§4.1) uses the same genre prototype vectors as Ch.5's content branch. This chapter completes the integration: Ch.5 built the embedding space; Ch.6 shows how to populate it before collaborative signals exist.
+
+---
+
+## 11 · Progress Check — FlixAI COMPLETE ✅
+
+![Progress visualization](img/ch06-cold-start-production-progress-check.png)
+
+### All 5 FlixAI constraints — final status:
+
+| Constraint | Target | Ch.1 | Ch.2 | Ch.3 | Ch.4 | Ch.5 | **Ch.6 FINAL** |
+|-----------|--------|------|------|------|------|------|----------------|
+| **#1 ACCURACY** | >85% HR@10 | 42% | 68% | 78% | 83% | 87% ✅ | **87%+ ✅ maintained** |
+| **#2 COLD START** | New users/items served | ❌ | ❌ | ❌ | ❌ | ⚠️ items only | **✅ both users + items** |
+| **#3 SCALABILITY** | <100ms serving | ❌ | ❌ | ❌ | ⚠️ | ⚠️ 350ms | **✅ ~100ms two-stage** |
+| **#4 DIVERSITY** | ILD@10 >0.4 | ❌ | ❌ | ❌ | ⚠️ | ✅ MMR | **✅ maintained** |
+| **#5 EXPLAINABILITY** | Stakeholder-readable | ❌ | ⚠️ | ⚠️ | ❌ | ✅ | **✅ maintained** |
+
+### ✅ What Ch.6 unlocked:
+
+- **Cold user onboarding:** Survey → weighted embedding → ANN retrieval → UCB1 exploration. HR@10 for new users: **42% (popularity baseline) → 61% on day-1** → converges to 87% by interaction 50.
+- **Cold item launch:** Content embedding → immediate ANN inclusion → UCB1 exploration bonus → graduates to collaborative after 100 ratings.
+- **Two-stage pipeline:** 1,682 items → 100 ANN → 10 final → **~100ms ✅** (from 350ms).
+- **A/B testing framework:** $n = 400$/variant for $\delta = 0.02$ lift. 7-day retention lift of +42% confirmed bandit ships.
+- **Production monitoring:** HR@10 regression alerts, latency p99 dashboard, cold-user fraction, item graduation rate.
+
+### ❌ Intentionally out of scope:
+
+- **Real-time feature streaming:** Ratings are batched nightly; real-time updates require Kafka + Redis streams (AI Infrastructure track).
+- **Multi-objective optimisation:** Optimises HR@10 alone; production systems balance accuracy, diversity, revenue, and fairness.
+- **Cross-domain cold start:** Using Sarah's music preferences to warm-start FlixAI is out of scope for this track.
+
+### The complete FlixAI journey:
 
 ```mermaid
 flowchart LR
-    TRAFFIC["Incoming<br/>Traffic"] --> SPLIT["Random<br/>50/50 Split"]
-    SPLIT --> A["Control: Model A<br/>(current production)"]
-    SPLIT --> B["Treatment: Model B<br/>(new hybrid)"]
-    A --> METRIC_A["Measure HR@10,<br/>CTR, Session Length"]
-    B --> METRIC_B["Measure HR@10,<br/>CTR, Session Length"]
-    METRIC_A --> STAT["Statistical<br/>Significance Test"]
-    METRIC_B --> STAT
-    STAT --> DECIDE{"p < 0.05?"}
-    DECIDE -->|"Yes, B wins"| DEPLOY["Ship Model B"]
-    DECIDE -->|"No"| KEEP["Keep Model A"]
-    
-    style TRAFFIC fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style DEPLOY fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style KEEP fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    CH1["Ch.1: Popularity<br/>HR@10 = 42%<br/>Baseline"] --> CH2["Ch.2: Collab Filter<br/>HR@10 = 68%<br/>User similarity"]
+    CH2 --> CH3["Ch.3: Matrix Factor<br/>HR@10 = 78%<br/>Latent factors"]
+    CH3 --> CH4["Ch.4: Neural CF<br/>HR@10 = 83%<br/>Deep embeddings"]
+    CH4 --> CH5["Ch.5: Hybrid DCN<br/>HR@10 = 87% ✅<br/>#1 #4 #5 solved"]
+    CH5 --> CH6["Ch.6: Cold Start<br/>+ Production<br/>ALL 5 SOLVED ✅"]
+
+    style CH1 fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH4 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH5 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style CH6 fill:#15803d,stroke:#e2e8f0,stroke-width:3px,color:#ffffff
 ```
 
 ---
 
-## 6 · Hyperparameter Dial
+## 12 · Bridge to Anomaly Detection
 
-| Parameter | Too Low | Sweet Spot | Too High |
-|-----------|---------|------------|----------|
-| **ε** (exploration rate) | ε=0: no exploration, stuck in local optimum | ε=0.05–0.1 (established), 0.3 (new users) | ε=0.5: too random, poor user experience |
-| **c** (UCB coefficient) | c=0: pure exploitation | c=1–2: balanced | c=10: pure exploration |
-| **Cold→warm threshold** | 3: too little data for collaborative | 10: reasonable signal | 50: too long in cold start mode |
-| **Retrain frequency** | Monthly: stale model | Daily: fresh + manageable | Real-time: expensive, unstable |
-| **A/B test duration** | 1 day: not enough data | 1–2 weeks: reliable results | 3 months: too slow to iterate |
-| **Candidate pool size** | 50: too few, misses good items | 200–500: good recall | 5000: ranking too slow |
+FlixAI is live. It serves 87%+ HR@10 for warm users and 61%+ for cold users within a 100ms SLA. The A/B testing framework validates improvements before they ship. Monitoring dashboards confirm the system is healthy.
 
----
+Now a new class of question arises: **something is wrong and you don't know what.** The HR@10 drops 3 points overnight. Latency p99 spikes from 95ms to 380ms. A new movie appears to be gaming the UCB1 bandit by generating fake clicks. These are *anomalies* — deviations from expected behaviour that require detection, diagnosis, and response.
 
-## 7 · Code Skeleton
+The **Anomaly Detection track** addresses this directly:
 
-```python
-import numpy as np
+- **Statistical process control** for monitoring HR@10 as a time series — detecting real regression vs. natural variance using CUSUM and EWMA control charts, with explicit false-alarm rate control.
+- **Isolation Forest** and **Autoencoders** for detecting unusual recommendation patterns (potential click fraud, training data poisoning, serving infrastructure failures).
+- **Root cause analysis** for distinguishing model drift (data distribution shifted) from data drift (pipeline broke) from serving drift (new code introduced a bug).
 
-class EpsilonGreedyBandit:
-    """ε-greedy bandit for cold start exploration.
-    
-    Balances exploitation (show high-scoring items) with exploration
-    (try uncertain items). Epsilon decays with user interactions.
-    """
-    
-    def __init__(self, n_items, epsilon=0.1, decay=0.99, min_epsilon=0.05):
-        self.n_items = n_items
-        self.epsilon = epsilon  # Initial exploration rate
-        self.decay = decay      # Decay factor per interaction
-        self.min_epsilon = min_epsilon  # Floor — never stop exploring entirely
-        self.counts = np.zeros(n_items)   # Times each item shown
-        self.rewards = np.zeros(n_items)  # Average rating per item
-    
-    def select(self, model_scores, n_recs=10):
-        """Select items balancing exploitation and exploration.
-        
-        Args:
-            model_scores: Array of predicted ratings for all items (from Ch.5 hybrid model)
-            n_recs: Number of recommendations to return
-            
-        Returns:
-            Array of item indices (top n_recs)
-        """
-        if np.random.random() < self.epsilon:
-            # Explore: mix model top-(n_recs - 3) with 3 random items
-            # Use model for 7 slots (safe), explore 3 slots (uncertain)
-            top = np.argsort(model_scores)[-(n_recs - 3):][::-1]
-            explore = np.random.choice(self.n_items, 3, replace=False)
-            return np.concatenate([top, explore])
-        else:
-            # Exploit: return top n_recs by model score
-            return np.argsort(model_scores)[-n_recs:][::-1]
-    
-    def update(self, item_id, reward):
-        """Update item statistics after user feedback.
-        
-        Args:
-            item_id: ID of the item that was shown
-            reward: User rating (1-5 stars) or implicit feedback (1=click, 0=skip)
-        """
-        self.counts[item_id] += 1
-        n = self.counts[item_id]
-        # Incremental average: new_avg = old_avg + (new_value - old_avg) / n
-        self.rewards[item_id] += (reward - self.rewards[item_id]) / n
-        # Decay epsilon — explore less as we learn more
-        self.epsilon = max(self.min_epsilon, self.epsilon * self.decay)
+The skills from this chapter transfer directly into that track: A/B testing methodology → hypothesis tests for anomaly significance; bandit reward signals → the metrics anomaly detection monitors; the two-stage architecture → the layers where anomalies can originate (retrieval vs. ranking vs. serving).
 
+> ➡️ **What you take into the next track:** A live production recommender system generating real interaction data, an A/B testing infrastructure for validating detection algorithms, and a concrete monitoring mission — keep FlixAI's HR@10 above 85% under concept drift, data pipeline failures, and adversarial inputs. The Anomaly Detection track gives you the tools to maintain it.
 
-class ColdStartRouter:
-    """Route users to appropriate recommendation strategy.
-    
-    Cold users (<10 interactions): content-based + high exploration
-    Warm users (10-50): blend content + collaborative, medium exploration
-    Established users (>50): full hybrid, low exploration
-    """
-    
-    def __init__(self, hybrid_model, popularity_baseline, content_model):
-        self.hybrid = hybrid_model          # From Ch.5 — full hybrid system
-        self.popularity = popularity_baseline  # From Ch.1 — fallback for extreme cold start
-        self.content = content_model        # Genre/director-based scoring
-        self.bandit = EpsilonGreedyBandit(n_items=1682, epsilon=0.3)  # MovieLens has 1682 movies
-    
-    def recommend(self, user_id, user_features, n_interactions):
-        """Generate top-10 recommendations based on user's interaction history.
-        
-        Args:
-            user_id: Unique user identifier
-            user_features: Dict with 'age', 'genres' (from onboarding)
-            n_interactions: Number of movies this user has rated
-            
-        Returns:
-            Array of 10 movie IDs
-        """
-        if n_interactions < 10:
-            # Cold start: content-based + exploration (ε=0.3)
-            scores = self.content.predict(user_features)
-            return self.bandit.select(scores, n_recs=10)
-        elif n_interactions < 50:
-            # Warm: blend content (30%) + collaborative (70%), medium exploration (ε→0.1)
-            collab = self.hybrid.predict(user_id)
-            content = self.content.predict(user_features)
-            blended = 0.7 * collab + 0.3 * content  # Weights from Ch.5 hybrid tuning
-            self.bandit.epsilon = 0.1  # Override to medium exploration
-            return self.bandit.select(blended, n_recs=10)
-        else:
-            # Established: full hybrid from Ch.5, low exploration (ε→0.05)
-            scores = self.hybrid.predict(user_id)
-            self.bandit.epsilon = 0.05
-            return self.bandit.select(scores, n_recs=10)
-
-
-def ab_test_significance(hr_a, hr_b, n_a, n_b, alpha=0.05):
-    """Two-proportion z-test for A/B testing.
-    
-    Tests null hypothesis H0: hr_a = hr_b (no difference between models).
-    
-    Args:
-        hr_a: Hit rate @ 10 for control group (0.0 to 1.0)
-        hr_b: Hit rate @ 10 for treatment group
-        n_a: Number of users in control
-        n_b: Number of users in treatment
-        alpha: Significance level (default 0.05 for 95% confidence)
-        
-    Returns:
-        Dict with z_stat, p_value, and boolean 'significant'
-    """
-    from scipy import stats
-    
-    # Pooled proportion under null hypothesis
-    p_pool = (hr_a * n_a + hr_b * n_b) / (n_a + n_b)
-    
-    # Standard error of difference in proportions
-    se = np.sqrt(p_pool * (1 - p_pool) * (1/n_a + 1/n_b))
-    
-    # Z-statistic: how many standard errors apart are the two groups?
-    z = (hr_b - hr_a) / se
-    
-    # Two-tailed p-value
-    p_value = 2 * (1 - stats.norm.cdf(abs(z)))
-    
-    return {
-        'z_stat': z,
-        'p_value': p_value,
-        'significant': p_value < alpha,
-        'interpretation': f"Treatment {'WINS' if p_value < alpha else 'NO DIFF'} (p={p_value:.4f})"
-    }
-
-
-# Example usage:
-if __name__ == "__main__":
-    # Simulate A/B test results
-    control_hr = 0.42   # Ch.1 popularity baseline
-    treatment_hr = 0.51  # Cold-start bandit system
-    n_per_group = 4500
-    
-    result = ab_test_significance(control_hr, treatment_hr, n_per_group, n_per_group)
-    print(f"Z-statistic: {result['z_stat']:.2f}")
-    print(f"P-value: {result['p_value']:.6f}")
-    print(f"Result: {result['interpretation']}")
-    # Output: Z-statistic: 8.57, P-value: 0.000000, Result: Treatment WINS
-```
-
-> 💡 **Code style note**: Comments explain *why* ("Use model for 7 slots, explore 3"), not *what* ("concatenate arrays"). The `ColdStartRouter` thresholds (10, 50) match the running example in §2. Variable names (`n_interactions`, `user_features`) are descriptive, not abbreviated (`n_int`, `feats`).
-
----
-
-## 8 · What Can Go Wrong
-
-### Trap 1: **No exploration for new users — Cold start becomes permanent**
-
-Without exploration, new users see only popular movies or safe content-based picks. If Sarah's onboarding preferences (sci-fi, thriller, drama) don't include her *actual* favourite genre (foreign films), the system never discovers this preference. She churns after 3 sessions because recommendations feel generic.
-
-**Symptom**: New user retention <30% (established users have 75% retention). Cold users give the same complaints: "It just shows me popular stuff, not personalized."
-
-**Fix**: Add ε-greedy with $\epsilon = 0.3$ for users with <10 interactions. Replace 3 of the top-10 with random exploration. Track discovery rate: what % of new users rate an exploratory item 4+ stars?
-
----
-
-### Trap 2: **Never reducing exploration — Established users see too many random items**
-
-You set $\epsilon = 0.3$ for cold start and never decay it. User with 500 interactions still sees 3 random movies in every recommendation — one is a 1950s Western (rated 2 stars), another is a Bollywood musical (rated 1 star). User frustration: "Why is FlixAI showing me this?"
-
-**Symptom**: Engagement metrics (CTR, session length) plateau after users hit 50 interactions. Complaints about "random" recommendations from power users.
-
-**Fix**: Decay $\epsilon$ with interaction count:
-
-$$\epsilon_t = \max(0.05, 0.3 \times 0.99^t)$$
-
-After 100 interactions, $\epsilon = 0.11$. After 500 interactions, $\epsilon = 0.05$ (floor). Established users get highly personalized recs with only 5% exploration to catch preference shifts.
-
----
-
-### Trap 3: **A/B test too short — False positives from noise**
-
-You run an A/B test for 2 days (1,000 users per group). Treatment shows 49% HR@10 vs. control 47% — **"2% lift, ship it!"** But with only 1,000 users, the standard error is huge. After full rollout, the "lift" disappears — it was noise.
-
-**Symptom**: A/B tests claim 5-10% lifts, but full rollouts show no improvement (or regressions). Engineering team loses trust in experimentation.
-
-**Fix**: Calculate minimum sample size **before** running the test. For detecting a 2% lift at $\alpha = 0.05$, $\beta = 0.2$, you need **4,432 users per group** (see §3 Math). Run for 1-2 weeks to collect enough data. Require $p < 0.05$ for statistical significance.
-
----
-
-### Trap 4: **Retraining too infrequently — Model becomes stale**
-
-You retrain the hybrid model once per month. A viral new release (*Dune: Part 3*) gets 5,000 ratings in the first week, but the model still treats it as a cold item (content-only). Users complain: "Why isn't FlixAI recommending the new Dune movie? Everyone's watching it!"
-
-**Symptom**: New releases appear in recommendations 2-4 weeks after launch. Trending items never reach the top-10 despite high engagement.
-
-**Fix**: Retrain **daily** (batch job at 3 AM). New items that cross 10 ratings graduate from content-only to collaborative. Update user embeddings incrementally for users with new interactions. Deploy updated model after A/B validation (10% traffic for 24 hours, then full rollout).
-
----
-
-### Trap 5: **No monitoring — Silent degradation**
-
-You deploy the cold-start bandit system and move on. Three months later, HR@10 has dropped from 87% to 79%. No one noticed because you weren't tracking daily metrics. Investigation reveals: the ANN index wasn't updated with new item embeddings, so new releases were never retrieved by candidate generation.
-
-**Symptom**: Gradual metric decay over weeks/months. Users complain about "stale" recommendations. Engineering discovers issues only when executives ask why engagement is down.
-
-**Fix**: Monitor daily:
-- HR@10 (overall, cold users, warm users, established users)
-- Diversity (% unique genres in top-10)
-- Latency (p50, p95, p99)
-- Exploration rate (% of impressions from random selection)
-- New item coverage (% of items released in past 30 days that got >1 impression)
-
-Set alerts: if HR@10 drops >2% day-over-day, trigger incident response.
-
----
-
-### Diagnostic Flowchart
-
-```mermaid
-flowchart TD
-    START["New users<br/>churn quickly"] --> EXPLORE{"Exploration<br/>enabled?"}
-    EXPLORE -->|"No"| FIX1["Add ε-greedy<br/>with ε=0.3"]
-    EXPLORE -->|"Yes"| DECAY{"Exploration<br/>decays with<br/>interactions?"}
-    DECAY -->|"No"| FIX2["Add ε decay:<br/>ε_t = max(0.05, 0.3×0.99^t)"]
-    DECAY -->|"Yes"| ONBOARD{"Onboarding<br/>quiz for<br/>preferences?"}
-    ONBOARD -->|"No"| FIX3["Add genre preference<br/>selection on signup"]
-    ONBOARD -->|"Yes"| RETRAIN{"Retrain<br/>frequency?"}
-    RETRAIN -->|"Monthly"| FIX4["Switch to daily<br/>batch retraining"]
-    RETRAIN -->|"Daily"| MONITOR{"Metrics<br/>monitored?"}
-    MONITOR -->|"No"| FIX5["Set up dashboards<br/>+ daily alerts"]
-    MONITOR -->|"Yes"| SUCCESS["✓ Cold start<br/>system healthy"]
-    
-    style START fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style SUCCESS fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX1 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX2 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX3 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX4 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX5 fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-```
-
----
-
-## 9 · Where This Reappears
-
-Cold-start, bandit exploration, and production-serving patterns reappear throughout the curriculum:
-
-- **[Reinforcement Learning Track Ch.1 — Multi-Armed Bandits](../../06_reinforcement_learning/ch01_bandits/README.md)**: The ε-greedy and UCB algorithms introduced here are the foundation of RL. That chapter derives regret bounds and compares Thompson Sampling, UCB1, and LinUCB in depth.
-  
-- **[Neural Networks Ch.9 — Embeddings](../../03_neural_networks/ch09_embeddings/README.md)**: The embedding layers for users and items in Ch.4 (Neural CF) are identical in principle to word embeddings. This chapter shows how to pre-train embeddings for cold-start items using metadata.
-
-- **[Anomaly Detection Ch.5 — Production Deployment](../../05_anomaly_detection/ch05_production/README.md)**: The two-stage pipeline (candidate generation → ranking) and real-time serving architecture (<200ms latency) are the same patterns used for fraud detection at scale.
-
-- **AI Infrastructure — Model Serving**: The caching strategies (popular item embeddings), batch retraining (daily), and A/B testing framework introduced here are production-standard practices covered in the AI Infrastructure track.
-
-- **Ensemble Methods Ch.4 — Stacking**: The hybrid fusion in Ch.5 (combining collaborative + content models) is a form of stacking. That chapter formalizes when and why blending outperforms single models.
-
-> ➡️ **Bandit exploration is the bridge to Reinforcement Learning.** The cold-start problem you just solved — "learn user preferences while recommending" — is the exploration-exploitation tradeoff that defines all of RL. Track 6 generalizes this to sequential decision-making where actions affect future states.
-
----
-
-## 10 · Progress Check
-
-| # | Constraint | Target | Ch.6 Status | Notes |
-|---|-----------|--------|-------------|-------|
-| 1 | ACCURACY | >85% HR@10 | ✅ **87%** | Maintained from Ch.5 hybrid model |
-| 2 | COLD START | New users/items | ✅ **Solved** | Bandit exploration + content fallback + onboarding |
-| 3 | SCALABILITY | 1M+ ratings | ✅ **Solved** | Two-stage pipeline + caching + daily retraining |
-| 4 | DIVERSITY | Not just popular | ✅ **MMR** | Re-ranking ensures diverse recommendations |
-| 5 | EXPLAINABILITY | "Because you liked X" | ✅ **Solved** | Content features enable natural explanations |
-
-**💡 GRAND CHALLENGE COMPLETE**: FlixAI achieves 87% hit rate@10 with cold start handling, scalable serving, diverse recommendations, and explainable outputs. All 5 constraints satisfied.
-
----
-
-## 11 · Bridge to Next Topic
-
-The Recommender Systems track is complete. You've built a recommendation engine from a 42% popularity baseline to an 87% production-ready hybrid system. The techniques you've learned — collaborative filtering, matrix factorization, neural embeddings, hybrid architectures, and bandit exploration — are the same building blocks used at Netflix, Spotify, and Amazon.
-
-**Where to go next:**
-- **Anomaly Detection (Topic 5)**: Detect fraudulent transactions — a different ML paradigm (unsupervised, imbalanced classes)
-- **Reinforcement Learning (Topic 6)**: The bandit algorithms you saw here are a taste of RL — learn to make sequential decisions that maximise cumulative reward
-- **Production ML**: Deploy your recommender with MLflow, feature stores, and monitoring (MLOps track)
-
-> 💡 **Congratulations**: You've completed the FlixAI grand challenge. From "everyone gets the same 10 movies" to a personalised, diverse, explainable, and production-ready recommendation system.
-
-
+> 🔑 **Chapter summary in one sentence:** Cold start is a solved problem when you combine content-based embeddings for initial queries, UCB1 bandits for exploration, two-stage ANN retrieval for latency, and systematic A/B testing for deployment confidence — the same architecture FlixAI now runs in production, serving ≥85% HR@10 with a <100ms p99 latency guarantee.

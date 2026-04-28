@@ -560,147 +560,7 @@ IoU = |Intersection| / |Union| = TP / (TP + FP + FN)
 
 ---
 
-## 8 · Code Skeleton
-
-### U-Net Implementation (PyTorch)
-
-```python
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-class UNet(nn.Module):
-    def __init__(self, in_channels=3, num_classes=5):
-        super(UNet, self).__init__()
-        
-        # Encoder (downsampling path)
-        self.enc1 = self.conv_block(in_channels, 64)
-        self.enc2 = self.conv_block(64, 128)
-        self.enc3 = self.conv_block(128, 256)
-        self.enc4 = self.conv_block(256, 512)
-        
-        # Bottleneck
-        self.bottleneck = self.conv_block(512, 1024)
-        
-        # Decoder (upsampling path)
-        self.upconv4 = nn.ConvTranspose2d(1024, 512, 2, stride=2)
-        self.dec4 = self.conv_block(1024, 512)  # 512 + 512 from skip
-        
-        self.upconv3 = nn.ConvTranspose2d(512, 256, 2, stride=2)
-        self.dec3 = self.conv_block(512, 256)   # 256 + 256 from skip
-        
-        self.upconv2 = nn.ConvTranspose2d(256, 128, 2, stride=2)
-        self.dec2 = self.conv_block(256, 128)   # 128 + 128 from skip
-        
-        self.upconv1 = nn.ConvTranspose2d(128, 64, 2, stride=2)
-        self.dec1 = self.conv_block(128, 64)    # 64 + 64 from skip
-        
-        # Final output
-        self.out = nn.Conv2d(64, num_classes, 1)
-    
-    def conv_block(self, in_ch, out_ch):
-        """Two 3×3 convs with ReLU (U-Net pattern)"""
-        return nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_ch, out_ch, 3, padding=1),
-            nn.ReLU(inplace=True)
-        )
-    
-    def forward(self, x):
-        # Encoder with skip connections saved
-        enc1 = self.enc1(x)                          # 512×512×64
-        enc2 = self.enc2(F.max_pool2d(enc1, 2))      # 256×256×128
-        enc3 = self.enc3(F.max_pool2d(enc2, 2))      # 128×128×256
-        enc4 = self.enc4(F.max_pool2d(enc3, 2))      # 64×64×512
-        
-        # Bottleneck
-        bottleneck = self.bottleneck(F.max_pool2d(enc4, 2))  # 32×32×1024
-        
-        # Decoder with skip connections concatenated
-        dec4 = self.upconv4(bottleneck)              # 64×64×512
-        dec4 = torch.cat([dec4, enc4], dim=1)        # 64×64×1024
-        dec4 = self.dec4(dec4)                       # 64×64×512
-        
-        dec3 = self.upconv3(dec4)                    # 128×128×256
-        dec3 = torch.cat([dec3, enc3], dim=1)        # 128×128×512
-        dec3 = self.dec3(dec3)                       # 128×128×256
-        
-        dec2 = self.upconv2(dec3)                    # 256×256×128
-        dec2 = torch.cat([dec2, enc2], dim=1)        # 256×256×256
-        dec2 = self.dec2(dec2)                       # 256×256×128
-        
-        dec1 = self.upconv1(dec2)                    # 512×512×64
-        dec1 = torch.cat([dec1, enc1], dim=1)        # 512×512×128
-        dec1 = self.dec1(dec1)                       # 512×512×64
-        
-        return self.out(dec1)  # 512×512×num_classes
-
-# Training loop
-model = UNet(in_channels=3, num_classes=5).cuda()
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-
-for epoch in range(50):
-    for images, masks in train_loader:  # masks: [B, H, W] with values 0–4
-        images, masks = images.cuda(), masks.cuda()
-        
-        outputs = model(images)  # [B, 5, H, W]
-        loss = criterion(outputs, masks)
-        
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-# Inference
-model.eval()
-with torch.no_grad():
-    output = model(test_image)  # [1, 5, 512, 512]
-    pred_mask = output.argmax(dim=1)  # [1, 512, 512] with class indices
-```
-
-### IoU Calculation
-
-```python
-import numpy as np
-
-def calculate_iou(pred_mask, true_mask, num_classes):
-    """
-    pred_mask: [H, W] with class indices 0–(C-1)
-    true_mask: [H, W] with class indices 0–(C-1)
-    """
-    ious = []
-    for cls in range(num_classes):
-        pred_cls = (pred_mask == cls)
-        true_cls = (true_mask == cls)
-        
-        intersection = np.logical_and(pred_cls, true_cls).sum()
-        union = np.logical_or(pred_cls, true_cls).sum()
-        
-        if union == 0:
-            iou = float('nan')  # Class not present in either mask
-        else:
-            iou = intersection / union
-        
-        ious.append(iou)
-    
-    # Mean IoU (excluding NaN classes)
-    miou = np.nanmean(ious)
-    return miou, ious
-
-# Example usage
-pred_mask = np.array([[0, 0, 1], [0, 1, 1], [2, 2, 2]])
-true_mask = np.array([[0, 0, 1], [1, 1, 1], [2, 2, 2]])
-
-miou, class_ious = calculate_iou(pred_mask, true_mask, num_classes=3)
-print(f"mIoU: {miou:.3f}")
-print(f"Class IoUs: {class_ious}")
-# Output: mIoU: 0.800, Class IoUs: [0.75, 0.8, 1.0]
-```
-
----
-
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 ⚠️ **Coarse boundaries (FCN-32s):** If you only upsample from the deepest layer, boundaries are blocky. *Solution: Add skip connections (FCN-8s or U-Net).*
 
@@ -714,7 +574,7 @@ print(f"Class IoUs: {class_ious}")
 
 ---
 
-## 10 · Where This Reappears
+## 9 · Where This Reappears
 
 - **Ch.6 (Instance Segmentation — Mask R-CNN):** Adds a segmentation head to Faster R-CNN using U-Net-style architecture. Each detected object gets its own 28×28 mask upsampled to fit the RoI.
 - **Multimodal AI/Ch.5 (Vision Transformers for Segmentation — SegFormer):** Replaces CNN encoder with Transformer encoder, but decoder structure (hierarchical feature fusion) mirrors DeepLabV3+.
@@ -723,7 +583,7 @@ print(f"Class IoUs: {class_ious}")
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 ![Segmentation progress dashboard](img/ch05-progress-check.png)
 
@@ -747,6 +607,6 @@ print(f"Class IoUs: {class_ious}")
 
 ---
 
-## 12 · Bridge to the Next Chapter
+## 11 · Bridge to the Next Chapter
 
 Semantic segmentation classifies pixels but loses object identity (can't count overlapping products). Ch.6 adds **Mask R-CNN** — detect individual objects with Faster R-CNN, then predict a 28×28 binary mask for each RoI. This combines detection (bounding boxes) + segmentation (pixel masks) → true instance-level understanding.

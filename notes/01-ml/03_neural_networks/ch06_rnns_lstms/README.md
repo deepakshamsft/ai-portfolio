@@ -1,10 +1,10 @@
-# Ch.6 — RNNs / LSTMs / GRUs
+# Ch.6 — RNNs / LSTMs
 
-> **The story.** **John Hopfield** (1982) introduced recurrent dynamics into neural nets; **Jeffrey Elman** (1990) gave us the simple RNN we still teach today — a hidden state that gets fed back as input on the next time step. The architecture was elegant and almost completely useless in practice: **Sepp Hochreiter** showed in his 1991 diploma thesis that gradients vanish (or explode) exponentially through time, so RNNs couldn't learn dependencies more than 5–10 steps apart. The fix came from Hochreiter himself, with **Jürgen Schmidhuber**, in **1997**: the **Long Short-Term Memory** cell — a tiny network of gates (input, forget, output) that lets information flow unchanged across hundreds of steps. **GRUs** (Cho et al., 2014) trimmed the gate count to two and matched LSTM performance with fewer parameters. From the late 1990s through 2017 the LSTM was the standard answer for sequence modelling — speech, translation, captioning — until the transformer in [Ch.10](../ch10_transformers) replaced it almost overnight.
+> **The story.** In **1986** **David Rumelhart**, **Geoffrey Hinton**, and **Ronald Williams** published "Learning representations by back-propagating errors" — introducing **backpropagation through time (BPTT)** and applying it to recurrent networks that feed their output back as input on the next time step. The architecture was elegant and almost completely useless in practice: **Sepp Hochreiter** proved in his **1991** diploma thesis that gradients vanish (or explode) *exponentially* with sequence length through repeated multiplication by the recurrent weight matrix, so vanilla RNNs could not learn dependencies beyond 5–10 steps. The fix came six years later: Hochreiter and **Jürgen Schmidhuber** published the **Long Short-Term Memory** (LSTM) cell in **1997**. A separate *cell state* $\mathbf{c}_t$ updates via addition rather than matrix multiplication, letting gradients flow back hundreds of steps intact. **Kyunghyun Cho et al. (2014)** then introduced the **Gated Recurrent Unit (GRU)** — two gates instead of three, matching LSTM performance with fewer parameters. Finally, **Bahdanau, Cho, and Bengio (2015)** showed that instead of compressing a whole sequence into a single $\mathbf{h}_T$, a decoder could *attend selectively* to all $T$ encoder hidden states — the birth of **attention**, which bridges directly to Ch.9 and the Transformer in Ch.10.
 >
-> **Where you are in the curriculum.** A dense network ([Ch.2](../ch02_neural_networks)) sees a flat vector with no sense of order. A CNN ([Ch.5](../ch05_cnns)) exploits spatial locality. Sequential data has a third structure: **temporal ordering and long-range dependencies**. The platform now tracks how district median house values change month by month. RNNs carry a hidden state forward through time; LSTMs add gated memory to preserve what matters over many steps. Master this chapter and the motivation for attention in [Ch.9](../ch09_sequences_to_attention) will feel inevitable.
+> **Where you are in the curriculum.** A dense network ([Ch.2](../ch02_neural_networks)) sees a flat vector with no sense of order. A CNN ([Ch.5](../ch05_cnns)) exploits spatial locality over a fixed grid. Sequential data has a third structure: **temporal ordering and long-range dependency**. The platform now tracks how district median house values change month by month — an ordering that matters for forecasting. The RNN threads a hidden state $\mathbf{h}_t$ forward through time; the LSTM adds a gated cell state $\mathbf{c}_t$ so the network can selectively remember patterns from many months ago. Master this chapter and the motivation for attention in [Ch.9](../ch09_sequences_to_attention) will feel inevitable.
 >
-> **Notation in this chapter.** $\mathbf{x}_t$ — input at time step $t$; $\mathbf{h}_t$ — the **hidden state** (the recurrent network's memory); $\mathbf{c}_t$ — the **cell state** (LSTM's long-term memory bus); $f_t,i_t,o_t$ — LSTM **forget**, **input**, and **output** gates; $\tilde{\mathbf{c}}_t$ — the candidate cell update; $W,U$ — weight matrices applied to the input and to the previous hidden state respectively; $\sigma$ — sigmoid (used inside gates); $\tanh$ — the squashing nonlinearity; $T$ — sequence length; **BPTT** — *back-propagation through time*.
+> **Notation in this chapter.** $\mathbf{x}_t$ — input at time step $t$; $\mathbf{h}_t$ — **hidden state** (network's short-term memory); $\mathbf{c}_t$ — **cell state** (LSTM's long-term memory conveyor belt); $f_t$ — **forget gate** (what fraction of $\mathbf{c}_{t-1}$ to keep); $i_t$ — **input gate** (how much new information to write); $o_t$ — **output gate** (what fraction of $\mathbf{c}_t$ to expose as $\mathbf{h}_t$); $g_t$ (also written $\tilde{\mathbf{c}}_t$) — **candidate cell update** (proposed new memory); $T$ — sequence length; $H$ — hidden size; $\sigma$ — sigmoid; $\odot$ — element-wise product; **BPTT** — backpropagation through time.
 
 ---
 
@@ -18,51 +18,38 @@
 > 5. **PRODUCTION**: <100ms inference, TensorBoard monitoring
 
 **What we know so far:**
-- ✅ Ch.1-2: Dense networks with ReLU work for regression AND classification
-- ✅ Ch.3: Backprop + Adam optimizes MSE and BCE equally
+- ✅ Ch.1–2: Dense networks with ReLU work for regression AND classification
+- ✅ Ch.3: Backprop + Adam optimises MSE and BCE equally
 - ✅ Ch.4: Dropout, L2, batch norm prevent overfitting in both tasks
-- ✅ Ch.5: CNNs extract spatial features for image regression and classification
-- ❌ **But we can't handle temporal sequences!**
+- ✅ Ch.5: CNNs extract spatial features from image grids
+- ❌ **But we can't model temporal sequences!**
 
 **What's blocking us:**
 
-🊨 **New requirement: Temporal sequence modeling**
+🚨 **New requirement — The platform tracks monthly housing price trends.**
 
-The platform now tracks **time-varying features**:
-- **Monthly price trends**: 12 months of district median values
-- **Sequential user behavior**: 6-month browsing history (views → inquiries → offers)
-- **Market momentum**: Quarter-over-quarter price velocity
+The MLP from Ch.2 is **memoryless** — it treats the 8 California Housing features as an independent snapshot with no temporal context. Feeding it 12 months of prices is worse than it sounds:
 
-Dense networks and CNNs can't capture **temporal dependencies**:
+| Architecture | What it sees | Failure mode |
+|---|---|---|
+| **Dense (Ch.2)** | Flattens `[month_1, …, month_12]` → 12 independent features | No ordering: rising and falling trends produce the same feature set (same values, different order) |
+| **CNN (Ch.5)** | 2-D spatial convolution over a fixed grid | Built for images; no notion of causal time direction |
 
-| Architecture | Input view | Problem |
-|-------------|-----------|----------|
-| **Dense** (Ch.2) | Flattens `[month_1, ..., month_12]` → treats as 12 independent features | No temporal ordering — can't distinguish "rising trend" from "falling trend" |
-| **CNN** (Ch.5) | Spatial locality only (2D convolution) | Designed for images, not time series |
+**Concrete failure:**
 
-**Concrete failure case:**
+> District A: `[$180k, $185k, $190k, $195k, …, $220k]` — steady 12-month rise  
+> District B: `[$220k, $215k, $210k, $205k, …, $180k]` — steady 12-month fall  
+>
+> The MLP sees both as a bag of 12 values with nearly equal mean (~$200k) → **predicts the same next month for both**.  
+> The LSTM reads temporal direction → predicts **$228k (A)** vs **$172k (B)**.
 
-District A price history: `[$180k, $185k, $190k, $195k, ..., $220k]` (12 months, strong upward trend)  
-District B price history: `[$220k, $215k, $210k, $205k, ..., $180k]` (12 months, strong downward trend)
-
-**Dense network sees:** Both have the same 12 values → predicts **same next month** (~$200k)  
-**LSTM sees:** Opposite temporal patterns → predicts **$228k (A)** vs **$172k (B)**
-
-**Business impact:** Dense model misses momentum — tells buyers "prices stable" when they're actually rising 5%/month.
+Sequential housing trends matter for forecasting. The 8 static features in the California Housing snapshot (MedInc, AveRooms, etc.) tell you about a district at one moment; the month-to-month change series tells you where the market is *heading*.
 
 **What this chapter unlocks:**
 
-⚡ **Recurrent Neural Networks (RNNs) and LSTMs** — the same architecture handles regression AND classification on sequences:
+⚡ **Recurrent Neural Networks (RNNs) and LSTMs** process the sequence one step at a time, threading a hidden state $\mathbf{h}_t$ through time. LSTMs add a gated cell state $\mathbf{c}_t$ that carries information across 100+ steps without gradient decay.
 
-1. **Recurrent hidden state** $h_t$ — summarizes all past inputs $x_1, ..., x_t$ (temporal memory)
-2. **Sequential processing** — process one time step at a time, updating $h_t$ at each step
-3. **LSTM gates** — forget/input/output gates solve vanishing gradient → remember patterns across 100+ steps
-4. **Bidirectional RNNs** — look forward and backward in time (when full sequence is available)
-
-💡 **UnifiedAI impact:**
-- **Regression example**: LSTM on monthly housing price index → 3-5% MAPE forecasting
-- **Classification example**: LSTM on property inquiry sequences → predict "will convert to offer" (future Ch.9-10 integration)
-- **Unification point**: Same LSTM(64) cell, different output head (linear vs sigmoid)
+💡 **UnifiedAI impact:** LSTM on a 12-month housing price index achieves 3–5% MAPE forecasting. Same LSTM cell, different output head (linear → sigmoid), handles "will price rise next quarter?" classification. Constraint #3 (multi-task) advances with a single architecture.
 
 ---
 
@@ -70,510 +57,491 @@ District B price history: `[$220k, $215k, $210k, $205k, ..., $180k]` (12 months,
 
 ![Chapter animation](img/ch06-rnns-lstms-needle.gif)
 
+---
+
 ## 1 · Core Idea
 
-A **Recurrent Neural Network** processes a sequence one step at a time, updating a hidden state that summarises everything seen so far:
-
-```
-Dense (Ch.4): input → output (no memory of previous inputs)
-RNN: [x_1, x_2, ..., x_T] → h_1 → h_2 → ... → h_T → output
- each h_t depends on h_{t-1} and x_t simultaneously
-```
-
-The problem: gradients of the loss with respect to early steps shrink exponentially as they flow back through each time step (vanishing gradient). **LSTMs** solve this with a separate cell state — a "conveyor belt" that carries information across many steps with minimal transformation.
+A **Recurrent Neural Network** processes a sequence one step at a time, updating a hidden state $\mathbf{h}_t$ that summarises every input seen so far — unlike a flat network that treats all inputs as simultaneous, independent features. **LSTMs** extend this with a parallel cell state $\mathbf{c}_t$ that updates additively ($c_t = f_t\odot c_{t-1} + i_t\odot\tilde{c}_t$) rather than through matrix multiplication, which removes the exponential gradient decay that makes vanilla RNNs forget anything beyond ~10 steps ago and lets the LSTM selectively retain seasonal patterns across a full 12-month housing cycle.
 
 ---
 
-## 2 · Running Example: Temporal Sequences in UnifiedAI
+## 2 · Running Example: Monthly Housing Price Index
 
-**The UnifiedAI scenario:** The platform now tracks **monthly median house values per district** (rolling 10-year history). Product team wants to add a **price momentum indicator** to help buyers time their purchase: "Prices in this district have been rising 5% annually — buy now" vs "Prices falling 2% annually — wait 6 months."
+**The UnifiedAI scenario.** The platform wants a **price momentum indicator**: given the last 3 months of normalised median house values for a district, predict next month's value. This is a regression task where the input is a *sequence* — temporal order is the signal.
 
-**The task:** Given the last 12 months of median house values for a district, forecast next month's value. This is a **regression** task (predict continuous value), but the input is a **sequence** (temporal ordering matters).
+> 💡 **Dataset note.** The California Housing dataset (`sklearn.datasets.fetch_california_housing`) is a static cross-section — one row per district, no time dimension. We construct a **synthetic monthly price index** anchored to that dataset: base = district's `MedHouseVal`; trend = ±0.5%/month; seasonal = 12-month sinusoid ±8% amplitude; noise = Gaussian σ=3%. In production you would substitute actual MLS (Multiple Listing Service) historical data.
 
-> 💡 **Dataset note:** RNNs/LSTMs require temporal sequences. The California Housing dataset is a static snapshot (one row per district, no time dimension). We construct a **synthetic monthly price index** based on California Housing statistics (trend + seasonality + noise) as the minimal demonstration. In production, you'd use actual MLS (Multiple Listing Service) historical data.
+**Concrete sequence (T = 3 look-back window, district MedHouseVal ≈ $450k):**
 
-**Synthetic monthly price index construction:**
-- **Base value**: District's current median (from California Housing)
-- **Trend component**: Linear drift ±0.5% per month (some districts appreciating, others depreciating)
-- **Seasonal component**: 12-month cycle (±15% amplitude — spring/summer peaks, winter troughs)
-- **Noise**: Gaussian σ=5% (market volatility)
-
-**Sequence structure:**
 ```
-District 5180 (San Jose): 
-  Month 1: $450k
-  Month 2: $455k (+1.1%)
-  Month 3: $462k (+1.5%)
-  ...
-  Month 12: $495k
-  → Predict Month 13: $502k (LSTM extrapolates upward momentum)
+Month:     t-2     t-1      t      target t+1
+Raw:     $450k   $455k   $462k  →    $469k
+Norm:     0.00    0.22    0.53  →     0.84
 ```
 
-This mirrors the temporal pattern an LSTM must learn: **short-term fluctuations (seasonal)** stored in hidden state $h_t$, **long-term trend** preserved in cell state $c_t$.
+(z-scored with training-split mean and std)
+
+The LSTM receives `[0.00, 0.22, 0.53]` and must produce `0.84`.  
+Hidden state after step 1 carries "price at baseline."  
+After step 2: "prices rose +0.22σ."  
+After step 3: "upward trend, acceleration ≈+0.3σ/month." → predicted 0.84. ✅
 
 ---
 
-## 3 · Math
+## 3 · RNN / LSTM at a Glance
 
-### 3.1 Vanilla RNN
+### Unrolled RNN — 3 time steps
 
-At each time step $t$, the RNN computes a new hidden state from the previous hidden state $\mathbf{h}_{t-1}$ and the current input $\mathbf{x}_t$:
+```
+         x_1           x_2           x_3
+          │             │             │
+     ┌────▼─────┐  ┌────▼─────┐  ┌────▼─────┐
+h_0  │  RNN    │  │  RNN    │  │  RNN    │
+────►│  cell   ├─►│  cell   ├─►│  cell   ├──► ŷ
+     └──────────┘  └──────────┘  └──────────┘
+         h_1           h_2           h_3
 
-$$\mathbf{h}_t = \tanh \left(\mathbf{W}_{hh} \mathbf{h}_{t-1} + \mathbf{W}_{xh} \mathbf{x}_t + \mathbf{b}_h\right)$$
+  Same W_hh and W_xh reused at every step — weight sharing across time.
+  h_0 = zero vector at start of each sequence.
+  ŷ = W_hy · h_T + b_y   (linear head for regression)
+```
 
-**In English:** The new hidden state is a squashed ($\tanh$) combination of two terms: (1) the recurrent connection $\mathbf{W}_{hh} \mathbf{h}_{t-1}$ — "what I remembered from last step" — and (2) the input projection $\mathbf{W}_{xh} \mathbf{x}_t$ — "what I'm seeing right now." The bias $\mathbf{b}_h$ shifts the activation.
+**Key RNN equations:**
 
-$$\hat{y}_t = \mathbf{W}_{hy} \mathbf{h}_t + \mathbf{b}_y$$
+$$\mathbf{h}_t = \tanh\!\left(\mathbf{W}_{hh}\,\mathbf{h}_{t-1} + \mathbf{W}_{xh}\,\mathbf{x}_t + \mathbf{b}_h\right)$$
 
-**Output layer:** The final hidden state $\mathbf{h}_t$ (or $\mathbf{h}_T$ if you only care about the last step) is projected to the output space — linear activation for regression, sigmoid for binary classification.
+$$\hat{y} = \mathbf{W}_{hy}\,\mathbf{h}_T + b_y$$
 
-| Symbol | Shape | Meaning |
+### LSTM gate summary table
+
+| Gate / quantity | Equation | Role |
 |---|---|---|
-| $\mathbf{x}_t$ | $(d,)$ | Input at step $t$ — one feature vector (e.g., normalized median house value at month $t$) |
-| $\mathbf{h}_t$ | $(H,)$ | Hidden state — compressed summary of the sequence so far ($x_1, ..., x_t$) |
-| $\mathbf{W}_{hh}$ | $(H, H)$ | Recurrent weight — how much the past hidden state contributes |
-| $\mathbf{W}_{xh}$ | $(H, d)$ | Input weight — how much the current input contributes |
-| $H$ | scalar | Hidden size — the main capacity dial (32-128 for most time series) |
+| Forget $f_t$ | $\sigma(\mathbf{W}_f[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_f)$ | Fraction of old cell to keep (0=erase, 1=preserve) |
+| Input $i_t$ | $\sigma(\mathbf{W}_i[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_i)$ | How much new candidate to write |
+| Candidate $\tilde{c}_t$ | $\tanh(\mathbf{W}_c[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_c)$ | Proposed new memory content |
+| Cell $c_t$ | $f_t\odot c_{t-1} + i_t\odot\tilde{c}_t$ | Long-term memory conveyor belt (additive) |
+| Output $o_t$ | $\sigma(\mathbf{W}_o[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_o)$ | Fraction of cell state to expose |
+| Hidden $h_t$ | $o_t\odot\tanh(c_t)$ | Public interface to next step / output layer |
 
-💡 **Weight sharing across time:** The **same weights** $\mathbf{W}_{hh}$, $\mathbf{W}_{xh}$ are reused at every time step. An RNN processing $T$ steps is equivalent to a deep network with $T$ identical layers stacked vertically. Backprop runs through all $T$ layers — that's why gradients vanish.
+---
 
-### 3.2 The Vanishing Gradient Problem — Why Vanilla RNNs Fail
+## 4 · The Math
 
-**The failure:** Train a vanilla RNN on a 20-step sequence where the target depends on **both** the first input (step 1) and the last input (step 20). The RNN learns to predict from step 20 (recent past) but **completely ignores** step 1 (distant past).
+### 4.1 Vanilla RNN — Explicit Numerical Walkthrough
 
-**Example task:** Predict "price will spike next month" if **both** (1) district had a major development announcement **15 months ago** (step 1) AND (2) interest rates dropped **last month** (step 20). Vanilla RNN predicts based only on step 20 (interest rate drop) — misses the 15-month-old signal.
+**Setup.** 2-D hidden state ($H=2$), 2-D input ($d=2$).
 
-**Why this happens:** Backprop through time (BPTT) computes $\partial \mathcal{L} / \partial \mathbf{h}_0$ by chaining Jacobians:
+$$\mathbf{h}_{t-1} = \begin{bmatrix}0.5\\-0.3\end{bmatrix}, \quad \mathbf{x}_t = \begin{bmatrix}1.0\\2.0\end{bmatrix}, \quad \mathbf{W}_{hh} = \begin{bmatrix}0.2 & -0.1\\0.1 & 0.3\end{bmatrix}, \quad \mathbf{W}_{xh} = \begin{bmatrix}0.5 & 0.0\\0.0 & 0.5\end{bmatrix}, \quad \mathbf{b}_h = \begin{bmatrix}0\\0\end{bmatrix}$$
 
-$$\frac{\partial \mathbf{h}_T}{\partial \mathbf{h}_0} = \prod_{t=1}^{T} \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_{t-1}} = \prod_{t=1}^{T} \mathbf{W}_{hh}^\top \cdot \mathrm{diag} \left(1 - \mathbf{h}_t^2\right)$$
+**Step 1 — recurrent term** $\mathbf{W}_{hh}\,\mathbf{h}_{t-1}$:
 
-**In English:** The gradient from step $T$ back to step 0 requires multiplying $T$ copies of $\mathbf{W}_{hh}$ and $T$ derivative terms $(1 - \mathbf{h}_t^2)$. If the largest eigenvalue (spectral radius) of $\mathbf{W}_{hh}$ is **< 1**, this product **shrinks exponentially** with $T$. After 20 steps, the gradient is numerically zero — the network can't learn from distant inputs.
+$$\begin{bmatrix}0.2 & -0.1\\0.1 & 0.3\end{bmatrix}\begin{bmatrix}0.5\\-0.3\end{bmatrix} = \begin{bmatrix}0.2\times0.5 + (-0.1)\times(-0.3)\\0.1\times0.5 + 0.3\times(-0.3)\end{bmatrix} = \begin{bmatrix}0.10+0.03\\0.05-0.09\end{bmatrix} = \begin{bmatrix}0.13\\-0.04\end{bmatrix}$$
 
-**Exploding gradients** (the opposite problem) occur when the spectral radius **> 1**: gradients blow up. Fix: gradient clipping (cap the norm before weight update).
+**Step 2 — input term** $\mathbf{W}_{xh}\,\mathbf{x}_t$:
 
-#### Numeric Example — Vanishing Gradient over 3 Steps
+$$\begin{bmatrix}0.5 & 0.0\\0.0 & 0.5\end{bmatrix}\begin{bmatrix}1.0\\2.0\end{bmatrix} = \begin{bmatrix}0.5\times1.0+0.0\times2.0\\0.0\times1.0+0.5\times2.0\end{bmatrix} = \begin{bmatrix}0.50\\1.00\end{bmatrix}$$
 
-Scalar RNN, $h_t = \tanh(w \cdot h_{t-1})$ with $w = 0.8$, $h_0 = 0.5$. The BPTT gradient factor at each step is $\frac{\partial h_t}{\partial h_{t-1}} = w(1-h_t^2)$.
+**Step 3 — pre-activation sum:**
 
-| Step $t$ | $h_t = \tanh(0.8 \cdot h_{t-1})$ | $\frac{\partial h_t}{\partial h_{t-1}} = 0.8(1-h_t^2)$ |
-|----------|----------------------------------|----------------------------------------------------------|
-| 1 | $\tanh(0.40) = 0.380$ | $0.8(1-0.145) = 0.684$ |
-| 2 | $\tanh(0.304) = 0.296$ | $0.8(1-0.088) = 0.730$ |
-| 3 | $\tanh(0.237) = 0.233$ | $0.8(1-0.054) = 0.757$ |
+$$\mathbf{z} = \begin{bmatrix}0.13\\-0.04\end{bmatrix} + \begin{bmatrix}0.50\\1.00\end{bmatrix} + \begin{bmatrix}0\\0\end{bmatrix} = \begin{bmatrix}0.63\\0.96\end{bmatrix}$$
 
-**Gradient from loss at $t=3$ back to $h_0$:**
+**Step 4 — apply $\tanh$ element-wise:**
 
-$$\frac{\partial h_3}{\partial h_0} = 0.684 \times 0.730 \times 0.757 \approx 0.378$$
+$$\mathbf{h}_t = \tanh\begin{bmatrix}0.63\\0.96\end{bmatrix} = \begin{bmatrix}0.558\\0.745\end{bmatrix}$$
 
-Only **38% of the gradient signal** survives 3 steps. 
+($\tanh(0.63) \approx 0.558$; $\tanh(0.96) \approx 0.745$)
 
-**Extend to realistic sequences:**
-- **$T = 10$ steps**: gradient $\approx 0.02$ (2% survives)
-- **$T = 20$ steps**: gradient $\approx 0.0004$ (0.04% survives — effectively zero)
+**Interpretation.** Dimension 1 ended at 0.558 — mostly driven by the input signal (0.50 from $x_t=1.0$ through $W_{xh}$), with a small positive recurrent boost (+0.13). Dimension 2 ended at 0.745 — dominated by the input term (1.00 from $x_t=2.0$), slightly suppressed by the recurrent term (−0.04). Both are well within $(-1, 1)$ due to $\tanh$.
 
-The vanilla RNN **cannot learn** dependencies longer than ~10 steps. For monthly housing data (12-month lookback), the network forgets everything before month 9-10.
+> 💡 **Weight sharing.** These exact same matrices $\mathbf{W}_{hh}$ and $\mathbf{W}_{xh}$ are reused at every time step. Training one RNN on $T=12$ monthly prices is equivalent to training a 12-layer deep network where every layer shares identical weights.
 
-💡 **The LSTM solution:** The cell state $\mathbf{c}_t$ bypasses this problem. It updates via **addition** ($c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$), not matrix multiplication. Gradients flow through the additive path without repeated $\mathbf{W}_{hh}$ products → no exponential decay.
+---
 
-### 3.3 LSTM Cell
+### 4.2 Vanishing Gradient — Why Vanilla RNNs Forget
 
-The Long Short-Term Memory adds a **cell state** $\mathbf{c}_t$ — a parallel "conveyor belt" that carries information across many steps with minimal transformation. Gradients flow back through this additive path without the repeated matrix multiplication that kills vanilla RNN gradients.
+**The chain rule across time.** BPTT computes $\partial\mathcal{L}/\partial\mathbf{h}_0$ by chaining Jacobians across all $T$ steps:
 
-Let $[\mathbf{h}_{t-1}; \mathbf{x}_t]$ denote the concatenated vector of shape $(H+d,)$ — the "context" that all four gates use as input.
+$$\frac{\partial\mathbf{h}_T}{\partial\mathbf{h}_0} = \prod_{t=1}^{T}\frac{\partial\mathbf{h}_t}{\partial\mathbf{h}_{t-1}} = \prod_{t=1}^{T}\mathbf{W}_{hh}^\top\cdot\mathrm{diag}(1-\mathbf{h}_t^2)$$
 
-**Forget gate** $\mathbf{f}_t$ — what fraction of the old cell state to keep:
+Each factor involves $\mathbf{W}_{hh}$. If the spectral radius $\rho(\mathbf{W}_{hh}) < 1$, this product **shrinks exponentially** with $T$ — the gradient reaching early steps is numerically zero.
 
-$$\mathbf{f}_t = \sigma \left(\mathbf{W}_f [\mathbf{h}_{t-1}; \mathbf{x}_t] + \mathbf{b}_f\right)$$
+**Scalar model.** Let $h_t = \tanh(w\cdot h_{t-1})$ with $w = 0.8$, $h_0 = 0.5$. The BPTT factor per step: $\frac{\partial h_t}{\partial h_{t-1}} = w(1-h_t^2) \approx 0.8\times0.9 = 0.72$ for mid-range $h_t$.
 
-**In English:** Sigmoid outputs values in $[0,1]$. If $f_t[i] \approx 1$ → "remember dimension $i$ of the cell state." If $f_t[i] \approx 0$ → "erase it." This is how the LSTM decides what to forget.
+**Step-by-step BPTT (first 3 steps):**
 
-**Input gate** $\mathbf{i}_t$ — how much new information to write:
+| Step $t$ | $h_t=\tanh(0.8\cdot h_{t-1})$ | $1-h_t^2$ | $\frac{\partial h_t}{\partial h_{t-1}}=0.8(1-h_t^2)$ |
+|---|---|---|---|
+| 1 | $\tanh(0.40)=0.380$ | $1-0.145=0.855$ | $0.8\times0.855=\mathbf{0.684}$ |
+| 2 | $\tanh(0.304)=0.296$ | $1-0.088=0.912$ | $0.8\times0.912=\mathbf{0.730}$ |
+| 3 | $\tanh(0.237)=0.233$ | $1-0.054=0.946$ | $0.8\times0.946=\mathbf{0.757}$ |
 
-$$\mathbf{i}_t = \sigma \left(\mathbf{W}_i [\mathbf{h}_{t-1}; \mathbf{x}_t] + \mathbf{b}_i\right)$$
+**Gradient from loss at $t=3$ back to $h_0$:** $0.684\times0.730\times0.757\approx0.378$ — only **38% survives 3 steps**.
 
-**Candidate cell** $\tilde{\mathbf{c}}_t$ — the new information proposed for addition:
-
-$$\tilde{\mathbf{c}}_t = \tanh \left(\mathbf{W}_c [\mathbf{h}_{t-1}; \mathbf{x}_t] + \mathbf{b}_c\right)$$
-
-**In English:** The candidate $\tilde{\mathbf{c}}_t$ is computed just like a vanilla RNN hidden state — it's the "new memory" you'd write if you had full control. The input gate $\mathbf{i}_t$ decides how much of it to actually write.
-
-**Cell state update** — the additive conveyor belt:
-
-$$\mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t$$
-
-**In English:** This is the key equation. The new cell state is: (1) a **gated version** of the old cell state ($\mathbf{f}_t \odot \mathbf{c}_{t-1}$ — "what I chose to remember"), plus (2) a **gated version** of the candidate ($\mathbf{i}_t \odot \tilde{\mathbf{c}}_t$ — "what I chose to add"). The $\odot$ symbol denotes element-wise multiplication. **No matrix multiply** — that's why gradients don't vanish.
-
-**Output gate** $\mathbf{o}_t$ — what portion of the cell state to expose as hidden state:
-
-$$\mathbf{o}_t = \sigma \left(\mathbf{W}_o [\mathbf{h}_{t-1}; \mathbf{x}_t] + \mathbf{b}_o\right)$$
-
-$$\mathbf{h}_t = \mathbf{o}_t \odot \tanh(\mathbf{c}_t)$$
-
-**In English:** The cell state $\mathbf{c}_t$ is the internal memory (can grow large). The hidden state $\mathbf{h}_t$ is the "public interface" — it's a squashed ($\tanh$ to keep it in $[-1, 1]$), gated subset of the cell state that flows to the next layer or output.
-
-**Parameter count per LSTM layer:** $4 \times (H^2 + H \cdot d + H)$ — four sets of weight matrices (forget, input, candidate, output) plus biases. This is why LSTMs have 4x the parameters of a vanilla RNN with the same hidden size.
-
-### 3.4 GRU — Lightweight Alternative to LSTM
-
-The Gated Recurrent Unit (Cho et al., 2014) **simplifies** the LSTM by removing the separate cell state and reducing from 3 gates to 2. It merges the cell state $\mathbf{c}_t$ and hidden state $\mathbf{h}_t$ into a single $\mathbf{h}_t$ — fewer parameters, faster training, comparable performance on most tasks.
-
-**Reset gate** $\mathbf{r}_t$ — controls how much of the past hidden state to use when computing the candidate:
-
-$$\mathbf{r}_t = \sigma \left(\mathbf{W}_r [\mathbf{h}_{t-1}; \mathbf{x}_t] + \mathbf{b}_r\right)$$
-
-**In English:** If $r_t[i] \approx 0$ → "ignore dimension $i$ of the past hidden state (reset it)." If $r_t[i] \approx 1$ → "use it fully." This is like LSTM's forget gate, but applied when computing the candidate rather than when updating memory.
-
-**Update gate** $\mathbf{z}_t$ — controls the interpolation between old hidden state and new candidate (analogous to LSTM's forget + input gates combined):
-
-$$\mathbf{z}_t = \sigma \left(\mathbf{W}_z [\mathbf{h}_{t-1}; \mathbf{x}_t] + \mathbf{b}_z\right)$$
-
-**Candidate hidden state** $\tilde{\mathbf{h}}_t$ — the new information to potentially write:
-
-$$\tilde{\mathbf{h}}_t = \tanh \left(\mathbf{W}_h [\mathbf{r}_t \odot \mathbf{h}_{t-1}; \mathbf{x}_t] + \mathbf{b}_h\right)$$
-
-**In English:** The candidate is computed like a vanilla RNN hidden state, but the reset gate $\mathbf{r}_t$ first **filters** the old hidden state. If $\mathbf{r}_t \approx 0$, the candidate ignores the past (acts like a fresh start).
-
-**Output hidden state** — linear interpolation between old and new:
-
-$$\mathbf{h}_t = (1 - \mathbf{z}_t) \odot \mathbf{h}_{t-1} + \mathbf{z}_t \odot \tilde{\mathbf{h}}_t$$
-
-**In English:** The update gate $\mathbf{z}_t$ decides how much to keep from the old hidden state vs accept from the new candidate. If $z_t[i] = 0$ → "keep old value $h_{t-1}[i]$." If $z_t[i] = 1$ → "fully update to $\tilde{h}_t[i]$." Values between 0 and 1 blend smoothly.
-
-**GRU vs LSTM — when to use which:**
-
-| Property | LSTM | GRU |
+| Sequence length $T$ | Gradient magnitude $\approx 0.8^T$ | Interpretation |
 |---|---|---|
-| **Gates** | 3 (forget, input, output) | 2 (reset, update) |
-| **Cell state** | Separate $\mathbf{c}_t$ | None — $\mathbf{h}_t$ does both |
-| **Parameters** | $4 \times (H^2 + Hd + H)$ | $3 \times (H^2 + Hd + H)$ |
-| **Training speed** | Slower (4 matrix multiplies per step) | ~25% faster (3 matrix multiplies) |
-| **Long sequences** | Slight edge (explicit cell conveyor belt) | Comparable (update gate provides similar path) |
-| **When to use** | **Default choice** — theoretical foundation is clearer | When training time is tight or you need smaller models |
+| $T=1$ | $0.8^1 = 0.800$ | Full signal passes through |
+| $T=5$ | $0.8^5 = \mathbf{0.328}$ | 33% of gradient survives |
+| $T=20$ | $0.8^{20} = \mathbf{0.012}$ | 1.2% — nearly gone |
+| $T=100$ | $0.8^{100} \approx \mathbf{2\times10^{-10}} \approx 0$ | Numerically zero |
 
-💡 **Rule of thumb:** Start with LSTM. If training is too slow or you're deploying to mobile/edge devices, switch to GRU and compare validation performance. On most tasks (T < 100 steps), performance is indistinguishable.
+**Housing implication.** With a 12-month window, the gradient reaching month 1 is $0.8^{12}\approx0.07$ — 7% of the original signal. A development announcement from month 1 (a strong positive predictor) barely affects any weight. The LSTM's additive cell update replaces this product chain with a **sum** — gradients flow through $c_t\leftarrow f_t\odot c_{t-1}$ without repeated $\mathbf{W}_{hh}$ products, removing exponential decay.
 
----
-
-## 4 · Step by Step
-
-```
-1. Build the dataset as sliding windows
- └─ given T months of prices as x, predict month T+1 as y
- └─ normalise: (x - mean) / std (fit on training split only)
-
-2. Define the model
- └─ LSTM(units=H, return_sequences=False) if single-output regression
- └─ LSTM(units=H, return_sequences=True) if predicting all T+1 steps
-
-3. Compile
- └─ loss = MSE (regression target: next month's price)
- └─ optimizer = Adam (default lr=1e-3)
-
-4. Train with early stopping
- └─ monitor val_loss, patience=10, restore_best_weights=True
-
-5. Predict
- └─ feed the last T real values → get ŷ for month T+1
- └─ inverse-transform: (ŷ × std) + mean
-
-6. Evaluate with RMSE and MAE (Ch.9 gives the full metrics toolkit)
-```
+> ⚠️ **Exploding gradients** occur when $\rho(\mathbf{W}_{hh}) > 1$: the product diverges. Fix: gradient clipping (`clipnorm=1.0`). See §9.
 
 ---
 
-## 5 · Key Diagrams
+### 4.3 LSTM Cell — All 6 Equations with Scalar Arithmetic
 
-### Unrolled RNN (3 steps)
+**Setup.** 1-D hidden state ($H=1$) — all quantities are scalars. Weights written as `[w_h, w_x]` applied to context `[h_{t-1}; x_t]`.
+
+$$h_{t-1} = 0.5, \quad x_t = 1.0, \quad c_{t-1} = 0.3$$
+
+| Gate | $w_h$ | $w_x$ | $b$ | Pre-activation arithmetic | Result |
+|---|---|---|---|---|---|
+| Forget $f_t$ | 0.40 | 0.60 | −0.50 | $0.40\times0.5 + 0.60\times1.0 - 0.50 = 0.30$ | → eq. 1 |
+| Input $i_t$ | 0.45 | 0.55 | 0.00 | $0.45\times0.5 + 0.55\times1.0 + 0 = 0.775$ | → eq. 2 |
+| Candidate $\tilde{c}_t$ | 0.60 | 0.40 | 0.00 | $0.60\times0.5 + 0.40\times1.0 + 0 = 0.70$ | → eq. 3 |
+| Output $o_t$ | 0.50 | 0.50 | 0.00 | $0.50\times0.5 + 0.50\times1.0 + 0 = 0.75$ | → eq. 5 |
+
+**Equation 1 — Forget gate:**
+$$f_t = \sigma(0.30) = \frac{1}{1+e^{-0.30}} = \frac{1}{1.7408} \approx \mathbf{0.574}$$
+*"Keep 57.4 % of the old cell state."*
+
+**Equation 2 — Input gate:**
+$$i_t = \sigma(0.775) = \frac{1}{1+e^{-0.775}} = \frac{1}{1.4607} \approx \mathbf{0.684}$$
+*"Write 68.4 % of the candidate update."*
+
+**Equation 3 — Candidate cell update:**
+$$\tilde{c}_t = \tanh(0.70) \approx \mathbf{0.604}$$
+*"Proposed new memory value: 0.604."*
+
+**Equation 4 — Cell state update (the key additive step):**
+$$c_t = f_t\odot c_{t-1} + i_t\odot\tilde{c}_t = 0.574\times0.3 + 0.684\times0.604 = 0.172 + 0.413 = \mathbf{0.585}$$
+*"New cell: retained 17.2 % of old memory + wrote 41.3 % of new candidate."*
+
+**Equation 5 — Output gate:**
+$$o_t = \sigma(0.75) = \frac{1}{1+e^{-0.75}} = \frac{1}{1.4724} \approx \mathbf{0.679}$$
+*"Expose 67.9 % of the cell state externally."*
+
+**Equation 6 — New hidden state:**
+$$h_t = o_t\odot\tanh(c_t) = 0.679\times\tanh(0.585) = 0.679\times0.525 \approx \mathbf{0.357}$$
+*"Public output: 0.357 — squashed, gated view of the cell."*
+
+**Summary of one LSTM step:**
+
+| Quantity | Before | After | Change |
+|---|---|---|---|
+| Cell state $c$ | 0.300 | **0.585** | +95 % — strong new input absorbed |
+| Hidden state $h$ | 0.500 | **0.357** | reset by output gate |
+
+> 💡 **Why the forget gate $f_t = 0.574$ matters.** With a stronger bearish prior in $c_{t-1}$ (say $c_{t-1}=-0.8$) and a large bullish input, the network could learn $w_h=-0.9, w_x=+1.2, b=-0.3$ so that $f_t\to0$ — erasing 100 % of the bearish memory in one step. A vanilla RNN has no such erasure mechanism: it can only attenuate the old signal through $\mathbf{W}_{hh}$, never fully zero it out.
+
+---
+
+## 5 · Memory Arc — The Story in Four Acts
+
+**Act 1 — No memory (dense baseline).** A dense network receives `[$450k, $455k, $462k]` as three independent inputs. It learns a weighted sum of the three values. It cannot distinguish "rising" from "falling" trend — both produce the same three values in different positions. Predictions cluster around the mean. MAPE ≈ 8–12%.
+
+**Act 2 — Vanilla RNN with short memory.** The hidden state threads forward: $h_1$ encodes the first month, $h_2$ adds the second, $h_3$ the third. Recent inputs dominate because $h_T$ is mostly $f(\mathbf{W}_{hh}h_{T-1} + \mathbf{W}_{xh}x_T)$. Short-term momentum is captured. MAPE drops to ≈ 4–6%. But 6-month-old patterns (seasonal peaks from last spring) are effectively forgotten.
+
+**Act 3 — Vanishing gradient kills long-term memory.** Extend the look-back to 12 months. The gradient flowing from month 12 back to month 1 is $\approx 0.8^{12} \approx 7$% of the original signal — barely moves the early weights. The model learns the last 3 months well and ignores the first 9. Annual seasonal patterns (prices peak in May, trough in January) that span the full 12-month window remain unlearnable.
+
+**Act 4 — LSTM gates solve it.** The forget gate decides step-by-step what to erase from $c_t$. The additive update $c_t = f_t\odot c_{t-1} + i_t\odot\tilde{c}_t$ means gradients flow back through the *sum* path without shrinking multiplicatively. The LSTM learns: keep the seasonal sinusoid in the cell state (long-term memory), update the trend direction in the hidden state (short-term working memory). MAPE drops to ≈ 2–4% on the synthetic housing series.
+
+---
+
+## 6 · Full LSTM Step — Forget Gate in the Housing Context
+
+**Scenario.** A district has been on a **downward price trend** for 4 months: $c_{t-1}$ encodes "bearish momentum" (value ≈ −0.60). At month 5, a large new development is announced: $x_t$ carries a strong positive price signal.
+
+| Step | Computation | Value | Interpretation |
+|---|---|---|---|
+| Pre-forget | $0.4\times(-0.3) + 0.6\times(+1.2) - 0.5 = 0.50$ | — | Large positive input overwhelms negative history |
+| Forget gate $f_t$ | $\sigma(0.50)$ | **0.622** | Keep only 62 % of bearish cell state |
+| Pre-input | $0.45\times(-0.3)+0.55\times(+1.2)=0.525$ | — | — |
+| Input gate $i_t$ | $\sigma(0.525)$ | **0.628** | Write 63 % of candidate |
+| Candidate $\tilde{c}_t$ | $\tanh(0.6\times(-0.3)+0.4\times1.2)=\tanh(0.30)$ | **0.291** | Proposed positive update |
+| Cell update | $0.622\times(-0.60) + 0.628\times0.291$ | **−0.190** | Still bearish but weakened (-0.60 → -0.190) |
+| Output gate $o_t$ | $\sigma(0.75)$ | **0.679** | Expose 68% |
+| Hidden $h_t$ | $0.679\times\tanh(-0.190)$ | **−0.128** | Cautiously bearish public signal |
+
+**What just happened.** One strong bullish input reduced the bearish cell state from −0.60 to −0.190 — a 68% reduction. A vanilla RNN would propagate the old hidden state through $\mathbf{W}_{hh}$ and could only *attenuate* it by a fixed factor; it could never achieve selective erasure. The forget gate did that in one step with learned parameters.
+
+### Training loop (production window)
 
 ```
- x_1 x_2 x_3
- │ │ │
- ┌───▼───┐ ┌───▼───┐ ┌───▼───┐
-h_0 │ RNN │ │ RNN │ │ RNN │
-───►│ cell │───►│ cell │───►│ cell │───► ŷ
- └───────┘ └───────┘ └───────┘
- h_1 h_2 h_3
+1. Build sliding-window dataset
+   └─ T months of prices → predict month T+1
+   └─ z-score normalise (training-split mean/std only)
 
-Same W_hh and W_xh used at every step — shared weights across time.
+2. Initialise  LSTM(H=64, return_sequences=False) → Dense(1)
+   └─ 4 × (H² + H·d + H) parameters for gate matrices + biases
+   └─ h_0 = zeros, c_0 = zeros (stateless default)
+
+3. Forward pass for each t ∈ {1,…,T}
+   └─ compute f, i, c̃, c, o, h  (6 equations above)
+   └─ final h_T → Dense → ŷ_normalised
+
+4. Loss  MSE(ŷ_norm, y_norm)
+
+5. Backward pass (BPTT)
+   └─ ∂L/∂h_T → ∂L/∂c_T →…→ ∂L/∂c_1   (additive path — no vanishing)
+   └─ clip global gradient norm at 1.0
+
+6. Adam update all gate weight matrices
+
+7. Repeat; early-stop on val_loss (patience=10)
+
+8. Inverse-normalise: price_forecast = ŷ_norm × std + mean
 ```
 
-### LSTM cell internals
+---
+
+## 7 · Key Diagrams
+
+### Diagram 1 — Unrolled RNN (housing price, 3 steps)
 
 ```mermaid
 flowchart LR
- subgraph Inputs
- H_prev["h_{t-1}"]
- X["x_t"]
- C_prev["c_{t-1}"]
- end
+    X1["x₁\n$450k normalised\n→ 0.00"] --> RNN1
+    X2["x₂\n$455k normalised\n→ 0.22"] --> RNN2
+    X3["x₃\n$462k normalised\n→ 0.53"] --> RNN3
 
- F["Forget gate\nσ(W_f·[h,x]+b_f)"]
- I["Input gate\nσ(W_i·[h,x]+b_i)"]
- G["Candidate\ntanh(W_c·[h,x]+b_c)"]
- O["Output gate\nσ(W_o·[h,x]+b_o)"]
- C_new["c_t = f⊙c_{t-1} + i⊙g̃"]
- H_new["h_t = o⊙tanh(c_t)"]
+    H0["h₀\n(zeros)"] --> RNN1
+    RNN1["RNN cell\ntanh(W·h₀ + U·x₁)"] --> RNN2
+    RNN2["RNN cell\ntanh(W·h₁ + U·x₂)"] --> RNN3
+    RNN3["RNN cell\ntanh(W·h₂ + U·x₃)"] --> OUT["ŷ\n≈ 0.84 norm\n≈ $469k"]
 
- H_prev --> F & I & G & O
- X --> F & I & G & O
- C_prev --> C_new
- F --> C_new
- I --> C_new
- G --> C_new
- C_new --> H_new
- O --> H_new
+    style H0 fill:#374151,color:#e2e8f0
+    style RNN1 fill:#1e3a8a,color:#fff
+    style RNN2 fill:#1e3a8a,color:#fff
+    style RNN3 fill:#1e3a8a,color:#fff
+    style OUT fill:#15803d,color:#fff
+    style X1 fill:#1d4ed8,color:#fff
+    style X2 fill:#1d4ed8,color:#fff
+    style X3 fill:#1d4ed8,color:#fff
 ```
 
-### Vanishing gradient: RNN vs LSTM
+> **Same weight matrix W reused at every step.** Gradient from the output must backpropagate through all 3 (or 12) RNN cells. With $\rho(\mathbf{W})<1$ and $T=12$, the gradient at step 1 is $<10\%$ of the original — month 1's signal barely trains the weights.
 
-```
-Time steps → 1 5 10 20 50
- │ │ │ │ │
-RNN gradient: 1.0 0.3 0.01 0.0 0.0 (× W_hh at each step — decays)
-LSTM gradient: 1.0 0.9 0.8 0.7 0.5 (additive cell path — preserved)
-```
+---
 
-### Sequence window construction
-
-```
-Price series: [p1, p2, p3, p4, p5, p6, p7, ...]
-
-Window T=3:
- Input [p1, p2, p3] → target p4
- Input [p2, p3, p4] → target p5
- Input [p3, p4, p5] → target p6
- ...
-```
-
-### RNN vs LSTM vs GRU — when to use
+### Diagram 2 — LSTM Cell Gate Flow
 
 ```mermaid
 flowchart TD
- A["Sequence data?"] -->|yes| B["Dependencies\n> 10 steps?"]
- B -->|no| C["Vanilla RNN\n(simple, fast)"]
- B -->|yes| D["Training time\nconstrained?"]
- D -->|no| E["LSTM\n(default choice)"]
- D -->|yes| F["GRU\n(~25% fewer params)"]
- A -->|no| G["Dense / CNN\n(no recurrence needed)"]
+    subgraph In["Inputs at step t"]
+        HP["h_{t-1}\nprev hidden"]
+        XT["x_t\ncurrent input"]
+        CP["c_{t-1}\nprev cell state"]
+    end
+
+    FG["🔴 Forget gate f_t\nσ(W_f·[h,x]+b_f)\n0=erase  1=keep"]
+    IG["🔵 Input gate i_t\nσ(W_i·[h,x]+b_i)\n0=block  1=write"]
+    GG["🟠 Candidate g̃_t\ntanh(W_c·[h,x]+b_c)\nproposed new memory"]
+    OG["🟢 Output gate o_t\nσ(W_o·[h,x]+b_o)\n0=hide  1=expose"]
+
+    CT["c_t = f_t ⊙ c_{t-1} + i_t ⊙ g̃_t\nAdditive update — no gradient decay"]
+    HT["h_t = o_t ⊙ tanh(c_t)\nPublic interface"]
+
+    HP --> FG & IG & GG & OG
+    XT --> FG & IG & GG & OG
+    CP --> CT
+    FG -->|forget fraction| CT
+    IG -->|write fraction| CT
+    GG -->|candidate| CT
+    CT --> HT
+    OG -->|expose fraction| HT
+
+    style FG fill:#b91c1c,color:#fff
+    style IG fill:#1d4ed8,color:#fff
+    style GG fill:#b45309,color:#fff
+    style OG fill:#15803d,color:#fff
+    style CT fill:#1e3a8a,color:#fff
+    style HT fill:#15803d,color:#fff
+    style CP fill:#374151,color:#e2e8f0
+    style HP fill:#374151,color:#e2e8f0
+    style XT fill:#374151,color:#e2e8f0
+```
+
+**Reading the diagram.**
+- **Red (forget gate):** the eraser — values near 0 wipe the cell state clean.
+- **Blue (input gate) + Amber (candidate):** the writer — compose what gets added to memory.
+- **Green (output gate):** the selector — controls how much cell state is visible externally.
+- **Navy (cell update):** the additive step — gradient flows through $c_t\leftarrow f_t\odot c_{t-1}$ without matrix products → no vanishing gradient.
+
+---
+
+### Diagram 3 — RNN vs LSTM gradient magnitude (T=12)
+
+```
+Fraction of gradient signal reaching step t from final loss  (T=12, housing window)
+
+Step:    t=12  t=11  t=10  t=9   t=8   t=6   t=4   t=2   t=1
+         │     │     │     │     │     │     │     │     │
+RNN:    1.00  0.80  0.64  0.51  0.41  0.26  0.17  0.07  0.07  ← 0.8^(12−t)
+LSTM:   1.00  0.97  0.93  0.90  0.87  0.81  0.75  0.72  0.71  ← near-constant
+
+RNN loses 93% of the gradient by step 1.
+LSTM retains ~71% — month-1 seasonal patterns stay trainable.
+```
+
+### Diagram 4 — Sequence Window Construction
+
+```
+Monthly price series (normalised):
+  [p₁, p₂, p₃, p₄, p₅, p₆, p₇, p₈, ...]
+
+Sliding windows  T = 3:
+  Input  [p₁, p₂, p₃]  →  target  p₄
+  Input  [p₂, p₃, p₄]  →  target  p₅
+  Input  [p₃, p₄, p₅]  →  target  p₆
+  ...
+
+Each row of the training matrix is one T-length sequence.
+Each target is the next value the model must predict.
+The LSTM sees exactly T prices per forward pass.
+```
+
+### Diagram 5 — RNN vs LSTM vs GRU — when to use
+
+```mermaid
+flowchart TD
+    A["Sequence data?"] -->|yes| B["Dependencies\n> 10 steps?"]
+    B -->|no| C["Vanilla RNN\n(simple, fast)"]
+    B -->|yes| D["Training time\nconstrained?"]
+    D -->|no| E["LSTM\n(default choice)"]
+    D -->|yes| F["GRU\n(~25% fewer params)"]
+    A -->|no| G["Dense or CNN\n(no recurrence needed)"]
+
+    style A fill:#1e3a8a,color:#fff
+    style C fill:#b45309,color:#fff
+    style E fill:#15803d,color:#fff
+    style F fill:#15803d,color:#fff
+    style G fill:#374151,color:#e2e8f0
+    style B fill:#374151,color:#e2e8f0
+    style D fill:#374151,color:#e2e8f0
 ```
 
 ---
 
-## 6 · Hyperparameter Dial
+## 8 · Hyperparameter Dial
 
 | Dial | Too low | Sweet spot | Too high |
 |---|---|---|---|
-| **Hidden units** $H$ | underfits long patterns | 32–128 for most time series | overfits, slow |
-| **Sequence length** $T$ | misses long dependencies | 12–52 steps (month/week) | slow BPTT, more vanishing gradient |
-| **Stacked layers** | shallow temporal hierarchy | 1–2 for most tasks | vanishing gradient without residual |
-| **Dropout** (on recurrent connections) | no regularisation | 0.1–0.3 between LSTM layers | underfits |
-| **Gradient clip** | exploding gradient | 1.0–5.0 | clips too aggressively, slows learning |
+| **Sequence length $T$** | Misses full seasonal cycle (< 6 months) | **12** for monthly data (one full year) | Slow BPTT; diminishing return > 52 for weekly data |
+| **Hidden size $H$** | Underfits trend + seasonality | **32–128** for most time series | Overfits short sequences; 4× parameter cost per doubling |
+| **LSTM layers** | Shallow temporal hierarchy | **1–2** for most tasks; 2nd layer models "trend of trends" | Vanishing gradient across layers; need residual connections if >3 |
+| **Dropout** (between LSTM layers) | No regularisation — overfits on <200 sequences | **0.1–0.3** on non-recurrent connections | Degrades hidden state; network forgets prematurely |
+| **Gradient clip norm** | Exploding gradient → loss NaN at epoch 2–3 | **1.0** (global norm clipping) | Clips too aggressively; slows convergence on long windows |
 
-The single most impactful dial for sequence length is **hidden units** — double it before adding a second LSTM layer.
+> ⚡ **Most impactful dial: hidden size $H$.** Double it before adding a second LSTM layer — deeper LSTMs cost 2× the memory *and* require more careful gradient management. Start: `H=64`, 1 layer, dropout=0.2, clipnorm=1.0.
 
----
+### GRU — Lightweight Alternative
 
-## 7 · Code Skeleton
+The **Gated Recurrent Unit** (Cho et al., 2014) merges cell and hidden states, uses 2 gates instead of 3. Full GRU equations:
 
-```python
-import numpy as np
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+**Reset gate** $r_t$ — controls how much past hidden state enters the candidate:
 
-# ── Synthetic monthly price index (120 months = 10 years) ────────────────────
-def make_price_series(n_months=120, seed=42):
- """Synthetic district median house value index.
- Components: linear trend + 12-month seasonality + noise.
- """
- rng = np.random.default_rng(seed)
- t = np.arange(n_months)
- trend = 0.005 * t # slow upward drift
- seasonal = 0.15 * np.sin(2 * np.pi * t / 12) # annual cycle
- noise = rng.normal(0, 0.05, n_months)
- return 2.0 + trend + seasonal + noise # base value ~2.0 ($200k)
+$$r_t = \sigma(\mathbf{W}_r[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_r)$$
 
-prices = make_price_series()
+*If $r_t\approx0$: ignore past hidden state when computing candidate (clean slate). If $r_t\approx1$: fully use it (standard RNN-like update).*
 
-# ── Sliding window dataset ────────────────────────────────────────────────────
-def make_windows(series, T=12):
- """Convert 1-D series to (X, y) sliding windows.
- X: (N, T, 1) y: (N,)
- """
- X, y = [], []
- for i in range(len(series) - T):
- X.append(series[i:i+T, np.newaxis])
- y.append(series[i+T])
- return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
+**Update gate** $z_t$ — interpolates between old and new hidden state (combines LSTM's forget + input gates):
 
-T = 12
-X, y = make_windows(prices, T=T)
+$$z_t = \sigma(\mathbf{W}_z[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_z)$$
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
- shuffle=False) # no shuffle for time series!
+**Candidate hidden state** (filtered by reset gate):
 
-# Normalise using training statistics only
-mean, std = X_train.mean(), X_train.std()
-X_train = (X_train - mean) / std
-X_test = (X_test - mean) / std
-y_train = (y_train - mean) / std
-y_test = (y_test - mean) / std
+$$\tilde{\mathbf{h}}_t = \tanh(\mathbf{W}_h[r_t\odot\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_h)$$
 
-print(f"X_train: {X_train.shape} X_test: {X_test.shape}")
-```
+**Output (linear interpolation — no separate cell state):**
 
-```python
-# ── Manual RNN forward pass (NumPy) ──────────────────────────────────────────
-def rnn_forward(X_seq, W_xh, W_hh, b_h, W_hy, b_y):
- """Single-step RNN forward pass for one sequence.
- X_seq: (T, d)
- Returns: h_sequence (T, H), y_hat (scalar)
- """
- H = W_hh.shape[0]
- h = np.zeros(H)
- hs = []
- for x_t in X_seq:
- h = np.tanh(W_xh @ x_t + W_hh @ h + b_h)
- hs.append(h)
- y_hat = W_hy @ hs[-1] + b_y
- return np.array(hs), y_hat
+$$\mathbf{h}_t = (1-z_t)\odot\mathbf{h}_{t-1} + z_t\odot\tilde{\mathbf{h}}_t$$
 
-# Tiny demo: H=4, d=1
-H, d = 4, 1
-rng = np.random.default_rng(0)
-W_xh = rng.normal(0, 0.1, (H, d))
-W_hh = rng.normal(0, 0.1, (H, H))
-b_h = np.zeros(H)
-W_hy = rng.normal(0, 0.1, (1, H))
-b_y = np.zeros(1)
+*If $z_t=0$: keep old hidden state entirely. If $z_t=1$: fully accept new candidate. Values in between blend smoothly.*
 
-hs, y_hat = rnn_forward(X_train[0], W_xh, W_hh, b_h, W_hy, b_y)
-print(f"Hidden states shape: {hs.shape} Prediction: {y_hat[0]:.4f}")
-```
-
-```python
-# ── LSTM with Keras ───────────────────────────────────────────────────────────
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
-
-tf.random.set_seed(42)
-
-lstm_model = keras.Sequential([
- layers.Input(shape=(T, 1)),
- layers.LSTM(64, return_sequences=False),
- layers.Dense(32, activation='relu'),
- layers.Dense(1), # regression — no activation
-], name='HousePriceForecaster_LSTM')
-
-lstm_model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-lstm_model.summary()
-
-early_stop = keras.callbacks.EarlyStopping(
- monitor='val_loss', patience=15, restore_best_weights=True)
-
-history = lstm_model.fit(
- X_train, y_train,
- epochs=200, batch_size=16,
- validation_split=0.15,
- callbacks=[early_stop],
- verbose=0,
-)
-
-y_pred = lstm_model.predict(X_test, verbose=0).ravel()
-
-# Inverse-transform
-y_pred_real = y_pred * std + mean
-y_test_real = y_test * std + mean
-
-rmse = np.sqrt(np.mean((y_pred_real - y_test_real) ** 2))
-mae = np.mean(np.abs(y_pred_real - y_test_real))
-print(f"RMSE: {rmse:.4f} MAE: {mae:.4f} (units: $100k)")
-```
-
-```python
-# ── GRU (drop-in replacement) ─────────────────────────────────────────────────
-gru_model = keras.Sequential([
- layers.Input(shape=(T, 1)),
- layers.GRU(64, return_sequences=False),
- layers.Dense(32, activation='relu'),
- layers.Dense(1),
-], name='HousePriceForecaster_GRU')
-
-gru_model.compile(optimizer='adam', loss='mse')
-# GRU trains ~25% faster for the same hidden size
-```
+| Property | LSTM | GRU |
+|---|---|---|
+| Gates | 3 (forget, input, output) | 2 (reset, update) |
+| Cell state | Separate $c_t$ + $h_t$ | Single $h_t$ |
+| Parameters / layer | $4(H^2+Hd+H)$ | $3(H^2+Hd+H)$ |
+| Training speed | Baseline | ~25% faster |
+| Long-sequence edge | Slight (explicit cell conveyor) | Comparable for $T<100$ |
+| When to use | Default — clearer theoretical foundation | Tight budget; mobile/edge deployment |
 
 ---
 
-## 8 · What Can Go Wrong
+## 9 · What Can Go Wrong
 
 ⚠️ **Shuffling a time-series train/test split**
 
-Using `train_test_split(X, y, shuffle=True)` on sequential data **leaks future information** into training — the model sees Month 100 during training, then is tested on Month 50. This artificially inflates performance.
+`train_test_split(X, y, shuffle=True)` on sequential data leaks future months into training. The model sees month 80 during training, then is evaluated on month 60 — artificially inflated performance.
 
-**Example:** Train on months 1-80 (shuffled) → includes months 60-80. Test on months 81-100. Model has learned patterns from "the future" (months 60-80 overlap conceptually with test months).
+**Example:** Train on months 1–80 (shuffled, includes 70–80) → test on months 81–100. Model "remembers" late-sequence patterns that overlap with the test period.
 
-**Fix:** Always split **chronologically**: `train_test_split(X, y, shuffle=False)`. Train on earlier months (1-80), test on later months (81-100). The `validation_split` inside `model.fit` should also come from the **end** of the training data (months 73-80), not randomly sampled.
+**Fix:** Split chronologically: `train_test_split(X, y, shuffle=False)`. Validation set = the tail of the training window (months 73–80), not a random sample.
 
 ---
 
-⚠️ **Forgetting to normalize the target $y$**
+⚠️ **Forgetting to normalise the target $y$**
 
-MSE on raw house prices (range $150k–$500k) works, but LSTM loss curves show misleadingly large values (MSE = 10,000 = $100M squared error). Worse: strong trends dominate the gradient signal — the model learns "prices go up" but misses seasonal fluctuations.
+Raw house prices ($150k–$500k) make MSE enormous ($\approx10^{10}$). Strong linear trends dominate the gradient — the LSTM learns "prices go up" but misses the 10% seasonal dip because trend loss dwarfs seasonal loss.
 
-**Example:** District with 5% annual growth → LSTM predicts trend perfectly (MSE = 100) but misses 10% seasonal dip in winter (actual pattern).
+**Fix:** Normalise both $X$ and $y$ with **training-split statistics only**:
 
-**Fix:** Normalize both `X` and `y` using **training statistics only**:
 ```python
 mean, std = X_train.mean(), X_train.std()
-X_train_norm = (X_train - mean) / std
-X_test_norm = (X_test - mean) / std  # use TRAIN mean/std
-y_train_norm = (y_train - mean) / std
-y_test_norm = (y_test - mean) / std
+X_train_n = (X_train - mean) / std
+X_test_n  = (X_test  - mean) / std   # use TRAIN mean/std
+y_train_n = (y_train - mean) / std
+y_test_n  = (y_test  - mean) / std
+# After prediction: price_forecast = ŷ_norm * std + mean
 ```
 
 ---
 
 ⚠️ **Not clipping gradients on long sequences**
 
-For $T > 50$ steps, vanilla LSTM training can **explode** (loss → NaN) within 2-3 epochs. Gradients accumulate multiplicatively over $T$ steps; even with LSTM's additive cell path, deep backprop through 100 steps can spike.
+For $T>50$, even LSTM gradients can spike through the output gate path (which still involves $\mathbf{W}_{hh}$ products). Without clipping: loss hits NaN by epoch 3.
 
-**Example:** `T=100`, `H=128` LSTM, no gradient clipping → loss jumps from 0.5 → NaN at epoch 3.
-
-**Fix:** Add `clipnorm=1.0` to the optimizer:
-```python
-optimizer = keras.optimizers.Adam(learning_rate=1e-3, clipnorm=1.0)
-model.compile(optimizer=optimizer, loss='mse')
-```
-This caps the global gradient norm at 1.0 before the weight update — prevents explosion without hurting convergence.
+**Fix:** `optimizer = keras.optimizers.Adam(learning_rate=1e-3, clipnorm=1.0)`
 
 ---
 
-⚠️ **Using `return_sequences=True` on final LSTM before Dense output**
+⚠️ **`return_sequences=True` on the final LSTM before Dense output**
 
-`LSTM(..., return_sequences=True)` outputs shape `(N, T, H)` — predictions for **all $T$ time steps**. If you feed this directly to `Dense(1)`, you get shape `(N, T, 1)` — a sequence of predictions, not a single value.
+This outputs shape `(batch, T, H)` instead of `(batch, H)`. Dense(1) then applies to every time step → $T$ outputs instead of 1.
 
-**Example:** You want to predict next month's price (single value). LSTM outputs `(batch, 12, 64)` → Dense(1) outputs `(batch, 12, 1)` → 12 predictions instead of 1!
+**Fix:** Use `return_sequences=False` (default) on the last LSTM layer. Use `return_sequences=True` only on intermediate LSTM layers feeding the next LSTM:
 
-**Fix:** Use `return_sequences=False` on the **final** LSTM layer:
 ```python
-model = Sequential([
-    LSTM(64, return_sequences=True),  # hidden LSTM → keep sequences
-    LSTM(32, return_sequences=False),  # final LSTM → single summary
-    Dense(1),  # (N, 32) → (N, 1)
-])
+model.add(LSTM(64, return_sequences=True))   # feeds next LSTM
+model.add(LSTM(32, return_sequences=False))  # feeds Dense
+model.add(Dense(1))                           # shape: (batch, 1)
 ```
-Or add `Flatten()` / `GlobalAveragePooling1D()` after the LSTM if you need all time steps pooled.
+
+---
+
+⚠️ **Stateful LSTM without resetting between epochs**
+
+`stateful=True` preserves $h_T$ from one batch as $h_0$ for the next. Without resetting at epoch boundaries, stale state from the end of epoch $n$ corrupts the start of epoch $n+1$.
+
+**Fix:** Call `model.reset_states()` at the start of each epoch:
+
+```python
+for epoch in range(epochs):
+    model.reset_states()
+    model.fit(X_train, y_train, batch_size=1, epochs=1, shuffle=False)
+```
 
 ---
 
 ⚠️ **Treating LSTM hidden size like CNN filter count**
 
-An LSTM with `H=64` has $4 \times (64^2 + 64d + 64) \approx 17,000$ parameters **per layer**. A CNN with 64 filters and kernel size 3 has $3 \times 3 \times C_{\text{in}} \times 64 + 64 \approx 600$ parameters (for $C_{\text{in}}=1$).
+An LSTM with $H=64$ has $4(64^2+64d+64)\approx17{,}000$ parameters per layer. Jumping to $H=256$ multiplies parameters by **16× and training time by ~4×**. Model overfits on datasets with $<500$ sequences.
 
-**Example:** Jump from `H=64` to `H=256`: parameters increase $16\times$, training time increases $4\times$. Model overfits on 100-sample dataset.
-
-**Fix:** Start with `H=32` or `H=64`. Increase only if validation loss is **still decreasing** after 50 epochs. Prefer **stacking layers** (2 layers with `H=64`) over one massive layer (`H=256`).
+**Fix:** Start at $H=32$ or $H=64$. Scale up only when validation loss is still decreasing after 50 epochs. Prefer stacking 2 layers with $H=64$ over one layer with $H=256$.
 
 ---
 
@@ -581,165 +549,103 @@ An LSTM with `H=64` has $4 \times (64^2 + 64d + 64) \approx 17,000$ parameters *
 
 ```mermaid
 flowchart TD
-    A[LSTM training issues?] --> B{Loss → NaN<br/>within few epochs?}
-    B -->|Yes| C[Add gradient clipping:<br/>clipnorm=1.0]
-    B -->|No| D{Train loss low,<br/>test loss high?}
-    
-    D -->|Yes| E{Used shuffle=True<br/>on time series?}
-    E -->|Yes| F[Fix: shuffle=False<br/>chronological split]
-    E -->|No| G[Overfitting:<br/>add dropout 0.2-0.3<br/>or reduce H]
-    
-    D -->|No| H{Output shape wrong?<br/>e.g. N,T,1 instead of N,1}
-    H -->|Yes| I[Set return_sequences=False<br/>on final LSTM layer]
-    H -->|No| J{Loss not decreasing<br/>after 50 epochs?}
-    
-    J -->|Yes| K{Hidden size H < 32?}
-    K -->|Yes| L[Increase H → 64 or 128]
-    K -->|No| M{Normalized X and y?}
-    M -->|No| N[Normalize both X and y<br/>using train statistics]
-    M -->|Yes| O{Learning rate too high?}
-    O -->|Yes| P[Reduce LR: 1e-3 → 1e-4]
-    O -->|No| Q[Check data quality:<br/>missing values, outliers]
-    
-    J -->|No| R[Training successful ✓]
-    
-    style C fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style F fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style I fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style N fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style R fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style A fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style G fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style L fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style P fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    A["LSTM training issues?"] --> B{"Loss → NaN\nwithin few epochs?"}
+    B -->|Yes| C["Add gradient clipping\nclipnorm=1.0"]
+    B -->|No| D{"Train loss low\ntest loss high?"}
+    D -->|Yes| E{"Used shuffle=True\non time series?"}
+    E -->|Yes| F["Fix: shuffle=False\nchronological split"]
+    E -->|No| G["Overfitting:\ndropout 0.2–0.3 or reduce H"]
+    D -->|No| H{"Output shape wrong?\ne.g. (N,T,1) not (N,1)"}
+    H -->|Yes| I["Set return_sequences=False\non final LSTM"]
+    H -->|No| J{"Loss not decreasing\nafter 50 epochs?"}
+    J -->|Yes| K{"H < 32?"}
+    K -->|Yes| L["Increase H to 64 or 128"]
+    K -->|No| M{"Normalised X and y?"}
+    M -->|No| N["Normalise with train stats"]
+    M -->|Yes| O["Reduce LR: 1e-3 → 1e-4"]
+    J -->|No| R["Training OK ✓"]
+
+    style A fill:#1e3a8a,color:#fff
+    style C fill:#15803d,color:#fff
+    style F fill:#15803d,color:#fff
+    style I fill:#15803d,color:#fff
+    style N fill:#15803d,color:#fff
+    style R fill:#15803d,color:#fff
+    style G fill:#b45309,color:#fff
+    style L fill:#b45309,color:#fff
+    style O fill:#b45309,color:#fff
+    style B fill:#374151,color:#e2e8f0
+    style D fill:#374151,color:#e2e8f0
+    style E fill:#374151,color:#e2e8f0
+    style H fill:#374151,color:#e2e8f0
+    style J fill:#374151,color:#e2e8f0
+    style K fill:#374151,color:#e2e8f0
+    style M fill:#374151,color:#e2e8f0
 ```
 
 ---
 
-## 9 · Where This Reappears
+## 10 · Where This Reappears
 
-**Recurrent architectures and sequential processing concepts reappear in:**
+**Architecture selection — a concrete guide:**
 
-➡️ **[Ch.7 — MLE & Loss Functions](../ch07_mle_loss_functions):** Why MSE works for LSTM regression and BCE for LSTM classification — same probabilistic foundation applies regardless of architecture.
+| Data structure | Best first choice | Why |
+|---|---|---|
+| Static tabular features (MedInc, AveRooms…) | Dense (Ch.2) | No ordering; every feature independent |
+| 2-D image grids (aerial photos, street view) | CNN (Ch.5) | Nearby pixels correlated; spatial locality |
+| 1-D sequences (price series, sensor logs, text) | LSTM / GRU (Ch.6) | Temporal order matters; long-range dependencies |
+| Video (frames + time) | CNN (spatial) + LSTM (temporal) | Both spatial and temporal structure |
+| Very long sequences (>512 tokens) | Transformer (Ch.10) | BPTT too slow; attention handles long range |
 
-➡️ **[Ch.8 — TensorBoard](../ch08_tensorboard):** Monitor LSTM training curves (loss, gradient histograms, weight distributions) — catch vanishing/exploding gradients in real time.
+➡️ **[Ch.9 — Sequences to Attention](../ch09_sequences_to_attention).** The LSTM encoder compresses all $T$ hidden states into a single context vector $\mathbf{h}_T$ — a bottleneck that loses information as $T$ grows. The **attention mechanism** (Bahdanau et al., 2015) replaces this bottleneck: the decoder at each output step attends to *all* $T$ encoder hidden states, weighting them by relevance. Attention is a soft dictionary lookup over the LSTM's hidden state sequence. You cannot understand why attention works without first understanding what those hidden states represent — that is why Ch.6 comes first.
 
-➡️ **[Ch.9 — Sequences to Attention](../ch09_sequences_to_attention):** **This is the critical chapter.** You'll see why RNNs process sequentially (bottleneck) and how attention replaces recurrence with parallel Query-Key-Value lookups. Attention is "soft dictionary lookup" — RNNs were "compress everything into $h_t$ and hope."
+➡️ **[Ch.10 — Transformers](../ch10_transformers).** Transformers remove the sequential LSTM entirely and replace it with stacked self-attention. Key insight: if attention can directly access any step, the recurrence is redundant. Transformers process all $T$ positions in parallel (GPU efficiency) while capturing long-range dependencies. The positional encodings Transformers require are a direct response to the one thing RNNs provided for free: a built-in notion of order.
 
-➡️ **[Ch.10 — Transformers](../ch10_transformers):** The architecture that replaced LSTMs in NLP (2017-present). Transformers = multi-head attention + positional encoding. No recurrence at all — fully parallelizable, handles 1000+ token sequences effortlessly.
-
-➡️ **[Multimodal AI track](../../../multimodal_ai):** LSTM concepts (sequential processing, hidden states) appear in:
-- **Audio generation**: WaveNet-style autoregressive models
-- **Video understanding**: 3D CNNs (spatial) + LSTMs (temporal)
-- **Text-to-speech**: Tacotron uses LSTMs to convert text embeddings → mel spectrograms
-
-➡️ **[AI track — LLM Fundamentals](../../../ai/llm_fundamentals):** Modern LLMs (GPT, Llama) are Transformer-based (no LSTM), but understanding recurrence clarifies why attention was revolutionary.
-
----
-
-## 10 · Progress Check — What We Can Solve Now
-
-![Progress visualization showing RNN/LSTM capability unlock](img/ch06-rnns-lstms-progress.png)
-
-✅ **Unlocked capabilities:**
-- **Temporal memory**: $h_t$ carries forward summary of all past inputs → RNN "remembers" what it saw before
-- **Long-term dependencies**: LSTM gates prevent vanishing gradient → patterns persist across 100+ time steps (vs 5-10 for vanilla RNN)
-- **Sequence forecasting**: Predict next month's district median value from past 12 months (3-5% MAPE)
-- **Bidirectional RNNs**: Look forward and backward in time (when full sequence is available at inference)
-- **Same architecture, different tasks**: LSTM(64) handles time series regression (price trends) and sequence classification (behavior prediction) — only output head changes
-
-❌ **Still can't solve:**
-- ❌ **Long sequences efficiently** — LSTM processes sequentially ($T$ steps takes $T$ forward passes), can't parallelize like CNNs
-- ❌ **Very long dependencies** — LSTM improves to 100+ steps but attention (Ch.9) handles 1000+ steps effortlessly
-- ❌ **Interpretability** — can't explain which past time steps drove the forecast (attention weights in Ch.9 solve this)
-
-**Progress toward UnifiedAI constraints:**
-
-| Constraint | Status | Current State |
-|------------|--------|---------------|
-| #1 **ACCURACY** | ⚠️ **In Progress** | Dense + CNN achieved ~$48k MAE (Ch.2-5); LSTM adds temporal modeling but doesn't improve static feature MAE directly. Target: ≤$28k MAE |
-| #2 **GENERALIZATION** | ⚠️ **In Progress** | LSTM generalizes to unseen future time periods (test on months 96-120 after training on 1-95). Cross-validation in next chapters |
-| #3 **MULTI-TASK** | ⚠️ **In Progress** | Now handle tabular (Ch.2), images (Ch.5), sequences (Ch.6). Still need single architecture for regression + classification simultaneously |
-| #4 **INTERPRETABILITY** | ❌ **Blocked** | LSTM is black box — can't explain why it forecasts specific trend. Need attention weights (Ch.9) |
-| #5 **PRODUCTION** | ❌ **Blocked** | Research notebook code only. Need monitoring (Ch.8 TensorBoard) |
-
-**Real-world status:**
-
-UnifiedAI can now model **temporal sequences** alongside tabular and spatial data. LSTM achieves 3-5% MAPE on monthly price forecasting — better than dense/CNN baselines that ignore temporal order.
-
-**Key insights from this chapter:**
-
-💡 **Why LSTMs beat vanilla RNNs:**
-- **Vanilla RNN**: Gradients multiply by $W_{hh}$ at each time step → decay exponentially as $(\lambda_{\text{max}})^T$
-- **LSTM**: Cell state $c_t$ flows through additive path ($c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$) → gradients bypass repeated matrix multiply
-- **Empirical result**: Vanilla RNN fails beyond ~10 steps; LSTM works for 100+ steps
-
-💡 **When to use RNNs vs CNNs vs Dense:**
-
-| Data type | Best architecture | Why |
-|-----------|-------------------|-----|
-| **Tabular** (static features) | Dense (Ch.2) | No spatial or temporal structure |
-| **Images** (2D grids) | CNN (Ch.5) | Spatial locality — nearby pixels correlated |
-| **Sequences** (time series, text) | RNN/LSTM (Ch.6) | Temporal dependencies — order matters |
-| **Video** | CNN + RNN | Spatial per frame (CNN) + temporal across frames (RNN) |
-
-💡 **Bidirectional RNNs — when to use:**
-- ✅ **Use when**: Full sequence available at inference (sentiment classification on complete sentence, medical diagnosis from full patient history)
-- ❌ **Don't use**: Real-time forecasting (can't see future!), online prediction (next-word prediction in typing)
-
-**What we still CAN'T solve:**
-
-❌ **Sequential processing bottleneck** — LSTM must process time steps sequentially (can't parallelize like CNN). For long sequences (1000+ tokens), this is slow. Attention (Ch.9) solves this.
-
-❌ **No explicit importance weighting** — LSTM compresses all past information into hidden state $h_t$, but we can't see which past steps mattered most. Attention weights (Ch.9) make this explicit.
-
-❌ **Loss foundation** — we've used MSE and BCE as given, but why these specific functions? Ch.7 (MLE & Loss Functions) derives them from maximum likelihood estimation.
-
-❌ **Production monitoring** — we have training curves in memory but no persistent dashboard. Ch.8 (TensorBoard) instruments the full training pipeline.
-
-**Next up:**
-
-Ch.6 gave us temporal modeling. Ch.7 backs up to answer a foundational question we've deferred since Ch.1: **Why MSE for regression and BCE for classification?** The answer: both derive from Maximum Likelihood Estimation under different distributional assumptions (Gaussian noise vs Bernoulli outcomes). Understanding this foundation clarifies when to use which loss — and when to invent new ones.
+➡️ **[Multimodal AI track](../../../05-multimodal_ai).** LSTM concepts appear in audio generation (autoregressive models), video understanding (3-D CNN spatial + LSTM temporal), and text-to-speech synthesis (Tacotron uses LSTM to convert text embeddings to mel spectrograms).
 
 ---
 
-### Neural Networks Track Progress — Ch.1 through Ch.6
+## 11 · Progress Check — What We Can Solve Now
 
-```mermaid
-flowchart LR
-    CH1[Ch.1 XOR Problem<br/>Linear fails] --> CH2[Ch.2 Neural Networks<br/>Dense layers + ReLU]
-    CH2 --> CH3[Ch.3 Backprop<br/>Training infrastructure]
-    CH3 --> CH4[Ch.4 Regularization<br/>Dropout, L2, BN]
-    CH4 --> CH5[Ch.5 CNNs<br/>Spatial features]
-    CH5 --> CH6[Ch.6 RNNs/LSTMs<br/>⭐ YOU ARE HERE<br/>Temporal sequences]
-    CH6 -.-> CH7[Ch.7 MLE & Loss<br/>Probabilistic foundation]
-    CH7 -.-> CH8[Ch.8 TensorBoard<br/>Monitoring]
-    CH8 -.-> CH9[Ch.9 Attention<br/>Q/K/V mechanism]
-    CH9 -.-> CH10[Ch.10 Transformers<br/>Modern AI foundation]
-    
-    style CH1 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH2 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH3 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH4 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH5 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH6 fill:#b45309,stroke:#e2e8f0,stroke-width:3px,color:#ffffff
-    style CH7 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH8 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH9 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style CH10 fill:#6b7280,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-```
+![Progress check](img/ch06-rnns-lstms-progress-check.png)
 
-**Legend:** ✅ Green = Complete | 🟠 Orange = Current | ⚪ Gray = Upcoming
+**✅ Unlocked capabilities:**
+- **Temporal sequence modelling** — predict next month's district price from a rolling window
+- **Long-range memory** — LSTM cell state retains seasonal patterns across 12+ steps without gradient decay
+- **Gradient stability** — additive cell update removes the $T$-step exponential decay of vanilla RNNs
+- **Architecture choice** — LSTM vs GRU trade-off quantified (parameter count, speed, performance parity)
+- **Production guard rails** — chronological split, normalisation, gradient clipping, stateful reset
+
+**Constraint dashboard:**
+
+| Constraint | Status | Evidence |
+|---|---|---|
+| #1 ACCURACY | 🔄 Partial | LSTM achieves 2–4% MAPE on synthetic housing index vs 8–12% for Dense baseline |
+| #2 GENERALIZATION | 🔄 Partial | Dropout + chronological split prevents temporal leakage |
+| #3 MULTI-TASK | ✅ Architecture ready | LSTM(64) → Dense(1, 'linear') for regression; swap to Dense(1, 'sigmoid') for classification |
+| #4 INTERPRETABILITY | ❌ Black box | LSTM gate values are internal — no human-readable explanation |
+| #5 PRODUCTION | 🔄 Partial | <100ms inference for $T\leq52$; validation pipeline correct |
+
+**❌ Still can't solve:**
+- ❌ **Interpretability (Constraint #4):** LSTM gates are internal scalars — not explainable to stakeholders. Attention weights (Ch.9) make "which months drove the prediction?" answerable.
+- ❌ **Parallel training on long sequences:** BPTT is serial; training on 100k-sequence datasets is slow. Transformers (Ch.10) solve this.
+
+**Real-world status:** We can build a production time-series forecaster for monthly housing price trends, but cannot yet explain *which months* drove any particular prediction — that requires attention.
+
+**Next up:** Ch.7 gives us **MLE & Loss Functions** — deriving exactly why MSE is the right loss for Gaussian targets and cross-entropy for classification, underpinning every loss choice made since Ch.1.
 
 ---
 
-## 11 · Bridge to Chapter 7
+## 12 · Bridge to Ch.7 — MLE & Loss Functions
 
-Ch.6 equipped you with RNNs and LSTMs for temporal sequences. You've now used MSE (Ch.1-2), BCE (Ch.2), and seen how the same LSTM architecture handles both with only the output activation changed. But why MSE for regression? Why BCE for classification? Ch.7 — **MLE & Loss Functions** — reveals the unifying framework: both losses emerge from **Maximum Likelihood Estimation** under different distributional assumptions (Gaussian noise for MSE, Bernoulli outcomes for BCE). This foundation clarifies when to use which loss — and when to invent new ones for custom problems.
+This chapter used MSE as the regression loss without asking *why*. We minimised $\sum(y-\hat{y})^2$ because it worked. **Ch.7 derives the loss from first principles** using maximum likelihood estimation:
 
+- If housing price residuals are i.i.d. **Gaussian** → the MLE estimator is *exactly* MSE.
+- If the target is **Bernoulli** ("will price rise?") → MLE produces cross-entropy.
+- If residuals are **Laplacian** (heavy-tailed, many outliers) → MLE produces MAE.
 
-## Illustrations
+The same MLE framework generalises to every loss in the track — Huber, Poisson, focal — and tells you precisely *when* to invent new ones when the distributional assumption breaks. After Ch.7, the loss function is no longer a recipe: it is a principled statistical choice.
 
-![RNN and LSTM architecture — hidden-state flow and gating through time steps](img/ch8-rnn.png)
+> ➡️ **Ch.7** — [MLE & Loss Functions](../ch07_mle_loss_functions) — formalises the statistical justification for every loss function used in this curriculum.
 
-
+---

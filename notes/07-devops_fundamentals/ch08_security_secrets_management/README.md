@@ -126,129 +126,16 @@ Container started with secret injection:
 Application reads secret at runtime
     ↓
 Secret rotated in store (container restarts or refreshes)
+      ✅ WHAT THIS PREVENTS:
+      • Compromised credentials remain valid indefinitely (rotation limits exposure window to 90 days max)
+      • Single leaked password grants permanent access (old password stops working after rotation)
+      • Insider threats (ex-employee's cached credentials expire on rotation schedule)
+      • Compliance violations (SOC 2, PCI-DSS require 90-day password rotation)
 ```
 
 ---
 
-## 4 · Code Skeleton — .env, Docker Secrets, Kubernetes Secrets
-
-Here's the production-ready pattern for every secret-dependent application:
-
-### Local Development: .env File
-
-```bash
-# .env (gitignored!)
-DB_PASSWORD=dev123
-DB_USER=postgres
-DB_HOST=localhost
-DB_PORT=5432
-```
-
-```python
-# app.py
-import os
-from dotenv import load_dotenv
-
-load_dotenv()  # Loads .env in development
-
-db_password = os.getenv("DB_PASSWORD")
-conn_string = f"postgres://{os.getenv('DB_USER')}:{db_password}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/mydb"
-```
-
-```dockerfile
-# Dockerfile (no secrets!)
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-# No ENV DB_PASSWORD — secrets are runtime-only!
-CMD ["python", "app.py"]
-```
-
-### Docker Compose: Docker Secrets
-
-```yaml
-# docker-compose.yml
-services:
-  app:
-    image: flask-app:latest
-    secrets:
-      - db_password
-    environment:
-      DB_PASSWORD_FILE: /run/secrets/db_password
-      DB_USER: postgres
-      DB_HOST: db
-      DB_PORT: 5432
-
-secrets:
-  db_password:
-    file: ./secrets/db_password.txt  # External file, never committed
-```
-
-```python
-# app.py (read from mounted secret file)
-import os
-
-# In production, read from Docker Secret (file mount)
-db_password_file = os.getenv("DB_PASSWORD_FILE")
-if db_password_file:
-    with open(db_password_file) as f:
-        db_password = f.read().strip()
-else:
-    # Fallback to .env in dev
-    db_password = os.getenv("DB_PASSWORD")
-```
-
-### Kubernetes: Secrets
-
-```bash
-# Create secret from literal
-kubectl create secret generic db-credentials \
-  --from-literal=password=prod_secret_123
-
-# Or from file
-echo -n 'prod_secret_123' > /tmp/password.txt
-kubectl create secret generic db-credentials \
-  --from-file=password=/tmp/password.txt
-```
-
-```yaml
-# deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: flask-app
-spec:
-  template:
-    spec:
-      containers:
-      - name: app
-        image: flask-app:latest
-        env:
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-credentials
-              key: password
-```
-
-### Pre-Commit Hook: Block Secrets
-
-```bash
-# .git/hooks/pre-commit
-#!/bin/bash
-
-# Scan staged files for secret patterns
-if git diff --cached --name-only | xargs grep -E "password=|api_key=|secret="; then
-    echo "ERROR: Potential secret detected. Commit blocked."
-    exit 1
-fi
-```
-
----
-
-## 5 · What Can Go Wrong — Common Pitfalls
+## 4 · What Can Go Wrong — Common Pitfalls
 
 | Problem | Why it happens | How to fix |
 |---------|----------------|------------|
@@ -268,7 +155,7 @@ In 2019, a developer pushed a Docker image to Docker Hub with `ENV AWS_ACCESS_KE
 
 ---
 
-## 6 · Progress Check — Can You Audit This Dockerfile for Security Issues?
+## 5 · Progress Check — Can You Audit This Dockerfile for Security Issues?
 
 You're reviewing a colleague's Dockerfile for a Node.js API:
 
@@ -319,7 +206,7 @@ docker run -e DATABASE_URL=$DATABASE_URL -e API_KEY=$API_KEY my-api:latest
 
 ---
 
-## 7 · Bridge to Future — Applying DevOps to AI/ML Deployments
+## 6 · Bridge to Future — Applying DevOps to AI/ML Deployments
 
 Every concept in this chapter applies directly to **AI Infrastructure** deployments (Ch.9 onwards):
 

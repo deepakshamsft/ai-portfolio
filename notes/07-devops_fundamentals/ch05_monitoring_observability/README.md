@@ -209,141 +209,9 @@ This chapter focuses on **metrics** because they're the foundation for dashboard
 
 ---
 
-## 6 · Code Skeleton — Flask App Instrumented with Prometheus Client
+## 6 · What Can Go Wrong — Three Production Observability Failures
 
-```python
-from flask import Flask
-from prometheus_client import Counter, Histogram, Gauge, make_wsgi_app
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
-import time
-
-app = Flask(__name__)
-
-# Define metrics
-REQUEST_COUNT = Counter(
-    'http_requests_total',
-    'Total HTTP requests',
-    ['method', 'route', 'status']
-)
-
-REQUEST_LATENCY = Histogram(
-    'http_request_duration_seconds',
-    'HTTP request latency',
-    ['route'],
-    buckets=[0.1, 0.5, 1.0, 5.0]  # SLA thresholds
-)
-
-ACTIVE_CONNECTIONS = Gauge(
-    'active_connections',
-    'Current active connections'
-)
-
-# Middleware to track latency
-@app.before_request
-def before_request():
-    request.start_time = time.time()
-    ACTIVE_CONNECTIONS.inc()
-
-@app.after_request
-def after_request(response):
-    latency = time.time() - request.start_time
-    REQUEST_LATENCY.labels(route=request.path).observe(latency)
-    REQUEST_COUNT.labels(
-        method=request.method,
-        route=request.path,
-        status=response.status_code
-    ).inc()
-    ACTIVE_CONNECTIONS.dec()
-    return response
-
-# Routes
-@app.route('/health')
-def health():
-    return {'status': 'ok'}
-
-@app.route('/api/payment', methods=['POST'])
-def payment():
-    time.sleep(0.2)  # Simulate processing
-    return {'status': 'success'}
-
-# Expose metrics endpoint
-app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
-    '/metrics': make_wsgi_app()
-})
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-```
-
-**What's happening here?**
-1. `Counter.inc()` increments `http_requests_total` by 1 for every request
-2. `Histogram.observe(latency)` adds the request duration to the latency distribution
-3. `Gauge.inc()` / `Gauge.dec()` tracks the current number of active connections
-4. `/metrics` endpoint exposes all metrics in Prometheus text format
-
-**Prometheus scrape config:**
-
-```yaml
-# prometheus.yml
-global:
-  scrape_interval: 15s  # Scrape every 15 seconds
-
-scrape_configs:
-  - job_name: 'flask-app'
-    static_configs:
-      - targets: ['flask-app:5000']
-```
-
-**Docker Compose stack:**
-
-```yaml
-# docker-compose.yml
-services:
-  flask-app:
-    build: .
-    ports:
-      - "5000:5000"
-    networks:
-      - monitoring
-
-  prometheus:
-    image: prom/prometheus:latest
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    networks:
-      - monitoring
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    networks:
-      - monitoring
-
-networks:
-  monitoring:
-    driver: bridge
-```
-
-Run the stack:
-```bash
-docker compose up -d
-```
-
-Access:
-- Flask app: `http://localhost:5000`
-- Prometheus UI: `http://localhost:9090`
-- Grafana: `http://localhost:3000` (user: `admin`, password: `admin`)
-
----
-
-## 7 · What Can Go Wrong — Three Production Observability Failures
-
-### 7.1 · Cardinality Explosion Kills Prometheus Performance
+### 6.1 · Cardinality Explosion Kills Prometheus Performance
 
 **What breaks:** You instrument a metric with a high-cardinality label — e.g., `user_id` or `request_id` — and Prometheus runs out of memory.
 
@@ -367,7 +235,7 @@ REQUEST_COUNT.labels(route=request.path, status=status_code).inc()  # ~100 route
 
 ---
 
-### 7.2 · PromQL Queries Time Out When Aggregating Large Time Ranges
+### 6.2 · PromQL Queries Time Out When Aggregating Large Time Ranges
 
 **What breaks:** You run a query like `sum(rate(http_requests_total[30d]))` and Grafana hangs for 30 seconds before timing out.
 
@@ -400,7 +268,7 @@ Now query `http_requests:rate5m` instead — it's precomputed every 60 seconds.
 
 ---
 
-### 7.3 · Retention Limits Erase Historical Data Before You Notice Trends
+### 6.3 · Retention Limits Erase Historical Data Before You Notice Trends
 
 **What breaks:** You deploy a change on Monday, and by Friday you notice latency slowly creeping up. But Prometheus only retains 7 days of data — you can't compare to last month's baseline.
 
@@ -427,7 +295,7 @@ services:
 
 ---
 
-## 8 · Progress Check — Three Scenarios to Test Your Understanding
+## 7 · Progress Check — Three Scenarios to Test Your Understanding
 
 ### Scenario 1 — Request Rate Spike
 
@@ -529,7 +397,7 @@ Error rate (errors/sec)
 
 ---
 
-## 9 · Bridge to Ch.6 — Infrastructure as Code Automates This Entire Stack
+## 8 · Bridge to Ch.6 — Infrastructure as Code Automates This Entire Stack
 
 You just deployed Prometheus + Grafana manually with `docker-compose.yml`. **But production systems need reproducibility** — if you tear down the stack and rebuild it, the Grafana dashboards, Prometheus scrape configs, and alerting rules must come back exactly the same.
 

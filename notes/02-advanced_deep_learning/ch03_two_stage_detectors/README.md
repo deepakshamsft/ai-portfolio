@@ -464,176 +464,7 @@ Aspect ratios:  1:1    1:2    2:1
 
 ---
 
-## 7 · Code Skeleton — Faster R-CNN with Torchvision
-
-```python
-import torch
-import torchvision
-from torchvision.models.detection import fasterrcnn_resnet50_fpn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-
-# ─────────────────────────────────────────────────────────────
-# 1. Load Pretrained Faster R-CNN (COCO weights)
-# ─────────────────────────────────────────────────────────────
-model = fasterrcnn_resnet50_fpn(pretrained=True)
-
-# Replace classification head for custom dataset (20 products + background)
-num_classes = 21  # 20 product classes + 1 background
-in_features = model.roi_heads.box_predictor.cls_score.in_features
-model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model.to(device)
-
-# ─────────────────────────────────────────────────────────────
-# 2. Prepare Dataset (RetailShelf with bounding box annotations)
-# ─────────────────────────────────────────────────────────────
-from torch.utils.data import Dataset, DataLoader
-import torchvision.transforms as T
-
-class RetailShelfDataset(Dataset):
-    def __init__(self, image_paths, annotations, transforms=None):
-        """
-        Args:
-            image_paths: List of image file paths
-            annotations: List of dicts [{
-                'boxes': [[x1,y1,x2,y2], ...],  # N boxes
-                'labels': [class_id, ...]         # N labels
-            }, ...]
-        """
-        self.image_paths = image_paths
-        self.annotations = annotations
-        self.transforms = transforms
-    
-    def __getitem__(self, idx):
-        # Load image
-        img = torchvision.io.read_image(self.image_paths[idx])
-        img = img.float() / 255.0  # Normalize to [0,1]
-        
-        # Get annotations
-        boxes = torch.tensor(self.annotations[idx]['boxes'], dtype=torch.float32)
-        labels = torch.tensor(self.annotations[idx]['labels'], dtype=torch.int64)
-        
-        target = {'boxes': boxes, 'labels': labels}
-        
-        if self.transforms:
-            img, target = self.transforms(img, target)
-        
-        return img, target
-    
-    def __len__(self):
-        return len(self.image_paths)
-
-# Create dataset and dataloader
-train_dataset = RetailShelfDataset(image_paths, annotations)
-train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, 
-                          collate_fn=lambda x: tuple(zip(*x)))
-
-# ─────────────────────────────────────────────────────────────
-# 3. Training Loop (Multi-Task Loss: Classification + Box Regression)
-# ─────────────────────────────────────────────────────────────
-model.train()
-optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, 
-                            weight_decay=0.0005)
-
-num_epochs = 10
-for epoch in range(num_epochs):
-    epoch_loss = 0
-    for images, targets in train_loader:
-        images = [img.to(device) for img in images]
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        
-        # Forward pass (returns loss dict during training)
-        loss_dict = model(images, targets)
-        losses = sum(loss for loss in loss_dict.values())
-        
-        # Backward pass
-        optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
-        
-        epoch_loss += losses.item()
-    
-    print(f"Epoch {epoch+1}/{num_epochs} - Loss: {epoch_loss/len(train_loader):.4f}")
-
-# ─────────────────────────────────────────────────────────────
-# 4. Inference (Detection)
-# ─────────────────────────────────────────────────────────────
-model.eval()
-with torch.no_grad():
-    test_image = torchvision.io.read_image('test_shelf.jpg').float() / 255.0
-    predictions = model([test_image.to(device)])
-
-# Extract detections
-boxes = predictions[0]['boxes'].cpu().numpy()      # [N, 4]
-labels = predictions[0]['labels'].cpu().numpy()    # [N]
-scores = predictions[0]['scores'].cpu().numpy()    # [N]
-
-# Filter by confidence threshold
-threshold = 0.5
-keep = scores > threshold
-final_boxes = boxes[keep]
-final_labels = labels[keep]
-final_scores = scores[keep]
-
-print(f"Detected {len(final_boxes)} products:")
-for i in range(len(final_boxes)):
-    print(f"  Box {i+1}: Class {final_labels[i]}, Confidence {final_scores[i]:.2f}")
-
-# ─────────────────────────────────────────────────────────────
-# 5. Evaluation (Mean Average Precision)
-# ─────────────────────────────────────────────────────────────
-from torchvision.ops import box_iou
-
-def compute_ap(pred_boxes, pred_labels, pred_scores, 
-               gt_boxes, gt_labels, iou_threshold=0.5):
-    """Compute Average Precision for one class."""
-    # Sort predictions by confidence (descending)
-    sorted_idx = torch.argsort(pred_scores, descending=True)
-    pred_boxes = pred_boxes[sorted_idx]
-    pred_labels = pred_labels[sorted_idx]
-    pred_scores = pred_scores[sorted_idx]
-    
-    tp = torch.zeros(len(pred_boxes))
-    fp = torch.zeros(len(pred_boxes))
-    gt_matched = torch.zeros(len(gt_boxes), dtype=torch.bool)
-    
-    for i, (box, label) in enumerate(zip(pred_boxes, pred_labels)):
-        # Find matching GT boxes (same class)
-        class_mask = gt_labels == label
-        if not class_mask.any():
-            fp[i] = 1
-            continue
-        
-        # Compute IoU with all GT boxes of same class
-        ious = box_iou(box.unsqueeze(0), gt_boxes[class_mask])
-        max_iou, max_idx = ious.max(dim=1)
-        
-        if max_iou >= iou_threshold:
-            # True positive if GT not already matched
-            actual_idx = torch.where(class_mask)[0][max_idx]
-            if not gt_matched[actual_idx]:
-                tp[i] = 1
-                gt_matched[actual_idx] = True
-            else:
-                fp[i] = 1  # Duplicate detection
-        else:
-            fp[i] = 1  # No matching GT
-    
-    # Compute precision-recall curve
-    tp_cumsum = torch.cumsum(tp, dim=0)
-    fp_cumsum = torch.cumsum(fp, dim=0)
-    precision = tp_cumsum / (tp_cumsum + fp_cumsum + 1e-6)
-    recall = tp_cumsum / len(gt_boxes)
-    
-    # Compute AP (area under precision-recall curve)
-    ap = torch.trapz(precision, recall).item()
-    return ap
-```
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 1. **Slow inference (0.5–1 sec/image)** — Two-stage detectors are 10–100× slower than one-stage (YOLO). Each of 300 proposals requires RoI pooling + FC layers. For real-time edge deployment (<50ms), you'll need to move to one-stage detectors (Ch.4).
 
@@ -647,7 +478,7 @@ def compute_ap(pred_boxes, pred_labels, pred_scores,
 
 ---
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 - **Ch.4 (One-Stage Detectors)** — YOLO and RetinaNet eliminate the RPN stage, predicting directly from feature maps (10–100× faster, but slightly lower mAP). You'll see how focal loss solves the class imbalance problem that two-stage detectors avoid via RPN.
 
@@ -659,7 +490,7 @@ def compute_ap(pred_boxes, pred_labels, pred_scores,
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ![ProductionCV constraint progress](img/ch03-progress-check.png)
 
@@ -691,7 +522,7 @@ Two-stage detectors prioritize accuracy over speed:
 
 ---
 
-## 11 · Bridge to the Next Chapter
+## 10 · Bridge to the Next Chapter
 
 This chapter gave you **two-stage detection** — the R-CNN family's approach of proposing regions first, then classifying. The RPN learned to generate high-quality proposals, and the detector specialized in refining those candidates. You achieved production-grade accuracy (86% mAP) but hit a speed wall (180ms per frame).
 

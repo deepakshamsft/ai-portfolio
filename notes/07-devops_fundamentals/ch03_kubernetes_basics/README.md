@@ -124,79 +124,7 @@ If Pod 2 crashes, the Deployment's ReplicaSet immediately spawns a new Pod 2, an
 
 ---
 
-## 4 · Code Skeleton — Deployment and Service YAML
-
-Here are the minimal YAML files you'll use to deploy the Flask API.
-
-### Deployment YAML (`deployment.yaml`)
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: smartval-api
-spec:
-  replicas: 3  # Number of pods
-  selector:
-    matchLabels:
-      app: smartval-api
-  template:
-    metadata:
-      labels:
-        app: smartval-api
-    spec:
-      containers:
-      - name: flask
-        image: your-dockerhub-username/smartval-api:v1
-        ports:
-        - containerPort: 5000
-        env:
-        - name: MODEL_PATH
-          value: "/models/model.pkl"
-```
-
-**Key fields:**
-- `replicas: 3` — K8s ensures 3 pods are always running
-- `image: ...` — the Docker image to run (must be pushed to a registry)
-- `containerPort: 5000` — the port the Flask app listens on inside the container
-
-### Service YAML (`service.yaml`)
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: smartval-api
-spec:
-  type: NodePort  # Expose on node IP:port (for local access)
-  selector:
-    app: smartval-api  # Route to pods with this label
-  ports:
-  - port: 5000        # Service port
-    targetPort: 5000  # Pod port
-    nodePort: 30000   # External port (30000-32767)
-```
-
-**Key fields:**
-- `type: NodePort` — makes the service accessible from outside the cluster
-- `selector: app=smartval-api` — routes traffic to pods with this label
-- `nodePort: 30000` — you can access the service at `localhost:30000` (Kind maps this to your host)
-
-**Apply to cluster:**
-```bash
-kubectl apply -f deployment.yaml
-kubectl apply -f service.yaml
-```
-
-Kubernetes reads these files and makes it happen — creates pods, starts containers, sets up networking. You don't run commands like `docker run` manually.
-
-> 📖 **Optional: Advanced kubectl debugging**
-> 
-> For production troubleshooting, see [Kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
-> covering resource limits, node management, label selectors, and log aggregation. This chapter focuses on
-> the local development essentials — the 5 commands you need to deploy and debug on your laptop.
-
----
-
-## 5 · What Can Go Wrong
+## 4 · What Can Go Wrong
 
 Kubernetes debugging follows a simple pattern: **check status → inspect details → read logs**. Here are the 3 most common traps:
 
@@ -258,7 +186,7 @@ kubectl exec -it <pod-name> -- sh  # SSH into running pod to inspect filesystem/
 
 ---
 
-## 6 · Progress Check — Debug a CrashLoopBackOff Pod
+## 5 · Progress Check — Debug a CrashLoopBackOff Pod
 
 **Scenario:** You deploy a Flask app to your Kind cluster. Pods start but immediately crash and restart repeatedly.
 
@@ -294,7 +222,7 @@ kubectl logs smartval-api-abc123 --previous  # Read logs from the last crashed c
 
 ---
 
-## 7 · Bridge to Ch.4 — CI/CD Automates Deployments to K8s
+## 6 · Bridge to Ch.4 — CI/CD Automates Deployments to K8s
 
 You've manually deployed a Flask app to Kubernetes using `kubectl apply`. But in production, you don't run commands manually — every push to the main branch triggers a **CI/CD pipeline** that:
 1. Runs tests

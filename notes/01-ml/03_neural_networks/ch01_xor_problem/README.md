@@ -1,518 +1,703 @@
 # Ch.1 — The XOR Problem
 
-> **The story.** In **1969** **Marvin Minsky** and **Seymour Papert** published *Perceptrons*, a meticulous mathematical takedown of **Frank Rosenblatt's** 1958 perceptron model. The headline result: a single-layer perceptron cannot learn XOR — the simplest non-linearly-separable function imaginable. The book was correct, devastating, and read by everyone with a research budget. Funding evaporated, neural-network research collapsed into the **first AI winter**, and the field stayed frozen for nearly two decades. The thaw began only when Rumelhart, Hinton, and Williams (1986) showed that *one extra hidden layer* plus backpropagation could learn XOR — and could, in principle, learn anything. The **Universal Approximation Theorem** (Cybenko 1989, Hornik 1991) made it official. This chapter re-runs the 1969 experiment, watches the linear model fail, and watches one hidden layer fix it — the exact moment that justified deep learning.
+> **The story.** In **1969** **Marvin Minsky** and **Seymour Papert** published *Perceptrons* — a meticulous, 258-page mathematical takedown of **Frank Rosenblatt's** 1958 perceptron. The headline theorem: a single-layer perceptron cannot learn XOR, the simplest non-linearly-separable function imaginable. Minsky and Papert did not merely demonstrate the failure — they *proved* it was structural and inescapable; no adjustment to weights or training procedure could ever overcome it. The book was correct, clean, and devastating. Every researcher who mattered read it. Government funding agencies — particularly DARPA — read it too. Funding evaporated almost immediately. Neural-network research collapsed into the **first AI winter** and the field lay frozen for nearly two decades while attention drifted to expert systems and symbolic AI.
 >
-> **Where you are in the curriculum.** Topics 01-02 (Regression and Classification tracks) taught linear models — linear regression for continuous predictions, logistic regression for binary classification. Both fit straight decision boundaries through feature space. This chapter shows you, on the platform's own data, where they break: coastal-and-high-income districts are premium; inland-and-low-income districts are not; but coastal-with-low-income and inland-with-high-income create XOR-shaped patterns that no straight line can separate. One hidden layer with non-linear activation is enough to fix it, and that fix is the entire motivation for neural networks.
+> The thaw began in **1986** when Rumelhart, Hinton, and Williams published *Learning representations by back-propagating errors* in *Nature*. The paper showed that **one extra hidden layer** combined with backpropagation of gradients could learn XOR — and could, in principle, learn any function that a sequence of composable transformations could represent. The key word was *hidden*: neurons that are not directly connected to inputs or outputs, whose sole job is to reshape the representation space. The **Universal Approximation Theorem** (Cybenko 1989; Hornik 1991) made it rigorous: a feedforward network with a single hidden layer of sufficient width and a non-polynomial activation function can approximate any continuous function on a compact set to arbitrary precision. The AI winter ended. This chapter re-runs the 1969 experiment under the microscope: watches the linear model fail on a 4-point dataset, derives *why* it must always fail (algebra, not empiricism), then constructs by hand the one-hidden-layer network that solves XOR — the exact moment that justified modern deep learning.
 >
-> **Notation in this chapter.** $x_1,x_2\in\{0,1\}$ — binary input features ("coastal?", "high-income?"); $y=x_1\oplus x_2$ — the XOR target; $\mathbf{h}\in\mathbb{R}^k$ — hidden-layer activation; $W^{(1)},\mathbf{b}^{(1)}$ — input-to-hidden weights and bias; $W^{(2)},b^{(2)}$ — hidden-to-output weights and bias; $\sigma$ or $\text{ReLU}$ — the hidden-layer activation function; $\hat{y}$ — the network's predicted probability.
+> **Where you are in the curriculum.** Topics 01-02 (Regression and Classification) equipped you with linear models: regression fits $\hat{y} = \mathbf{w}^\top\mathbf{x} + b$; logistic regression fits a sigmoid on top. Both carve feature space with a single hyperplane. This chapter reveals, on the platform's own housing data, exactly where that straight line breaks: coastal-and-high-income districts are premium; inland-and-low-income districts are not; but coastal-with-low-income and inland-with-high-income are a confusing middle ground that no straight line separates. That is XOR in disguise. One hidden layer with a non-linear activation resolves it, and that resolution is the entire motivation for neural networks.
+>
+> **Notation in this chapter.** $x_1, x_2 \in \{0,1\}$ — binary input features; $y = x_1 \oplus x_2$ — XOR target; $\mathbf{x} = [x_1, x_2]^\top$ — input vector; $\mathbf{h} \in \mathbb{R}^k$ — hidden-layer post-activation; $W^{(1)} \in \mathbb{R}^{k \times 2}$, $\mathbf{b}^{(1)} \in \mathbb{R}^k$ — first-layer weights and bias; $W^{(2)} \in \mathbb{R}^{1 \times k}$, $b^{(2)} \in \mathbb{R}$ — output-layer weights and bias; $\sigma(z) = 1/(1+e^{-z})$ — sigmoid; $\text{ReLU}(z) = \max(0, z)$ — rectified linear unit; $\hat{y}$ — network prediction.
 
 ---
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **UnifiedAI** — prove neural networks unify regression and classification under one architecture, achieving:
-> 1. **ACCURACY**: ≤$28k MAE (regression) + ≥95% avg accuracy (classification)
-> 2. **GENERALIZATION**: Work on unseen districts + new identities
-> 3. **MULTI-TASK**: Same architecture predicts value AND classifies attributes
+> 💡 **The mission**: Launch **UnifiedAI** — prove neural networks unify regression and classification under one architecture, achieving:
+> 1. **ACCURACY**: ≤$28k MAE (housing regression) + ≥95% avg accuracy (face classification)
+> 2. **GENERALIZATION**: Unseen districts + new celebrity identities
+> 3. **MULTI-TASK**: Same architecture predicts value AND classifies face attributes simultaneously
 > 4. **INTERPRETABILITY**: Attention weights provide explainable feature attribution
 > 5. **PRODUCTION**: <100ms inference, TensorBoard monitoring
 
 **What we know so far:**
-- ✅ **Topic 01 (Regression)**: Linear regression achieved ~$70k MAE baseline on California Housing
-- ✅ **Topic 02 (Classification)**: Logistic regression for binary classification (sigmoid + BCE loss)
-- ✅ Understand gradient descent, loss functions (MSE, MAE, BCE), evaluation metrics
-- ✅ Know how to train models with sklearn — fit/predict API, train/test splits
+- ✅ **Topic 01 (Regression)**: Linear regression baseline on California Housing — ~$70k MAE
+- ✅ **Topic 02 (Classification)**: Logistic regression for binary face attribute classification — ~88% on one attribute
+- ✅ Gradient descent, MSE, BCE, train/test splits, evaluation metrics
+- ✅ Polynomial features (Ch.4 Regression) — some non-linearity helps, but no hidden layers yet
 
 **What's blocking us:**
-⚠️ **We just discovered a CRITICAL problem with linear models!**
 
-The product team ran logistic regression (from Topic 02) on a "Premium Neighborhood" classifier and found:
-- **Coastal + High-Income** districts: Correctly labeled as premium ✓
-- **Inland + Low-Income** districts: Correctly labeled as non-premium ✓
-- **Coastal + Low-Income** districts: ❌ **Misclassified** (logistic regression predicts "not premium" because weight on income dominates)
-- **Inland + High-Income** districts: ❌ **Misclassified** (logistic regression predicts "premium" because high-income dominates)
+The product team applied logistic regression to a "Premium Neighbourhood" classifier and found:
+- **Coastal + High-Income** districts — correctly labelled premium ✓
+- **Inland + Low-Income** districts — correctly labelled non-premium ✓
+- **Coastal + Low-Income** districts — ❌ **misclassified** (income weight dominates negatively)
+- **Inland + High-Income** districts — ❌ **misclassified** (income weight dominates positively)
 
-This is **XOR in disguise**: The true decision boundary is **non-linear** (you need a curved surface to separate the classes), but logistic regression can only draw **straight hyperplanes**.
+The true decision boundary is **non-linear** — you need a curved surface — but logistic regression can only produce a straight hyperplane. No amount of additional training epochs or learning rate tuning can fix this; it is a **structural impossibility**.
 
-**Why this blocks UnifiedAI:**
-- ❌ **Constraint #1 (ACCURACY)**: Can't hit ≤$28k MAE target if the model fundamentally can't represent non-linear price patterns
-- ❌ **Constraint #3 (MULTI-TASK)**: Classification side is broken (can't handle non-linear boundaries); regression side likely has same issue
-- ❌ **Constraint #4 (INTERPRETABILITY)**: Linear coefficients are meaningless when the true relationship isn't linear
+**Why this blocks every UnifiedAI constraint:**
+- ❌ **Constraint #1 (ACCURACY)**: Can't hit ≤$28k MAE if the model structurally can't represent non-linear price interactions
+- ❌ **Constraint #3 (MULTI-TASK)**: Classification side broken for any non-linearly-separable attribute
+- ❌ **Constraint #4 (INTERPRETABILITY)**: Linear coefficients are meaningless when the true relationship is non-linear
 
-**What this chapter does:**
-⚠️ **DIAGNOSTIC CHAPTER** — This chapter doesn't unlock any constraints. Instead, it:
-1. **Proves the problem**: Demonstrates XOR on synthetic data (4 points that can't be linearly separated)
-2. **Shows the failure** on real California Housing data (Latitude vs MedInc)
-3. **Reveals the solution**: One hidden layer with non-linear activation (ReLU/Sigmoid) can learn any decision boundary
-4. **Motivates Ch.2**: The Universal Approximation Theorem says "1 hidden layer is enough" — Ch.2 (Neural Networks) builds the full architecture
+> ⚠️ **DIAGNOSTIC CHAPTER** — This chapter does not unlock any UnifiedAI constraint. Instead:
+> 1. **Proves the problem** algebraically — XOR has no linear solution (no retraining can fix it)
+> 2. **Shows the failure** on real housing data (coastal × income interaction)
+> 3. **Derives the solution** — one hidden layer + non-linear activation can learn XOR exactly
+> 4. **Motivates Ch.2** — the UAT guarantees a one-hidden-layer network can approximate any function; Ch.2 builds the full architecture
 
-⚡ **Why this matters**: Every real-world problem (housing prices, fraud detection, medical diagnosis) has **non-linear boundaries**. If we can't move beyond linear models, we can't solve real problems.
+> ⚡ Every real-world ML problem has non-linear decision boundaries. Moving beyond linear models is not optional; it is the prerequisite for everything in this track.
 
 ---
 
 ## Animation
 
-![Chapter animation](img/ch01-xor-problem-needle.gif)
+![error needle: linear model STUCK at ~50% error; hidden layer drops to 0%](img/ch01-xor-problem-needle.gif)
+
+---
 
 ## 1 · The Core Idea
 
-A single linear layer — whether doing regression (Ch.1) or classification (Ch.2) — can only draw a straight line through the data. The XOR problem is the simplest possible case where no straight line works. Understanding *why* it fails, and *what* fixes it, is the entire motivation for adding hidden layers to a network. One hidden layer with a non-linear activation is enough to represent any function — this is the Universal Approximation Theorem.
+A single linear layer — whether doing regression or classification — can only draw a straight line (or hyperplane) through the data. The XOR problem is the simplest possible case where no straight line works. Understanding *why* it fails, and *precisely what* fixes it, is the entire motivation for adding hidden layers to a network.
+
+**The fix requires three ingredients working together:**
+
+1. **An additional layer** — at least one hidden layer between input and output
+2. **Non-linear activation** — a function like ReLU or sigmoid applied to each hidden unit's output
+3. **Sufficient width** — at least 2 hidden neurons for XOR; more for harder problems
+
+With these three ingredients, one hidden layer is enough to solve XOR exactly. The Universal Approximation Theorem generalises this: one hidden layer of sufficient width can approximate *any* continuous function to arbitrary precision. That result justifies the existence of neural networks entirely.
+
+**The mental model.** Think of the hidden layer as a pre-processing step that re-draws the input space. The output layer always draws a straight line — it never changes. The hidden layer's job is to transform the inputs into a new coordinate system where that straight line works. For XOR, the transformation is simple: map the two XOR-positive inputs to the same point, and the two XOR-negative inputs to different points. The output layer's straight line then separates them trivially.
+
+> **The key shift in perspective:** stop thinking of a neural network as "a complex function". Think of it as **a learned coordinate transformation followed by a linear classifier**. The depth and width of the network determine how powerful the coordinate transformation can be; the output layer is always linear.
 
 ---
 
-## 2 · Running Example: What We're Solving
+## 2 · Running Example: The XOR Pattern in California Housing
 
-You've been building models for the real estate platform, and something keeps breaking: districts that are **coastal** *and* **high-income** are premium. Districts that are **inland** *and* **low-income** are not. But districts that are coastal-with-low-income or inland-with-high-income sit in a confusing middle ground that the linear model keeps misclassifying.
+You have been building models for the real estate platform. Something keeps breaking: districts that are **coastal** *and* **high-income** are premium. Districts that are **inland** *and* **low-income** are not. But the mixed cases — coastal-with-low-income and inland-with-high-income — sit in a confusing middle ground that the linear model keeps misclassifying regardless of how long you train it.
 
-This is XOR in disguise: the label is `1` only when *both* features point the same direction, and `0` when they're mixed. No straight line in `(coastal, income)` space separates them — you need a curved boundary. A perceptron cannot learn it; a two-layer network can.
+This is XOR in disguise. Label the premium classification as $y = 1$ when both features point the same direction (both coastal + high-income, or both inland + low-income), and $y = 0$ otherwise. No straight line in `(coastal, income)` space separates the two classes — you need a curved boundary. A perceptron cannot learn it; a two-layer network can.
 
-More concretely, we'll demonstrate the XOR failure on synthetic data first (it's the canonical example), then show the same phenomenon in the housing data using `Latitude` and `MedInc` as a proxy for "coastal" and "income".
+We demonstrate the XOR failure on synthetic data first (the canonical 4-point example where the impossibility is starkest), then show the same phenomenon on the housing data using `Latitude` (coastal proxy) and `MedInc` as the two features.
 
----
-
-## 3 · The Math
-
-### Why a Single Perceptron Fails XOR
-
-A perceptron computes:
-
-$$\hat{y} = \text{step} \left(\mathbf{W}^\top \mathbf{x} + b\right)$$
-
-It partitions input space with a single hyperplane:
-
-$$\mathbf{W}^\top \mathbf{x} + b = 0$$
-
-**XOR truth table:**
-
-| $x_1$ | $x_2$ | $x_1 \oplus x_2$ |
-|---|---|---|
-| 0 | 0 | 0 |
-| 0 | 1 | 1 |
-| 1 | 0 | 1 |
-| 1 | 1 | 0 |
-
-Plot those four points. The two 0s sit at opposite corners; the two 1s sit at the other opposite corners. No single straight line separates 0s from 1s. This is called **linear inseparability**.
-
-### The Fix: One Hidden Layer
-
-Add a hidden layer of neurons with a non-linear activation:
-
-$$\mathbf{h} = \sigma \left(\mathbf{W}_1^\top \mathbf{x} + \mathbf{b}_1\right) \qquad \hat{y} = \sigma \left(\mathbf{W}_2^\top \mathbf{h} + b_2\right)$$
-
-where $\sigma$ can be Sigmoid, ReLU, or Tanh. The hidden layer transforms the input space into a new representation where the classes *are* linearly separable. Then the output layer draws a straight line in that new space.
-
-**What the hidden layer actually does:** each hidden neuron draws one linear boundary; together they carve the input space into regions. Two hidden neurons can produce a region that encapsulates the XOR-positive points. The activation function is what makes the boundary non-sharp (smooth and differentiable), which is essential for gradient descent to work.
-
-### Universal Approximation Theorem
-
-> A feedforward network with a single hidden layer of finite width and a non-linear activation function can approximate any continuous function on a compact subset of $\mathbb{R}^n$ to arbitrary precision.
-
-In plain English: **one hidden layer is enough in theory**. In practice, more layers are more efficient — fewer neurons needed to represent the same function. This is why deep networks exist, but the UAT is why hidden layers exist at all.
-
-> **Play with it live:** [TensorFlow Playground](https://playground.tensorflow.org/) is an in-browser neural-network sandbox — pick the XOR-like "exclusive or" dataset, toggle the number of hidden layers/neurons, and watch the decision boundary bend itself around the classes in real time. A zero-hidden-layer network cannot solve it; a single hidden layer of 2–4 neurons can. It's the fastest way to *feel* what a hidden layer actually does to the representation space.
+**Why this matters for UnifiedAI:** California Housing has 8 features with complex interactions. Any pair of features that jointly affect price but neither alone does creates an XOR-like interaction. A model with no hidden layers cannot represent any of them. That structural ceiling is exactly why linear regression achieves only ~$70k MAE — not because the data is noisy, but because the model is structurally incapable of representing the true relationship.
 
 ---
 
-## 4 · How It Works — Step by Step
+## 3 · The XOR Problem at a Glance
+
+### 3.1 · Truth Table
+
+| $x_1$ | $x_2$ | $y = x_1 \oplus x_2$ | Housing analogy |
+|--------|--------|----------------------|-----------------|
+| 0 | 0 | **0** | Inland + low-income → not premium |
+| 0 | 1 | **1** | Inland + high-income → premium |
+| 1 | 0 | **1** | Coastal + low-income → premium |
+| 1 | 1 | **0** | Coastal + high-income — XOR-like interaction |
+
+XOR is 1 when exactly one input is 1. It is 0 when both are 0 or both are 1. The label depends on the *combination*, not either feature independently — and that interaction is precisely what a linear model cannot represent.
+
+**How to think about it:** if you know only $x_1 = 1$, you cannot determine the label — it could be 0 or 1 depending on $x_2$. If you know only $x_2 = 0$, you cannot determine the label either. Only *knowing both* resolves the ambiguity. This is the defining property of a non-linearly-separable function: no single feature carries enough information; the decision requires a joint evaluation.
+
+### 3.2 · Geometry — Why No Line Separates XOR
 
 ```
-Problem: linearly inseparable data (XOR)
+          x2
+          1 |  o(0,1)=1    *(1,1)=0
+            |
+          0 |  *(0,0)=0    o(1,0)=1
+            +---------------------------  x1
+              0              1
 
-Step 1: Observe failure of the linear model
- └─ Train logistic regression on XOR → accuracy ≈ 50% (chance)
- └─ Plot decision boundary → a line that can't separate the classes
-
-Step 2: Add a hidden layer
- └─ Input (2D) → Hidden layer (2+ neurons) → Output (1 neuron)
- └─ Hidden layer activation: ReLU or Tanh
- └─ Output activation: Sigmoid (binary classification)
-
-Step 3: The hidden layer transforms the feature space
- └─ Each hidden neuron creates a new axis in representation space
- └─ In the new space, the two classes ARE linearly separable
-
-Step 4: Output layer draws a straight line in the new space
- └─ Which is a curved boundary back in the original input space
-
-Step 5: Training (backprop, covered in Ch.3 Backprop & Optimizers)
- └─ Gradient flows from output → hidden → input
- └─ Both W1 and W2 are updated simultaneously
+  * = class 0   o = class 1
 ```
+
+The two class-1 points `(0,1)` and `(1,0)` sit at diagonally opposite corners. The two class-0 points `(0,0)` and `(1,1)` sit at the other two corners. Any straight line that separates the class-1 point at top-left from the class-0 point at top-right must also separate the class-0 point at bottom-left from the class-1 point at bottom-right — and those two constraints are geometrically incompatible. You would need to "cut" both diagonals simultaneously, which a single line cannot do.
+
+This is **linear inseparability**: no hyperplane can separate the two classes.
+
+**The two-line test.** You can convince yourself visually: try to draw any straight line through the XOR plot above that puts both circles on one side and both stars on the other. Every line you try will either:
+- Put the top-left circle and the bottom-right circle together (wrong — they are different classes), or
+- Put the top-right star and the bottom-left star together (wrong — they are different classes)
+
+These are the only two options for a line oriented diagonally. A line oriented horizontally or vertically fares even worse: a horizontal line at $x_2 = 0.5$ puts both top points together (one of each class) and both bottom points together (one of each class) — 50% accuracy no matter how you set the threshold.
+
+### 3.3 · What a Hidden Layer Actually Does
+
+The hidden layer does not draw a curved line. Instead, it **transforms the input space** into a new representation where the classes *are* linearly separable. Each hidden neuron draws one linear boundary in the original space; together they carve the original space into regions. The output layer then draws a straight line in the transformed space — which corresponds to a curved boundary back in the original.
+
+A key observation: inputs `(0,1)` and `(1,0)` are geometrically diagonal — but in the hidden layer's transformed space they map to the *same* representation. The hard part (distinguishing diagonal same-class points) is solved by the transformation, not by a curve.
+
+**Model expressivity — what each architecture can represent:**
+
+| Architecture | Parameters (2 inputs) | Boundary shape | Solves XOR? | Solves housing? |
+|---|---|---|---|---|
+| Single perceptron (threshold) | 3 | Hyperplane (straight line) | ❌ | ❌ |
+| Logistic regression | 3 | Hyperplane | ❌ | ❌ |
+| Degree-2 polynomial features | 6 | Quadratic surface | ✅ (if $x_1 x_2$ included) | Partial |
+| 1 hidden layer, 2 ReLU neurons | 9 | Piecewise-linear (2 folds) | ✅ | Partial |
+| 1 hidden layer, 64 ReLU neurons | 193 | Complex piecewise-linear | ✅ | ✅ |
+| 3 hidden layers (64→32→16, ReLU) | ~5k | Hierarchical piecewise-linear | ✅ | ✅ strong |
+
+The jump from logistic regression (3 parameters) to a 1-hidden-layer network with 2 neurons (9 parameters) adds only 6 parameters — yet unlocks a fundamentally different class of functions. The asymmetry between the cost of the solution and the magnitude of what it unlocks is why hidden layers were such a breakthrough.
+
+### 3.4 · The Two-Layer Forward Pass at a Glance
+
+Before diving into the full math, here is the complete computation in pseudocode form — this is the same loop that \§6 expands with explicit matrices:
+
+```
+# Forward pass: 2-layer XOR network
+# Input: x = [x1, x2]
+
+z1 = W1 · x + b1           # hidden pre-activations: shape (2,)
+h  = ReLU(z1)              # hidden activations: shape (2,)
+z2 = W2 · h + b2           # output pre-activation: scalar
+y_hat = z2                 # linear output (no final activation for regression)
+                           # for binary classification: y_hat = sigmoid(z2)
+```
+
+Each step has a name and a purpose:
+- `z1` — the "raw signal" before each hidden neuron decides whether to fire
+- `h` — the hidden layer's representation of the input (the transformed space)
+- `z2` — the output layer's linear combination of the hidden representation
+- `y_hat` — the final prediction
+
+The non-linearity (`ReLU`) is the only thing that prevents this from collapsing to a single linear layer (see \§4.3 for the algebraic proof of this claim).
 
 ---
 
-## 5 · The Key Diagrams
+## 4 · The Math
 
-### XOR Input Space — Why No Line Works
+### 4.1 · Proof: No Linear Classifier Can Solve XOR
 
+A binary linear classifier assigns label 1 if $w_1 x_1 + w_2 x_2 + b > 0$ and label 0 otherwise. For XOR, we need all four constraints satisfied simultaneously:
+
+$$\text{(0,0) → 0:} \quad w_1 \cdot 0 + w_2 \cdot 0 + b \leq 0 \quad\Rightarrow\quad b \leq 0 \tag{C1}$$
+
+$$\text{(0,1) → 1:} \quad w_1 \cdot 0 + w_2 \cdot 1 + b > 0 \quad\Rightarrow\quad w_2 > -b \tag{C2}$$
+
+$$\text{(1,0) → 1:} \quad w_1 \cdot 1 + w_2 \cdot 0 + b > 0 \quad\Rightarrow\quad w_1 > -b \tag{C3}$$
+
+$$\text{(1,1) → 0:} \quad w_1 \cdot 1 + w_2 \cdot 1 + b \leq 0 \quad\Rightarrow\quad w_1 + w_2 \leq -b \tag{C4}$$
+
+**Deriving the contradiction.** Add C2 and C3:
+
+$$(w_2 + b) + (w_1 + b) > 0 + 0 \quad\Rightarrow\quad w_1 + w_2 > -2b$$
+
+Constraint C4 says $w_1 + w_2 \leq -b$. Combining these two results:
+
+$$-2b < w_1 + w_2 \leq -b$$
+
+For this range to be non-empty, the left bound must be strictly less than the right bound:
+
+$$-2b < -b \quad\Rightarrow\quad -b < 0 \quad\Rightarrow\quad b > 0$$
+
+But C1 requires $b \leq 0$. We need simultaneously $b > 0$ and $b \leq 0$.
+
+**Contradiction. No real numbers $w_1, w_2, b$ satisfy all four XOR constraints.** $\square$
+
+> 💡 **Key insight**: the contradiction arises because XOR requires *interaction* between $x_1$ and $x_2$. A linear model can only represent additive effects ($w_1 x_1 + w_2 x_2$), never a multiplicative interaction term. The California Housing equivalent: the joint effect of `Latitude × MedInc` on price cannot be expressed as a sum of their individual effects — and that is precisely the interaction linear regression misses.
+
+This is not a failure of optimisation. It is a failure of *expressivity*. No learning algorithm, no matter how sophisticated, can find weights that do not exist.
+
+**Try it numerically.** To see the contradiction concretely, pick $w_1 = 1, w_2 = 1, b = -0.5$ (a natural guess: fire when either input is 1, suppress when neither fires):
+
+| Input | $w_1 x_1 + w_2 x_2 + b$ | Decision ($> 0$?) | True label | Correct? |
+|---|---|---|---|---|
+| (0,0) | $0 + 0 - 0.5 = -0.5$ | 0 (no) | 0 | ✅ |
+| (0,1) | $0 + 1 - 0.5 = +0.5$ | 1 (yes) | 1 | ✅ |
+| (1,0) | $1 + 0 - 0.5 = +0.5$ | 1 (yes) | 1 | ✅ |
+| (1,1) | $1 + 1 - 0.5 = +1.5$ | 1 (yes) | **0** | ❌ |
+
+3 of 4 correct — but input (1,1) is wrong. No matter how you adjust $w_1$, $w_2$, or $b$, you cannot simultaneously satisfy C1–C4. The proof above shows why: the constraints are algebraically contradictory.
+
+---
+
+### 4.2 · Universal Approximation Theorem
+
+> **Informal statement (Cybenko 1989; Hornik 1991):** A feedforward neural network with a single hidden layer containing a finite number of neurons and a non-linear (non-polynomial) activation function can approximate any continuous function $f : \mathbb{R}^n \to \mathbb{R}$ on a compact subset of $\mathbb{R}^n$ to arbitrary precision.
+
+In plain English: **one hidden layer is enough in theory.** You may need many neurons for hard functions, but a solution is guaranteed to exist.
+
+**Three things the theorem says:**
+1. ✅ A solution *exists* — you do not need infinite depth
+2. ⚠️ It does not say how *wide* the hidden layer must be — could require a huge width
+3. ⚠️ It does not say gradient descent will *find* the solution — only that it exists
+
+**Intuition for why this is true.** A single hidden neuron with a sigmoid activation draws one S-shaped "bump" in the output space. By positioning bumps at the right locations with the right heights, you can approximate any function value at any input. This is analogous to Fourier series approximation: any periodic function can be approximated by a sum of sine waves; any continuous function can be approximated by a sum of sigmoid bumps. The more bumps (hidden neurons), the better the approximation.
+
+**What "compact subset" means.** The theorem applies on a closed and bounded input region — say, all values of `MedInc` between 0 and 10, and all values of `Latitude` between 32 and 42. It does not say anything about extrapolation outside the training distribution. A network that perfectly approximates the function on the training region may behave arbitrarily on inputs far outside it. This is why distribution shift is a production risk.
+
+**Why depth wins in practice.** A deep network can represent the same function as a shallow one with exponentially fewer neurons. Depth creates a hierarchy of features: early layers detect simple patterns; later layers compose them into complex representations. For XOR we need only 2 hidden neurons and 1 layer — but for 200k-pixel face images, depth is essential.
+
+> ➡️ **Connection to Ch.2 (Neural Networks):** The UAT motivates building a full multi-layer network for California Housing. If one hidden layer is theoretically sufficient and XOR needs only 2 neurons, what does an 8-feature housing regression need? Ch.2 answers this empirically.
+
+---
+
+### 4.3 · Non-Linearity Is Necessary: Stacking Linear Layers = One Linear Layer
+
+**The algebraic proof.** Suppose you stack two linear layers with *no* activation function between them. To make it concrete, use $2 \times 2$ weight matrices:
+
+$$W^{(1)} = \begin{bmatrix} 3 & 1 \\ -1 & 2 \end{bmatrix}, \qquad W^{(2)} = \begin{bmatrix} 1 & 0 \\ 2 & -1 \end{bmatrix}$$
+
+**Naive expectation:** with two layers, surely the network is twice as expressive? Let's see what the product $W^* = W^{(2)} W^{(1)}$ produces:
+
+$$W^* = \begin{bmatrix} 1 & 0 \\ 2 & -1 \end{bmatrix} \begin{bmatrix} 3 & 1 \\ -1 & 2 \end{bmatrix} = \begin{bmatrix} 3 & 1 \\ 7 & 0 \end{bmatrix}$$
+
+Just another $2 \times 2$ matrix — still a linear transformation. The two-layer stack is exactly equivalent to the single weight matrix $W^* = \begin{bmatrix} 3 & 1 \\ 7 & 0 \end{bmatrix}$. No extra expressivity whatsoever.
+
+**General case:**
+
+$$\mathbf{h} = W^{(1)}\mathbf{x} + \mathbf{b}^{(1)}$$
+
+$$\hat{y} = W^{(2)}\mathbf{h} + b^{(2)}$$
+
+Substitute the first into the second:
+
+$$\hat{y} = W^{(2)}\bigl(W^{(1)}\mathbf{x} + \mathbf{b}^{(1)}\bigr) + b^{(2)} = \underbrace{W^{(2)} W^{(1)}}_{W^*}\mathbf{x} + \underbrace{W^{(2)}\mathbf{b}^{(1)} + b^{(2)}}_{b^*} = W^*\mathbf{x} + b^*$$
+
+Two linear layers collapse to a single linear layer with $W^* = W^{(2)}W^{(1)}$ and $b^* = W^{(2)}\mathbf{b}^{(1)} + b^{(2)}$.
+
+**Stack 100 linear layers — you still get exactly one linear layer.** Each layer's weight matrix folds into the product $W^{(100)} \cdots W^{(2)} W^{(1)}$, still a matrix. The added depth buys nothing.
+
+**The activation function breaks this collapse.** With a non-linear $\sigma$ inserted:
+
+$$\mathbf{h} = \sigma\bigl(W^{(1)}\mathbf{x} + \mathbf{b}^{(1)}\bigr)$$
+
+Now $\hat{y} = W^{(2)}\mathbf{h} + b^{(2)}$ cannot be simplified to $W^*\mathbf{x} + b^*$ — the non-linearity inside $\sigma$ prevents the algebraic cancellation. The two-layer network genuinely has more representational power.
+
+> ⚡ **Constraint connection**: this proof explains why linear regression ($W\mathbf{x}+b$) is structurally limited to ~$70k MAE on California Housing. Adding more features helps, but no linear model can represent the XOR-like interaction patterns in the data. A hidden layer with activation is required.
+
+**Practical implication.** When you see a PyTorch or Keras model defined as:
+
+```python
+model = nn.Sequential(
+    nn.Linear(2, 4),   # layer 1
+    nn.Linear(4, 2),   # layer 2 — NO activation between layers!
+    nn.Linear(2, 1),   # output
+)
 ```
-x2
-1 │ ● ○
- │ (1) (0)
- │
-0 │ ○ ●
- │ (0) (1)
- └────────────── x1
- 0 1
 
-● = class 1 ○ = class 0
-Any line that separates the top-left ○ from bottom-left ○
-will also separate the ● points incorrectly.
-```
+This is mathematically identical to `nn.Linear(2, 1)`. Three lines of code, three parameters to configure — but only one layer's worth of representational power. Always insert `nn.ReLU()` (or another non-linearity) between linear layers.
 
-### Network Architecture
+---
+
+### 4.4 · Designing a Network That Solves XOR by Hand
+
+We construct explicit weights that achieve zero error on all four XOR inputs. This uses **ReLU activation** for clean integer arithmetic, following Goodfellow et al. (2016) *Deep Learning* §6.1.
+
+**Architecture:** 2 inputs → 2 hidden neurons (ReLU) → 1 linear output
+
+**First-layer weights and bias:**
+
+$$W^{(1)} = \begin{bmatrix} 1 & 1 \\ 1 & 1 \end{bmatrix}, \qquad \mathbf{b}^{(1)} = \begin{bmatrix} 0 \\ -1 \end{bmatrix}$$
+
+Hidden neuron 1 computes $\text{ReLU}(x_1 + x_2 + 0)$ — an **OR-like function** that fires whenever at least one input is 1.
+
+Hidden neuron 2 computes $\text{ReLU}(x_1 + x_2 - 1)$ — an **AND-like function** that fires only when both inputs are 1.
+
+**Output-layer weights and bias:**
+
+$$W^{(2)} = \begin{bmatrix} 1 & -2 \end{bmatrix}, \qquad b^{(2)} = 0$$
+
+Output: $\hat{y} = h_1 - 2h_2$. When OR fires but AND does not, output = 1. When neither or both fire, output = 0.
+
+**Verification — input (0, 0), expected 0:**
+
+$$\mathbf{z}^{(1)} = \begin{bmatrix}0+0+0\\0+0-1\end{bmatrix} = \begin{bmatrix}0\\-1\end{bmatrix}, \quad \mathbf{h} = \text{ReLU}\begin{bmatrix}0\\-1\end{bmatrix} = \begin{bmatrix}0\\0\end{bmatrix}, \quad \hat{y} = 1(0) + (-2)(0) = \mathbf{0} \checkmark$$
+
+**Verification — input (0, 1), expected 1:**
+
+$$\mathbf{z}^{(1)} = \begin{bmatrix}0+1+0\\0+1-1\end{bmatrix} = \begin{bmatrix}1\\0\end{bmatrix}, \quad \mathbf{h} = \text{ReLU}\begin{bmatrix}1\\0\end{bmatrix} = \begin{bmatrix}1\\0\end{bmatrix}, \quad \hat{y} = 1(1) + (-2)(0) = \mathbf{1} \checkmark$$
+
+**Verification — input (1, 0), expected 1:**
+
+$$\mathbf{z}^{(1)} = \begin{bmatrix}1+0+0\\1+0-1\end{bmatrix} = \begin{bmatrix}1\\0\end{bmatrix}, \quad \mathbf{h} = \text{ReLU}\begin{bmatrix}1\\0\end{bmatrix} = \begin{bmatrix}1\\0\end{bmatrix}, \quad \hat{y} = 1(1) + (-2)(0) = \mathbf{1} \checkmark$$
+
+**Verification — input (1, 1), expected 0:**
+
+$$\mathbf{z}^{(1)} = \begin{bmatrix}1+1+0\\1+1-1\end{bmatrix} = \begin{bmatrix}2\\1\end{bmatrix}, \quad \mathbf{h} = \text{ReLU}\begin{bmatrix}2\\1\end{bmatrix} = \begin{bmatrix}2\\1\end{bmatrix}, \quad \hat{y} = 1(2) + (-2)(1) = 2-2 = \mathbf{0} \checkmark$$
+
+All four XOR cases solved exactly. The linear model's impossibility (§4.1) is reversed by two neurons and a ReLU.
+
+**Why these particular weights work — the OR/AND interpretation:**
+
+The two hidden neurons implement complementary detection strategies:
+
+| Neuron | Pre-activation formula | Fires when | Role |
+|---|---|---|---|
+| $h_1$ | $\text{ReLU}(x_1 + x_2 + 0)$ | $x_1 + x_2 \geq 1$ | **OR gate**: at least one input is active |
+| $h_2$ | $\text{ReLU}(x_1 + x_2 - 1)$ | $x_1 + x_2 \geq 2$ | **AND gate**: both inputs simultaneously active |
+
+The output layer computes $\hat{y} = h_1 - 2h_2$: "fire when OR is active, but cancel out when AND is also active." In Boolean terms: $\text{XOR}(x_1, x_2) = \text{OR}(x_1, x_2) - 2 \cdot \text{AND}(x_1, x_2)$, which evaluates to 0, 1, 1, 0 for the four cases — exactly XOR.
+
+**California Housing interpretation.** Replace $x_1$ = coastal indicator, $x_2$ = high-income indicator:
+- $h_1$ detects "at least one premium signal" — fires for coastal, high-income, or both
+- $h_2$ detects "both premium signals simultaneously" — fires only for the coastal-AND-high-income case
+- Output $h_1 - 2h_2$ fires for the XOR-positive cases (one premium signal only) and suppresses the XOR-negative cases (no signal or both signals simultaneously)
+
+This is the architectural analogue of the interaction term $x_1 x_2$ from polynomial features — but it is *learned* from data rather than hand-crafted.
+
+---
+
+## 5 · The Why Non-Linearity Arc
+
+### Act 1 · Linear Model Fails — Proved Mathematically
+
+**Experiment:** train logistic regression on the four XOR points with labels $\{0, 1, 1, 0\}$.
+
+No matter how many epochs you train, the binary cross-entropy loss plateaus above $\ln 2 \approx 0.693$ — exactly the loss of a model that predicts 50% for every input. The accuracy never exceeds 50%. This is not slow convergence. The model has *already converged*, to the best possible linear solution, which gets 2 of 4 points right regardless of where you draw the line. The §4.1 proof explains why: the constraints are mathematically contradictory.
+
+**What "best possible" looks like:** the trained logistic regression will converge to some weight vector, for example $w_1 \approx 0, w_2 \approx 0, b \approx 0$ (all-zeros), which predicts $\hat{y} = \sigma(0) = 0.5$ for every input. The loss is $-\frac{1}{4}[\ln(0.5) + \ln(0.5) + \ln(0.5) + \ln(0.5)] = \ln 2 \approx 0.693$ — the theoretical minimum for a linear model on XOR.
+
+**Why not just add polynomial features?** Adding $x_1 x_2$ as a third feature would solve XOR for this toy dataset — the product term directly captures the interaction. But this requires knowing in advance *which* interaction matters. For an 8-feature housing dataset there are 28 pairwise interaction terms, 56 three-way terms, and so on; for the face classification track there are thousands of pixel interactions. A hidden layer learns which interactions matter **automatically** during gradient descent.
+
+### Act 2 · Adding Sigmoid to the Output — Does It Help?
+
+**Experiment:** apply sigmoid to a single linear unit: $\hat{y} = \sigma(w_1 x_1 + w_2 x_2 + b)$.
+
+This does not solve XOR. Sigmoid applied to a linear combination is monotone in each input. The decision boundary $\hat{y} = 0.5$ corresponds exactly to $w_1 x_1 + w_2 x_2 + b = 0$ — a straight line. The sigmoid changes the output range from $\mathbb{R}$ to $(0,1)$; it does not change the decision boundary in input space. Act 2 fails for the same algebraic reason as Act 1.
+
+> 💡 **Key insight**: the activation function must act on the **hidden layer** to bend the representation space. Applied only to the output, it changes the output range but not the expressivity.
+
+### Act 3 · One Hidden Layer with 2 Neurons Solves XOR Exactly
+
+**Experiment:** add a hidden layer with 2 ReLU neurons (the network from §4.4).
+
+The error on all four XOR points drops to zero. What did the hidden layer do? It transformed the input space into a new 2D representation:
+
+| Input | Original $(x_1, x_2)$ | Hidden representation $\mathbf{h}$ | Class |
+|---|---|---|---|
+| (0,0) | $(0, 0)$ | $[0, 0]$ | 0 |
+| (0,1) | $(0, 1)$ | $[1, 0]$ | 1 |
+| (1,0) | $(1, 0)$ | $[1, 0]$ | 1 |
+| (1,1) | $(1, 1)$ | $[2, 1]$ | 0 |
+
+In the new $\mathbf{h}$ space, plot the four points: $[0,0]$ and $[2,1]$ are class 0; $[1,0]$ (appearing twice from two different original inputs) is class 1. Now try drawing a line to separate them. Easy: a line between $[0,0]$/$[2,1]$ and $[1,0]$ separates perfectly.
+
+In the new space, the two class-1 points both map to $[1,0]$ — they are the *same point*. The output layer only checks: is the representation near $[1,0]$? A straight line in hidden space does this exactly. The curved boundary in original space emerges from the linear boundary in transformed space.
+
+> 📖 **Play with it live:** [TensorFlow Playground](https://playground.tensorflow.org/) is an in-browser neural-network sandbox. Select the XOR-like "exclusive or" dataset, toggle the number of hidden layers and neurons, and watch the decision boundary bend itself around the classes in real time. A zero-hidden-layer network cannot solve it; a single hidden layer of 2–4 neurons can. It's the fastest way to *feel* what a hidden layer does to representation space.
+
+### Act 4 · Generalisation — California Housing Has Many XOR-Like Interactions
+
+The housing dataset has 8 features. Pairs like `(Latitude, MedInc)`, `(AveRooms, AveOccup)`, and `(HouseAge, MedInc)` all have joint effects on price that neither feature alone fully captures. These are continuous-valued interactions, not binary, but the underlying algebraic problem is the same: no linear model can represent a function whose output depends on the combination of two inputs.
+
+| Feature pair | XOR-like interaction in housing data |
+|---|---|
+| `Latitude` × `MedInc` | Coastal (low latitude) amplifies income effect; inland attenuates it |
+| `AveRooms` × `AveOccup` | Large homes with high occupancy = apartments (different price tier than large homes with low occupancy) |
+| `HouseAge` × `MedInc` | Old homes in rich areas = desirable vintage; old homes in poor areas = maintenance burden |
+| `Population` × `AveOccup` | Dense population + high occupancy = urban core (price cliff vs. suburban equivalent) |
+
+A hidden layer with sufficient width learns these interactions automatically during training. This is why the jump from linear regression (~$70k MAE) to a shallow neural network (~$55k MAE, Ch.2) is so dramatic: not better optimisation, but structural representational power. The network is not fitting a better line — it is fitting a function that the line was never capable of representing.
+
+---
+
+## 6 · Full XOR Network Walkthrough — Matrix Form
+
+This section presents the complete forward pass in **matrix form** for all four XOR inputs simultaneously.
+
+**Network parameters (from §4.4):**
+
+$$W^{(1)} = \begin{bmatrix} 1 & 1 \\ 1 & 1 \end{bmatrix}, \qquad \mathbf{b}^{(1)} = \begin{bmatrix} 0 \\ -1 \end{bmatrix}, \qquad W^{(2)} = \begin{bmatrix} 1 & -2 \end{bmatrix}, \qquad b^{(2)} = 0$$
+
+**Design matrix — all four inputs as columns** $X \in \mathbb{R}^{2 \times 4}$:
+
+$$X = \begin{bmatrix} 0 & 0 & 1 & 1 \\ 0 & 1 & 0 & 1 \end{bmatrix}$$
+
+**Step 1 — Pre-activations of hidden layer** $Z^{(1)} = W^{(1)} X + \mathbf{b}^{(1)}\mathbf{1}^\top$:
+
+Row 1: $[1, 1] \cdot X$ gives $[0, 1, 1, 2]$; add bias 0: row 1 of $Z^{(1)} = [0, 1, 1, 2]$
+
+Row 2: $[1, 1] \cdot X$ gives $[0, 1, 1, 2]$; add bias $-1$: row 2 of $Z^{(1)} = [-1, 0, 0, 1]$
+
+$$Z^{(1)} = \begin{bmatrix} 0 & 1 & 1 & 2 \\ -1 & 0 & 0 & 1 \end{bmatrix}$$
+
+**Step 2 — Apply ReLU element-wise** $H = \max(0, Z^{(1)})$:
+
+$$H = \begin{bmatrix} 0 & 1 & 1 & 2 \\ 0 & 0 & 0 & 1 \end{bmatrix}$$
+
+The $-1$ in position $(2,1)$ of $Z^{(1)}$ is clamped to 0 by ReLU — this is the AND-gate suppression that makes XOR work. Hidden neuron 2 fired with value 1 for input $(1,1)$ (AND fires when both inputs are 1), which the output layer then uses with weight $-2$ to cancel out hidden neuron 1's contribution of 2.
+
+**Step 3 — Output layer** $\hat{\mathbf{y}} = W^{(2)} H + b^{(2)}$:
+
+$$\hat{\mathbf{y}} = \begin{bmatrix}1 & -2\end{bmatrix} \begin{bmatrix} 0 & 1 & 1 & 2 \\ 0 & 0 & 0 & 1 \end{bmatrix} = \begin{bmatrix} 0 & 1 & 1 & 0 \end{bmatrix}$$
+
+**Arithmetic check, column by column:**
+- Col 1 → input (0,0): $1 \times 0 + (-2) \times 0 = 0$ ✓
+- Col 2 → input (0,1): $1 \times 1 + (-2) \times 0 = 1$ ✓
+- Col 3 → input (1,0): $1 \times 1 + (-2) \times 0 = 1$ ✓
+- Col 4 → input (1,1): $1 \times 2 + (-2) \times 1 = 2 - 2 = 0$ ✓
+
+**Full summary table:**
+
+| Input $[x_1, x_2]$ | $\mathbf{z}^{(1)}$ | $\mathbf{h} = \text{ReLU}(\mathbf{z}^{(1)})$ | $\hat{y}$ | True $y$ | Correct? |
+|---|---|---|---|---|---|
+| $[0, 0]$ | $[0, -1]$ | $[0, 0]$ | **0** | 0 | ✅ |
+| $[0, 1]$ | $[1,\ 0]$ | $[1, 0]$ | **1** | 1 | ✅ |
+| $[1, 0]$ | $[1,\ 0]$ | $[1, 0]$ | **1** | 1 | ✅ |
+| $[1, 1]$ | $[2,\ 1]$ | $[2, 1]$ | **0** | 0 | ✅ |
+
+**100% accuracy. Zero error. Two neurons. One ReLU.**
+
+Critical insight: inputs `(0,1)` and `(1,0)` — XOR-positive but geometrically diagonal — both map to the *same* hidden representation $\mathbf{h} = [1, 0]^\top$. The hidden layer identified the equivalence class "exactly one input is 1" and represented it uniformly. The output layer only needs to fire for that one class.
+
+**Why this is deep.** In the original input space, XOR-positive inputs are as far apart as possible (corners of a square). The hidden layer's job is not to draw a complex boundary — it is to *fold* the input space so that similar inputs land near each other. This folding is exactly what ReLU does: it creates piecewise-linear regions, each one a flat face of the learned representation. Two neurons create two folds; four XOR cases; the geometry works out exactly.
+
+---
+
+## 7 · Key Diagrams
+
+### Network Architecture — Two Layers Solving XOR
 
 ```mermaid
 flowchart LR
- X1["x₁"] --> H1["h₁\n(neuron)"]
- X1 --> H2["h₂\n(neuron)"]
- X2["x₂"] --> H1
- X2 --> H2
- H1 --> O["ŷ\n(output)"]
- H2 --> O
+    X1["x_1"]:::input --> H1["h_1 = ReLU(x_1+x_2)\nOR-like unit"]:::hidden
+    X1 --> H2["h_2 = ReLU(x_1+x_2-1)\nAND-like unit"]:::hidden
+    X2["x_2"]:::input --> H1
+    X2 --> H2
+    H1 -->|"+1"| OUT["y_hat = h_1 - 2h_2\nXOR output"]:::output
+    H2 -->|"-2"| OUT
 
- subgraph Input
- X1
- X2
- end
- subgraph Hidden["Hidden Layer (non-linear)"]
- H1
- H2
- end
- subgraph Output
- O
- end
+    subgraph L0["Input (2 units)"]
+        X1
+        X2
+    end
+    subgraph L1["Hidden Layer (2 ReLU)"]
+        H1
+        H2
+    end
+    subgraph L2["Output (linear)"]
+        OUT
+    end
+
+    classDef input fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef hidden fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef output fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
-### Feature Space Transformation
-
-```
-Original space (XOR) Hidden layer space
-x2 h2
-1│ ○ ● 1│ ● ●
- │ │
-0│ ● ○ 0│ ○ ○
- └────── x1 └────── h1
- Not separable Now separable with a line!
-```
-
-### Decision Boundary Complexity vs Hidden Units
+### From Linear Failure to Non-Linear Solution
 
 ```mermaid
 flowchart LR
- A["0 hidden units\nLinear boundary\n(fails XOR)"] -->|"+ hidden layer"| B["2 hidden units\nCurved boundary\n(solves XOR)"]
- B -->|"+ more units"| C["Many units\nArbitrary boundary\n(UAT applies)"]
+    A["Linear model\nAccuracy 50%\nMathematically PROVEN\nimpossible to fix\n(no line separates XOR)"]:::danger
+    A -->|"Add hidden layer\n+ ReLU activation"| B["Two-layer network\nAccuracy 100%\nZero error on XOR\nTwo neurons sufficient\nSpace is transformed"]:::success
+    B -->|"Add more neurons\nor more layers"| C["Deeper network\nArbitrary boundary\nUniversal Approximation\nTheorem applies"]:::info
+
+    classDef danger fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef success fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef info fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
+
+### XOR Input Space vs Hidden Layer Space
+
+```
+  Original XOR input space          Hidden layer space (h1, h2)
+        x2                                  h2
+    1 | o(0,1)   *(1,1)              1 | *(1,1) at [2,1]
+      |                                |
+    0 | *(0,0)   o(1,0)              0 | *(0,0)=o(0,1)=o(1,0) all at h2=0
+      +---------------  x1             +---------------------------  h1
+        NOT linearly                     (0,1) and (1,0) SAME POINT [1,0]
+        separable                        Output layer draws one line: DONE
+```
+
+Both XOR-positive inputs `(0,1)` and `(1,0)` collapse to identical hidden representation $[1, 0]$. The hard part — distinguishing diagonally-placed same-class points — is solved by the transformation, not by a curved boundary.
+
+**What makes a good hidden layer?** A hidden layer is "good" if it maps inputs that should have the same label to nearby points, and inputs that should have different labels to distant points. This is a form of **representation learning** — the hidden layer learns to re-embed the inputs in a space that is easier for the output layer. Modern deep learning (transformers, convolutional networks, etc.) is largely an exploration of how to design hidden layers that learn the right representations automatically.
 
 ---
 
-## 6 · The Hyperparameter Dial
+## 8 · The Hyperparameter Dial
 
 | Dial | Too low | Sweet spot | Too high |
 |---|---|---|---|
-| **Hidden units** | Can’t represent the non-linear boundary | 2–4 for XOR; 32–128 for real problems | Overfits, memorises training data |
-| **Learning rate α** | Extremely slow convergence | `1e-3` with Adam | Loss diverges |
-| **Activation function** | — (choice not a continuous dial) | ReLU hidden layers; Sigmoid binary output | — |
+| **Hidden units** | Cannot represent any non-linear boundary (0 units = linear model) | **2 neurons** solves XOR exactly; 32–128 for housing; 128–512 for faces | Overfits the 4 training points instantly; needs regularisation |
+| **Activation function** | Linear (no activation) = no benefit; collapses algebraically to one layer | **ReLU** for hidden layers (modern default); Sigmoid only at binary output | Not applicable — this is a discrete choice |
+| **Learning rate** | Convergence takes thousands of epochs; practically no progress per epoch | `1e-3` with Adam; `0.01–0.1` with plain SGD on scaled data | Loss diverges; weights blow to NaN in severe cases |
+| **Depth** | 1 layer sufficient for XOR; underfitting only if too narrow | **1 layer** for XOR; 2–5 layers for California Housing; 10+ for images | Vanishing gradients without batch normalisation or residual connections |
 
-The distinction between **width** (hidden units per layer) and **depth** (number of layers) matters: for XOR, width is what matters — two hidden neurons are literally sufficient.
+**Width vs. depth distinction.** XOR is a *width* problem: 2 neurons are sufficient regardless of depth. For real problems like California Housing, *depth* creates a feature hierarchy (interaction detection → combination → price estimate) that shallow-wide networks approximate less efficiently.
 
-A good mental model: each hidden neuron contributes one "crease" to the decision boundary. XOR needs exactly two creases.
+> 💡 **Practical rule:** start with `hidden_units = max(4, 2 × input_features)`. For 8-feature housing, start with 16 hidden units and measure validation MAE. Tune width before adding depth.
 
----
+**Activation function comparison table:**
 
-## 7 · Code Skeleton
-
-```python
-import numpy as np
-from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score
-
-# ── The canonical XOR dataset ─────────────────────────────────────────────
-X_xor = np.array([[0,0], [0,1], [1,0], [1,1]])
-y_xor = np.array([0, 1, 1, 0])
-
-# 1. Linear model fails
-from sklearn.linear_model import LogisticRegression
-lr = LogisticRegression()
-lr.fit(X_xor, y_xor)
-print(f"Logistic regression XOR accuracy: {accuracy_score(y_xor, lr.predict(X_xor)):.0%}")
-# Expected: 50% — chance level
-
-# 2. Two-layer network solves it
-mlp = MLPClassifier(hidden_layer_sizes=(4,), activation='relu',
- max_iter=5000, random_state=42)
-mlp.fit(X_xor, y_xor)
-print(f"MLP XOR accuracy: {accuracy_score(y_xor, mlp.predict(X_xor)):.0%}")
-# Expected: 100%
-```
-
-### Manual Two-Layer Network (to see the mechanics)
-
-```python
-def relu(z): return np.maximum(0, z)
-def sigmoid(z): return 1 / (1 + np.exp(-np.clip(z, -500, 500)))
-
-def forward(X, W1, b1, W2, b2):
- h = relu(X @ W1 + b1) # hidden layer: (n, 2)
- y_hat = sigmoid(h @ W2 + b2) # output: (n, 1)
- return h, y_hat
-
-# Manually chosen weights that solve XOR (not trained — for intuition only)
-W1 = np.array([[1, 1], # weights from x1 to h1, h2
- [1, 1]]) # weights from x2 to h1, h2
-b1 = np.array([[-0.5, -1.5]]) # biases for h1, h2
-W2 = np.array([[4], [-10]]) # weights from h1, h2 to output
-b2 = np.array([[-1.5]])
-
-h, y_hat = forward(X_xor.astype(float), W1, b1, W2, b2)
-print("Predictions:", y_hat.ravel().round(2))
-print("Labels: ", y_xor)
-```
+| Activation | Formula | Output range | Gradient at $z=0$ | Vanishing gradient risk | When to use |
+|---|---|---|---|---|---|
+| **Sigmoid** | $1/(1+e^{-z})$ | $(0,1)$ | $0.25$ | HIGH for deep nets | Binary output only |
+| **Tanh** | $(e^z - e^{-z})/(e^z + e^{-z})$ | $(-1,1)$ | $1.0$ | MEDIUM | Hidden layers (old default) |
+| **ReLU** | $\max(0, z)$ | $[0, \infty)$ | $1.0$ (if $z>0$) | LOW | Hidden layers (modern default) |
+| **Leaky ReLU** | $\max(0.01z, z)$ | $(-\infty, \infty)$ | $\geq 0.01$ | VERY LOW | Hidden layers with dead-ReLU risk |
+| **Linear** | $z$ | $(-\infty, \infty)$ | $1.0$ | NONE | Regression output layer |
+| **Softmax** | $e^{z_i} / \sum e^{z_j}$ | $(0,1)$, sums to 1 | — | — | Multi-class output layer |
 
 ---
 
-## 8 · What Can Go Wrong
+## 9 · What Can Go Wrong
 
-**1. More hidden units does not mean better generalisation** — a network with 100 hidden units will memorise 4 XOR points perfectly but will catastrophically overfit any small real dataset; regularisation (Ch.6) is the fix, not fewer units.
-**Fix:** Use regularization (dropout, L2) when adding capacity. More on this in Ch.4 (Regularization).
+**1. Solving XOR on 4 points ≠ generalising to real data.** A network with 100 hidden units memorises the 4 XOR training points with perfect accuracy but will catastrophically overfit any small real dataset. The ability to solve a toy problem at any width does not imply any width is appropriate for production.
 
-**2. Wrong activation at the output layer** — using ReLU as the output activation for binary classification maps your output to $[0, \infty)$, not $[0, 1]$; always use Sigmoid for binary, Softmax for multi-class, and nothing (linear) for regression.
-**Fix:** Always use Sigmoid for binary classification output, Softmax for multi-class, linear (no activation) for regression.
+> **Fix:** Treat hidden unit count as a hyperparameter tuned on a held-out validation set, not a theoretical minimum. See Ch.4 (Regularisation — Dropout and L2).
 
-**3. Zero initialisation kills learning in hidden layers** — if all weights are identically zero, all hidden neurons compute the same gradient and learn the same feature forever (the symmetry problem); sklearn and TensorFlow both use random initialisation by default.
-**Fix:** Use framework defaults (sklearn, Keras, PyTorch all use random initialization). Never set `weights=np.zeros()`.
+**2. Wrong activation at the output layer.** Using ReLU as the output activation for binary classification gives outputs in $[0, \infty)$ instead of $[0, 1]$; binary cross-entropy becomes undefined. Using Sigmoid for regression gives outputs in $(0,1)$ when the target is in the hundreds of thousands.
 
-**4. Vanishing gradients with many Sigmoid layers** — deeper stacks of Sigmoid activations squash gradients exponentially; this is why ReLU replaced Sigmoid for hidden layers in modern networks.
-**Fix:** Use ReLU for hidden layers (modern default), reserve Sigmoid for binary output only.
+> **Fix:** Binary classification → Sigmoid output. Multi-class → Softmax output. Regression → no activation (linear output). This is the most common architecture bug in practice.
 
-**Fix:** Start with 2-3 hidden layers (depth) rather than 1 mega-wide layer. Depth creates feature hierarchies that train faster.
+**3. Zero initialisation kills learning.** If all hidden weights are initialised to zero, all neurons compute identical pre-activations, activations, and gradients. They learn the same feature forever (the symmetry problem). The hidden layer has effective width 1 regardless of its nominal width.
+
+> **Fix:** Always use random weight initialisation. Use He initialisation ($\sigma^2 = 2/n_{\text{in}}$) for ReLU layers and Xavier ($\sigma^2 = 1/n_{\text{in}}$) for Sigmoid/Tanh. Never manually set `weights = np.zeros(...)`.
+
+**4. Vanishing gradients with deep sigmoid stacks.** The sigmoid derivative is at most 0.25. Stack 5 sigmoid hidden layers: the gradient reaching the first layer is multiplied by at most $0.25^5 \approx 0.001$ — practically zero. Early layers stop learning. This is why ReLU (gradient is 0 or 1) replaced sigmoid as the default hidden activation around 2012.
+
+> **Fix:** Use ReLU for hidden layers. Reserve Sigmoid for binary output only. For very deep networks, add batch normalisation and residual connections (advanced topics in Ch.5–Ch.6).
+
+**5. Treating the UAT as an engineering prescription.** The Universal Approximation Theorem guarantees a solution *exists* with one hidden layer. It does not say the solution is easy to find, computationally efficient to train, or the right inductive bias for your data.
+
+> **Fix:** Use the UAT as an existence proof, not a network design guide. Follow empirical best practices: start shallow-wide, measure validation performance, add depth if width alone is insufficient.
+
+**6. Forgetting to scale input features.** The XOR toy problem uses inputs in $\{0,1\}$, so no scaling is needed. But for California Housing, `MedInc` ranges from 0.5 to 15 while `Population` ranges from 3 to 35,682. A hidden neuron with equal-magnitude weights on both features will have its gradient almost entirely dominated by `Population`. The model effectively ignores `MedInc`.
+
+> **Fix:** Always standardise input features before training a neural network. Use `sklearn.preprocessing.StandardScaler` or PyTorch's `transforms.Normalize`. Apply the scaler fit on training data only; apply the same transform to validation and test data.
+
+**7. Using neural networks when simpler models suffice.** The UAT says NNs can represent anything. But for a dataset with 500 rows and 3 features, a regularised linear model or gradient boosting tree will almost certainly outperform a neural network — because gradient descent needs many examples to find the right weights, while a decision tree can overfit meaningfully with far fewer.
+
+> **Fix:** For small datasets (< 5,000 rows), try logistic/linear regression and XGBoost first. Only escalate to neural networks when those fail to capture the complexity of the data.
 
 ### Diagnostic Flowchart
 
 ```mermaid
 flowchart TD
-    START["Model predicts poorly<br/>on non-linear problem"] --> Q1{"Is accuracy<br/>&asymp; 50%<br/>(random guessing)?"}
-    Q1 -->|Yes| LINEAR["Problem: Linear model<br/>on non-linear data"]
-    Q1 -->|No| Q2{"Training accuracy<br/>100%,<br/>test accuracy low?"}
-    
-    LINEAR --> FIX1["Fix: Add hidden layer<br/>with ReLU activation"]
-    
-    Q2 -->|Yes| OVERFIT["Problem: Too many<br/>hidden units,<br/>memorizing training data"]
-    Q2 -->|No| Q3{"Loss = NaN<br/>or exploding?"}
-    
-    OVERFIT --> FIX2["Fix: Reduce hidden units<br/>OR add dropout/L2<br/>(Ch.4 Regularization)"]
-    
-    Q3 -->|Yes| VANISH["Problem: Vanishing/<br/>exploding gradients"]
-    Q3 -->|No| Q4{"Output always<br/>predicts same class?"}
-    
-    VANISH --> FIX3["Fix: Use ReLU (not Sigmoid)<br/>for hidden layers"]
-    
-    Q4 -->|Yes| DEAD["Problem: Dead neurons<br/>or wrong output activation"]
-    Q4 -->|No| INIT["Problem: Bad weight<br/>initialization"]
-    
-    DEAD --> FIX4["Fix: Check output activation<br/>(Sigmoid for binary,<br/>Softmax for multi-class)"]
-    
-    INIT --> FIX5["Fix: Use He init (ReLU)<br/>or Xavier init (Sigmoid/Tanh)"]
-    
-    style START fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style LINEAR fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style OVERFIT fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style VANISH fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style DEAD fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style INIT fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX1 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX2 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX3 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX4 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
-    style FIX5 fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    START["Network predicts poorly<br/>on a learnable problem"]:::danger --> Q1{"Accuracy near 50%<br/>for binary classification?"}
+    Q1 -->|"Yes — random chance"| LINEAR["LINEAR FAILURE<br/>Data is not linearly separable<br/>No linear model can fix this"]:::caution
+    Q1 -->|"No"| Q2{"Train accuracy near 100%<br/>but test accuracy low?"}
+    LINEAR --> FIX1["Add hidden layer with ReLU<br/>Start: 2–16 neurons<br/>Verify with XOR toy test"]:::success
+    Q2 -->|"Yes"| OVERFIT["OVERFITTING<br/>Too many hidden units<br/>Memorising training set"]:::caution
+    Q2 -->|"No"| Q3{"Loss is NaN or higher<br/>than initial loss?"}
+    OVERFIT --> FIX2["Reduce hidden units<br/>Add Dropout or L2<br/>(see Ch.4 Regularisation)"]:::success
+    Q3 -->|"Yes"| EXPLODE["DIVERGENCE<br/>Learning rate too high<br/>or weights exploded"]:::caution
+    Q3 -->|"No"| Q4{"Output always predicts<br/>same class or value?"}
+    EXPLODE --> FIX3["Lower learning rate 10x<br/>Use gradient clipping<br/>Check weight initialisation"]:::success
+    Q4 -->|"Yes"| DEAD["DEAD NEURONS<br/>Zero init or dead ReLU zone"]:::caution
+    Q4 -->|"No"| SLOW["SLOW CONVERGENCE<br/>LR too small or<br/>features unscaled"]:::caution
+    DEAD --> FIX4["He or Xavier random init<br/>Check output activation<br/>(Sigmoid not ReLU for binary)"]:::success
+    SLOW --> FIX5["Scale input features<br/>Switch to Adam (lr=1e-3)<br/>Increase LR cautiously"]:::success
+
+    classDef danger fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef caution fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    classDef success fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
-
----
-
-## 9 · Why Not Use Neural Networks for Everything?
-
-The Universal Approximation Theorem says a neural network *can* represent any function. That sounds like an argument to use NNs everywhere. It isn't — because *can represent* is very different from *will learn well, cheaply, and reliably*.
-
-Here are the five real costs that make NNs the wrong default tool:
-
-### 1. You pay in data
-
-Neural networks have millions of parameters. To set them reliably, you need a lot of **labelled examples** — typically 10× to 1,000× more than a classical model needs.
-
-| Dataset size | What usually wins |
-|---|---|
-| < 1,000 rows | Linear/logistic regression, regularised (Ridge, Lasso) |
-| 1,000 – 50,000 rows | Gradient boosting (XGBoost, LightGBM) |
-| 50,000 – 1M rows | Either; NNs start to compete |
-| > 1M rows | Neural networks pull ahead |
-
-For UnifiedAI's California Housing dataset (~20,000 rows), a well-tuned gradient boosting model is a legitimate competitor. We use NNs here because the track is about learning them — not because they are automatically the best tool.
-
-### 2. You pay in compute
-
-A linear regression trains in **milliseconds**. A neural network trains in **minutes to hours** (or days, for large models). This matters during iteration:
-
-- Tuning a linear model: try 100 hyperparameter combinations in a few seconds.
-- Tuning a neural network: try 100 combinations and you've used up an afternoon (or a cloud bill).
-
-Inference cost matters too. Deploying a neural network on low-power hardware (edge devices, mobile phones) requires model compression (quantization, pruning) that classical models don't need at all.
-
-### 3. You pay in interpretability
-
-When a linear model says "*this house costs \$50k more because ocean_proximity = 1*", you can read that directly from the coefficients.
-
-When a neural network says the same thing, you cannot. The prediction is the result of hundreds of non-linear transformations applied to the input — there is no single weight you can point to. This matters enormously in regulated domains (credit, medical diagnosis, insurance) where a model must be *explainable by law*.
-
-> **SHAP values** (Ch.10-11) can partially recover feature importance for neural networks, but they are approximations, not exact attributions.
-
-### 4. You pay in training instability
-
-Neural networks have many **failure modes that classical models simply don't have**:
-
-| Failure | What happens | Classical equivalent? |
-|---|---|---|
-| Vanishing gradient | Deep layers stop learning | ❌ None |
-| Exploding gradient | Weights blow up to NaN | ❌ None |
-| Dead neurons | ReLU units stuck at 0, never recover | ❌ None |
-| Mode collapse | Network ignores part of the input space | ❌ None |
-| Learning rate sensitivity | Wrong LR → diverges or stalls | ⚡ Mild — Ridge is convex |
-
-A linear regression has a closed-form solution — it *cannot* fail to converge. A neural network can fail in all five ways in the same training run.
-
-### 5. You pay in debugging time
-
-When a linear model predicts badly, you can inspect residuals, plot coefficients, and find the issue in minutes.
-
-When a neural network predicts badly, you might spend hours asking: wrong architecture? wrong learning rate? wrong initialisation? dead neurons? data leakage? label noise amplified by non-linearity? The search space for "what went wrong" is enormous.
-
----
-
-### The rule of thumb: *start simple*
-
-> **Try the simplest model that could work. Add complexity only when you can measure that it helps.**
-
-In practice this means:
-1. Build a linear/logistic baseline first — it takes minutes and gives you a floor.
-2. Try gradient boosting (XGBoost) — it usually beats NNs on structured tabular data with no tuning.
-3. Add a neural network only if you have enough data, compute budget, and the problem is genuinely non-linear in ways that simpler models miss.
-
-**The four questions to ask before reaching for a neural network:**
-
-| Question | If YES → NN may help | If NO → stick with classical |
-|---|---|---|
-| Do I have > 50k labelled examples? | ✅ | ❌ |
-| Is the relationship genuinely non-linear? | ✅ | ❌ |
-| Do I have a compute/latency budget for training + serving? | ✅ | ❌ |
-| Can I accept a black-box model in this context? | ✅ | ❌ |
-
-For UnifiedAI, the honest answer right now is: **two out of four**. We use the NN track here because learning the mechanics is the goal — and because at 20k rows with clear non-linear interactions (location × income), NNs will indeed beat the Ch.1 linear baseline. But in a real project you'd verify this comparison explicitly before committing to the extra complexity.
 
 ---
 
 ## 10 · Where This Reappears
 
-The concepts from this chapter form the foundation for every neural network chapter that follows:
+Every chapter in the Neural Networks track depends on the insight from this chapter. The table below maps each concept from §4 to its downstream appearance.
 
-**Hidden layers + non-linear activations:**
-- [Ch.2 — Neural Networks](../ch02_neural_networks): Build the full architecture (multiple layers, activation functions, weight initialization)
-- [Ch.3 — Backpropagation & Optimizers](../ch03_backprop_optimisers): Train multi-layer networks via the chain rule
-- [Ch.5 — CNNs](../ch05_cnns): Convolutional layers are just specialized hidden layers with spatial structure
-- [Ch.6 — RNNs/LSTMs](../ch06_rnns_lstms): Recurrent hidden layers process sequences
+| Chapter | Concept from this chapter it relies on |
+|---|---|
+| **Ch.2 — Neural Networks** | Full architecture: multiple hidden layers, activation functions, the forward pass from §6 |
+| **Ch.3 — Backprop & Optimisers** | The same forward pass differentiated end-to-end; §4.3's non-linearity proof explains why gradients must flow *through* activations |
+| **Ch.4 — Regularisation** | §9 trap #1 (overfitting on toy data) is the core problem; L2, Dropout, early stopping are the solutions |
+| **Ch.5 — CNNs** | Convolutional layers are linear layers with shared weights; pooling provides the spatial non-linearity preventing collapse to one linear layer |
+| **Ch.6 — RNNs / LSTMs** | The RNN hidden state is exactly the $\mathbf{h}$ vector from §6; vanishing gradients (§9 trap #4) motivated LSTM gating |
+| **Ch.7 — Metrics Deep Dive** | The 50% accuracy floor from §5 Act 1 is the random-guessing baseline; all precision/recall analysis is relative to this ceiling |
+| **Ch.14 — MLE & Loss Functions** | The output activation choice from §9 trap #2 is formalised: Sigmoid → Bernoulli MLE, Softmax → Categorical MLE, Linear → Gaussian MLE |
+| **Ch.17 — Transformers & Attention** | The feed-forward sublayer inside every Transformer block is exactly the two-layer non-linear network from this chapter, applied independently to each token position |
 
-**Universal Approximation Theorem:**
-- [Ch.2 — Neural Networks](../ch02_neural_networks): Why width × depth tradeoff matters in practice
-- [Ch.10 — Transformers](../ch10_transformers): Modern architectures still just stack hidden layers — attention is the activation
+> ⚡ The XOR problem is not a toy exercise. It is the minimal case that exposes every architectural decision that matters: width, depth, activation function, weight initialisation, and output design. Every time you debug a neural network stuck at chance accuracy, you are debugging XOR.
 
-**Linear inseparability:**
-- [Ch.5 — CNNs](../ch05_cnns): Image features create high-dimensional spaces where conv layers find non-linear boundaries
-- [Ch.7 — MLE & Loss Functions](../ch07_mle_loss_functions): Why MSE (regression) and BCE (classification) both need non-linear models
+**Cross-track connections:** XOR-like interactions appear in every track:
 
-**Activation function choice:**
-- [Ch.2 — Neural Networks](../ch02_neural_networks): Full catalog (ReLU, Sigmoid, Tanh, Softmax, Leaky ReLU, ELU)
-- [Ch.3 — Backpropagation & Optimizers](../ch03_backprop_optimisers): How activation derivatives affect gradient flow
-- [Ch.4 — Regularization](../ch04_regularisation): Why ReLU makes dropout more effective
-
-> ➡️ **Every neural network you'll see** — from feedforward (Ch.2) to CNNs (Ch.5) to Transformers (Ch.10) — is a stack of hidden layers with non-linear activations. The XOR problem proves why: without non-linearity, depth is meaningless.
-
----
-
-## 11 · Progress Check — What We Can (and CAN'T) Solve Now
-
-❌ **NO constraints unlocked in this chapter.**
-
-This was a **diagnostic chapter** — we ran experiments to understand **why linear models fail** and **what fixes them**.
-
-**What we learned:**
-
-⚠️ **The core problem**:
-- **Linear models** (from Topics 01-02) can ONLY draw **straight decision boundaries**
-- **Real-world data** has **non-linear patterns** (e.g., "coastal AND high-income" vs "coastal OR high-income")
-- **XOR** is the simplest non-linearly-separable problem: 4 points, no straight line separates them
-- **Demonstrated failure**: Ran logistic regression on XOR-shaped housing data (coastal × income) → stuck at 50% accuracy (random guessing)
-
-✅ **The solution**:
-- **One hidden layer** with **non-linear activation** (ReLU/Sigmoid) can learn **any decision boundary**
-- **Universal Approximation Theorem** (Cybenko 1989): A neural network with 1 hidden layer of enough width can approximate any continuous function
-- **Practical fix**: Add hidden layer to logistic regression → XOR accuracy jumps to 100%
-
-**What we still CAN'T solve:**
-
-| Constraint | Status | Why It's Still Blocked |
-|------------|--------|------------------------|
-| **#1 ACCURACY** | ❌ Blocked | Still ~$70k MAE from Topic 01 baseline — haven't applied neural network to regression yet |
-| **#2 GENERALIZATION** | ❌ Blocked | No regularization techniques yet (dropout, L2, early stopping) |
-| **#3 MULTI-TASK** | ❌ Blocked | Classification proven broken on non-linear data; need full NN architecture |
-| **#4 INTERPRETABILITY** | ❌ Blocked | Can't interpret weights if the model fundamentally can't learn the pattern |
-| **#5 PRODUCTION** | ❌ Blocked | Research notebook code only — no monitoring, no inference pipeline |
-
-**Real-world impact**: We now understand WHY the "Premium Neighborhood" classifier kept failing:
-- **Root cause**: The true decision boundary between "premium" and "not premium" is **non-linear** (depends on interactions between location, income, population density)
-- **Linear model limitation**: Drew a straight hyperplane through feature space → misclassified ~30% of edge cases
-- **Solution path**: Need a **neural network** with hidden layers to represent curved boundaries
-
-**Key insights unlocked:**
-
-1. **Why non-linear activations matter**:
-   - Without activation (or with linear activation): Stacking layers collapses to 1 linear layer (matrix multiplication is associative: $W_2(W_1 x) = (W_2 W_1)x = W_{\text{effective}} x$)
-   - With ReLU/Sigmoid: Each layer applies a **non-linear transformation** → can carve curved boundaries
-
-2. **Depth vs width**:
-   - **Universal Approximation Theorem** says: 1 hidden layer of **infinite width** can approximate any function
-   - **Practice**: **Deep narrow** networks (3-5 layers, 64-128 units/layer) learn faster and generalize better than **shallow wide** networks (1 layer, 10,000 units)
-   - **Why**: Depth creates a **feature hierarchy** (layer 1 = edges, layer 2 = shapes, layer 3 = objects)
-
-3. **The training challenge**:
-   - We've proven that neural networks **CAN** represent non-linear functions
-   - We haven't proven we can **TRAIN** them yet! (Spoiler: Ch.3 Backpropagation)
-
-**What we're ready for now:**
-
-We've diagnosed the problem (linear models fail on non-linear boundaries) and sketched the solution (add hidden layers). But we still need:
-- **Ch.2 (Neural Networks)**: Proper architecture — how many layers? how many units? which activation?
-- **Ch.3 (Backprop & Optimizers)**: Training algorithm — gradient descent through multiple layers
-- **Ch.4 (Regularization)**: Prevent overfitting with all these new parameters
-
-**Progress toward UnifiedAI constraints:**
-
-| Constraint | Topic 01 | Topic 02 | **Ch.1 (This Chapter)** | What's Next |
-|------------|----------|----------|------------------------|-------------|
-| **#1 ACCURACY** | ⚡ $70k MAE | ⚡ Binary classification | ❌ Diagnosed problem | Ch.2: Build NN architecture |
-| **#2 GENERALIZATION** | ❌ | ❌ | ❌ Diagnosed problem | Ch.4: Regularization |
-| **#3 MULTI-TASK** | ⚡ Regression only | ⚡ Classification only | ❌ Diagnosed problem | Ch.2: Unified architecture |
-| **#4 INTERPRETABILITY** | ⚡ Linear coefs | ⚡ Logit coefs | ❌ Not applicable | Ch.7: SHAP, attention |
-| **#5 PRODUCTION** | ❌ | ❌ | ❌ Not applicable | Ch.8: TensorBoard |
-
-**Next up:** [Ch.2 — Neural Networks](../ch02_neural_networks) builds the full architecture: how to stack layers, choose activations, initialize weights, and set up the forward pass. We'll apply it to both California Housing regression and CelebA classification to prove the unification thesis — same hidden layers, different output heads.
+| Track | XOR-like interaction |
+|---|---|
+| **01-Regression** | `Latitude × MedInc` interaction affects California house prices |
+| **02-Classification** | `Smiling × Young` jointly predict certain CelebA attributes better than either alone |
+| **04-RecommenderSystems** | User×Item interaction is the core of collaborative filtering — exactly XOR structure |
+| **05-AnomalyDetection** | `Amount × Time` interaction: the same transaction amount is suspicious at 3am but normal at 3pm |
+| **06-ReinforcementLearning** | State×Action value function $Q(s,a)$ is an interaction between state and action — not separable |
 
 ---
 
-## 12 · Bridge to Chapter 2
+## 11 · Progress Check — What We Can Solve Now
 
-Ch.1 established that hidden layers with non-linear activations can represent any function — we proved it on XOR and demonstrated the failure of linear models on real housing data. Ch.2 (Neural Networks) builds that architecture properly: multiple hidden layers, the full catalogue of activation functions (ReLU, Sigmoid, Tanh, Softmax), weight initialisation strategies (He, Xavier), and why the choices at each step matter for both performance and trainability. We'll build the same feedforward architecture for regression (predict house price) and classification (predict facial attributes), differing only in the output layer — proving the unification thesis that neural networks are universal.
+![UnifiedAI 5-constraint dashboard after Ch.1 XOR diagnostic](img/ch01-xor-problem-progress-check.png)
 
+**XOR is solved.** The manually-designed two-layer network achieves 100% accuracy on all four XOR cases (§6). We proved algebraically that no linear model can solve XOR (§4.1), derived that non-linearity is both necessary (§4.3) and sufficient (§4.4), and verified the solution with full matrix arithmetic.
 
-## Illustrations
+**UnifiedAI constraints — diagnostic chapter, nothing unlocked yet:**
 
-![The XOR problem visualized: four points at (0,0), (0,1), (1,0), (1,1) where no single straight line can separate the positive class (0,1) and (1,0) from the negative class (0,0) and (1,1), demonstrating linear inseparability and why hidden layers with non-linear activations are required](img/ch3-xor-problem.png)
+| Constraint | Target | Status after Ch.1 | What blocks it |
+|---|---|---|---|
+| **#1 ACCURACY** | ≤$28k MAE + ≥95% accuracy | ❌ Not yet | No full architecture built; Ch.2 constructs it |
+| **#2 GENERALIZATION** | Unseen districts + identities | ❌ Not yet | No training loop exists yet |
+| **#3 MULTI-TASK** | Single architecture for both tasks | ❌ Not yet | No architecture built yet |
+| **#4 INTERPRETABILITY** | Attention-based attribution | ❌ Not yet | No attention mechanism yet |
+| **#5 PRODUCTION** | <100ms inference, monitoring | ❌ Not yet | No deployable model yet |
 
+**Chapter-by-chapter progress toward \$28k MAE:**
 
+| Chapter | Architecture | MAE (housing) | Constraint #1 |
+|---|---|---|---|
+| Topic 01 Ch.1 (Linear Regression) | $\hat{y} = wx + b$ | ~$70k | ❌ |
+| Topic 01 Ch.2 (Multiple Regression) | $\hat{y} = \mathbf{w}^\top\mathbf{x} + b$ | ~$62k | ❌ |
+| **This chapter (XOR diagnostic)** | **Proven: linear ceiling exists** | **Still ~$62k** | **❌** |
+| Ch.2 (Neural Networks) | 8 → 16 → 1, ReLU | ~$55k | ❌ (getting closer) |
+| Ch.3 (Backprop + Adam) | 8 → 64 → 32 → 1, ReLU | ~$40k | ❌ |
+| Ch.4 (Regularisation) | + Dropout + L2 | ~$35k | ❌ |
+| Ch.5 (Backprop + tuning) | Full architecture | ~$28k | ✅ |
+
+This chapter's contribution: proving *why* all rows above a certain architecture produce a ceiling, and pointing to exactly what needs to change.
+
+**✅ What this chapter unlocked (foundational):**
+- Algebraic proof that linear models have a hard expressivity ceiling on XOR-like problems
+- Geometric understanding of why a hidden layer fixes it (input space transformation)
+- Manual construction of a provably correct two-layer ReLU network for XOR
+- Universal Approximation Theorem: theoretical guarantee that one hidden layer is sufficient in principle
+
+**❌ Still cannot solve:**
+- California Housing at ≤$28k MAE — need the full multi-layer architecture (Ch.2)
+- CelebA face attributes at ≥95% — need deeper networks and face-specific features (Ch.2–Ch.5)
+- Train any network — gradient flow through non-linear layers requires backpropagation (Ch.3)
+
+**Real-world status:** We have diagnosed the structural failure of linear models and proved the fix. We cannot yet build or train the fixed architecture end-to-end. That is exactly what Ch.2 delivers.
+
+---
+
+## 12 · Bridge to Ch.2 — Neural Networks
+
+This chapter proved that **one hidden layer with non-linear activation can solve XOR** and, by the Universal Approximation Theorem, can in principle solve anything. The next chapter scales this to 8 features, 20,640 rows, and a real regression target — constructing the full architecture, initialising weights properly, and running the training loop. Empirically, a shallow neural network achieves ~$55k MAE — cutting the linear-regression baseline nearly in half.
+
+**What changes from this chapter to Ch.2:**
+
+| This chapter (XOR) | Ch.2 (Neural Networks) |
+|---|---|
+| 2 input features | 8 input features (full housing) |
+| 4 training points | 20,640 training rows |
+| Weights designed by hand | Weights found by backpropagation |
+| Output is integer 0 or 1 | Output is continuous price ($100k units) |
+| Zero training error by construction | Validation MAE ~$55k after training |
+| No training loop needed | Gradient descent + Adam, 100+ epochs |
+
+> **Next up:** [Ch.2 — Neural Networks →](../ch02_neural_networks/README.md) takes the two-layer XOR solution and extends it to the California Housing dataset. The architecture is the same; only the width, depth, and training procedure change. After Ch.2 you will have a trained neural network making real predictions — and Constraint #1 begins to move.
+
+**Concepts introduced in this chapter — a reference card:**
+
+| Concept | Introduced in | One-line definition |
+|---|---|---|
+| **XOR problem** | §3 | Binary function where no linear model achieves > 50% accuracy |
+| **Linear inseparability** | §3.2 | No hyperplane separates the two classes in input space |
+| **Impossibility proof** | §4.1 | Algebraic derivation showing C1–C4 cannot be satisfied simultaneously |
+| **Hidden layer** | §1, §3.3 | An intermediate layer that transforms input space before the output layer |
+| **ReLU activation** | §4.4 | $\max(0,z)$; the modern default for hidden layers; prevents algebraic collapse |
+| **Universal Approximation** | §4.2 | One hidden layer of sufficient width can approximate any continuous function |
+| **Representation learning** | §3.3, §6 | The process by which a hidden layer learns a transformed embedding of inputs |
+| **OR-like neuron** | §4.4 | Hidden unit that fires when at least one input is active |
+| **AND-like neuron** | §4.4 | Hidden unit that fires only when all inputs are simultaneously active |
+| **Symmetry problem** | §9 trap #3 | All-zero initialisation causes all neurons to remain identical throughout training |
+| **Dead ReLU** | §9 trap #3 | ReLU neuron stuck in the zero region; never fires regardless of input |
+
+These are the vocabulary terms that all subsequent Neural Networks chapters assume. If Ch.2 introduces a term you do not recognise, trace it back to the row in this table.

@@ -11,7 +11,7 @@ canonical_chapters: ["notes/06-ai_infrastructure/ch01_gpu_architecture/README.md
 voice: second_person_practitioner
 register: technical_but_conversational
 hardware_arithmetic: required_before_claims
-numerical_benchmarks: inferencebase_scenario_with_explicit_measurements
+numerical_benchmarks: judicious_inferencebase_measurements_when_clarifying
 running_example: inferencebase_llama3_8b_only
 failure_first_pedagogy: true
 callout_system: {insight:"💡", warning:"⚠️", constraint:"⚡", optional_depth:"📖", forward_pointer:"➡️"}
@@ -22,7 +22,7 @@ hardware_style: spec_first_then_implication_for_inferencebase
 ascii_breakdown_diagrams: required_for_vram_and_cost_arithmetic
 forward_backward_links: every_concept_links_to_where_it_was_introduced_and_where_it_reappears
 conformance_check: compare_new_chapter_against_ch01_gpu_architecture_and_ch02_memory_budgets_before_publishing
-red_lines: [no_benchmark_without_hardware_spec, no_cost_claim_without_arithmetic, no_optimization_without_before_after_measurement, no_concept_without_inferencebase_grounding, no_section_without_forward_backward_context, no_hardware_derivation_without_spec_sheet_verification, no_callout_box_without_actionable_content]
+red_lines: [no_benchmark_without_hardware_spec, no_cost_claim_without_arithmetic, no_optimization_without_before_after_measurement, no_concept_without_inferencebase_grounding, no_section_without_forward_backward_context, no_unnecessary_arithmetic_obscuring_hardware_principles, no_callout_box_without_actionable_content]
 -->
 
 ---
@@ -812,7 +812,7 @@ If a formula has no verbal gloss within three lines, it is incomplete.
 
 **The forward pointer callout box** (`> ➡️`) is used for concepts that will be formally introduced later but need to be planted early. GPU Architecture plants the seed for quantization with a `> ➡️` callout that says INT4 will be introduced in Ch.3 where memory constraints force the optimization.
 
-**Cross-track links** to AI track for LLM fundamentals are standard. Always reference the specific chapter: `[AI track — Transformer Architecture](.$103-ai/ch01_llm_fundamentals/transformers)` for model architecture details.
+**Cross-track links** to AI track for LLM fundamentals are standard. Always reference the specific chapter: `[AI track — Transformer Architecture](.03-ai/ch01_llm_fundamentals/transformers)` for model architecture details.
 
 ---
 
@@ -1005,6 +1005,276 @@ Infrastructure chapters can run long (600-900 lines) when they include hardware 
 - **One hardware concept per subsection.** GPU Architecture's "Memory Hierarchy" section has distinct subsections for VRAM, L2 cache, register file, and HBM bandwidth. Each subsection has exactly one conceptual payload. None runs into another.
 - **The subsection heading is descriptive, not label-like.** Not "3.2 Optimization" but "3.2 · Continuous Batching — How vLLM Achieves 4× Throughput vs. Naïve Scheduling". The title states the capability, not just the topic.
 - **100-line rule for inline explanations.** If explaining a hardware concept fully would take more than ~100 lines in a natural reading flow, split it: give the practitioner-relevant summary inline, move the microarchitecture deep dive to a `> 📖 Optional` callout box, and cross-reference GPU vendor documentation for the full spec.
+
+---
+
+## Track Grand Solution Template
+
+> **New pattern (2026):** Each major track (Regression, Classification, Neural Networks, etc.) now includes a `grand_solution.md` that synthesizes all chapters into a single revision document. This is for readers who need the big picture quickly or want a concise reference after completing all chapters.
+
+### Purpose & Audience
+
+**Target reader:** Someone who either:
+1. Doesn't have time to read all chapters but needs to understand the concepts
+2. Completed all chapters and wants a single-page revision guide
+3. Needs to explain the track's narrative arc to stakeholders
+
+**Not a replacement for:** Individual chapters. This is a synthesis, not a tutorial.
+
+### Structure (Fixed Order)
+
+Every `grand_solution.md` follows this **7-section template**:
+
+```markdown
+# [Track Name] Grand Solution — [Grand Challenge Name]
+
+> **For readers short on time:** [One-sentence summary of what this document does]
+
+---
+
+## Mission Accomplished: [Final Metric] ✅
+
+**The Challenge:** [One-sentence restatement of grand challenge]
+**The Result:** [Final metric achieved]
+**The Progression:** [ASCII diagram or table showing chapter-by-chapter improvement]
+
+---
+
+## The N Concepts — How Each Unlocked Progress
+
+### Ch.1: [Concept Name] — [One-Line Tagline]
+
+**What it is:** [2-3 sentences max, plain English]
+
+**What it unlocked:**
+- [Metric improvement]
+- [Specific capability]
+- [New dial/technique]
+
+**Production value:**
+- [Why this matters in deployed systems]
+- [Cost/performance trade-offs]
+- [When to use vs alternatives]
+
+**Key insight:** [One sentence — the "aha" moment]
+
+---
+
+[Repeat for all chapters in track]
+
+---
+
+## Production ML System Architecture
+
+[Mermaid diagram showing how all concepts integrate]
+
+### Deployment Pipeline (How Ch.X-Y Connect in Production)
+
+**1. Training Pipeline:**
+```python
+# [Code showing integration of all chapters]
+```
+
+**2. Inference API:**
+```python
+# [Code showing production prediction flow]
+```
+
+**3. Monitoring Dashboard:**
+```python
+# [Code showing health checks and alerts]
+```
+
+---
+
+## Key Production Patterns
+
+### 1. [Pattern Name] (Ch.X + Ch.Y + Ch.Z)
+**[Pattern description]**
+- [Rule 1]
+- [Rule 2]
+- [When to apply]
+
+[Repeat for 3-5 major patterns]
+
+---
+
+## The 5 Constraints — Final Status
+
+| # | Constraint | Target | Status | How We Achieved It |
+|---|------------|--------|--------|--------------------|
+| #1 | ACCURACY | [target] | ✅ [metric] | [Chapter + technique] |
+| ... | ... | ... | ... | ... |
+
+---
+
+## What's Next: Beyond [Track Name]
+
+**This track taught:** [3-5 key takeaways as checklist]
+
+**What remains for [Grand Challenge]:** [Gaps that require other tracks]
+
+**Continue to:** [Link to next track]
+
+---
+
+## Quick Reference: Chapter-to-Production Mapping
+
+| Chapter | Production Component | When To Use |
+|---------|---------------------|-------------|
+| Ch.1 | [Component] | [Decision rule] |
+| ... | ... | ... |
+
+---
+
+## The Takeaway
+
+[3-4 paragraphs summarizing the universal principles learned]
+
+**You now have:**
+- [Deliverable 1]
+- [Deliverable 2]
+- [Deliverable 3]
+
+**Next milestone:** [Preview of next track's goal]
+```
+
+### Voice & Style Rules for Grand Solutions
+
+**Tone:** Executive summary meets technical reference. You're briefing a senior engineer who's smart but time-constrained.
+
+**Voice patterns:**
+- ✅ **Direct:** "Ch.3 unlocked VIF auditing. This prevents multicollinearity."
+- ❌ **Verbose:** "In Chapter 3, we learned about an important technique called VIF auditing, which is a method that helps us identify and prevent issues related to multicollinearity in our features."
+- ✅ **Metric-focused:** "$70k → $32k MAE (54% improvement)"
+- ❌ **Vague:** "Much better accuracy than before"
+
+---
+
+### Grand Solution Notebook Companion (NEW: 2026)
+
+**Pattern:** Each `grand_solution.md` may have an accompanying `grand_solution.ipynb` Jupyter notebook that consolidates all executable code examples from the track into a single, runnable end-to-end solution.
+
+**When to create:**
+- Track has significant code implementation (ML, Deep Learning, AI Infrastructure)
+- Code examples span multiple chapters and benefit from sequential execution
+- Readers would benefit from running a complete pipeline from setup → deployment
+
+**When to skip:**
+- Track is purely conceptual (Interview Guides, DevOps Fundamentals)
+- Code examples are one-offs that don't integrate into a cohesive pipeline
+- Notebook would just duplicate README content without adding executable value
+
+**Notebook Structure:**
+
+```python
+# Cell 1: Title + Overview
+"""
+# [Track Name] Grand Solution — [Challenge Name]
+
+**Purpose:** Consolidate all code examples into executable end-to-end solution.
+
+**What You'll Build:** [List major components]
+
+**How to Use:**
+1. Sequential reading recommended (chapters build on each other)
+2. Code blocks are production-ready
+3. Hardware requirements: [Specify GPU/CPU needs]
+4. Estimated runtime: [X minutes/hours]
+
+**Final Results:** [Table showing all constraints met]
+"""
+
+# Cell 2: Setup & Imports
+# Install packages, import libraries, verify hardware
+
+# Cell 3-N: One cell block per major chapter/concept
+## Markdown cell: Chapter context
+"""
+## Chapter X: [Name] — [What it solves]
+
+**Key concept:** [One sentence]
+**Decision/Result:** [What was achieved]
+"""
+
+## Code cell: Executable implementation
+# Actual code from chapter, production-ready
+
+## Markdown cell: Key insight
+"""
+**💡 Key insight:** [The "aha" moment from chapter]
+---
+"""
+
+# Final Cell: Integration + Summary
+# Show how all pieces connect, final metrics table, next steps
+```
+
+**Requirements:**
+- ✅ **Executable:** All code must run top-to-bottom (use mock data if needed for expensive operations)
+- ✅ **Concise markdown:** Brief context only (detailed explanations live in chapter READMEs)
+- ✅ **Production patterns:** Show real implementation code, not toy examples
+- ✅ **Clear sections:** One major section per chapter/concept group
+- ✅ **Hardware aware:** Document GPU/CPU requirements, provide fallbacks where possible
+
+**Cross-references:**
+- Update `grand_solution.md` to reference the notebook in "How to Use This Guide" section
+- Update track README to list both `grand_solution.md` and `grand_solution.ipynb`
+- Link from notebook back to individual chapter READMEs for deep dives
+
+**Example tracks with notebooks:**
+- AI Infrastructure (`notes/06-ai_infrastructure/grand_solution.ipynb`) — Full InferenceBase deployment
+- ML tracks (when created) — End-to-end model training + serving
+- MultimodalAI (when created) — Multi-modal model integration
+
+---
+- ✅ **Production-grounded:** "VIF audit runs before every training job. Alert if VIF > 5."
+- ❌ **Academic:** "VIF is a useful diagnostic statistic for assessing multicollinearity."
+
+**Content density:**
+- Each chapter summary: 150-200 words max
+- Each "Key insight": One sentence, no exceptions
+- Code blocks: 15-25 lines max (illustrative, not exhaustive)
+- Mermaid diagrams: 1-2 per document (architecture + maybe progression)
+
+**What to include:**
+- ✅ Exact metrics at each stage ($70k, $55k, $48k, ...)
+- ✅ Specific hyperparameters that matter (α=1.0, degree=2, ...)
+- ✅ Production patterns (when/why to use each technique)
+- ✅ Chapter interdependencies ("Ch.4 requires Ch.3's scaling")
+- ✅ Mermaid flowchart showing full pipeline integration
+
+**What to exclude:**
+- ❌ Mathematical derivations (that's in individual chapters)
+- ❌ Historical context (who invented what, when)
+- ❌ Step-by-step tutorials (that's in chapter READMEs)
+- ❌ Exercise problems (that's in notebooks)
+- ❌ Duplicate content across sections (say it once, reference it later)
+
+**Formatting conventions:**
+- Use checkmark bullets for capabilities unlocked: ✅ ❌ ⚡ ➡️
+- Show progression as ASCII tables or code block diagrams
+- Use `inline code` for hyperparameters, `$metric$` for dollars
+- Chapter references: "Ch.3" or "Ch.5-7" (never "Chapter Five")
+- Bold for emphasis: **only** for metrics, constraints, or first-mention concepts
+
+**Structure discipline:**
+- **Every chapter summary** must have all 4 subsections (What it is / What it unlocked / Production value / Key insight)
+- **Production patterns** section must show code — not just prose
+- **Mermaid architecture diagram** is mandatory — shows end-to-end flow
+- **Quick Reference table** is mandatory — chapter → production component mapping
+
+**Update triggers:**
+When adding a new chapter to a track:
+1. Add chapter summary to "The N Concepts" section
+2. Update progression diagram/table with new metrics
+3. Add chapter to "Production Patterns" if it introduces a new pattern
+4. Update "Quick Reference" table with new chapter's production component
+5. Update final metrics in "Mission Accomplished" and "5 Constraints" sections
+
+---
+
+**Note:** Interview checklists are maintained in the centralized [Interview_guide.md](interview-guide.md) file, not in individual chapters.
 
 ---
 

@@ -145,36 +145,7 @@ Top row: the weight $w$ and the bias $b$ do geometrically *different* jobs — o
 
 ---
 
-## 6 · Code Skeleton
-
-Minimal Python for every piece of Section 3. The notebook expands each line into an interactive widget.
-
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-
-# --- 3.1 · line equation ---
-w, b = 6.5, 0.0 # vertical release velocity (m/s) and release height (m)
-t = np.linspace(0, 0.10, 50)
-h = w * t + b # height in the straight-line regime
-
-# --- 3.3 · dot product, three equivalent forms ---
-a, v = np.array([3.0, 1.0]), np.array([2.0, 2.5])
-print("explicit sum: ", a[0] * v[0] + a[1] * v[1])
-print("numpy dot: ", np.dot(a, v))
-print("matrix mul: ", a @ v) # PEP 465 operator
-
-# --- 3.4 · multi-feature prediction (free-kick goal probability, toy weights) ---
-x = np.array([25.0, 15.0, 0.10]) # release speed (m/s), launch angle (deg), foot height (m)
-W = np.array([0.03, 0.04, -1.50]) # one weight per feature
-bias = -0.40
-y_hat = W @ x + bias # weighted sum of features + baseline
-print("score: ", y_hat)
-```
-
----
-
-## 7 · What Can Go Wrong
+## 6 · What Can Go Wrong
 
 - **Conflating units.** If release speed is in m/s and launch angle is in degrees, the fitted $w$ carries a unit (e.g. "score per m/s" vs "score per degree"). Plot with labels or you will misread the scale.
 - **No bias term.** Dropping $b$ forces the line through the origin — usually wrong. A free kick struck at zero speed does not have a zero outcome score; $b$ carries the baseline.
@@ -183,7 +154,7 @@ print("score: ", y_hat)
 
 ---
 
-## 8 · Exercises
+## 7 · Exercises
 
 *Three short ones — picking up a tool, not grinding through algebra.*
 
@@ -193,7 +164,7 @@ print("score: ", y_hat)
 
 ---
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 - **Pre-Req Ch.2** — you keep the same equation but engineer new features $x_1 = x, x_2 = x^2, x_3 = x^3, \ldots$ to fit curves with a linear formula.
 - **Pre-Req Ch.5** — matrix form $\mathbf{\hat{y}} = \mathbf{X}\mathbf{w} + b$ handles thousands of samples at once.
@@ -203,7 +174,7 @@ print("score: ", y_hat)
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR
@@ -237,7 +208,7 @@ graph LR
 
 ---
 
-## 11 · References
+## 10 · References
 
 - **[Jon Krohn — Linear Algebra for Machine Learning (YouTube course).](https://www.jonkrohn.com/posts/2021/5/9/linear-algebra-for-machine-learning-complete-math-course-on-youtube)** Segments 1–3 cover everything in this chapter at video pace. Pair with the chapter if a concept still feels slippery.
 - **3Blue1Brown — *Essence of Linear Algebra*, episodes 1–2.** Vectors and linear combinations with the best visual grammar available.

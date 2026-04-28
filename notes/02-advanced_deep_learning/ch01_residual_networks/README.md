@@ -403,156 +403,7 @@ flowchart LR
 
 ---
 
-## 8 · Code Skeleton
-
-```python
-import torch
-import torch.nn as nn
-
-class BasicBlock(nn.Module):
-    """ResNet Basic Block (used in ResNet-18, ResNet-34)"""
-    expansion = 1  # Output channels = input channels × expansion
-    
-    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
-        super().__init__()
-        # Main path
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, 
-                               stride=stride, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3,
-                               stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        
-        # Skip connection (identity or projection)
-        self.downsample = downsample
-        
-    def forward(self, x):
-        identity = x
-        
-        # Main path: Conv → BN → ReLU → Conv → BN
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.conv2(out)
-        out = self.bn2(out)
-        
-        # Skip connection (project if dimensions changed)
-        if self.downsample is not None:
-            identity = self.downsample(x)
-        
-        # Addition + final ReLU
-        out += identity
-        out = self.relu(out)
-        
-        return out
-
-
-class ResNet(nn.Module):
-    """ResNet architecture (18, 34, 50, 101, 152 layers)"""
-    
-    def __init__(self, block, layers, num_classes=1000):
-        super().__init__()
-        self.in_channels = 64
-        
-        # Initial convolution (7×7, stride=2)
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        
-        # 4 stages of residual blocks
-        self.layer1 = self._make_layer(block, 64, layers[0], stride=1)
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        
-        # Global average pooling + classifier
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
-        
-    def _make_layer(self, block, out_channels, num_blocks, stride):
-        downsample = None
-        
-        # Create projection shortcut if dimensions change
-        if stride != 1 or self.in_channels != out_channels * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.in_channels, out_channels * block.expansion,
-                         kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(out_channels * block.expansion)
-            )
-        
-        layers = []
-        # First block (may downsample)
-        layers.append(block(self.in_channels, out_channels, stride, downsample))
-        self.in_channels = out_channels * block.expansion
-        
-        # Remaining blocks (no downsampling)
-        for _ in range(1, num_blocks):
-            layers.append(block(self.in_channels, out_channels))
-        
-        return nn.Sequential(*layers)
-    
-    def forward(self, x):
-        # Initial conv + pool
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-        
-        # 4 stages of residual blocks
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        
-        # Global pool + classifier
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.fc(x)
-        
-        return x
-
-
-def resnet18(num_classes=1000, pretrained=False):
-    """ResNet-18: [2, 2, 2, 2] blocks → 18 layers total"""
-    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes)
-    if pretrained:
-        # Load ImageNet weights (requires torchvision)
-        from torchvision.models import resnet18 as tv_resnet18
-        pretrained_dict = tv_resnet18(pretrained=True).state_dict()
-        model.load_state_dict(pretrained_dict, strict=False)
-    return model
-
-
-def resnet50(num_classes=1000, pretrained=False):
-    """ResNet-50: [3, 4, 6, 3] bottleneck blocks → 50 layers total"""
-    # Use BottleneckBlock instead (not shown — 3-conv version)
-    raise NotImplementedError("See notebook for full BottleneckBlock implementation")
-
-
-# Example: Train on retail shelf dataset
-if __name__ == "__main__":
-    # Synthetic retail shelf dataset (SmallVal AI)
-    # 20 product classes, 224×224 RGB images
-    model = resnet18(num_classes=20, pretrained=False)
-    
-    # Forward pass test
-    dummy_input = torch.randn(8, 3, 224, 224)  # Batch of 8 images
-    output = model(dummy_input)
-    print(f"Output shape: {output.shape}")  # [8, 20] — logits for 20 classes
-    
-    # Gradient flow test (check early layer gradients)
-    loss = output.sum()
-    loss.backward()
-    print(f"First layer gradient norm: {model.conv1.weight.grad.norm().item():.4f}")
-    print(f"Last layer gradient norm: {model.fc.weight.grad.norm().item():.4f}")
-    # Both should be similar magnitude (no vanishing)!
-```
-
----
-
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 ### 9.1 Forgetting the Final ReLU After Addition
 
@@ -632,7 +483,7 @@ scheduler = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[5])
 
 ---
 
-## 10 · Where This Reappears
+## 9 · Where This Reappears
 
 - **Ch.2 (Efficient Architectures)** — MobileNetV2 uses inverted residual blocks (skip connection around *expanded* conv, opposite of ResNet bottleneck)
 - **Ch.3 (Two-Stage Detectors)** — Faster R-CNN uses ResNet-50 or ResNet-101 as the feature extraction backbone
@@ -643,7 +494,7 @@ scheduler = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[5])
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 ![ProductionCV progress dashboard](img/ch01-progress-check.png)
 
@@ -675,7 +526,7 @@ scheduler = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[5])
 
 ---
 
-## 12 · Bridge to Ch.2 — Efficient Architectures
+## 11 · Bridge to Ch.2 — Efficient Architectures
 
 Ch.1 gave you skip connections and 100-layer networks. But ResNet-50 (98 MB, 85ms inference) is too heavy for edge devices.
 

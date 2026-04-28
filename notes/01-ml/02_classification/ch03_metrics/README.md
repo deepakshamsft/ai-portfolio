@@ -1,53 +1,64 @@
 # Ch.3 — Evaluation Metrics for Classification
 
-> **The story.** The confusion matrix dates back to **Karl Pearson (1904)**, who built it to measure error patterns in jury verdicts. Modern classification metrics crystallised in the **information retrieval** community: **Cyril Cleverdon's Cranfield experiments (1960)** introduced precision and recall for document search — "of 100 retrieved papers, how many were actually relevant?" **Tom Fawcett (2006)** wrote the definitive tutorial on ROC curves, and **Jesse Davis and Mark Goadrich (2006)** proved why PR curves dominate ROC for imbalanced data. Every time you debug a production classifier that "looks accurate" but fails on rare classes, you're re-encountering Davis & Goadrich's 2006 insight.
+> **The story.** Three independent discoveries converged into the metrics toolkit you use today. The earliest came from signals intelligence: during **World War II**, US military researchers tracking aircraft radar returns needed a way to measure an operator's ability to distinguish real targets from noise. In 1954, **Wilson P. Tanner and John A. Swets** at the MIT Lincoln Laboratory formalised this as *Signal Detection Theory*, plotting True Positive Rate against False Positive Rate across all decision thresholds — the **ROC curve** was born in a radar room, not a statistics seminar. A decade later, the **information retrieval** community at Cranfield University independently needed the same intuition for search engines. **Cyril Cleverdon's Cranfield experiments (1960–1966)** introduced *Precision* ("of the 100 documents I retrieved, how many were actually relevant?") and *Recall* ("of all relevant documents in the corpus, how many did I actually return?") as complementary measures — you need both because a system that returns every document in the corpus scores perfect recall while being useless. Then in **1979**, **C. J. van Rijsbergen** unified precision and recall into a single number in his monograph *Information Retrieval*: $F_\beta = (1+\beta^2)\frac{PR}{\beta^2 P + R}$, with $\beta = 1$ giving the **F1 score** — the harmonic mean of precision and recall. Van Rijsbergen's choice of harmonic mean was deliberate: unlike the arithmetic mean, the harmonic mean is low whenever *either* precision or recall is low, forcing a model to perform on both dimensions. Every time you call `f1_score()` in scikit-learn, you are executing van Rijsbergen's 1979 formula.
 >
-> **Where you are.** Ch.1 gave you logistic regression (88% accuracy on Smiling). Ch.2 added decision trees and KNN (82–85% range). Both chapters reported one number: accuracy. Your product manager loved 88% — until the legal team asked, "What's the recall on Bald faces for GDPR compliance?" You didn't have an answer. This chapter builds the evaluation toolkit that lets you answer every stakeholder question: confusion matrices, precision/recall, F1, ROC-AUC, PR-AUC, and multi-label metrics. After this chapter, you can defend every prediction.
+> **Where you are in the curriculum.** Ch.1 gave you logistic regression (88% accuracy on Smiling). Ch.2 added Decision Trees (85%, interpretable), KNN (80%), and Naive Bayes (76%) — three classifiers, three trade-offs. All of them reported one number: **accuracy**. This chapter asks: *is accuracy the right number?* When your VP of Product asked "How does the model perform on Bald faces?", you answered "97.4% accuracy" — and discovered that means the model predicts Not-Bald for *every single face*, capturing zero Bald people. This chapter builds the full evaluation toolkit that lets you answer every stakeholder question honestly. After this chapter you can give your VP a number she can trust.
 >
-> **Notation in this chapter.** $TP$ — true positives; $FP$ — false positives; $TN$ — true negatives; $FN$ — false negatives; $P = \frac{TP}{TP+FP}$ — precision (of predicted positives, how many correct?); $R = \frac{TP}{TP+FN}$ — recall (of actual positives, how many found?); $F_1 = \frac{2PR}{P+R}$ — harmonic mean of precision and recall; $\text{TPR} = R$ — true positive rate (same as recall); $\text{FPR} = \frac{FP}{FP+TN}$ — false positive rate; $\text{AUC}$ — area under ROC or PR curve.
+> **Notation in this chapter.** $TP$ — true positives (predicted positive, actually positive); $FP$ — false positives (predicted positive, actually negative; Type I error); $TN$ — true negatives (predicted negative, actually negative); $FN$ — false negatives (predicted negative, actually positive; Type II error); $N = TP + FP + TN + FN$ — total test samples; $P = \frac{TP}{TP+FP}$ — **Precision**; $R = \frac{TP}{TP+FN}$ — **Recall** (= TPR, sensitivity); $F_1 = \frac{2PR}{P+R}$ — harmonic mean of precision and recall; $\text{TPR} = R$ — true positive rate; $\text{FPR} = \frac{FP}{FP+TN}$ — false positive rate; $\text{AUC}$ — area under the ROC or PR curve; $t$ — classification threshold $\in [0,1]$; $\hat{p}$ — model's predicted probability; $\hat{y} = \mathbf{1}[\hat{p} \geq t]$ — binary prediction.
 
 ---
 
 ## 0 · The Challenge — Where We Are
 
-> 🎯 **The mission**: Launch **FaceAI** — automated 40-attribute face tagging with >90% average accuracy, satisfying 5 constraints:
-> 1. **ACCURACY**: >90% average accuracy across 40 attributes
-> 2. **GENERALIZATION**: Work on unseen celebrity faces
-> 3. **MULTI-LABEL**: Predict 40 simultaneous binary attributes
-> 4. **INTERPRETABILITY**: Understand which features matter per attribute
-> 5. **PRODUCTION**: <200ms inference per image
+> 🎯 **The mission**: Launch **FaceAI** — automated 40-attribute face tagging at >90% average accuracy, replacing \$0.05/image manual labelling. Five constraints must hold:
+> 1. **ACCURACY**: >90% average accuracy across all 40 binary attributes
+> 2. **GENERALIZATION**: Generalise to unseen celebrity faces, not just training set
+> 3. **MULTI-LABEL**: Predict all 40 binary attributes per face simultaneously
+> 4. **INTERPRETABILITY**: Explain which features drive each prediction
+> 5. **PRODUCTION**: <200ms inference per image at scale
 
 **What we know so far:**
-- ✅ Ch.1 gave us logistic regression: **88% accuracy on Smiling**
-- ✅ Ch.2 added decision trees (82%) and KNN (85%) — interpretable but lower accuracy
-- ❌ **But we've been lying to ourselves with a single number!**
+- ✅ Ch.1: Logistic regression delivers **88% accuracy on Smiling** (baseline)
+- ✅ Ch.2: Decision trees give **85% accuracy** with human-readable rules
+- ✅ Ch.2: KNN (80%) and Naive Bayes (76%) added to the model palette
+- ❌ **But every model reported accuracy — and accuracy is a liar for imbalanced classes.**
 
-**What's blocking us:**
-You present the 88% Smiling accuracy to your product lead. She asks, "Great! What about Bald?"
+**What's blocking us — the Bald Paradox:**
 
-You run the same logistic regression on Bald (2.5% of faces). Accuracy: **97.4%**. Incredible!
+Your product lead runs the Ch.1 logistic regression model on the **Bald** attribute. CelebA has 2.2% Bald faces. The model reports **98.0% accuracy**. Incredible — until you look at the predictions:
 
-She asks to see predictions. You show her: the model predicted "Not Bald" for **all 1,000 test images**. Every single one.
+```
+Test set: 10,000 images — 200 Bald (2.0%), 9,800 Not-Bald (98.0%)
+Model output: "Not Bald" for all 10,000 images.
 
-> ⚠️ **The accuracy paradox**: When 97.5% of faces are Not-Bald, predicting "Not Bald" blindly gives 97.5% accuracy. The model learned nothing — it just memorized the majority class. Your 97.4% is **worse than random guessing** on the minority class.
+Accuracy = (0 + 9800) / 10000 = 98.0%
+Bald faces correctly detected = 0 / 200 = 0%
+```
 
-This is the blocker: **accuracy is a liar for imbalanced classes**. FaceAI has 40 attributes with imbalance ratios from 50:50 (Smiling) to 97.5:2.5 (Bald). You need metrics that expose this failure.
+> ⚠️ **The Bald Paradox**: A model that has learned absolutely nothing — it simply memorises the majority class — achieves 98% accuracy. You could replace your entire model with a single line `return "Not Bald"` and lose nothing. Accuracy on imbalanced classes measures majority-class dominance, not model quality.
+
+**The five FaceAI constraints make this worse, not better:**
+1. 40 attributes span positive rates from **48% (Smiling)** down to **2.2% (Bald)** and **1.1% (Mustache)** — accuracy varies wildly across attributes for exactly the wrong reasons
+2. Generalisation can't be measured without knowing *which* class the model generalises on
+3. Multi-label evaluation requires per-attribute metrics, not a single accuracy average
+4. Interpretability of threshold choices requires understanding precision/recall trade-offs
+5. Production systems need operating points — "predict Bald at threshold 0.5" is a choice, not a fact
 
 **What this chapter unlocks:**
-- **Confusion matrix** — See exactly where predictions fail (not just a single accuracy number)
-- **Precision & Recall** — Measure "of predicted Bald, how many correct?" vs "of actual Bald, how many found?"
-- **F1 score** — Harmonic mean that balances precision and recall
-- **ROC-AUC** — Threshold-independent evaluation (but has limitations for imbalanced data)
-- **PR-AUC** — Better than ROC for rare classes like Bald and Mustache
-- **Multi-label metrics** — How to evaluate all 40 attributes simultaneously
-- **Constraint #1 VALIDATED** — Know if 88% is real progress or the accuracy paradox
+- **Confusion matrix** — the ground truth of every classification: see exactly what went wrong
+- **Precision & Recall** — the two dimensions accuracy collapses into one
+- **F1 score** — van Rijsbergen's 1979 harmonic mean: the single honest number for imbalanced classes
+- **AUC-ROC** — threshold-free evaluation: how well does the model *rank* positives above negatives?
+- **PR curve** — better than ROC for severe imbalance (Bald, Mustache)
+- **Multi-label metrics** — evaluate all 40 attributes simultaneously with macro-F1 and Hamming loss
+- **Constraint #1 VALIDATED** — know whether 88% is real progress or the accuracy paradox at work
 
 ```mermaid
 graph LR
-    A["Ch.1: 88%"] --> B["Ch.2: 85%"]
-    B --> C["Ch.3: Metrics<br/>88% validated ✅"]
-    C --> D["Ch.4: SVM"]
-    D --> E["Ch.5: Tuning"]
+    A["Ch.1: LogReg<br/>88% Smiling"] --> B["Ch.2: Trees+KNN+NB<br/>Interpretability"]
+    B --> C["Ch.3: Metrics<br/>Validation toolkit ✅"]
+    C --> D["Ch.4: SVM<br/>Higher accuracy"]
+    D --> E["Ch.5: Tuning<br/>Production-ready"]
     style C fill:#0f766e,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
 ```
 
@@ -57,177 +68,693 @@ graph LR
 
 ![Chapter animation](img/ch03-metrics-needle.gif)
 
-## 1 · Core Idea
-
-Classification evaluation is about **correctness of discrete decisions**, not magnitude of errors. You're not measuring "how far off" — you're measuring "right or wrong."
-
-The entire evaluation toolkit derives from four counts:
-- **TP** (true positive): predicted positive, actually positive ✅
-- **FP** (false positive): predicted positive, actually negative ❌ (Type I error)
-- **TN** (true negative): predicted negative, actually negative ✅
-- **FN** (false negative): predicted negative, actually positive ❌ (Type II error)
-
-Every metric — accuracy, precision, recall, F1, ROC, PR — is a **ratio of these four numbers**. The confusion matrix just organizes them in a 2×2 grid.
-
-The critical insight: **the decision threshold is a tunable hyperparameter**. Your model outputs probabilities $\hat{p} \in [0,1]$. You convert to binary predictions by: $\hat{y} = 1$ if $\hat{p} \geq t$, else $\hat{y} = 0$. The standard choice is $t = 0.5$, but that's often wrong for imbalanced data. Lowering the threshold (e.g., $t = 0.3$) trades precision for recall: you predict "Bald" more often, catching more actual Bald faces (higher recall) but also mislabeling more Not-Bald faces (lower precision).
-
-ROC and PR curves visualize this trade-off **across all possible thresholds**, letting you pick the operating point that matches your business needs.
+*The needle shows F1 score on the Bald attribute improving from near-zero as we lower the decision threshold from the naïve 0.5 default to the calibrated operating point. F1 starts at 0.05 (the accuracy-is-lying zone), climbs through 0.27 (threshold tuned to 0.5 with some positives detected), and reaches 0.44 at the optimal threshold — a 9× improvement from the zero-recall baseline.*
 
 ---
 
-## 2 · Running Example: The Bald Prediction Disaster
+## 1 · Core Idea — The Four Outcomes Are the Only Truth
 
-Your product lead calls an emergency meeting. The FaceAI demo is tomorrow. She tested the "Bald" classifier on 20 faces manually — **12 were actually bald**, but your model tagged **zero**. Not a single one.
+Every binary classifier, for every test example, produces exactly one of four outcomes. There is no fifth possibility. All of classification evaluation reduces to counting these four:
 
-"I thought you said 97.4% accuracy?" she asks.
+| | Model says **Positive** | Model says **Negative** |
+|---|---|---|
+| **Actually Positive** | **TP** — correct positive | **FN** — missed it (Type II error) |
+| **Actually Negative** | **FP** — false alarm (Type I error) | **TN** — correct negative |
+
+The **confusion matrix** is just this 2×2 grid with real numbers filled in. Every metric — accuracy, precision, recall, F1, ROC, PR-AUC — is a ratio of these four counts.
+
+The critical insight that unlocks the whole chapter: **your model does not output a label — it outputs a probability**. The label comes from applying a threshold $t$ to that probability:
+
+$$\hat{y} = \begin{cases} 1 & \text{if } \hat{p} \geq t \\ 0 & \text{if } \hat{p} < t \end{cases}$$
+
+The default $t = 0.5$ is **not a law of nature** — it is a convention that happens to be optimal only when:
+1. Classes are balanced (50/50 split), and
+2. The cost of a false positive equals the cost of a false negative
+
+For the Bald attribute (2.2% positive, and detecting Bald matters for compliance), neither condition holds. The threshold is a dial you tune — every metric you compute lives at one setting of that dial. ROC and PR curves show you the entire landscape across all settings simultaneously.
+
+---
+
+## 2 · Running Example — The Bald Prediction Disaster
+
+You are the ML engineer at FaceAI. It is three days before the product launch. Your product lead runs the demo and notices something: the FaceAI app tags every face as "Not Bald". Even faces that are clearly bald.
+
+She asks you for the metrics. You pull up the test set results:
 
 You pull up the confusion matrix for the 1,000-image test set:
 
-| | **Predicted: Not Bald** | **Predicted: Bald** |
-|---|---|---|
-| **Actually Not Bald** | 975 | 0 |
-| **Actually Bald** | 25 | 0 |
+**The setup** — CelebA test subset, Bald attribute:
 
-> 💡 **The failure is invisible to accuracy**: (975 + 0) / 1000 = 97.5% accuracy. But the model never once predicted "Bald" — it learned to always say "Not Bald" because that's correct 97.5% of the time.
+| Statistic | Value |
+|---|---|
+| Total test images | 10,000 |
+| Bald faces (positive class) | 200 (2.0%) |
+| Not-Bald faces (negative class) | 9,800 (98.0%) |
+| Model used | Logistic regression (Ch.1) at $t = 0.5$ |
 
-This chapter evaluates three attributes with escalating imbalance:
+**Model A — "Always Not Bald"** (predicts negative for every image):
 
-| Attribute | Positive Rate | Test Set (1,000 images) | Challenge |
-|-----------|--------------|-----------|-------------|
-| **Smiling** | 48% | 480 Smiling, 520 Not | Balanced — accuracy works |
-| **Eyeglasses** | 13% | 130 Eyeglasses, 870 Not | Moderate imbalance |
-| **Bald** | 2.5% | 25 Bald, 975 Not | Severe imbalance — accuracy paradox |
+```
+Confusion matrix, Model A:
 
-We'll use the Ch.1 logistic regression model to show how metrics expose what accuracy hides.
+               Predicted Not-Bald    Predicted Bald
+               ─────────────────────────────────────
+Actual Bald  │        FN = 200      │    TP = 0     │
+Actual Not-B │        TN = 9800     │    FP = 0     │
+               ─────────────────────────────────────
+```
+
+$$\text{Accuracy} = \frac{TP + TN}{N} = \frac{0 + 9800}{10000} = 0.980 = \mathbf{98.0\%}$$
+$$\text{Recall} = \frac{TP}{TP + FN} = \frac{0}{0 + 200} = \mathbf{0.0\%}$$
+$$\text{Precision} = \frac{TP}{TP + FP} = \frac{0}{0 + 0} = \text{undefined (no positive predictions)}$$
+$$F_1 = 0 \quad \text{(by convention when precision and/or recall is 0)}$$
+
+This is the horror show. 98.0% accuracy, 0% recall, F1 = 0. The model has learned exactly nothing about Bald faces.
+
+**Why this is not a rare edge case.** FaceAI's 40 attributes range from highly imbalanced to roughly balanced:
+
+| Attribute | Positive Rate | Majority-class accuracy | Recall at $t{=}0.5$ |
+|---|---|---|---|
+| Smiling | 48.2% | 51.8% | ~88% |
+| Young | 77.2% | 77.2% | ~91% |
+| Eyeglasses | 6.5% | 93.5% | ~30% |
+| **Bald** | **2.2%** | **97.8%** | **~0%** |
+| Mustache | 1.1% | 98.9% | ~0% |
+
+For Young (77.2% positive) a model that always predicts "Young" gets 77.2% accuracy — but at least it captures all the positive cases. For Bald, always predicting "Not Bald" gets 97.8% accuracy and catches *none* of the rare class. **Accuracy and recall move in opposite directions as imbalance grows.**
+
+The rest of this chapter builds every tool you need to stop lying to yourself and your stakeholders.
 
 ---
 
-## 3 · Math
+## 3 · Metrics Toolkit at a Glance
 
-### Confusion Matrix Counts
+Before the math: here is the full toolkit as a single map. Each row is one tool; each column describes one dimension of its character.
 
-$$\text{Accuracy} = \frac{TP + TN}{TP + FP + TN + FN}$$
+| Tool | What it measures | When accuracy hides it | Threshold-dependent? |
+|---|---|---|---|
+| **Confusion matrix** | The raw 2×2 counts — the ground truth | Always — it's what accuracy aggregates | Yes (one matrix per threshold) |
+| **Precision** | Of everything I flagged positive, how many were correct? | When FP is high (many false alarms) | Yes |
+| **Recall** | Of everything actually positive, how many did I find? | When FN is high (many misses) | Yes |
+| **F1 score** | Harmonic mean of precision and recall | Always for imbalanced classes | Yes |
+| **ROC curve / AUC** | Full trade-off curve (TPR vs FPR) across all thresholds | Moderate imbalance | No — aggregates all thresholds |
+| **PR curve / PR-AUC** | Full trade-off curve (Precision vs Recall) across all thresholds | Severe imbalance (< 10% positive) | No — aggregates all thresholds |
+| **Macro-F1** | Average F1 across all 40 attributes equally | When some attributes dominate the average | Yes (each attribute at its own threshold) |
+| **Hamming loss** | Per-label error rate averaged across all labels | When aggregate masks per-label failures | Yes |
 
-$$\text{Precision} = \frac{TP}{TP + FP} \quad \text{(of predicted positives, how many correct?)}$$
+The journey through this chapter follows the natural order of the table: start with the confusion matrix (the atoms), build up to single-threshold metrics (precision, recall, F1), then extend to threshold-free curves (ROC, PR), then aggregate for multi-label evaluation (macro-F1, Hamming).
 
-$$\text{Recall} = \frac{TP}{TP + FN} \quad \text{(of actual positives, how many found?)}$$
+---
+
+## 4 · The Math
+
+### 4.1 · TP / FP / TN / FN — The Four Atoms
+
+Everything derives from four counts. Learn them as definitions, not formulas:
+
+**True Positive (TP):** Model predicted **Positive** and the ground truth is **Positive**. You found what you were looking for.
+**False Positive (FP):** Model predicted **Positive** but ground truth is **Negative**. You raised a false alarm. (Type I error)
+**True Negative (TN):** Model predicted **Negative** and ground truth is **Negative**. You correctly stayed silent.
+**False Negative (FN):** Model predicted **Negative** but ground truth is **Positive**. You missed something real. (Type II error)
+
+**The 2×2 table — canonical layout:**
+
+```
+                      PREDICTED
+                  Positive    Negative
+             ┌────────────┬────────────┐
+ACTUAL Pos   │  TP (hit)  │  FN (miss) │
+       Neg   │ FP (alarm) │  TN (quiet)│
+             └────────────┴────────────┘
+```
+
+**CelebA Bald example — Model A at $t = 0.5$:**
+
+Test set: 10,000 images. 200 Bald, 9,800 Not-Bald. Model predicts every image as Not-Bald.
+
+```
+                      PREDICTED
+                  Bald        Not-Bald
+             ┌────────────┬────────────┐
+ACTUAL Bald  │  TP = 0    │  FN = 200  │  ← All 200 Bald faces missed
+       Not-B │  FP = 0    │  TN = 9800 │  ← All 9800 Not-Bald correctly silent
+             └────────────┴────────────┘
+```
+
+Interpretation: The model never predicted Bald once. TN=9800 drives the high accuracy. FN=200 is the invisible catastrophe.
+
+> 💡 **Naming mnemonic**: The first word (True/False) says whether the prediction matched reality. The second word (Positive/Negative) says what the model *predicted*. TP = correctly predicted Positive. FP = wrongly predicted Positive. Memorise this once; never look it up again.
+
+---
+
+### 4.2 · Precision — Of What I Claimed, How Much Was Real?
+
+$$\text{Precision} = P = \frac{TP}{TP + FP}$$
+
+| Symbol | Meaning |
+|---|---|
+| $TP$ | Correct positive predictions |
+| $FP$ | Incorrect positive predictions (false alarms) |
+| $TP + FP$ | Total positive predictions made |
+
+**Verbal gloss**: "Of every face I tagged as Bald, what fraction was actually Bald?" Precision measures the *purity* of your positive predictions. A model that only predicts Bald when it is 99% certain will have very high precision — but it might miss most Bald faces.
+
+**Toy example — Model B, 5-image test:**
+
+| Image | True label | $\hat{p}$ | Prediction ($t{=}0.5$) | Correct? |
+|---|---|---|---|---|
+| img_001 | Bald | 0.72 | Bald ✅ | TP |
+| img_002 | Bald | 0.31 | Not-Bald ❌ | FN |
+| img_003 | Not-Bald | 0.63 | Bald ❌ | FP |
+| img_004 | Not-Bald | 0.08 | Not-Bald ✅ | TN |
+| img_005 | Not-Bald | 0.11 | Not-Bald ✅ | TN |
+
+From the table: $TP = 1, FP = 1, TN = 2, FN = 1$
+
+$$\text{Precision} = \frac{1}{1 + 1} = \frac{1}{2} = 0.50$$
+
+**Interpretation**: Of the 2 images the model tagged as Bald, 1 was actually Bald. Precision = 50%. The model's positive predictions are correct only half the time.
+
+**Precision on the full 10,000-image test set at $t = 0.30$** (Model C):
+
+$$TP = 100,\ FP = 200 \implies \text{Precision} = \frac{100}{100 + 200} = \frac{100}{300} = 0.333$$
+
+The model predicted 300 faces as Bald; 100 actually were. Every 3 flagged faces, 1 is real and 2 are false alarms.
+
+> ⚠️ **Precision is undefined when $TP + FP = 0$** — when a model makes zero positive predictions (like Model A that always says Not-Bald). Convention: set precision to 0 in this case.
+
+---
+
+### 4.3 · Recall — Of What Was Real, How Much Did I Find?
+
+$$\text{Recall} = R = \frac{TP}{TP + FN}$$
+
+| Symbol | Meaning |
+|---|---|
+| $TP$ | Bald faces correctly found |
+| $FN$ | Bald faces missed |
+| $TP + FN$ | Total actual Bald faces in the test set |
+
+**Verbal gloss**: "Of every face that actually was Bald, what fraction did I tag as Bald?" Recall measures *coverage* of the positive class. A model with high recall catches most Bald faces — but might flag many Not-Bald faces as Bald too (low precision).
+
+**Same 5-image example:**
+
+$$\text{Recall} = \frac{TP}{TP + FN} = \frac{1}{1 + 1} = \frac{1}{2} = 0.50$$
+
+**Interpretation**: There were 2 Bald faces in this mini-test; the model found 1 of them. Recall = 50%.
+
+**Recall on the 10,000-image test set:**
+
+- **Model A** (always Not-Bald): $\text{Recall} = \frac{0}{0 + 200} = 0.0 = \mathbf{0\%}$
+- **Model C** ($t = 0.30$): $\text{Recall} = \frac{100}{100 + 100} = \frac{100}{200} = 0.50 = \mathbf{50\%}$
+
+Model C finds 50% of all Bald faces. Not perfect, but infinitely better than 0%.
+
+> 💡 **Recall = TPR = Sensitivity.** These three names all refer to the same formula $\frac{TP}{TP+FN}$. "True Positive Rate" is used in ROC analysis; "Sensitivity" is used in medical contexts; "Recall" comes from information retrieval. Know all three names — they appear in different corners of the literature.
+
+**The precision–recall tension**: Raising the threshold $t$ increases precision (you only flag when very sure) but decreases recall (you miss more real positives). Lowering $t$ does the reverse. This is the fundamental trade-off of binary classification. There is no setting that maximises both simultaneously unless your model is perfect.
+
+---
+
+### 4.4 · F1 Score — The Harmonic Mean Judge
 
 $$F_1 = \frac{2 \cdot P \cdot R}{P + R} = \frac{2 \cdot TP}{2 \cdot TP + FP + FN}$$
 
-### Walkthrough — Computing Confusion Matrix by Hand (Bald Classifier)
+**Why not arithmetic mean?** Consider a model with Precision = 0.80, Recall = 0.20:
 
-**Dataset**: 5-image test set from CelebA (chosen for hand verification):
+| Aggregation | Formula | Result |
+|---|---|---|
+| Arithmetic mean | $(0.80 + 0.20) / 2$ | $0.50$ |
+| Harmonic mean (F1) | $\frac{2 \times 0.80 \times 0.20}{0.80 + 0.20}$ | $\frac{0.32}{1.00} = 0.32$ |
 
-| Image | True Label | Model Probability $\hat{p}$ | Predicted (t=0.5) | Predicted (t=0.3) |
-|---|---|---|---|---|
-| `000042.jpg` | Bald (1) | 0.18 | Not-Bald (0) ❌ | Not-Bald (0) ❌ |
-| `000087.jpg` | Bald (1) | 0.42 | Not-Bald (0) ❌ | Bald (1) ✅ |
-| `000132.jpg` | Not-Bald (0) | 0.05 | Not-Bald (0) ✅ | Not-Bald (0) ✅ |
-| `000201.jpg` | Not-Bald (0) | 0.61 | Bald (1) ❌ | Bald (1) ❌ |
-| `000299.jpg` | Not-Bald (0) | 0.12 | Not-Bald (0) ✅ | Not-Bald (0) ✅ |
+The arithmetic mean says 0.50 — suggesting a decent model. The harmonic mean says 0.32 — flagging it as imbalanced. **The harmonic mean is low whenever either term is low.** Van Rijsbergen chose it precisely because information retrieval systems that maximise one number by sacrificing the other are useless: a system with 100% recall but 0.01% precision (return everything in the corpus) is not a search engine.
 
-**Step 1: Build confusion matrix for threshold $t = 0.5$**
+**Numerical derivation — why harmonic mean penalises imbalance more:**
 
-Count outcomes:
-- **True Positives (TP)**: Predicted Bald, actually Bald → 0 images
-- **False Positives (FP)**: Predicted Bald, actually Not-Bald → Image 000201 → 1 image
-- **True Negatives (TN)**: Predicted Not-Bald, actually Not-Bald → Images 000132, 000299 → 2 images
-- **False Negatives (FN)**: Predicted Not-Bald, actually Bald → Images 000042, 000087 → 2 images
+If $P = R$ (balanced), then $F_1 = P = R$ — the harmonic mean equals either value when they match.
 
-Confusion matrix:
-```
-           Predicted
-           Not-Bald  Bald
-Actual ┌──────────────────┐
-Not-Bald │   2 (TN)  1 (FP) │
-  Bald   │   2 (FN)  0 (TP) │
-         └──────────────────┘
-```
+If $P = 0.80, R = 0.20$ (gap $\Delta = 0.60$):
+$$F_1 = \frac{2 \times 0.80 \times 0.20}{0.80 + 0.20} = \frac{0.320}{1.000} = 0.320$$
 
-**Step 2: Compute metrics manually**
+But $\text{Arithmetic mean} = 0.500$. The harmonic mean is **36% lower** than the arithmetic mean, correctly signalling that a 0.60 gap between P and R represents a badly unbalanced model.
 
-$$\text{Accuracy} = \frac{TP + TN}{TP + FP + TN + FN} = \frac{0 + 2}{0 + 1 + 2 + 2} = \frac{2}{5} = 0.40 = 40\%$$
+**The general $F_\beta$ score** (van Rijsbergen's full formula):
 
-**Interpretation**: Correctly classified 2 out of 5 images. Sounds bad — but is it?
+$$F_\beta = \frac{(1 + \beta^2) \cdot P \cdot R}{\beta^2 \cdot P + R}$$
 
-$$\text{Recall} = \frac{TP}{TP + FN} = \frac{0}{0 + 2} = \frac{0}{2} = 0.0 = 0\%$$
+$\beta > 1$ weights recall more heavily; $\beta < 1$ weights precision. $\beta = 1$ gives F1 (equal weight). For Bald detection where missing a Bald face is worse than a false alarm: use $\beta = 2$ (recall twice as important):
 
-**Interpretation**: Of the 2 actually-Bald faces, we found 0. Complete failure on the minority class!
+$$F_2 = \frac{5 \times 0.333 \times 0.500}{4 \times 0.333 + 0.500} = \frac{0.833}{1.833} = 0.454$$
 
-$$\text{Precision} = \frac{TP}{TP + FP} = \frac{0}{0 + 1} = \frac{0}{1} = 0.0 = 0\%$$
+**F1 on our test set models:**
 
-**Interpretation**: Of the 1 face we predicted as Bald, 0 were actually Bald. Every positive prediction was wrong.
+| Model | $TP$ | $FP$ | $FN$ | Precision | Recall | $F_1$ |
+|---|---|---|---|---|---|---|
+| A (always Not-Bald) | 0 | 0 | 200 | undef | 0.000 | **0.000** |
+| C ($t = 0.50$) | 40 | 60 | 160 | 0.400 | 0.200 | **0.267** |
+| C ($t = 0.30$) | 100 | 200 | 100 | 0.333 | 0.500 | **0.400** |
+| C ($t = 0.70$) | 12 | 8 | 188 | 0.600 | 0.060 | **0.109** |
 
-$$F_1 = \frac{2 \cdot P \cdot R}{P + R} = \frac{2 \cdot 0.0 \cdot 0.0}{0.0 + 0.0} = \text{undefined (0/0)}$$
-
-When either precision or recall is zero, $F_1 = 0$ by convention.
-
-**Step 3: Now try threshold $t = 0.3$** (lower threshold → more Bald predictions)
-
-Recalculate from table:
-- **TP**: Image 000087 (predicted Bald at 0.42, actually Bald) → 1
-- **FP**: Image 000201 (predicted Bald at 0.61, actually Not-Bald) → 1
-- **TN**: Images 000132, 000299 → 2
-- **FN**: Image 000042 (predicted Not-Bald at 0.18, actually Bald) → 1
-
-```
-           Predicted
-           Not-Bald  Bald
-Actual ┌──────────────────┐
-Not-Bald │   2 (TN)  1 (FP) │
-  Bald   │   1 (FN)  1 (TP) │
-         └──────────────────┘
-```
-
-$$\text{Recall} = \frac{1}{1 + 1} = 0.50 = 50\%$$ ← **Found half the Bald faces!**
-
-$$\text{Precision} = \frac{1}{1 + 1} = 0.50 = 50\%$$ ← **Half our Bald predictions were correct**
-
-$$F_1 = \frac{2 \cdot 0.5 \cdot 0.5}{0.5 + 0.5} = \frac{0.5}{1.0} = 0.50$$
-
-$$\text{Accuracy} = \frac{1 + 2}{5} = \frac{3}{5} = 0.60 = 60\%$$
-
-> 💡 **The key insight**: Lowering the threshold from 0.5 → 0.3 dropped accuracy from 40% → 60% **and** improved recall from 0% → 50%. The threshold is a tunable dial that trades precision for recall. No single number tells the full story.
-
-**The match is exact.** These metrics precisely quantify what the confusion matrix shows.
+The optimal F1 occurs at $t = 0.30$ — the threshold that balances precision and recall best for this model and dataset.
 
 ---
 
-### Full Test Set Results (1,000 images)
+### 4.5 · AUC-ROC — Threshold-Free Ranking Quality
 
-Scaling up to the real 1,000-image CelebA test set (25 Bald, 975 Not-Bald):
+ROC (Receiver Operating Characteristic) answers a different question: "How well does the model *rank* Bald faces above Not-Bald faces, across all possible thresholds?" It does this by plotting TPR (y-axis) against FPR (x-axis) as $t$ sweeps from 1.0 down to 0.0.
 
-**Model A** (always predicts Not-Bald):
-- $TP=0, FP=0, TN=975, FN=25$
-- Accuracy $= 975/1000 = 97.5\%$ ⚠️ (looks great, does nothing!)
-- Recall $= 0/25 = 0\%$
-- Precision: undefined (no positive predictions)
-- F1 $= 0$
+$$\text{TPR}(t) = \frac{TP(t)}{TP(t) + FN(t)} \qquad \text{FPR}(t) = \frac{FP(t)}{FP(t) + TN(t)}$$
 
-**Model B** (logistic regression with threshold 0.3):
-- $TP=12, FP=18, TN=957, FN=13$
-- Accuracy $= 969/1000 = 96.9\%$ (slightly lower)
-- Recall $= 12/25 = 48\%$ ← **Found nearly half the Bald faces!**
-- Precision $= 12/30 = 40\%$
-- F1 $= 2(0.40)(0.48)/(0.40+0.48) = 0.436$
+**AUC interpretation**: The Area Under the ROC Curve has a probabilistic interpretation — **AUC equals the probability that the model ranks a randomly chosen positive higher than a randomly chosen negative**. AUC = 0.5 is a random coin flip. AUC = 1.0 is perfect separation.
 
-**Model B is far better** — it actually learned to detect Bald faces, despite 0.6% lower accuracy.
+**Five-point ROC curve — explicit trapezoidal calculation:**
 
-### ROC-AUC — Threshold-Independent Evaluation
+Using logistic regression (Model C) on the 10,000-image test set (200 Bald, 9,800 Not-Bald):
 
-ROC (Receiver Operating Characteristic) plots **True Positive Rate** (TPR = recall) vs **False Positive Rate** (FPR) as you sweep the threshold from 0 to 1.
+| Threshold $t$ | TP | FP | TN | FN | TPR $= TP/200$ | FPR $= FP/9800$ |
+|---|---|---|---|---|---|---|
+| 1.00 (start) | 0 | 0 | 9800 | 200 | 0.000 | 0.000 |
+| 0.80 | 16 | 10 | 9790 | 184 | 0.080 | 0.001 |
+| 0.50 | 40 | 60 | 9740 | 160 | 0.200 | 0.006 |
+| 0.30 | 100 | 200 | 9600 | 100 | 0.500 | 0.020 |
+| 0.10 | 170 | 980 | 8820 | 30 | 0.850 | 0.100 |
+| 0.00 (end) | 200 | 9800 | 0 | 0 | 1.000 | 1.000 |
 
-$$\text{TPR} = \frac{TP}{TP + FN} \quad \text{(same as recall)}$$
+**Trapezoidal rule** — area of each trapezoid $= \frac{1}{2}(y_1 + y_2)(x_2 - x_1)$ where $x$ = FPR, $y$ = TPR:
 
-$$\text{FPR} = \frac{FP}{FP + TN} \quad \text{(fraction of negatives incorrectly flagged)}$$
+$$A_1 = \tfrac{1}{2}(0.000 + 0.080)(0.001 - 0.000) = \tfrac{1}{2}(0.080)(0.001) = 0.000040$$
 
-**Verbal gloss**: TPR is "what fraction of actual positives did we catch?" FPR is "what fraction of actual negatives did we mislabel?" Perfect classifier: TPR=1.0, FPR=0.0 (top-left corner). Random guessing: TPR=FPR (diagonal line).
+$$A_2 = \tfrac{1}{2}(0.080 + 0.200)(0.006 - 0.001) = \tfrac{1}{2}(0.280)(0.005) = 0.000700$$
 
-$$\text{AUC} = \int_0^1 \text{TPR}(t) \, d(\text{FPR}(t))$$
+$$A_3 = \tfrac{1}{2}(0.200 + 0.500)(0.020 - 0.006) = \tfrac{1}{2}(0.700)(0.014) = 0.004900$$
 
-**Verbal gloss**: AUC (Area Under Curve) measures the entire ROC curve with one number. AUC=0.5 means random (coin flip). AUC=1.0 means perfect separation. AUC=0.94 (typical for Smiling) means: if you pick a random Smiling face and a random Not-Smiling face, the model assigns a higher probability to the Smiling face 94% of the time.
+$$A_4 = \tfrac{1}{2}(0.500 + 0.850)(0.100 - 0.020) = \tfrac{1}{2}(1.350)(0.080) = 0.054000$$
 
-> ⚠️ **ROC-AUC limitation for imbalanced data**: When positives are rare (2.5% Bald), ROC can look deceptively good because TN (the 97.5% majority) dominates the FPR denominator. A terrible model that predicts Bald randomly 5% of the time still gets low FPR ≈ 0.05 — masking its 0% recall. **Fix**: Use PR-AUC for imbalanced classes.
+$$A_5 = \tfrac{1}{2}(0.850 + 1.000)(1.000 - 0.100) = \tfrac{1}{2}(1.850)(0.900) = 0.832500$$
+
+$$\text{AUC} \approx 0.000040 + 0.000700 + 0.004900 + 0.054000 + 0.832500 = \mathbf{0.892}$$
+
+**Interpretation**: The logistic regression model ranks a random Bald face above a random Not-Bald face 89.2% of the time — a strong ranking signal, despite only 2.0% positive prevalence.
+
+> ⚠️ **The AUC paradox for extreme imbalance**: Notice that $A_5$ contributes 93.2% of the total AUC. The dominant area is the region where FPR is between 0.1 and 1.0 — which corresponds to thresholds so low that the model is flagging 10%–100% of all faces as Bald. In a production system, nobody would run the model at those thresholds. **This is why ROC-AUC can look deceptively good for severe imbalance** — it includes threshold regimes that are useless in practice. The PR curve fixes this.
+
+---
+
+## 5 · Metrics Selection Arc
+
+### Act 1 — Accuracy Is Lying
+
+You run all Ch.1 and Ch.2 models on the Bald attribute and report to your VP:
+
+| Model | Accuracy |
+|---|---|
+| Logistic Regression | 97.8% |
+| Decision Tree (depth 10) | 97.5% |
+| KNN (k=5) | 97.2% |
+| Always "Not Bald" | 97.8% |
+
+Your VP looks suspicious. The "Always Not Bald" baseline ties your best model. She asks: "What's the recall?" You have to explain that for three of the four models, recall is approximately 0%. The 97%+ accuracy numbers are a direct consequence of the 98% Not-Bald prevalence, not of model quality.
+
+**The lesson**: When positive rate $\leq 20\%$ or $\geq 80\%$, accuracy is not a useful primary metric. **Always compute recall alongside accuracy for imbalanced classes.**
+
+### Act 2 — Precision vs. Recall — The Trade-off
+
+You lower the logistic regression threshold from 0.5 to 0.3. Now the model tags 300 faces as Bald instead of 100. You track both precision and recall:
+
+| Threshold | Bald tagged | TP | FP | Precision | Recall |
+|---|---|---|---|---|---|
+| 0.7 | 20 | 12 | 8 | 0.600 | 0.060 |
+| 0.5 | 100 | 40 | 60 | 0.400 | 0.200 |
+| 0.3 | 300 | 100 | 200 | 0.333 | 0.500 |
+| 0.1 | 1150 | 170 | 980 | 0.148 | 0.850 |
+
+Precision falls monotonically as you lower the threshold (more false alarms). Recall rises monotonically (more real faces found). **You cannot maximise both simultaneously.** The business question is: which matters more for your use case?
+
+- GDPR compliance audit: "We need to find at least 80% of Bald faces" → optimise for recall
+- User-facing badge: "We only tag faces when confident" → optimise for precision
+- General evaluation: "We want a balanced model" → optimise for F1
+
+### Act 3 — F1 as a Balanced Judge
+
+You plot F1 versus threshold and find the peak:
+
+| Threshold | Precision | Recall | F1 |
+|---|---|---|---|
+| 0.70 | 0.600 | 0.060 | 0.109 |
+| 0.50 | 0.400 | 0.200 | 0.267 |
+| **0.30** | **0.333** | **0.500** | **0.400** ← peak |
+| 0.10 | 0.148 | 0.850 | 0.254 |
+
+The F1 peak at $t = 0.30$ identifies the operating point that best balances precision and recall for this model. This is your **recommended threshold** for production — unless the business requirement shifts the priority toward one extreme.
+
+### Act 4 — AUC for Threshold-Free Evaluation
+
+F1 at the optimal threshold tells you how good the model is at its best operating point. But what if you want to compare two models without committing to a threshold? The answer is AUC-ROC (or PR-AUC for severe imbalance):
+
+| Model | Best F1 at opt. threshold | AUC-ROC | PR-AUC |
+|---|---|---|---|
+| Logistic Regression | 0.400 ($t{=}0.30$) | 0.892 | 0.62 |
+| Decision Tree depth 10 | 0.350 ($t{=}0.35$) | 0.847 | 0.54 |
+| Always Not-Bald | 0.000 | 0.500 | 0.020 |
+
+Logistic regression beats the decision tree on every threshold-free metric. AUC-ROC = 0.50 for the trivial baseline confirms that a random coin flip offers no ranking power.
+
+> ➡️ **Use ROC-AUC to compare models during development; use PR-AUC to report results for severely imbalanced classes; use F1 at the business-chosen threshold for production monitoring.**
+
+---
+
+## 6 · Full Threshold Analysis — Bald Attribute
+
+This section walks through the complete confusion matrix, precision, recall, and F1 computation for three threshold values on the 10,000-image test set (200 Bald, 9,800 Not-Bald). Every number is derived from explicit arithmetic — no black boxes.
+
+### At Threshold $t = 0.70$ (Conservative)
+
+The model only predicts Bald when it is very confident. Few positive predictions, but those it makes are usually correct.
+
+**Confusion matrix:**
+
+```
+               Pred. Bald    Pred. Not-Bald
+           ┌─────────────┬─────────────────┐
+Act. Bald  │   TP = 12   │    FN = 188     │
+Act. Not-B │   FP =  8   │    TN = 9792    │
+           └─────────────┴─────────────────┘
+```
+
+Counts: $TP + FP = 12 + 8 = 20$ positive predictions made. $TP + FN = 12 + 188 = 200$ actual Bald faces.
+
+$$\text{Accuracy} = \frac{12 + 9792}{10000} = \frac{9804}{10000} = 0.9804 = 98.0\%$$
+
+$$\text{Precision} = \frac{12}{12 + 8} = \frac{12}{20} = 0.600$$
+
+$$\text{Recall} = \frac{12}{12 + 188} = \frac{12}{200} = 0.060$$
+
+$$F_1 = \frac{2 \times 0.600 \times 0.060}{0.600 + 0.060} = \frac{2 \times 0.036}{0.660} = \frac{0.072}{0.660} = \mathbf{0.109}$$
+
+**Interpretation**: Very high precision (when the model says Bald, it is right 60% of the time) but terrible recall (it misses 94% of Bald faces). F1 = 0.109 — the harmonic mean is punished by the near-zero recall.
+
+---
+
+### At Threshold $t = 0.50$ (Default)
+
+The sklearn default. Most practitioners start here without questioning it.
+
+**Confusion matrix:**
+
+```
+               Pred. Bald    Pred. Not-Bald
+           ┌─────────────┬─────────────────┐
+Act. Bald  │   TP = 40   │    FN = 160     │
+Act. Not-B │   FP = 60   │    TN = 9740    │
+           └─────────────┴─────────────────┘
+```
+
+Counts: $TP + FP = 40 + 60 = 100$ positive predictions made. $TP + FN = 40 + 160 = 200$ actual Bald faces.
+
+$$\text{Accuracy} = \frac{40 + 9740}{10000} = \frac{9780}{10000} = 0.978 = 97.8\%$$
+
+$$\text{Precision} = \frac{40}{40 + 60} = \frac{40}{100} = 0.400$$
+
+$$\text{Recall} = \frac{40}{40 + 160} = \frac{40}{200} = 0.200$$
+
+$$F_1 = \frac{2 \times 0.400 \times 0.200}{0.400 + 0.200} = \frac{2 \times 0.080}{0.600} = \frac{0.160}{0.600} = \mathbf{0.267}$$
+
+**Interpretation**: Slightly better than $t = 0.70$ — the model catches 20% of Bald faces now. But F1 = 0.267 is still poor. Note that accuracy dropped from 98.0% to 97.8% — *accuracy got worse while F1 improved*. This is the accuracy paradox in reverse.
+
+---
+
+### At Threshold $t = 0.30$ (Tuned)
+
+The F1-optimal threshold, found by sweeping thresholds and picking the maximum.
+
+**Confusion matrix:**
+
+```
+               Pred. Bald    Pred. Not-Bald
+           ┌─────────────┬─────────────────┐
+Act. Bald  │   TP = 100  │    FN = 100     │
+Act. Not-B │   FP = 200  │    TN = 9600    │
+           └─────────────┴─────────────────┘
+```
+
+Counts: $TP + FP = 100 + 200 = 300$ positive predictions made. $TP + FN = 100 + 100 = 200$ actual Bald faces.
+
+$$\text{Accuracy} = \frac{100 + 9600}{10000} = \frac{9700}{10000} = 0.970 = 97.0\%$$
+
+$$\text{Precision} = \frac{100}{100 + 200} = \frac{100}{300} = 0.333$$
+
+$$\text{Recall} = \frac{100}{100 + 100} = \frac{100}{200} = 0.500$$
+
+$$F_1 = \frac{2 \times 0.333 \times 0.500}{0.333 + 0.500} = \frac{2 \times 0.1667}{0.833} = \frac{0.333}{0.833} = \mathbf{0.400}$$
+
+**Interpretation**: Accuracy fell to 97.0% — the *worst* of the three thresholds. But F1 = 0.400 is the *best* — 3.7× higher than the conservative threshold. We are now finding half of all Bald faces. The accuracy drop (−1%) is the price of catching 88 more real Bald faces (40 → 100 TP). In virtually every business context, that is a good trade.
+
+**Summary table — three thresholds on the Bald attribute:**
+
+| Threshold | TP | FP | TN | FN | Accuracy | Precision | Recall | **F1** |
+|---|---|---|---|---|---|---|---|---|
+| $t = 0.70$ | 12 | 8 | 9792 | 188 | 98.0% | 0.600 | 0.060 | **0.109** |
+| $t = 0.50$ | 40 | 60 | 9740 | 160 | 97.8% | 0.400 | 0.200 | **0.267** |
+| $t = 0.30$ | 100 | 200 | 9600 | 100 | 97.0% | 0.333 | 0.500 | **0.400** |
+
+**Never tune a threshold on accuracy for imbalanced data.**
+
+---
+
+## 7 · Key Diagrams
+
+### Diagram 1 — From Probabilities to Predictions: The Threshold Dial
+
+```mermaid
+flowchart TD
+    RAW["Logistic Regression\nOutputs: p̂ ∈ [0, 1]\ne.g. p̂ = 0.31 for one face"] --> THRESH{"Threshold t — your dial"}
+
+    THRESH -->|"t = 0.70\n(conservative)"| HIGH["Predict Bald only when confident\n→ Precision ↑ (0.600)\n→ Recall ↓ (0.060)\n→ F1 = 0.109\nMiss 94% of Bald faces"]
+    THRESH -->|"t = 0.50\n(sklearn default)"| MID["Balanced but wrong for Bald\n→ Precision = 0.400\n→ Recall = 0.200\n→ F1 = 0.267\nMiss 80% of Bald faces"]
+    THRESH -->|"t = 0.30\n(F1-optimal)"| LOW["Aggressive tagging\n→ Precision = 0.333\n→ Recall = 0.500\n→ F1 = 0.400 ← best\nFind 50% of Bald faces"]
+
+    style HIGH fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style MID fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style LOW fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style RAW fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style THRESH fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+---
+
+### Diagram 2 — Which Metric to Report: Decision Flowchart
+
+```mermaid
+flowchart TD
+    START(["New classification attribute"]) --> BALANCE{"What is the positive rate?"}
+
+    BALANCE -->|"30 – 70%\n(Balanced)"| BAL_PATH["Use Accuracy + F1\nROC-AUC if model comparison needed\n\nExamples: Smiling (48%), Male (42%)"]
+    BALANCE -->|"10 – 30% or 70 – 90%\n(Moderate imbalance)"| MOD_PATH["Drop accuracy. Use F1 + ROC-AUC\nTune threshold on validation set\n\nExamples: Eyeglasses (6.5%), Wearing Hat"]
+    BALANCE -->|"< 10% or > 90%\n(Severe imbalance)"| SEV_PATH["Never report accuracy. Use Recall + F1 + PR-AUC\nSet recall floor from business requirement\nTune threshold to meet floor\n\nExamples: Bald (2.2%), Mustache (1.1%)"]
+
+    BAL_PATH --> REPORT["Report to stakeholders\nwith threshold stated explicitly"]
+    MOD_PATH --> REPORT
+    SEV_PATH --> REPORT
+
+    REPORT --> MULTI{"Multi-label task?\n(FaceAI: 40 attributes)"}
+    MULTI -->|"Yes"| MACRO["Report macro-F1 (equal weight per attribute)\n+ Hamming loss\n+ Subset accuracy (strict)"]
+    MULTI -->|"No"| DONE(["Evaluation complete ✅"])
+    MACRO --> DONE
+
+    style START fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style DONE fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style BALANCE fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style BAL_PATH fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style MOD_PATH fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style SEV_PATH fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style MACRO fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style REPORT fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style MULTI fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+---
+
+### Diagram 3 — Metrics Derivation Map: From 2×2 Table to Every Metric
+
+```mermaid
+flowchart LR
+    CM["2×2 Confusion Matrix\nTP | FP\nFN | TN"] --> ACC["Accuracy\n(TP+TN) / N"]
+    CM --> PREC["Precision\nTP / (TP+FP)"]
+    CM --> REC["Recall / TPR\nTP / (TP+FN)"]
+    CM --> FPR_NODE["FPR\nFP / (FP+TN)"]
+
+    PREC --> F1_NODE["F1 Score\n2PR / (P+R)"]
+    REC --> F1_NODE
+    REC --> ROCPT["One ROC point\n(FPR, TPR)"]
+    FPR_NODE --> ROCPT
+
+    ROCPT -->|"Sweep t ∈ [0,1]"| ROCCURVE["ROC Curve"]
+    ROCCURVE --> AUC_ROC["AUC-ROC\n∫ TPR d(FPR)"]
+
+    PREC --> PRPT["One PR point\n(Recall, Precision)"]
+    REC --> PRPT
+    PRPT -->|"Sweep t ∈ [0,1]"| PRCURVE["PR Curve"]
+    PRCURVE --> AUC_PR["PR-AUC\n∫ Precision d(Recall)"]
+
+    F1_NODE -->|"Average over 40 attrs"| MACRO["Macro-F1"]
+
+    style CM fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style AUC_ROC fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style AUC_PR fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style MACRO fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style F1_NODE fill:#0f766e,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+---
+
+## 8 · The Hyperparameter Dials
+
+### Dial 1 — Classification Threshold $t$
+
+The threshold is the single most impactful parameter in classification evaluation and the most frequently ignored. sklearn silently uses $t = 0.5$. For imbalanced classes this is almost always suboptimal.
+
+| Value | Effect | When to use |
+|---|---|---|
+| **$t = 0.1$–$0.3$** (low) | More positive predictions; recall ↑, precision ↓ | Rare classes where missing positives is costly: Bald, Mustache, fraud detection, disease screening. Legal/compliance contexts where "better to investigate 100 cases than miss 1 real one." |
+| **$t = 0.5$** (default) | Balanced trade-off (optimal when P(positive) ≈ 0.5 and costs are symmetric) | Balanced classes (Smiling, Male). Reasonable starting point only. |
+| **$t = 0.7$–$0.9$** (high) | Fewer positive predictions; precision ↑, recall ↓ | When false positives are expensive: "only tag 'Wearing Hat' if very confident to avoid misleading users." Anti-spam filters. Precision-sensitive contexts. |
+
+**How to tune $t$ in practice:**
+
+```
+1. Train model, get predicted probabilities y_prob on validation set
+2. Sweep: for t in np.linspace(0.01, 0.99, 99):
+       compute F1(t) using y_pred = (y_prob >= t)
+3. Pick t* = argmax F1(t)  [or argmin |Recall(t) - recall_target| for recall floors]
+4. Evaluate on held-out test set using t* (never re-tune on test set)
+5. Document t* explicitly in all reports: "Bald F1 = 0.40 at threshold t=0.30"
+```
+
+> ⚡ **Constraint #2 unlock**: Per-attribute threshold tuning is how FaceAI handles 40 attributes with imbalance ratios from 48% (Smiling) to 1.1% (Mustache). One trained model, 40 independently tuned thresholds.
+
+### Dial 2 — $\beta$ in $F_\beta$ Score
+
+$$F_\beta = \frac{(1 + \beta^2) \cdot P \cdot R}{\beta^2 \cdot P + R}$$
+
+| Value | Effect | When to use |
+|---|---|---|
+| **$\beta < 1$** (e.g., $\beta = 0.5$) | Weights precision more heavily | When false positives are costly: user-facing badges, automated actions |
+| **$\beta = 1$** | Equal weight (standard F1) | General evaluation, model comparison |
+| **$\beta > 1$** (e.g., $\beta = 2$) | Weights recall more heavily | When false negatives are costly: compliance audits, medical screening, rare-class detection |
+
+**Example — Bald detection, Model C at $t = 0.30$:**
+
+| $\beta$ | Formula | Result |
+|---|---|---|
+| 0.5 | $\frac{1.25 \times 0.333 \times 0.500}{0.25 \times 0.333 + 0.500} = \frac{0.208}{0.583}$ | $F_{0.5} = 0.357$ (penalises low precision harder) |
+| 1.0 | $\frac{2 \times 0.333 \times 0.500}{1.0 \times 0.333 + 0.500} = \frac{0.333}{0.833}$ | $F_1 = 0.400$ |
+| 2.0 | $\frac{5 \times 0.333 \times 0.500}{4 \times 0.333 + 0.500} = \frac{0.833}{1.833}$ | $F_2 = 0.454$ (rewards high recall) |
+
+---
+
+## 9 · What Can Go Wrong
+
+**Trap 1 — Reporting accuracy on imbalanced data.** A 97.8% accuracy on Bald sounds like a strong model. It means the model predicts "Not Bald" for every face. Use F1 or recall as the primary metric whenever positive rate < 20% or > 80%.
+
+**Trap 2 — Using the default threshold $t = 0.5$ without checking.** For the Bald attribute, $t = 0.5$ gives F1 = 0.267. The optimal threshold $t = 0.30$ gives F1 = 0.400 — a 50% improvement with zero model changes. Always sweep thresholds on a held-out validation set before reporting final metrics.
+
+**Trap 3 — Using micro-F1 for multi-label evaluation.** Micro-F1 pools all TP/FP/FN across all 40 attributes before computing F1. Smiling (48% positive, ~88% F1) dominates the average and hides Bald/Mustache failures (~0.40 F1). Use **macro-F1** (equal weight per attribute) for FaceAI — it forces you to perform on every attribute, including rare ones.
+
+**Trap 4 — Trusting ROC-AUC alone for severely imbalanced classes.** A model with AUC-ROC = 0.89 on Bald can still produce PR-AUC = 0.41 — mediocre precision-recall performance. This happens because the large $A_5$ trapezoid (FPR from 0.1 to 1.0) dominates the ROC area even though no production system would run at those thresholds. Use **PR-AUC** as the primary curve metric for classes with positive rate < 10%.
+
+**Trap 5 — Evaluating on the test set while tuning thresholds.** If you pick $t^* = \arg\max_{t}\ F_1^{\text{test}}(t)$, you have overfitted the threshold to the test set. The reported F1 will be optimistically biased. Always tune thresholds on a validation split (or via cross-validation), then report F1 on the held-out test set at the chosen $t^*$.
+
+**Trap 6 — Forgetting that undefined metrics are a signal.** When a model makes zero positive predictions (like Model A), precision is undefined. This is not a numerical inconvenience — it is a signal that the model is completely ignoring the positive class. Treat undefined precision as a red flag, not a missing value to fill with NaN.
+
+---
+
+## 10 · Multi-Label Metrics — Evaluating All 40 FaceAI Attributes
+
+When each image requires 40 simultaneous binary predictions, the single-attribute metrics above must be aggregated carefully.
+
+**Hamming Loss** — per-label error rate (lenient):
+
+$$\text{Hamming Loss} = \frac{1}{N \cdot L}\sum_{i=1}^{N}\sum_{l=1}^{L} \mathbf{1}[\hat{y}_{il} \neq y_{il}]$$
+
+Here $N$ is the number of images and $L = 40$. Hamming loss = 0.05 means you got 95% of individual binary label assignments correct. It is a forgiving metric: predicting 39 of 40 attributes correctly is near-perfect by Hamming. Use it to track label-level error rates but don't celebrate it when rare-class recall is zero.
+
+**Subset Accuracy** — exact match rate (strict):
+
+$$\text{Subset Accuracy} = \frac{1}{N}\sum_{i=1}^{N} \mathbf{1}[\hat{\mathbf{y}}_i = \mathbf{y}_i]$$
+
+An image counts as correct only if all 40 attribute predictions match exactly. Getting 39 of 40 right is a *failure* under this metric. Subset accuracy is typically very low (5–15%) for FaceAI — but it represents the "zero-error" bar that some compliance auditors require.
+
+**Macro-averaged F1** (primary metric for FaceAI):
+
+$$F_1^{\text{macro}} = \frac{1}{L}\sum_{l=1}^{L} F_{1,l}$$
+
+Compute F1 separately for each of the 40 attributes at its own optimal threshold, then average. Each attribute contributes equally. Bald (2.2% positive) has the same weight as Smiling (48% positive). This forces the system to work on every attribute, including the hard rare ones.
+
+> 💡 **Macro-F1 is the primary FaceAI metric.** If any attribute has $F_{1,l} \approx 0$ (as Bald does with the naïve $t = 0.5$), macro-F1 will be dragged down and the problem is visible. Micro-F1 would hide it behind the majority-class attributes.
+
+---
+
+## 11 · Where This Reappears
+
+| Future chapter / track | How this chapter connects |
+|---|---|
+| **Ch.4 — SVM** | SVM's margin-maximising objective changes the predicted probability distribution. The metrics from this chapter are used verbatim to evaluate whether SVMs improve on logistic regression's F1 on Bald and Mustache. |
+| **Ch.5 — Hyperparameter Tuning** | Grid search and cross-validation use F1, PR-AUC, or recall as the `scoring` parameter. Every sklearn `GridSearchCV` run you write will call back to the metrics defined here. The choice of `scoring` encodes your business priority. |
+| **Neural Networks track — Ch.1** | When you build a multi-layer perceptron on CelebA, the evaluation report uses macro-F1 and per-attribute thresholds developed here. The AUC-ROC comparison between logistic regression and MLP first appears in that chapter. |
+| **Neural Networks track — Ch.5** | Binary cross-entropy as a training loss is the probabilistic counterpart of the precision/recall evaluation framework. The MLE derivation shows that minimising cross-entropy is equivalent to maximising recall in the log-probability sense. |
+| **Advanced Deep Learning track** | Multi-label losses (binary cross-entropy per label) correspond exactly to the per-attribute evaluation structure of macro-F1. The FaceAI target (>90% macro-F1) is first meaningfully approached in that track. |
+| **AI Infrastructure track** | Production monitoring tracks precision/recall in real time. A classifier that was well-calibrated at launch drifts: the Bald recall that was 0.50 at deployment may fall to 0.10 six months later as demographics shift. The alert system uses the thresholds and metrics from this chapter. |
+
+---
+
+## 12 · Progress Check — What We Can Solve Now
+
+![Progress visualization](img/ch03-metrics-progress-check.png)
+
+**Unlocked capabilities after this chapter:**
+
+✅ **Confusion matrix** — You can read a 2×2 table and extract every story it tells. TP=12, FP=8, TN=9792, FN=188 at $t=0.70$ is not just numbers; it is the sentence "the model makes very few predictions, and most of those predictions are correct, but it misses almost every Bald face."
+
+✅ **Precision and Recall** — You know these are not interchangeable and why you must report both for imbalanced classes. Precision = purity of positive predictions. Recall = coverage of actual positives.
+
+✅ **F1 score** — Van Rijsbergen's harmonic mean is now your default metric for imbalanced classification. You know why harmonic mean (F1 = 0.32) penalises a P=0.80, R=0.20 model more honestly than arithmetic mean (0.50 would say).
+
+✅ **AUC-ROC** — You can compute AUC from a 5-point ROC curve by trapezoidal integration (AUC = 0.892 for the Bald classifier), and you understand its probabilistic interpretation: the probability that a random positive ranks above a random negative.
+
+✅ **Threshold tuning** — You can sweep thresholds, plot F1 vs $t$, and identify $t^* = 0.30$ as the operating point that maximises F1 on the Bald attribute without any model retraining.
+
+✅ **Macro-F1** — You can aggregate per-attribute F1 scores across all 40 FaceAI attributes with equal weight, catching rare-class failures that micro-F1 and accuracy would both conceal.
+
+✅ **Constraint #1 VALIDATED** — The 88% Smiling accuracy from Ch.1 is real: Smiling is balanced (48%), accuracy correlates with F1 there. The 97.8% Bald accuracy is fraudulent. With per-attribute macro-F1 as the primary metric and per-attribute threshold tuning, FaceAI's constraint target becomes: **macro-F1 > 0.75 across 40 attributes**.
+
+**Still can't solve:**
+
+❌ **Accuracy above 90% across all 40 attributes** — The logistic regression model from Ch.1 reaches F1 ≈ 0.70 for the balanced attributes (Smiling, Young, Male) but only 0.40 for severely imbalanced ones (Bald, Mustache). We need a model with higher separation power to push rare-class F1 above 0.60. That is Ch.4's job.
+
+❌ **Hard margin classes** — For some face attributes, logistic regression's linear boundary in HOG space cannot separate positive from negative. Non-linear classifiers are needed.
+
+**Real-world status**: You can now tell your VP exactly how the model performs on every attribute, including the rare ones. You can choose a threshold for each attribute based on business requirements. You can compare models honestly using AUC and macro-F1. The *measurement* problem is solved. The *accuracy* problem is still open.
+
+**Next up:** Ch.4 — Support Vector Machines find the **maximum-margin hyperplane** in the HOG feature space, giving them a structural advantage over logistic regression on linearly separable attributes and, with the kernel trick, on non-linearly separable ones. Expected F1 improvement on Smiling: +4–6 percentage points.
+
+---
+
+## 13 · Bridge to Ch.4 — Support Vector Machines
+
+This chapter established *how to measure* a classifier; Ch.4 establishes *a better classifier to measure*. The link is precise: everything you built here — the confusion matrix, the threshold sweep, the F1-optimal operating point at $t = 0.30$ — applies unchanged to any classifier. When you train the Ch.4 SVM and evaluate it, you will run the exact same pipeline:
+
+```
+1. Train SVM on HOG features (Ch.4)
+2. Get predicted probabilities via Platt scaling
+3. Sweep thresholds per attribute (this chapter)
+4. Report macro-F1, per-attribute F1, and PR-AUC (this chapter)
+5. Compare against logistic regression baseline (this chapter's numbers are the baseline)
+```
+
+The SVM's structural advantage: it optimises the **margin** around the decision boundary, not the log-likelihood of a probability model. For balanced attributes (Smiling, Male), this typically raises F1 by 3–6 points. For severely imbalanced attributes (Bald, Mustache), the advantage depends on the kernel — a radial basis function kernel can learn non-linear boundaries in HOG space that separate Bald from Not-Bald more cleanly than any linear model. We will measure the outcome using the tools built in this chapter.
+
+> ➡️ **Before reading Ch.4**, confirm you can answer these questions from memory: What is the difference between precision and recall? Why does the harmonic mean penalise an imbalanced P/R pair more than the arithmetic mean? What does AUC = 0.892 mean in plain English? If yes: you have this chapter. If no: revisit §4.2–4.5.
+
 
 ### Multi-Label Metrics — Evaluating All 40 Attributes
 
@@ -425,149 +952,7 @@ The optimal threshold balances precision and recall. For production, you might c
 
 ---
 
-## 7 · Code Skeleton
-
-```python
-from sklearn.metrics import (
-    classification_report, confusion_matrix,
-    roc_auc_score, roc_curve, 
-    precision_recall_curve, average_precision_score,
-    f1_score
-)
-from sklearn.model_selection import cross_val_score, StratifiedKFold
-import numpy as np
-import matplotlib.pyplot as plt
-
-# ── Confusion Matrix ───────────────────────────────────────────────────────
-from sklearn.metrics import ConfusionMatrixDisplay
-
-cm = confusion_matrix(y_test, y_pred)
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, 
-                               display_labels=["Not-Bald", "Bald"])
-disp.plot(cmap='Blues')
-plt.title("Bald Classifier (threshold=0.5)")
-plt.show()
-
-# Read as: [[TN, FP], [FN, TP]]
-# Top-left (TN): Predicted Not-Bald, Actually Not-Bald ✅
-# Top-right (FP): Predicted Bald, Actually Not-Bald ❌
-# Bottom-left (FN): Predicted Not-Bald, Actually Bald ❌
-# Bottom-right (TP): Predicted Bald, Actually Bald ✅
-
-# ── Classification Report ──────────────────────────────────────────────────
-print(classification_report(
-    y_test, y_pred, 
-    target_names=["Not-Bald", "Bald"],
-    digits=3  # show 3 decimal places for precision
-))
-
-# Output shows per-class precision, recall, F1, and support (sample count)
-# "support" = number of actual samples in that class (not predictions)
-
-# ── ROC Curve ──────────────────────────────────────────────────────────────
-fpr, tpr, thresholds_roc = roc_curve(y_test, y_prob)
-auc_roc = roc_auc_score(y_test, y_prob)
-
-plt.figure(figsize=(6, 6))
-plt.plot(fpr, tpr, label=f"ROC-AUC={auc_roc:.3f}", linewidth=2)
-plt.plot([0, 1], [0, 1], 'k--', label="Random (AUC=0.5)")  # diagonal baseline
-plt.xlabel("False Positive Rate")
-plt.ylabel("True Positive Rate (Recall)")
-plt.title("ROC Curve: Bald Classifier")
-plt.legend()
-plt.grid(alpha=0.3)
-plt.show()
-
-# ── PR Curve (better for imbalanced) ──────────────────────────────────────
-precision, recall, thresholds_pr = precision_recall_curve(y_test, y_prob)
-auc_pr = average_precision_score(y_test, y_prob)  # PR-AUC
-
-plt.figure(figsize=(6, 6))
-plt.plot(recall, precision, label=f"PR-AUC={auc_pr:.3f}", linewidth=2)
-plt.axhline(y=0.025, color='k', linestyle='--', 
-            label="Random (baseline=2.5%)")  # positive rate baseline
-plt.xlabel("Recall")
-plt.ylabel("Precision")
-plt.title("Precision-Recall Curve: Bald Classifier")
-plt.legend()
-plt.grid(alpha=0.3)
-plt.show()
-
-# ── Threshold Tuning ───────────────────────────────────────────────────────
-thresholds = np.linspace(0.01, 0.99, 99)
-f1_scores = []
-
-for t in thresholds:
-    y_pred_t = (y_prob >= t).astype(int)
-    f1 = f1_score(y_test, y_pred_t)
-    f1_scores.append(f1)
-
-optimal_idx = np.argmax(f1_scores)
-optimal_threshold = thresholds[optimal_idx]
-optimal_f1 = f1_scores[optimal_idx]
-
-plt.plot(thresholds, f1_scores, linewidth=2)
-plt.axvline(x=optimal_threshold, color='r', linestyle='--', 
-            label=f"Optimal t={optimal_threshold:.2f} (F1={optimal_f1:.3f})")
-plt.axvline(x=0.5, color='gray', linestyle=':', label="Default t=0.5")
-plt.xlabel("Threshold")
-plt.ylabel("F1 Score")
-plt.title("Threshold Tuning: Bald Classifier")
-plt.legend()
-plt.grid(alpha=0.3)
-plt.show()
-
-print(f"Default threshold 0.5: F1={f1_scores[49]:.3f}")
-print(f"Optimal threshold {optimal_threshold:.2f}: F1={optimal_f1:.3f}")
-print(f"Improvement: {(optimal_f1 / f1_scores[49] - 1) * 100:.1f}%")
-
-# ── Cross-Validation with Stratification ──────────────────────────────────
-from sklearn.linear_model import LogisticRegression
-
-model = LogisticRegression(max_iter=1000, random_state=42)
-
-# Use StratifiedKFold to ensure each fold has ~2.5% Bald faces
-skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-
-# Evaluate with F1 macro (equal weight per class)
-scores = cross_val_score(model, X_train, y_train, cv=skf, 
-                         scoring='f1_macro')
-
-print(f"5-Fold CV F1: {scores.mean():.3f} ± {scores.std():.3f}")
-print(f"Individual folds: {scores}")
-
-# Confidence interval (95%): mean ± 1.96 * std
-ci_lower = scores.mean() - 1.96 * scores.std()
-ci_upper = scores.mean() + 1.96 * scores.std()
-print(f"95% CI: [{ci_lower:.3f}, {ci_upper:.3f}]")
-
-# ── Multi-Label: Per-Attribute Evaluation ─────────────────────────────────
-attribute_names = ['Smiling', 'Male', 'Eyeglasses', 'Bald', 'Mustache']
-
-for attr in attribute_names:
-    y_true_attr = y_test[attr]  # binary labels for this attribute
-    y_prob_attr = y_prob[attr]  # predicted probabilities
-    
-    auc = roc_auc_score(y_true_attr, y_prob_attr)
-    pr_auc = average_precision_score(y_true_attr, y_prob_attr)
-    
-    # Default threshold 0.5
-    y_pred_attr = (y_prob_attr >= 0.5).astype(int)
-    f1 = f1_score(y_true_attr, y_pred_attr)
-    
-    print(f"{attr:15s} | ROC-AUC={auc:.3f} | PR-AUC={pr_auc:.3f} | F1={f1:.3f}")
-
-# Expected output:
-# Smiling          | ROC-AUC=0.942 | PR-AUC=0.938 | F1=0.874  ← Balanced, both metrics high
-# Eyeglasses       | ROC-AUC=0.921 | PR-AUC=0.782 | F1=0.691  ← Moderate imbalance, PR-AUC lower
-# Bald             | ROC-AUC=0.887 | PR-AUC=0.421 | F1=0.142  ← Severe imbalance, PR-AUC reveals weakness
-```
-
-> 💡 **Key patterns in this code**: (1) Always plot both ROC and PR curves for imbalanced data to see which metric is lying. (2) Threshold tuning is a 3-line loop — sweep, compute F1, pick max. (3) StratifiedKFold is mandatory for classification — non-stratified folds will crash on rare classes.
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 ### Trap 1: Reporting Accuracy on Imbalanced Data
 
@@ -638,23 +1023,23 @@ graph TD
 
 ---
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 | Concept | Reappears in | How It's Used |
 |---------|-------------|---------------|
 | **PR-AUC over ROC-AUC for imbalanced data** | [Topic 05 — Anomaly Detection](../../05_anomaly_detection/README.md) | Credit card fraud (0.17% positive) and network intrusion detection require PR-AUC — ROC-AUC=0.95 can hide recall=30% failures |
-| **Macro-averaged F1 for multi-label** | [Topic 03 — Neural Networks](../../03_neural_networks/README.md) Ch.6 (Multi-output Networks) | When training a single neural net with 40 output heads, `loss = macro_f1` prevents majority-class dominance during gradient descent |
+| **Macro-averaged F1 for multi-label** | [Topic 03 — Neural Networks](../../03_neural_networks/README.md) | When training a single neural net with 40 output heads (multi-label classification), `loss = macro_f1` prevents majority-class dominance during gradient descent |
 | **Per-class confusion matrices** | [Ch.5 — Hyperparameter Tuning](../ch05_hyperparameter_tuning/README.md) | Grid search optimizes for `f1_macro` across all 40 attributes; per-class confusion matrices diagnose which attributes need threshold tuning |
 | **Stratified k-fold CV** | Every subsequent classification track | Required whenever class distribution is non-uniform (imbalance or multi-class). Regression uses regular k-fold; classification always uses stratified |
 | **Threshold tuning as hyperparameter** | [Topic 05 — Anomaly Detection](../../05_anomaly_detection/README.md) Ch.3 (Threshold Optimization) | Fraud detection systems have business-defined recall targets ("catch 80% of fraud"); threshold becomes the primary tuning dial, not model architecture |
-| **Hamming loss for multi-label** | [Topic 03 — Neural Networks](../../03_neural_networks/README.md) Ch.6 | Hamming loss is differentiable → can be used directly as a neural network loss function for multi-label tasks (alternative to 40 separate binary cross-entropy losses) |
+| **Hamming loss for multi-label** | [Topic 03 — Neural Networks](../../03_neural_networks/README.md) | Hamming loss is differentiable → can be used directly as a neural network loss function for multi-label tasks (alternative to 40 separate binary cross-entropy losses) |
 | **Calibration and reliability diagrams** | [Topic 05 — Anomaly Detection](../../05_anomaly_detection/README.md) Ch.4 (Calibration) | When stakeholders ask "what does 0.73 probability mean?", you need calibration. Platt scaling and isotonic regression recalibrate model outputs to match true frequencies |
 
 > ➡️ **This chapter gives you the evaluation vocabulary that every subsequent chapter assumes.** From now on, when a chapter says "F1 improved from 0.82 to 0.87," you know exactly what that means and whether it's significant. When a research paper reports "ROC-AUC=0.94 on MNIST," you know to ask about class balance before trusting it.
 
 ---
 
-## 10 · Progress Check
+## 9 · Progress Check
 
 ### Unlocked Capabilities
 
@@ -721,7 +1106,7 @@ graph LR
 
 ---
 
-## 11 · Bridge to Next Chapter
+## 10 · Bridge to Next Chapter
 
 You've built the evaluation framework: confusion matrices, precision/recall, F1, ROC-AUC, PR-AUC, and multi-label metrics. The logistic regression baseline holds at **88% accuracy on Smiling**, and you've proven it's a real result (not the accuracy paradox) with proper cross-validation and per-class analysis.
 
@@ -729,35 +1114,6 @@ But can you push higher? Logistic regression draws a **linear decision boundary*
 
 **Ch.4** introduces **Support Vector Machines (SVM)** — models that find the **maximum-margin hyperplane** (the widest possible separation between classes) and use the **kernel trick** to handle non-linear boundaries without explicitly computing high-dimensional feature maps. SVM pushes Smiling accuracy to **~89%** by finding a more robust, wider separation than logistic regression's narrow boundary. And when you evaluate it, you'll use every metric from this chapter to prove the improvement is real.
 
----
-
-## Appendix A · Real CelebA Data Pipeline (No Proxy Data)
-
-The examples in this chapter are intended to run on real CelebA attributes. Use this setup to avoid synthetic placeholders.
-
-### Data Access Options
-
-1. Kaggle mirror: `jessicali9530/celeba-dataset`.
-2. Official CelebA source: download aligned images + `list_attr_celeba.txt`.
-
-### Minimal Setup Steps
-
-1. Create folders:
-   - `data/celeba/img_align_celeba/`
-   - `data/celeba/metadata/`
-2. Place attribute file at:
-   - `data/celeba/metadata/list_attr_celeba.txt`
-3. Keep image filenames unchanged (`000001.jpg`, ...).
-4. Start with a 20k-50k image subset for local runs.
-
-### Loader Contract
-
-- Input image size: 64x64 (or 128x128 for stronger baselines).
-- Labels: map CelebA values from `{-1, +1}` to `{0, 1}`.
-- Split: use official train/val/test partitions to avoid leakage.
-- Reproducibility: set random seed and persist sampled subset IDs.
-
-### Practical Notes
 
 - Multi-label tasks should keep one binary head per attribute.
 - For rare attributes (Bald, Mustache, Wearing_Hat), prefer macro-F1 and per-label PR-AUC.

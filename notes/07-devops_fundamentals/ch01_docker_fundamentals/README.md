@@ -104,125 +104,9 @@ Dockerfile → build → Image → run → Container
 
 ---
 
-## 4 · Code Skeleton — Dockerfile Best Practices
+## 4 · Step-by-Step — Build, Run, Debug
 
-### 4.1 · Minimal Flask Dockerfile
-
-```dockerfile
-# Use official Python slim image (smaller than full Python)
-FROM python:3.11-slim
-
-# Set working directory inside container
-WORKDIR /app
-
-# Copy requirements first (layer caching optimization)
-COPY requirements.txt .
-
-# Install dependencies (cached if requirements.txt unchanged)
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Expose port (documentation, doesn't actually publish)
-EXPOSE 5000
-
-# Define startup command
-CMD ["python", "app.py"]
-```
-
-**Why this order matters:**
-Docker builds images in **layers** — each instruction (`FROM`, `RUN`, `COPY`) creates a layer. Layers are **cached** — if nothing changed, Docker reuses the cached layer. By copying `requirements.txt` before the app code, dependency installation is cached even when you change `app.py`. This speeds up builds from 60 seconds to 2 seconds during development.
-
-**Numeric example — layer cache in action:**
-
-| Build attempt | Changed file | Layer cache status | Build time |
-|---------------|--------------|-------------------|-----------|
-| 1st build | — | All layers built fresh | 58s |
-| 2nd build (changed app.py) | `app.py` | `pip install` cached (28s saved) | 30s |
-| 3rd build (changed requirements.txt) | `requirements.txt` | Cache invalidated from `COPY requirements.txt` onward | 58s |
-
-**Key lesson:** Put frequently changing files (`app.py`) **after** slow operations (`pip install`) to maximize cache hits.
-
-### 4.2 · Multi-Stage Build (Production-Optimized)
-
-```dockerfile
-# Stage 1: Build dependencies
-FROM python:3.11-slim AS builder
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Stage 2: Runtime image
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Copy only installed packages from builder
-COPY --from=builder /root/.local /root/.local
-COPY . .
-
-# Update PATH to use user-installed packages
-ENV PATH=/root/.local/bin:$PATH
-
-EXPOSE 5000
-CMD ["python", "app.py"]
-```
-
-**Why multi-stage builds matter:**
-The builder stage installs dependencies (including build tools like `gcc`, which add 200+ MB). The runtime stage copies only the *installed packages*, not the build tools. Final image size: **120 MB instead of 350 MB**.
-
-**Size comparison:**
-
-| Dockerfile | Base image | Build tools | Final size |
-|------------|-----------|-------------|-----------|
-| Single-stage | `python:3.11` | Included | 850 MB |
-| Single-stage | `python:3.11-slim` | — | 180 MB |
-| Multi-stage | `python:3.11-slim` | Discarded after build | 120 MB |
-
-> ⚡ **Multi-stage builds are standard in production.** Every CI/CD pipeline should use them — smaller images mean faster deployments, lower registry storage costs, and reduced attack surface.
-
-### 4.3 · .dockerignore (Essential for Clean Builds)
-
-```
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.git/
-.env
-.venv/
-venv/
-*.log
-.pytest_cache/
-.coverage
-htmlcov/
-dist/
-build/
-*.egg-info/
-```
-
-**Why `.dockerignore` is not optional:**
-Without it, `COPY . .` copies **every file** in the build context — including `.git` (50 MB), `venv/` (200 MB), and `__pycache__/` (50 MB). This:
-- Bloats the image by 300 MB
-- Invalidates cache on every commit (even unrelated changes)
-- Exposes secrets if `.env` is accidentally copied
-
-**Numeric impact:**
-
-| Scenario | Build context size | Build time | Image size |
-|----------|-------------------|-----------|-----------|
-| No `.dockerignore` | 350 MB | 45s | 400 MB |
-| With `.dockerignore` | 5 MB | 12s | 120 MB |
-
-> ⚠️ **Never copy secrets into images.** Use environment variables at runtime (`docker run -e SECRET_KEY=...`) or secret management tools (Kubernetes Secrets, AWS Secrets Manager). Once a secret is baked into an image layer, it persists even if you delete the file in a later layer — anyone with the image can extract it with `docker history`.
-
----
-
-## 5 · Step-by-Step — Build, Run, Debug
-
-### 5.1 · Build the Image
+### 4.1 · Build the Image
 
 ```bash
 # Build image tagged as flask-app:v1
@@ -242,7 +126,7 @@ docker images
 # flask-app     v1     a3c5d9f8b2e1   10 seconds ago  120MB
 ```
 
-### 5.2 · Run the Container
+### 4.2 · Run the Container
 
 ```bash
 # Run container, map host port 5000 to container port 5000
@@ -269,7 +153,7 @@ curl http://localhost:5000/
 # {"status": "ok", "message": "Flask app running"}
 ```
 
-### 5.3 · Inspect Logs
+### 4.3 · Inspect Logs
 
 ```bash
 # View container logs (stdout/stderr)
@@ -288,7 +172,7 @@ docker logs -f flask-api
 
 > 💡 **Best practice:** Flask apps should log to stdout, not files. Docker captures stdout/stderr automatically. In production, logs are shipped to centralized logging (e.g., Elasticsearch, Splunk) directly from container output.
 
-### 5.4 · Execute Commands Inside Running Container
+### 4.4 · Execute Commands Inside Running Container
 
 ```bash
 # Open interactive shell in running container
@@ -309,7 +193,7 @@ docker exec flask-api ps aux
 
 > ⚠️ **Never exec into production containers to "fix" issues.** If a container is broken, stop it and deploy a new one from a fixed image. Exec is for **debugging**, not **patching**. Manual changes inside containers are lost on restart — the fix must be in the Dockerfile.
 
-### 5.5 · Stop and Remove Container
+### 4.5 · Stop and Remove Container
 
 ```bash
 # Stop gracefully (sends SIGTERM, waits 10s, then SIGKILL)
@@ -327,9 +211,9 @@ Stopped containers still consume disk space and clutter `docker ps -a` output. I
 
 ---
 
-## 6 · Volumes — Persistent Data Survives Container Restarts
+## 5 · Volumes — Persistent Data Survives Container Restarts
 
-### 6.1 · The Problem: Containers Are Ephemeral
+### 5.1 · The Problem: Containers Are Ephemeral
 
 **Scenario:** You add a Redis container for session storage.
 
@@ -339,7 +223,7 @@ docker run -d --name redis redis:7
 
 Redis stores data inside the container's filesystem. When you stop and remove the container, **all data is lost**. This is by design — containers are ephemeral. For stateful services (databases, caches, file storage), you need **volumes**.
 
-### 6.2 · Named Volumes (Recommended)
+### 5.2 · Named Volumes (Recommended)
 
 ```bash
 # Create named volume
@@ -369,7 +253,7 @@ docker run -d --name redis -v redis-data:/data redis:7
 - Can be shared between multiple containers (e.g., read-only mounts for shared config)
 - Backed up independently (e.g., snapshot the volume, not the container)
 
-### 6.3 · Bind Mounts (Development Only)
+### 5.3 · Bind Mounts (Development Only)
 
 ```bash
 # Mount host directory into container
@@ -398,9 +282,9 @@ docker run -d \
 
 ---
 
-## 7 · Multi-Container Setup — Flask + Redis Network
+## 6 · Multi-Container Setup — Flask + Redis Network
 
-### 7.1 · Create Custom Network
+### 6.1 · Create Custom Network
 
 ```bash
 # Create bridge network
@@ -410,7 +294,7 @@ docker network create flask-net
 **Why networks matter:**
 By default, containers are isolated. To enable Flask → Redis communication, both must be on the same Docker network. Containers on the same network can resolve each other **by container name** (automatic DNS).
 
-### 7.2 · Run Redis on Custom Network
+### 6.2 · Run Redis on Custom Network
 
 ```bash
 docker run -d \
@@ -420,7 +304,7 @@ docker run -d \
   redis:7
 ```
 
-### 7.3 · Run Flask with Redis Connection
+### 6.3 · Run Flask with Redis Connection
 
 ```bash
 docker run -d \
@@ -447,7 +331,7 @@ r = redis.Redis(host=REDIS_HOST, port=6379)
 - No hardcoded IPs — portable across environments
 - Docker's embedded DNS server handles name resolution automatically
 
-### 7.4 · Verify Communication
+### 6.4 · Verify Communication
 
 ```bash
 # From Flask container, ping Redis
@@ -460,9 +344,9 @@ docker exec flask-api ping redis
 
 ---
 
-## 8 · Image Registries — Sharing Images Across Machines
+## 7 · Image Registries — Sharing Images Across Machines
 
-### 8.1 · Tagging for Docker Hub
+### 7.1 · Tagging for Docker Hub
 
 ```bash
 # Tag image with Docker Hub username
@@ -478,7 +362,7 @@ docker tag flask-app:v1 yourusername/flask-app:v1
 | `ghcr.io/yourorg/flask-app:v1` | GitHub Container Registry |
 | `123456.dkr.ecr.us-east-1.amazonaws.com/flask-app:v1` | AWS ECR |
 
-### 8.2 · Push to Docker Hub
+### 7.2 · Push to Docker Hub
 
 ```bash
 # Login to Docker Hub
@@ -503,9 +387,9 @@ docker run -d -p 5000:5000 yourusername/flask-app:v1
 
 ---
 
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
-### 9.1 · Port Already in Use
+### 8.1 · Port Already in Use
 
 **Symptom:**
 ```
@@ -524,7 +408,7 @@ netstat -ano | findstr :5000  # Windows
 docker run -d -p 8080:5000 flask-app:v1
 ```
 
-### 9.2 · Image Bloat (500 MB+ Images)
+### 8.2 · Image Bloat (500 MB+ Images)
 
 **Symptom:** Image size is 800 MB for a simple Flask app.
 
@@ -547,13 +431,13 @@ docker run -d -p 8080:5000 flask-app:v1
 | Node.js Express | 80–120 MB | 400–600 MB |
 | Go binary | 10–20 MB | 100–200 MB |
 
-### 9.3 · Layer Cache Not Working
+### 8.3 · Layer Cache Not Working
 
 **Symptom:** Every build reinstalls dependencies even when `requirements.txt` unchanged.
 
 **Cause:** `COPY . .` appears before `COPY requirements.txt .` — any file change invalidates cache.
 
-**Fix:** Reorder Dockerfile instructions (see §4.1).
+**Fix:** Reorder Dockerfile instructions by copying requirements.txt before application code to maximize cache hits.
 
 **Cache invalidation order:**
 ```dockerfile
@@ -565,7 +449,7 @@ COPY . .                     # NOT CACHED (app.py changed)
 CMD ["python", "app.py"]     # NOT CACHED (previous layer changed)
 ```
 
-### 9.4 · Secrets Leaked in Image
+### 8.4 · Secrets Leaked in Image
 
 **Symptom:** `docker history flask-app:v1` reveals API keys.
 
@@ -587,7 +471,7 @@ docker history flask-app:v1
 # Check each layer's SIZE — large layers may contain secrets
 ```
 
-### 9.5 · Container Exits Immediately
+### 8.5 · Container Exits Immediately
 
 **Symptom:**
 ```bash
@@ -614,7 +498,7 @@ docker run -it flask-app:v1 /bin/bash
 
 ---
 
-## 10 · Progress Check
+## 9 · Progress Check
 
 > **Goal:** Verify you can build, run, debug, and optimize containerized applications. These questions cover the core concepts — if you can answer them without looking back, you're ready for Ch.2 (multi-container orchestration).
 
@@ -707,7 +591,7 @@ Now data is stored in the volume (outside the container). Removing the container
 
 ---
 
-## 11 · Bridge to Chapter 2 — Multi-Container Apps Need Orchestration
+## 10 · Bridge to Chapter 2 — Multi-Container Apps Need Orchestration
 
 You've successfully containerized a Flask app with Redis. But manual `docker run` commands become fragile at scale:
 

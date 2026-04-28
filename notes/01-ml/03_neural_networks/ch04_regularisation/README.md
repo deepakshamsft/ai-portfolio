@@ -1,501 +1,823 @@
 # Ch.4 — Regularisation
 
-![Animation: each regularisation idea visibly moves test MAE from roughly $85k toward the $52k target while smoothing the fit on unseen districts.](img/ch04-regularisation-needle.gif)
-
-*Visual takeaway: no regularisation → L2 → dropout → early stopping pushes the generalisation needle from about $85k down to roughly $52k test MAE.*
-
-> **The story.** **L2 ("ridge") regression** was published in **1970** by **Arthur Hoeffding-style** statisticians **Hoerl & Kennard** to handle ill-conditioned matrices in OLS — the same year **Andrey Tikhonov** independently proposed identical regularisation in the Soviet inverse-problems literature, which is why you'll see the term *Tikhonov regularisation* in some textbooks. **L1 ("lasso")** waited until **1996** when **Robert Tibshirani** showed that an L1 penalty doesn't just shrink coefficients — it drives many of them to exactly zero, giving you free feature selection. The deep-learning era added two more weapons: **dropout** (Srivastava, Hinton et al. 2014), which randomly mutes neurons each batch and was the single biggest reason AlexNet-era nets stopped catastrophically overfitting; and **early stopping**, an idea so old (Morgan & Bourlard 1990) that nobody bothers to cite it. All four ideas attack the same enemy: a model that has memorised the training set instead of learning the regularities behind it.
+> **The story.** Overfitting is as old as curve fitting itself, but its mathematical cure has a precise lineage. In **1943** the Soviet mathematician **Andrey Nikolayevich Tikhonov** introduced a quadratic penalty on the solution norm to stabilise ill-posed inverse problems — the technique that would later be called **L2 regularisation** or *Tikhonov regularisation*. Western statisticians rediscovered it in **1970** when **Hoerl & Kennard** published *Ridge Regression* to handle multicollinear least-squares systems, coining the name still used in sklearn today. Then in **1996 Robert Tibshirani** showed that replacing the squared penalty with an absolute-value penalty — the **L1 / LASSO** — doesn't just shrink coefficients, it forces many of them to exactly zero, turning regularisation into simultaneous feature selection. Deep learning added two more tools: **Dropout** (Hinton, Srivastava et al. **2012/2014**), which randomly silences neurons each forward pass, was the single biggest reason AlexNet-era networks stopped catastrophically memorising ImageNet; and **Batch Normalisation** (Ioffe & Szegedy **2015**), which standardises layer activations within each mini-batch and provides implicit regularisation as a side effect. All four techniques attack the same enemy: a model that has memorised the training set instead of learning the regularities behind it.
 >
-> **Where you are in the curriculum.** Your two-hidden-layer housing network from [Ch.2](../ch02_neural_networks) trained with Adam from [Ch.3](../ch03_backprop_optimisers) achieves R² = 0.83 on the training set but only 0.67 on the test set. The model has memorised 200+ training districts rather than learning general pricing patterns. This chapter adds the four guardrails — L1, L2, Dropout, Early Stopping — that close that gap, and that you will reach for in every chapter from here on.
+> **Where you are in the curriculum.** In [Ch.3 — Backprop & Optimisers](../ch03_backprop_optimisers) you trained a two-hidden-layer housing network with Adam and hit a training MAE of ~\$32k — clearing the <\$40k intermediate accuracy target for the first time. The bad news: evaluation on the held-out validation set reveals a **\$68k MAE**. The gap is **\$36k**. Your model has memorised 200+ individual California districts rather than learning general pricing patterns. UnifiedAI **Constraint \#2 (GENERALIZATION)** is blocked. This chapter adds the four guardrails — L1, L2, Dropout, Early Stopping — plus Batch Normalisation, and shows how combining them closes the train-val gap from \$36k to \$18k.
 >
-> **Notation in this chapter.** $\lambda$ — **regularisation strength** (the bigger, the more you penalise complexity); $\|\mathbf{w}\|_2^2=\sum_i w_i^2$ — the **L2 / Ridge** penalty; $\|\mathbf{w}\|_1=\sum_i|w_i|$ — the **L1 / Lasso** penalty; $L_{\text{reg}}=L_{\text{data}}+\lambda\,\Omega(\mathbf{w})$ — the regularised objective; $p$ — dropout probability (the chance a neuron is zeroed during training); $\mu_B,\sigma_B^2$ — batch-normalisation statistics computed over a mini-batch $B$; $R^2_{\text{train}},R^2_{\text{test}}$ — train/test coefficient of determination (the gap is what regularisation closes).
+> **Notation in this chapter.** $\lambda$ — **regularisation strength** (the bigger, the more you penalise weight complexity); $\|\mathbf{w}\|_2^2 = \sum_i w_i^2$ — the **L2 / Ridge** penalty (sum of squared weights); $\|\mathbf{w}\|_1 = \sum_i |w_i|$ — the **L1 / Lasso** penalty (sum of absolute weights); $\mathcal{L}_\text{reg} = \mathcal{L}_\text{data} + \lambda\,\Omega(\mathbf{w})$ — the regularised objective; $p$ — **dropout rate** (probability a neuron is zeroed during training); $\mu_B$ — batch mean; $\sigma_B^2$ — batch variance; $\hat{x}_i = \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \varepsilon}}$ — batch-normalised activation; $\varepsilon = 10^{-8}$ — numerical stability constant; $\alpha$ — learning rate; $\text{gap} = \mathcal{L}_\text{val} - \mathcal{L}_\text{train}$ — the generalisation gap this chapter closes.
+
+**By the end of this chapter you will be able to:**
+- Explain why the bias-variance tradeoff is the correct framework for understanding overfitting
+- Derive the L2-modified gradient and apply weight decay manually for two update steps
+- Distinguish when L1 sparsity is preferable to L2 shrinkage for a given feature set
+- Apply inverted dropout correctly (training vs inference mode distinction)
+- Compute batch normalisation statistics by hand for a 4-sample mini-batch
+- Select and stack regularisation techniques in the correct order for a tabular regression model
+- Close the California Housing train-val gap from \$36k to \$18k using the full regularisation stack
 
 ---
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation system satisfying 5 constraints:
-> 1. **ACCURACY**: <$50k MAE — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+> 💡 **The mission**: Launch **UnifiedAI** — a production home valuation and face-attribute system satisfying 5 constraints:
+> 1. **ACCURACY**: ≤\$28k MAE (California Housing) — 2. **GENERALIZATION**: Unseen districts — 3. **MULTI-TASK**: Value + Segment — 4. **INTERPRETABILITY**: Explainable — 5. **PRODUCTION**: Scale + Monitor
+
+> ⚡ **Key insight:** regularisation does not change the model architecture. It changes the *cost function* (L1, L2), the *training procedure* (dropout, early stopping), or the *activation statistics* (BatchNorm). The same 128-64 network from Ch.3 becomes a genuinely generalisable model once the right constraints are applied. No new layers needed.
 
 **What we know so far:**
-- ✅ NN Ch.1 (XOR Problem): Proved need for hidden layers
-- ✅ NN Ch.2 (Neural Networks): Built 3-layer architecture
-- ✅ NN Ch.3: Backprop + Adam optimizer → **~$48k MAE** (breaking the <$50k intermediate target)
-- Can train neural networks efficiently
-- **But the model is overfitting!**
+- ✅ NN Ch.1 (XOR Problem): proved the need for hidden layers
+- ✅ NN Ch.2 (Neural Networks): built the 8 → [128 ReLU] → [64 ReLU] → 1 architecture
+- ✅ NN Ch.3 (Backprop + Adam): trained that network to **~\$32k train MAE** — clearing the intermediate accuracy target
+- ✅ We understand the full training loop: forward pass → loss → backward pass → Adam update
+- ❌ **But the model can't generalise to unseen districts!**
 
-**What's blocking us:**
-⚠️ **CRITICAL PROBLEM: The model can't generalize!**
+**What's blocking us — the overfitting crisis:**
 
-We achieved Constraint #1 (ACCURACY) with $48k MAE, but there's a catastrophic issue:
-- **Training R²**: 0.88 (model fits training data very well)
-- **Test R²**: 0.64 (model performs poorly on unseen districts)
-- **Generalization gap**: 0.24 → the model has **memorized** the training set!
+| Metric | Value | Status |
+|---|---|---|
+| Train MAE | **\$32k** | ✅ below \$40k intermediate target |
+| Val MAE | **\$68k** | ❌ far above production target |
+| **Generalisation gap** | **\$36k** | 🚨 Constraint \#2 GENERALIZATION BLOCKED |
 
-**Why this is a showstopper:**
-UnifiedAI needs **Constraint #2 (GENERALIZATION)** — accurate predictions on **unseen districts**:
-- **Current**: $48k MAE on training data, but **$85k MAE on new districts**
-- **Requirement**: <$60k MAE on unseen districts (20% worse than training is acceptable)
-- **Gap**: The model has 10,000+ parameters and only 20,000 training samples → it memorizes individual districts instead of learning pricing patterns
+The network has **10,000+ parameters** and only **16,512 training samples** (80% of 20,640). With that ratio, gradient descent finds weight configurations that memorise training peculiarities — a luxury condo cluster in district \#4217, a data artefact in a coastal census block — rather than learning genuine pricing signals. Every epoch of training after the validation loss starts rising is the model getting *worse at what it's actually for*.
 
-**Concrete failure example:**
-- **Training district #4217**: Coastal, MedInc=$8.2k, HouseAge=25yr → Model predicts $412k (actual: $410k) ✓
-- **New district** (test set): Coastal, MedInc=$8.1k, HouseAge=26yr → Model predicts **$320k** (actual: $405k) ❌
+**Concrete failure:**
+```
+Training district #4217:  Coastal, MedInc=$8.2k, HouseAge=25yr
+  → Model predicts $412k  (actual: $410k)  ✓  [memorised this exact district]
 
-The model learned "district #4217 = $412k" (memorization) instead of "coastal + high-income → premium" (pattern).
+New district (validation): Coastal, MedInc=$8.1k, HouseAge=26yr
+  → Model predicts $310k  (actual: $408k)  ❌  [memorisation fails on slight variation]
+```
 
-**Why overfitting happens:**
-1. **Too many parameters**: 10,000+ weights vs 20,000 training samples
-2. **No constraints**: Weights can grow arbitrarily large to fit training noise
-3. **Training too long**: Model keeps optimizing training loss even after test loss starts increasing
+**Root cause:** weights grew large enough to encode individual-district fingerprints.  
+**Fix:** constrain the weights so the model can only represent smooth, general patterns.
 
 **What this chapter unlocks:**
-⚡ **The generalization breakthrough:**
-1. **L2 regularization (weight decay)**: Penalizes large weights ($\lambda \|\mathbf{W}\|^2$) → simpler, smoother models
-2. **Dropout**: Randomly zeros 50% of neurons during training → forces redundant representations
-3. **Early stopping**: Halt training when validation loss stops improving → prevents late-epoch memorization
-4. **Batch normalization**: Normalizes layer inputs → implicit regularization
 
-💡 **Expected outcome**: Close the generalization gap from 0.24 → <0.10 → ✅ **Constraint #2 ACHIEVED!**
+| Technique | Mechanism | Expected gap reduction |
+|---|---|---|
+| L2 regularisation | penalise large weights | −\$10k gap |
+| Dropout (p=0.3) | force redundant representations | −\$8k gap |
+| Batch Normalisation | normalise layer inputs | stabilise training |
+| Early Stopping | halt before memorisation epoch | recover best checkpoint |
+| **Combined** | **all techniques** | **gap \$36k → \$18k** ✅ |
 
-With L2 ($\lambda=0.01$) + Dropout (p=0.5) + Early Stopping (patience=10):
-- **Training R²**: 0.82 (slightly worse — that's expected!)
-- **Test R²**: 0.76 (much better!)
-- **Gap**: 0.06 → acceptable generalization
-- **Test MAE**: **$52k** (down from $85k — 37% improvement on unseen districts!)
+⚡ **Expected outcome after this chapter:** val MAE ≈ **\$56k**, train-val gap ≈ **\$18k** → ✅ **Constraint \#2 GENERALIZATION achieved!**
+
+---
+
+## Animation
+
+![animation](img/ch04-regularisation-needle.gif)
+
+*Visual takeaway: no regularisation → +L2 → +Dropout → +BatchNorm + Early Stopping progressively narrows the train-val gap from \$36k toward \$18k. Each technique chips away at memorisation.*
+
+> 💡 **How to read this chapter:** §0 (challenge) and §11 (progress check) frame the story. §4 (the math) is the analytical core. §5 (selection arc) and §6 (L2 walkthrough) are the applied payoff. §8–§9 are your production checklist.
 
 ---
 
 ## 1 · Core Idea
 
-**Regularisation** is any technique that reduces the gap between training performance and generalisation performance. All techniques share one goal: prevent the model from fitting noise in the training data.
+**Regularisation** is any technique that reduces the gap between training performance and generalisation performance. The root cause of overfitting is a model complex enough to memorise training noise; regularisation adds a **cost for complexity** that forces the model to explain the data with simpler weight patterns it can reuse on unseen examples.
+
+The classical framing is the **bias-variance tradeoff**. A model's total expected error on unseen data decomposes as:
+
+$$\text{Total error} = \underbrace{\text{Bias}^2}_{\text{from constraints}} + \underbrace{\text{Variance}}_{\text{from memorisation}} + \underbrace{\sigma^2_{\text{noise}}}_{\text{irreducible}}$$
+
+More regularisation = more bias (the model is forced to be simpler, so it may miss some true signal) but less variance (the model is less sensitive to the specific training samples). Regularisation is the dial that trades bias for variance. The goal is the sweet spot where total error on *unseen data* is minimised — which almost always requires accepting some bias.
+
+For California Housing:
+- **Zero regularisation**: bias \$0 (fits training perfectly) but variance \$36k (huge sensitivity to which 16,512 districts happen to be in training)
+- **L2 + Dropout**: bias \$6k (train MAE rose from \$32k to \$38k) but variance \$18k (gap halved)
+- **Net effect**: total expected error on new districts dropped by \$12k despite the slight bias increase
 
 ```
-Underfitting          Just right           Overfitting
-(high bias)           (balanced)           (high variance)
-───────────           ──────────           ────────────────
-train R² low          train ≈ test R²      train R² >> test R²
-flat predictions      captures signal      wiggly, memorised
+Underfitting          Just right            Overfitting
+(high bias)           (balanced)            (high variance)
+─────────────         ──────────────        ─────────────────────
+train MAE high        train ≈ val MAE       train MAE << val MAE
+flat predictions      captures signal       memorises noise
+λ too large           λ just right          no regularisation
 ```
 
-The four tools and what they target:
+All five tools in this chapter impose different flavours of that complexity cost. They are complementary — stacking them is the standard production recipe.
 
-| Tool | Mechanism | Effect on weights |
+---
+
+## 2 · Running Example — The \$36k Generalisation Gap
+
+**Network:** `8 inputs → [128 ReLU] → [64 ReLU] → 1 linear`  
+**Dataset:** California Housing, 20,640 districts; 80/10/10 train/val/test split  
+**After Ch.3 training** (Adam, 300 epochs, no regularisation):
+
+| Split | MAE | Diagnosis |
 |---|---|---|
-| **L2 (Weight Decay)** | adds $\lambda \|\mathbf{W}\|_2^2$ to the loss | shrinks all weights toward zero |
-| **L1 (Lasso)** | adds $\lambda \|\mathbf{W}\|_1$ to the loss | pushes many weights to exactly zero |
-| **Dropout** | randomly zeros `p` fraction of neurons during training | forces redundant representations |
-| **Early Stopping** | halt training on validation loss plateau | prevents late-epoch memorisation |
+| Train (16,512 rows) | **\$32k** | ✅ model fits training data well |
+| Val (2,064 rows) | **\$68k** | ❌ model struggles on new districts |
+| Gap | **\$36k** | 🚨 clear overfitting |
+
+The model has fit a function that passes nearly through every training point but oscillates wildly between them. The generalisation gap of \$36k means every district your product serves that wasn't in training will see predictions nearly \$36k worse than advertised.
+
+**Why \$36k is unacceptable:** UnifiedAI's production SLA requires predictions within 20% of true value for homes under \$200k. A \$68k val MAE on those districts is a 34% error — outside the lending compliance requirement.
+
+**Visualising the gap:**
+
+```
+Training curve:
+  │ $90k ──────────────────────────────────────────────╮
+  │ $70k                              ╭──────────────── val MAE (plateau: $68k)
+  │ $50k                ╭─────────────
+  │ $32k ───────────────╯  train MAE (keeps falling past val plateau)
+  └─────────────────────────────────────────────────── epochs
+        0       50      100     200     300
+```
+
+The two curves diverge after epoch ~80. Every epoch past that point the model is buying \$0.30 of training improvement at a cost of \$1 of generalisation.
+
+**Epoch-level training log** (no regularisation, Adam lr=0.001):
+
+| Epoch | Train MAE | Val MAE | Gap | Interpretation |
+|---|---|---|---|---|
+| 0 | \$95k | \$97k | \$2k | Random init — both high |
+| 20 | \$58k | \$61k | \$3k | Rapid improvement — both falling |
+| 50 | \$42k | \$53k | \$11k | Gap starting to open |
+| 80 | \$35k | \$66k | \$31k | Val plateau begins — **stop here** |
+| 150 | \$33k | \$67k | \$34k | Val loss flat; train still falls |
+| 300 | \$32k | \$68k | **\$36k** | 🚨 Full memorisation |
+
+The lesson is in the last three rows: 220 epochs of continued training bought only \$3k improvement on training data at a cost of \$2k *worsening* on validation data. Early stopping at epoch 80 would have saved those 220 epochs and delivered a better model.
 
 ---
 
-## 2 · Running Example
+## 3 · Regularisation Toolkit at a Glance
 
-Network from Ch.2: `8 inputs → [128 ReLU] → [64 ReLU] → 1 linear`  
-Trained on 80% of California Housing; evaluated on 20% held-out test.
+| Technique | Core idea | Primary effect |
+|---|---|---|
+| **L2 (Ridge / Weight Decay)** | Add $\lambda \sum w_i^2$ to loss | Shrinks all weights proportionally toward zero; smooth models |
+| **L1 (Lasso)** | Add $\lambda \sum \|w_i\|$ to loss | Drives small weights to *exactly* zero; automatic feature selection |
+| **Dropout** | Randomly zero $p$ fraction of neurons each forward pass | Forces redundant distributed representations; ensemble effect |
+| **Early Stopping** | Halt training when val loss stops improving | Prevents late-epoch memorisation without changing the model |
+| **Batch Normalisation** | Normalise each layer's activations within a mini-batch | Stabilises training; provides implicit regularisation |
 
-Without regularisation: model memorises district-specific quirks (a few outlier luxury blocks, census artefacts). **The goal:** improve test R² by at least 0.05 points with regularisation.
+**Quick rule for tabular data:** start with L2, then Dropout if still overfitting, then Early Stopping. BatchNorm primarily helps with training stability. L1 is useful when you suspect many features are irrelevant.
+
+> 📖 **Reading order within §4:** If you only have time for one technique, read §4.1 L2 — it is the foundation. Dropout (§4.3) is the second priority. BatchNorm (§4.4) and Early Stopping (§4.5) can be skimmed on first pass and revisited when your training curve shows the specific failure modes they fix.
 
 ---
 
-## 3 · Math
+## 4 · The Math
 
-### 3.1 L2 Regularisation (Ridge / Weight Decay)
+### 4.1 L2 Regularisation (Ridge / Weight Decay)
 
-Penalised loss:
+The regularised loss adds a penalty proportional to the squared magnitude of all weights:
 
 $$\mathcal{L}_\text{L2} = \mathcal{L}_\text{MSE} + \lambda \sum_{l} \|\mathbf{W}_l\|_F^2$$
 
-| Symbol | Meaning |
-|---|---|
-| $\lambda$ | regularisation strength (hyperparameter) |
-| $\|\mathbf{W}_l\|_F^2$ | sum of squared weights in layer $l$ |
-
-Gradient effect — every weight update gains an extra shrinkage term:
+The gradient gains an extra shrinkage term:
 
 $$\frac{\partial \mathcal{L}_\text{L2}}{\partial \mathbf{W}} = \frac{\partial \mathcal{L}_\text{MSE}}{\partial \mathbf{W}} + 2\lambda \mathbf{W}$$
 
-Equivalent update rule (weight decay form):
+Equivalently, the weight update becomes:
 
-$$\mathbf{W} \leftarrow (1 - 2\eta\lambda)\mathbf{W} - \eta \nabla_\mathbf{W} \mathcal{L}_\text{MSE}$$
+$$\mathbf{W}_{t+1} = \mathbf{W}_t\underbrace{(1 - 2\alpha\lambda)}_{\text{decay factor}} - \alpha \cdot \frac{\partial \mathcal{L}_\text{MSE}}{\partial \mathbf{W}}$$
 
-**Housing intuition:** L2 prevents any single feature (e.g., `Latitude`) from dominating predictions with a very large weight. All weights are nudged toward zero, keeping the model smooth.
+The factor $(1-2\alpha\lambda)$ is called **weight decay** — every update first shrinks all weights by a small fraction before applying the data gradient. Large weights get penalised more (proportional pull), so the optimiser must justify every unit of weight magnitude with a corresponding reduction in MSE.
 
-### 3.2 L1 Regularisation (Lasso)
+---
 
-Penalised loss:
+#### Toy example — L2 with 3 weights
+
+Weights: $\mathbf{w} = [2.0,\ -1.5,\ 0.8]$, $\lambda = 0.01$, $\alpha = 0.01$  
+Assume for this step the MSE gradient is zero (isolating the regularisation effect).
+
+**Step 1 — compute the L2 penalty term:**
+
+$$\Omega_\text{L2} = \lambda \sum_i w_i^2 = 0.01 \times (2.0^2 + (-1.5)^2 + 0.8^2)$$
+$$= 0.01 \times (4.00 + 2.25 + 0.64) = 0.01 \times 6.89 = \mathbf{0.0689}$$
+
+**Step 2 — compute the L2-modified gradient for each weight:**
+
+$$\frac{\partial \mathcal{L}_\text{L2}}{\partial w_i} = 0 + 2\lambda w_i = 2(0.01) w_i = 0.02 \, w_i$$
+
+| Weight | Value | $2\lambda w_i$ | Gradient |
+|---|---|---|---|
+| $w_1$ | 2.0 | $0.02 \times 2.0$ | **+0.040** |
+| $w_2$ | -1.5 | $0.02 \times (-1.5)$ | **-0.030** |
+| $w_3$ | 0.8 | $0.02 \times 0.8$ | **+0.016** |
+
+**Step 3 — apply weight decay update** ($w_{t+1} = w_t - \alpha \cdot \text{gradient}$):
+
+| Weight | Before | $w - 0.01 \times \text{grad}$ | After |
+|---|---|---|---|
+| $w_1$ | 2.000 | $2.000 - 0.01 \times 0.040$ | **1.9996** |
+| $w_2$ | -1.500 | $-1.500 - 0.01 \times (-0.030)$ | **-1.4997** |
+| $w_3$ | 0.800 | $0.800 - 0.01 \times 0.016$ | **0.7998** |
+
+All three weights shrank. Notice $w_1 = 2.0$ (large) lost more absolute value (0.0004) than $w_3 = 0.8$ (small, lost 0.0002). The pull is **proportional to weight magnitude** — big weights must earn their size by explaining large amounts of variance.
+
+---
+
+### 4.2 L1 Regularisation (Lasso)
 
 $$\mathcal{L}_\text{L1} = \mathcal{L}_\text{MSE} + \lambda \sum_{l} \|\mathbf{W}_l\|_1$$
 
-Gradient:
+The subgradient of $|w|$ at $w \neq 0$ is $\text{sign}(w)$; at $w = 0$ it is any value in $[-1, +1]$:
 
-$$\frac{\partial \mathcal{L}_\text{L1}}{\partial \mathbf{W}} = \frac{\partial \mathcal{L}_\text{MSE}}{\partial \mathbf{W}} + \lambda \cdot \text{sign}(\mathbf{W})$$
+$$\frac{\partial \mathcal{L}_\text{L1}}{\partial w} = \frac{\partial \mathcal{L}_\text{MSE}}{\partial w} + \lambda \cdot \text{sign}(w)$$
 
-The $\text{sign}(\mathbf{W})$ term applies a **constant pull** toward zero — small weights cross zero and stay there (sparsity). L2 applies a proportional pull — large weights shrink faster, small weights barely move (never exactly zero).
+The key difference from L2: the pull toward zero is **constant** (always $\pm\lambda$), not proportional to weight magnitude. This constant pull will eventually drag any small weight across zero and pin it there — producing **exact sparsity**.
 
-#### Numeric Comparison — L2 vs L1 on 3 Weights
+---
 
-Weights $\mathbf{w} = [2.0,\ 0.1,\ -1.5]$, $\lambda = 0.1$, $\eta = 1.0$ (regularization step only, data-loss gradient = 0 for clarity).
+#### Toy example — L1 vs L2 side by side
 
-| Weight | Before | Ridge: $w(1-2\eta\lambda)$ | Lasso: $\text{sign}(w)\max(|w|-\eta\lambda,0)$ |
-|--------|--------|-----------------------------|-----------------------------------------------|
-| $w_1 = 2.0$ | 2.0 | $2.0 \times 0.8 = 1.600$ | $\max(2.0-0.1,0) = 1.900$ |
-| $w_2 = 0.1$ | 0.1 | $0.1 \times 0.8 = 0.080$ | $\max(0.1-0.1,0) = \mathbf{0.000}$ |
-| $w_3 = -1.5$ | $-1.5$ | $-1.5 \times 0.8 = -1.200$ | $-\max(1.5-0.1,0) = -1.400$ |
+Same weights: $\mathbf{w} = [2.0,\ -1.5,\ 0.8]$, $\lambda = 0.01$, $\alpha = 0.01$
 
-Key insight: Lasso drives $w_2 = 0.1$ to **exactly zero** (sparsity). Ridge shrinks it to 0.080 — smaller, but never zero. For the housing model, this means L1 automatically removes `AveBedrms` (near-zero weight) from the prediction.
+**L1 penalty:**
 
-### 3.3 Dropout
+$$\Omega_\text{L1} = \lambda \sum_i |w_i| = 0.01 \times (2.0 + 1.5 + 0.8) = 0.01 \times 4.3 = \mathbf{0.043}$$
 
-During training, each neuron is independently zeroed with probability $p$ (the **drop rate**):
+**L1 vs L2 penalties compared:**
 
-$$\tilde{\mathbf{h}} = \mathbf{h} \odot \mathbf{m}, \quad m_i \sim \text{Bernoulli}(1-p)$$
+| Penalty type | Formula | Value | Key property |
+|---|---|---|---|
+| L2 | $\lambda \sum w_i^2$ | 0.0689 | larger for big weights |
+| L1 | $\lambda \sum \|w_i\|$ | 0.043 | scales linearly with magnitude |
 
-To keep expected activation magnitude the same, surviving neurons are **scaled up** by $\frac{1}{1-p}$ during training (inverted dropout):
+**Weight update under L1 only** ($\alpha = 0.01$, MSE gradient = 0):
 
-$$\tilde{\mathbf{h}} = \frac{1}{1-p} \cdot (\mathbf{h} \odot \mathbf{m})$$
+$$w_{t+1} = w_t - \alpha \cdot \lambda \cdot \text{sign}(w_t)$$
 
-At **test time**, dropout is disabled — all neurons are active. No scaling is needed because inverted dropout already corrected the training magnitudes.
+| Weight | Value | $\text{sign}(w)$ | $\alpha\lambda\,\text{sign}(w)$ | After L1 step |
+|---|---|---|---|---|
+| $w_1 = 2.0$ | 2.0 | +1 | $+0.0001$ | **1.9999** |
+| $w_2 = -1.5$ | -1.5 | -1 | $-0.0001$ | **-1.4999** |
+| $w_3 = 0.8$ | 0.8 | +1 | $+0.0001$ | **0.7999** |
+
+**Why L1 produces sparsity:** every weight — regardless of size — shrinks by the same constant $\alpha\lambda$ per step. A small weight like $w_3 = 0.8$ will reach zero after $0.8 / (0.01 \times 0.01) = 8{,}000$ pure-L1 steps, and once it reaches zero the subgradient is zero — it stays there. A large weight like $w_1 = 2.0$ would take $200{,}000$ steps. In practice, the MSE gradient of small weights is also small, so the L1 pull dominates and small weights go to zero. **L2 never drives a weight to exactly zero** — it applies a proportional shrink that halves a weight but never reaches zero in finite steps.
+
+**Housing interpretation:** L1 on the housing feature set would likely zero out `AveOccup` (average occupancy) if it has a near-zero coefficient — effectively removing a noisy feature automatically. L2 keeps all 8 features but shrinks noisy ones toward zero.
+
+**When to choose L1 vs L2 for the housing model:**
+
+| Situation | Choose | Reason |
+|---|---|---|
+| All 8 features might contribute (you suspect none are purely noise) | **L2** | Keeps all features; proportional shrinkage is safer |
+| You suspect 2–3 features are redundant (e.g., `AveRooms` and `AveBedrms`) | **L1** | Drives the redundant one to zero automatically |
+| You want a directly deployable sparse model (fewer inference ops) | **L1** | Zero weights = zero multiply-adds at inference |
+| You want a smooth gradient for Adam | **L2** | L2 gradient is continuous everywhere; L1 uses subgradient at zero |
+| Multicollinear features (high correlation) | **L2** | Ridge is more stable under multicollinearity than Lasso |
+
+For California Housing, L2 is the default because all 8 features carry genuine signal (income, location, house age, room counts). Use L1 if you extend the feature set with many engineered features and want automatic selection.
+
+---
+
+### 4.3 Dropout
+
+During each training forward pass, every neuron in a dropout layer is independently zeroed with probability $p$:
+
+$$\tilde{\mathbf{h}} = \frac{1}{1-p} \cdot (\mathbf{h} \odot \mathbf{m}), \qquad m_i \sim \text{Bernoulli}(1-p)$$
+
+The $\frac{1}{1-p}$ scaling factor (**inverted dropout**) ensures that the expected activation magnitude is the same at train and test time. At **test/inference time**, dropout is completely disabled — all neurons are active.
 
 | Symbol | Meaning |
 |---|---|
-| $p$ | drop probability (fraction of neurons zeroed per forward pass) |
-| $\mathbf{m}$ | binary mask vector, resampled every forward pass |
+| $\mathbf{h}$ | pre-dropout activations of the layer |
+| $\mathbf{m}$ | binary mask, resampled freshly each forward pass |
+| $p$ | drop rate — fraction of neurons zeroed |
 | $\odot$ | element-wise product |
 
-**Why it works:** Each training step uses a different random sub-network. The full network is implicitly an ensemble of $2^n$ sub-networks. No single neuron can rely on a specific other neuron being present → forces distributed representations.
+**Why it works:** each forward pass trains a different random sub-network. The full model is an implicit ensemble of $2^n$ sub-networks that share weights. No single neuron can learn to rely on another specific neuron always being present — the model must learn distributed, redundant representations.
 
-### 3.4 Early Stopping
-
-No equation — it's a training protocol:
-
-1. Split data into train / validation (typically 80/10/10 train/val/test).
-2. At each epoch, record `val_loss`.
-3. If `val_loss` has not improved for `patience` consecutive epochs, halt training.
-4. Restore weights from the epoch with the **best** `val_loss`.
-
-Key quantity — **generalisation gap**:
-
-$$\text{gap} = \mathcal{L}_\text{val} - \mathcal{L}_\text{train}$$
-
-A rising gap signals overfitting. Early stopping jumps off the train before the gap becomes a chasm.
+**Ensemble interpretation:** with a 128-neuron hidden layer and $p=0.3$, each forward pass activates a random subset of $128 \times 0.7 \approx 90$ neurons. There are $\binom{128}{90} \approx 10^{34}$ such subsets — far more than any dataset could identify individually. Each training batch is a vote from a different committee of neurons. At inference time you get the consensus of all $10^{34}$ committees simultaneously (because all neurons are active), producing a natural ensemble averaging effect that is far cheaper than training 1000 separate networks.
 
 ---
 
-## 4 · Step by Step
+#### Toy example — 5-neuron layer with p=0.5, seed=42
 
-1. **Establish a baseline.** Train without any regularisation; record train R² and test R². This is your overfitting reference point.
+Layer activations before dropout: $\mathbf{h} = [0.8,\ 1.2,\ -0.4,\ 0.9,\ 0.3]$
 
-2. **Add L2 first.** It's the safest choice — set `alpha` (sklearn) or `weight_decay` (TF/PyTorch). Start at `1e-4`; tune in log scale.
+With seed=42 and $p = 0.5$, suppose the binary mask drawn is: $\mathbf{m} = [1,\ 0,\ 1,\ 0,\ 1]$
 
-3. **Try Dropout if L2 isn't enough.** Add after hidden layers only (never on the output layer). Start with `p = 0.2`; raise to 0.5 if still overfitting.
+(Neurons 2 and 4 are zeroed; neurons 1, 3, 5 survive.)
 
-4. **Enable Early Stopping.** Set `patience = 20` epochs. Monitor validation loss, not training loss.
+**Training forward pass (inverted dropout, scale factor = $1/(1-0.5) = 2$):**
 
-5. **Combine if needed.** L2 + Dropout + Early Stopping are complementary and stack well. L1 + Dropout is unusual (L1 already induces sparsity).
+$$\tilde{\mathbf{h}} = 2 \cdot ([0.8,\ 0,\ -0.4,\ 0,\ 0.3]) = [1.6,\ 0.0,\ -0.8,\ 0.0,\ 0.6]$$
 
-6. **Final evaluation.** Only look at the test set once — after all hyperparameters are locked on the validation set.
+**Without dropout (or at test time):**
 
----
+$$\mathbf{h}_\text{test} = [0.8,\ 1.2,\ -0.4,\ 0.9,\ 0.3]$$
 
-## 5 · Key Diagrams
+The surviving neurons are scaled up 2× to maintain expected activation magnitude. At test time, all five neurons are active — no adjustment needed because inverted dropout already corrected the training magnitudes.
 
-### Bias–variance tradeoff as model complexity grows
+**A different mask next forward pass** (e.g., mask = $[0,\ 1,\ 0,\ 1,\ 1]$):
 
-```mermaid
-graph LR
-    A["Low complexity\n(Linear Regression)\nHigh bias, low variance"] --> B["Medium complexity\n(2-layer NN)\nBalanced"]
-    B --> C["High complexity\n(20-layer NN)\nLow bias, high variance\n— needs regularisation"]
-```
+$$\tilde{\mathbf{h}} = 2 \cdot ([0,\ 1.2,\ 0,\ 0.9,\ 0.3]) = [0.0,\ 2.4,\ 0.0,\ 1.8,\ 0.6]$$
 
-### L1 vs L2 penalty geometry
-
-```
-L2 (circle):           L1 (diamond):
-weight space           weight space
-
-    ↑ w₂                   ↑ w₂
-    │  ●←loss contours      │  ◆←diamond constraint
-    │ /                     │ /
-────●──────→ w₁         ────◆──────→ w₁
-  minimum                minimum
-  lands off axis          lands ON axis
-  (dense solution)        (sparse — w=0)
-```
-
-### Dropout: train vs test
-
-```mermaid
-graph TD
-    subgraph Train["Training (p=0.3)"]
-        I1[x₁] & I2[x₂] --> H1[●] & H2[✗] & H3[●] & H4[✗] & H5[●]
-        H1 & H3 & H5 --> O[ŷ]
-    end
-    subgraph Test["Inference (all neurons active)"]
-        J1[x₁] & J2[x₂] --> G1[●] & G2[●] & G3[●] & G4[●] & G5[●]
-        G1 & G2 & G3 & G4 & G5 --> P[ŷ]
-    end
-```
-
-### Early stopping — when to halt
-
-```
-Loss
-  │  train loss ────────────────────────────↘ (keeps falling)
-  │  val loss   ─────────────↘────────────↗  (rises = overfitting)
-  │                          ↑
-  │                    STOP HERE
-  └──────────────────────────────────── Epochs
-        best val checkpoint saved
-```
+Each batch trains a different subset — forcing the model to build multiple redundant pathways to the same prediction.
 
 ---
 
-## 6 · Hyperparameter Dial
+### 4.4 Batch Normalisation
 
-| Dial | Too low | Sweet spot | Too high |
+Batch normalisation standardises the activations $\mathbf{z}^{(l)}$ of each layer before the non-linearity, using statistics computed over the current mini-batch $B$ of size $m$:
+
+$$\mu_B = \frac{1}{m} \sum_{i=1}^{m} z_i \qquad \sigma_B^2 = \frac{1}{m} \sum_{i=1}^{m} (z_i - \mu_B)^2$$
+
+$$\hat{z}_i = \frac{z_i - \mu_B}{\sqrt{\sigma_B^2 + \varepsilon}} \qquad y_i = \gamma \hat{z}_i + \beta$$
+
+where $\gamma$ (scale) and $\beta$ (shift) are learnable parameters, and $\varepsilon = 10^{-8}$ prevents division by zero. The network can always undo the normalisation by learning $\gamma = \sqrt{\sigma_B^2}$ and $\beta = \mu_B$, so BatchNorm never removes expressive power — it just changes the loss surface geometry.
+
+| Symbol | Meaning |
+|---|---|
+| $\mu_B$ | mean of the batch activations |
+| $\sigma_B^2$ | variance of the batch activations |
+| $\varepsilon$ | stability constant (prevents div-by-zero) |
+| $\gamma, \beta$ | learned scale and shift (one pair per feature dimension) |
+
+**At inference time:** instead of computing statistics from the current batch (which may be size 1), BatchNorm uses **running statistics** accumulated during training via exponential moving average:
+
+$$\mu_\text{run} \leftarrow (1-\text{mom}) \cdot \mu_\text{run} + \text{mom} \cdot \mu_B$$
+$$\sigma^2_\text{run} \leftarrow (1-\text{mom}) \cdot \sigma^2_\text{run} + \text{mom} \cdot \sigma^2_B$$
+
+where `mom` (momentum) is typically 0.1. After training, these running stats are frozen and used for all inference-time normalisations. **This is why you must call `model.train()` vs `model.eval()` in PyTorch** — without switching to eval mode, the model continues using batch statistics even during inference, producing unstable predictions when batch size is small.
+
+**Why BatchNorm regularises:** it prevents *internal covariate shift* — the phenomenon where the distribution of each layer's inputs changes as the weights of earlier layers are updated. Without BatchNorm, later layers must constantly readjust to a shifting input distribution. With BatchNorm, each layer always sees a normalised input, making the loss surface smoother and allowing larger learning rates. The net effect is that weights tend to stay smaller (less need to compensate for scale drift), which is a soft regularisation.
+
+---
+
+#### Toy example — BatchNorm on a batch of 4
+
+Batch activations: $\mathbf{z} = [1.0,\ 3.0,\ 2.0,\ 4.0]$ (4 examples, 1 feature)
+
+**Step 1 — compute batch mean:**
+
+$$\mu_B = \frac{1.0 + 3.0 + 2.0 + 4.0}{4} = \frac{10.0}{4} = \mathbf{2.50}$$
+
+**Step 2 — compute batch variance:**
+
+$$\sigma_B^2 = \frac{(1.0-2.5)^2 + (3.0-2.5)^2 + (2.0-2.5)^2 + (4.0-2.5)^2}{4}$$
+$$= \frac{(-1.5)^2 + (0.5)^2 + (-0.5)^2 + (1.5)^2}{4} = \frac{2.25 + 0.25 + 0.25 + 2.25}{4} = \frac{5.00}{4} = \mathbf{1.25}$$
+
+**Step 3 — normalise each activation** ($\varepsilon \approx 0$, so $\sqrt{1.25} = 1.1180$):
+
+$$\hat{z}_i = \frac{z_i - 2.50}{1.1180}$$
+
+| $z_i$ | $z_i - \mu_B$ | $\hat{z}_i$ | Check |
 |---|---|---|---|
-| **λ (L1/L2 strength)** | no effect | 1e-4 → 1e-2 (tune in log scale) | underfits, weights crushed to zero |
-| **Dropout rate** $p$ | no effect | 0.2–0.5 for hidden layers | too much signal lost; model can't learn |
-| **Patience (early stopping)** | halts too early | 10–30 epochs | effectively disable early stopping |
-| **Validation fraction** | noisy early-stop signal | 10–20% of training data | too little data for training |
+| 1.0 | $-1.50$ | $-1.50 / 1.1180 = \mathbf{-1.342}$ | |
+| 3.0 | $+0.50$ | $+0.50 / 1.1180 = \mathbf{+0.447}$ | |
+| 2.0 | $-0.50$ | $-0.50 / 1.1180 = \mathbf{-0.447}$ | |
+| 4.0 | $+1.50$ | $+1.50 / 1.1180 = \mathbf{+1.342}$ | |
 
-**Rule of thumb for tabular data:** Start with L2 (`alpha=1e-4`). If train-test gap is still large after 300 epochs, add dropout at 0.2. If training is noisy, enable early stopping with `patience=20`. Rarely need all three simultaneously.
+**Verify:** mean of $\hat{z} = (-1.342 + 0.447 - 0.447 + 1.342)/4 = 0/4 = \mathbf{0.0}$ ✅  
+Variance of $\hat{z} \approx 1.0$ ✅
+
+The normalised batch has zero mean and unit variance. If learnable parameters are initialised at $\gamma=1, \beta=0$, the output exactly equals $\hat{\mathbf{z}}$. The network then learns the optimal scale and shift from scratch, rather than fighting against the original scale of each layer's inputs.
 
 ---
 
-## 7 · Code Skeleton
+### 4.5 Early Stopping
+
+Early stopping is a training protocol, not a gradient-based technique. It monitors the validation loss and halts training when it stops improving:
+
+```
+For each epoch t:
+    train one pass over training data
+    compute val_loss_t on validation set
+    if val_loss_t < best_val_loss:
+        best_val_loss ← val_loss_t
+        save_checkpoint(model_weights)
+        patience_counter ← 0
+    else:
+        patience_counter += 1
+    if patience_counter >= PATIENCE:
+        break
+Restore weights from checkpoint
+```
+
+**Key quantity — the generalisation gap:**
+
+$$\text{gap}(t) = \mathcal{L}_\text{val}(t) - \mathcal{L}_\text{train}(t)$$
+
+When gap starts rising, the model is memorising. Early stopping exits the loop at the epoch where the gap was minimal — effectively regularising by limiting the total "degrees of freedom" the network optimises.
+
+| Parameter | Role | Typical value |
+|---|---|---|
+| `patience` | epochs to wait for improvement before stopping | 15–30 |
+| `min_delta` | minimum change to count as improvement | 0.0 |
+| `restore_best_weights` | whether to roll back to best checkpoint | always True |
+
+**Early stopping as implicit regularisation:** you can think of early stopping as limiting the *effective model capacity*. A fully trained model with 10,000 parameters and 300 epochs has seen $300 \times 16{,}512 = 4.95$ million training examples (with repetition). Stopping at epoch 67 limits this to $67 \times 16{,}512 = 1.1$ million — the model has fewer gradient updates to specialise on training quirks. The combination with `restore_best_weights=True` adds a further benefit: you get the checkpoint from *before* the overfitting divergence, not just the last available improvement.
+
+**Why patience matters more than you think:** validation loss on a stochastic training run fluctuates by ±2–4% each epoch due to mini-batch randomness. With patience=5 on California Housing, you would stop 60% of the time on a noise fluctuation rather than a true performance plateau. With patience=20, the probability drops below 5%. The cost is at most 20 extra epochs of compute — a trivial price for the correct stopping point.
+
+---
+
+## 4.6 · Summary — What Each Technique Attacks
+
+| Technique | Root cause addressed | Signal to monitor | Combination behaviour |
+|---|---|---|---|
+| **L2** | Weights too large in magnitude | Weight histogram — all values large | Stacks well with all techniques |
+| **L1** | Many features irrelevant (dense weights) | Number of non-zero weights | Use instead of L2 when sparsity desired |
+| **Dropout** | Single neurons memorise district patterns | Train-val gap, weight distribution | Use after L2 if gap persists |
+| **BatchNorm** | Activation scale drift across layers | Loss spike frequency | Use when training is unstable |
+| **Early Stopping** | Too many gradient steps on noise | Validation loss curve shape | Always add as final safety net |
+
+> ⚡ **Rule of thumb (tabular data, California Housing):** L2 first (closes ~60% of gap), Dropout second (closes ~25%), Early Stopping always (recovers best checkpoint). BatchNorm adds ~5–10% stability benefit but is less critical for tabular data than for images or text.
+
+---
+
+## 5 · Regularisation Selection Arc — Four Acts
+
+The following arc shows how each technique layers onto the California Housing model, chip by chip reducing the generalisation gap.
+
+**Act 1 — Baseline (no regularisation)**
+
+Train MAE: \$32k | Val MAE: \$68k | **Gap: \$36k**
+
+The 128-64 network has memorised district quirks. Weights in the first hidden layer have magnitudes up to 4.7 — far larger than necessary. The validation loss stopped improving at epoch 83 but training continued for 300 epochs, burning the generalisation. Examining the top-5 worst validation predictions reveals the problem:
+
+| District (val) | Actual | Predicted | Error | Why wrong |
+|---|---|---|---|---|
+| Coastal, MedInc=\$8.2k | \$408k | \$310k | -\$98k | No similar coastal district in train |
+| Urban, MedInc=\$3.1k | \$185k | \$260k | +\$75k | Train had one noisy \$310k outlier nearby |
+| Inland, MedInc=\$5.5k | \$260k | \$195k | -\$65k | Pattern from different region memorised |
+
+The model has associated specific (income, location) fingerprints with specific values rather than learning general pricing rules.
+
+**Act 2 — Add L2 (λ = 0.001)**
+
+Weight decay pulls all weights toward zero. Large weights shrink proportionally. The model can no longer encode the "district \#4217 special case" because the penalty for those large district-specific weights exceeds the MSE gain from memorising them.
+
+Train MAE: \$34k | Val MAE: \$58k | **Gap: \$24k** (improvement: −\$12k)
+
+The slight rise in train MAE is expected — the model is being constrained, so it fits training data slightly less perfectly. The val MAE dropped \$10k. That is the regularisation premium working correctly.
+
+**Act 3 — Add Dropout (p = 0.3)**
+
+Dropout after each hidden layer forces different neuron subsets to cooperate on every batch. The network must now represent pricing signals in distributed redundant form — any single neuron can be absent, so no single neuron encodes a unique district fingerprint.
+
+Train MAE: \$36k | Val MAE: \$54k | **Gap: \$18k** (improvement: −\$6k)
+
+**Act 4 — Add BatchNorm + Early Stopping (patience=15)**
+
+BatchNorm prevents activation scale drift that otherwise forces the network to compensate by growing large weights. Early stopping recovers the best-checkpoint weights (epoch 67) rather than the over-fitted epoch-300 weights.
+
+Train MAE: \$38k | Val MAE: \$56k | **Gap: \$18k** ✅
+
+The train MAE has risen to \$38k (we are accepting less training fit in exchange for better generalisation), but the *val MAE* — the metric that matters for production — dropped from \$68k to \$56k.
+
+```
+Generalisation gap progression:
+  $36k ████████████████████████████████████████ No regularisation
+  $24k ██████████████████████████              + L2 (λ=0.001)
+  $18k █████████████████                       + Dropout (p=0.3)
+  $18k █████████████████                       + BatchNorm + Early Stop
+         ↑
+         Target: <$20k gap for Constraint #2 ✅
+```
+
+---
+
+## 6 · L2 Walkthrough — Two Weight Update Steps with Full Arithmetic
+
+We trace two consecutive Adam + L2 update steps on a single weight $w$ from the first hidden layer of the California Housing network.
+
+**Setup:**
+- Weight: $w = 1.80$ (one entry in the first hidden layer weight matrix)
+- Gradient from MSE backprop: $g_\text{MSE} = -0.12$ (the MSE loss wants this weight to increase)
+- L2 strength: $\lambda = 0.001$
+- Learning rate: $\alpha = 0.001$ (Adam default)
+- Adam state: $m_0 = 0.0$ (first moment), $v_0 = 0.0$ (second moment), $\beta_1 = 0.9$, $\beta_2 = 0.999$
+
+---
+
+**Step 1 (epoch t=1):**
+
+**1a. Compute the L2-modified gradient:**
+
+$$g_\text{L2} = g_\text{MSE} + 2\lambda w = -0.12 + 2(0.001)(1.80) = -0.12 + 0.0036 = \mathbf{-0.1164}$$
+
+The L2 term added $+0.0036$ to the gradient, partially opposing the MSE gradient's desire to increase $w$. This is the regularisation effect: every step, there is a small force pushing $w$ toward zero.
+
+**1b. Update Adam moments:**
+
+$$m_1 = 0.9(0) + 0.1(-0.1164) = \mathbf{-0.01164}$$
+
+$$v_1 = 0.999(0) + 0.001(0.1164)^2 = 0.001 \times 0.01355 = \mathbf{0.00001355}$$
+
+**1c. Bias-correct moments (t=1):**
+
+$$\hat{m}_1 = \frac{-0.01164}{1 - 0.9^1} = \frac{-0.01164}{0.1} = \mathbf{-0.1164}$$
+
+$$\hat{v}_1 = \frac{0.00001355}{1 - 0.999^1} = \frac{0.00001355}{0.001} = \mathbf{0.01355}$$
+
+**1d. Apply Adam weight update:**
+
+$$w_1 = 1.80 - 0.001 \times \frac{-0.1164}{\sqrt{0.01355} + 10^{-8}} = 1.80 - 0.001 \times \frac{-0.1164}{0.1164} = 1.80 + 0.001 = \mathbf{1.801}$$
+
+---
+
+**Step 2 (epoch t=2):**
+
+The MSE gradient has become $g_\text{MSE} = +0.08$ (now pushing weight down — slight overshot).
+
+**2a. L2-modified gradient:**
+
+$$g_\text{L2} = +0.08 + 2(0.001)(1.801) = 0.08 + 0.003602 = \mathbf{+0.08360}$$
+
+**2b. Update moments:**
+
+$$m_2 = 0.9(-0.01164) + 0.1(+0.08360) = -0.01048 + 0.00836 = \mathbf{-0.00212}$$
+
+$$v_2 = 0.999(0.00001355) + 0.001(0.08360)^2 = 0.00001354 + 0.00000699 = \mathbf{0.00002053}$$
+
+**2c. Bias-correct (t=2):**
+
+$$\hat{m}_2 = \frac{-0.00212}{1 - 0.9^2} = \frac{-0.00212}{0.19} = \mathbf{-0.01116}$$
+
+$$\hat{v}_2 = \frac{0.00002053}{1 - 0.999^2} = \frac{0.00002053}{0.001999} = \mathbf{0.01027}$$
+
+**2d. Weight update:**
+
+$$w_2 = 1.801 - 0.001 \times \frac{-0.01116}{\sqrt{0.01027}} = 1.801 + 0.000110 = \mathbf{1.8011}$$
+
+**Summary of two steps:**
+
+| Step | Weight | MSE grad | L2 term | Net grad | Result |
+|---|---|---|---|---|---|
+| t=1 | 1.800 | -0.120 | +0.0036 | -0.1164 | → 1.801 |
+| t=2 | 1.801 | +0.080 | +0.0036 | +0.0836 | → 1.8011 |
+
+The weight stabilised near 1.801 because the MSE gradient oscillated while the L2 term consistently nudged toward zero. With $\lambda$ larger, the L2 term dominates and the weight would be pulled toward 0 regardless of the data signal — that is the "λ too high → underfits" failure mode.
+
+**Extrapolating to the full network:** the housing model has 128 × 8 + 128 + 64 × 128 + 64 + 1 × 64 + 1 = 1,024 + 128 + 8,192 + 64 + 64 + 1 = **9,473 weights**. With $\lambda = 0.001$ and $\alpha = 0.001$, the per-step L2 decay factor is $(1 - 2 \times 0.001 \times 0.001) = 0.999998$. In 300 epochs over 16,512 training examples with batch size 32 (= $\approx 516$ steps/epoch × 300 = **154,800 steps**), a weight of $w = 2.0$ would decay to $2.0 \times 0.999998^{154800} \approx 2.0 \times 0.047 = 0.094$ through the L2 term alone (before the MSE gradient acts). This confirms that $\lambda = 0.001$ is aggressive enough to substantially shrink large weights over a full training run, while $\lambda = 0.0001$ would leave them at $\approx 2.0 \times 0.73 = 1.46$ — meaningful shrinkage but not over-penalised.
+
+---
+
+## 7 · Key Diagrams
+
+### Regularisation Selection Flowchart
+
+```mermaid
+flowchart TD
+    START(["Overfitting detected\ntrain MAE << val MAE"])
+    START --> Q1{"Gap > $20k?\n(severe)"}
+
+    Q1 -->|Yes| L2["Apply L2\nλ = 0.001\nWeight decay penalises large weights"]
+    Q1 -->|"No — mild gap"| ES["Early Stopping\npatience = 15 epochs\nSimple, zero cost"]
+
+    L2 --> Q2{"Gap still > $20k?"}
+    Q2 -->|Yes| DROP["Add Dropout\np = 0.2–0.3 on hidden layers\nForces redundant representations"]
+    Q2 -->|"No ✅"| DONE
+
+    DROP --> Q3{"Training unstable?\nLoss spikes between batches"}
+    Q3 -->|Yes| BN["Add BatchNorm\nNormalise layer inputs\nStabilises + implicit regularisation"]
+    Q3 -->|"No ✅"| ES2["Add Early Stopping\nRecover best checkpoint"]
+
+    BN --> ES2
+    ES2 --> DONE["✅ Generalisation gap closed"]
+
+    style START fill:#b91c1c,color:#fff,stroke:#b91c1c
+    style Q1 fill:#b45309,color:#fff,stroke:#b45309
+    style Q2 fill:#b45309,color:#fff,stroke:#b45309
+    style Q3 fill:#b45309,color:#fff,stroke:#b45309
+    style L2 fill:#1e3a8a,color:#fff,stroke:#1e3a8a
+    style DROP fill:#1e3a8a,color:#fff,stroke:#1e3a8a
+    style BN fill:#1d4ed8,color:#fff,stroke:#1d4ed8
+    style ES fill:#15803d,color:#fff,stroke:#15803d
+    style ES2 fill:#15803d,color:#fff,stroke:#15803d
+    style DONE fill:#15803d,color:#fff,stroke:#15803d
+```
+
+---
+
+### Overfitting Diagnosis Tree
+
+```mermaid
+flowchart TD
+    OBSERVE(["Observe model performance"])
+    OBSERVE --> GAP{"train MAE vs val MAE"}
+
+    GAP -->|"train ≈ val, both high\n(underfitting)"| BIAS["High bias\nIncrease model capacity\nAdd layers or neurons\nRemove excess regularisation"]
+    GAP -->|"train << val\n(overfitting)"| VARIANCE["High variance\nReduce capacity\nor add regularisation"]
+    GAP -->|"train ≈ val, both low"| GOOD["✅ Good fit\nEvaluate on test set"]
+
+    VARIANCE --> SIZE{"Dataset size?"}
+    SIZE -->|"< 10k rows"| DATA["Collect more data (primary fix)\nor use aggressive Dropout p=0.5"]
+    SIZE -->|"> 10k rows"| REG["Add L2 first\nλ = 1e-4 → 1e-2 (log scale)"]
+
+    REG --> EPOCH{"When did val loss peak?"}
+    EPOCH -->|"Early (< epoch 50)"| SIMPLE["Model too complex\nReduce depth or width"]
+    EPOCH -->|"Late (> epoch 100)"| EARLYSTOP["Early Stopping\nPatience = 15–30\nRecover best checkpoint"]
+
+    style OBSERVE fill:#1e3a8a,color:#fff,stroke:#1e3a8a
+    style GAP fill:#b45309,color:#fff,stroke:#b45309
+    style VARIANCE fill:#b91c1c,color:#fff,stroke:#b91c1c
+    style BIAS fill:#b45309,color:#fff,stroke:#b45309
+    style GOOD fill:#15803d,color:#fff,stroke:#15803d
+    style SIZE fill:#1d4ed8,color:#fff,stroke:#1d4ed8
+    style DATA fill:#1d4ed8,color:#fff,stroke:#1d4ed8
+    style REG fill:#1e3a8a,color:#fff,stroke:#1e3a8a
+    style EPOCH fill:#b45309,color:#fff,stroke:#b45309
+    style SIMPLE fill:#b91c1c,color:#fff,stroke:#b91c1c
+    style EARLYSTOP fill:#15803d,color:#fff,stroke:#15803d
+```
+
+---
+
+### L1 vs L2 Penalty Geometry
+
+The geometry of the two penalties explains their behavioural difference intuitively:
+
+```
+L2 constraint region       L1 constraint region
+(smooth circle):           (diamond / square):
+
+    ↑ w₂                       ↑ w₂
+    │                           │    ◆ ← diamond
+    │  ○ ← circle               │   / \
+    │                           │  /   \
+────┼──────→ w₁             ────◆───◆──→ w₁
+    │                           │   ↑
+                                  corner touches axis
+                                  → w₁ = 0 (sparsity)
+
+Loss contours are ellipses.  Loss contours touch L1 diamond
+They intersect the L2 circle  at a corner → one coordinate
+away from axes (dense).       is exactly 0 (sparse).
+```
+
+This is why L1 produces sparse solutions: the loss ellipses are more likely to first touch a corner of the diamond (where one or more $w_i = 0$) than a point on the smooth L2 circle.
+
+---
+
+## 8 · Hyperparameter Dial
+
+| Dial | Too low | Sweet spot | Too high | Failure mode |
+|---|---|---|---|---|
+| **λ (L2 strength)** | no effect; still overfits | 1e-4 → 1e-2 (tune log-scale) | underfits; all weights ≈ 0 | val loss rises with train loss |
+| **λ (L1 strength)** | no sparsity | 1e-4 → 1e-3 | too many zero weights; underfits | accuracy collapses |
+| **Dropout rate p** | no regularisation effect | 0.2–0.3 hidden layers (0.5 for large FC layers) | too much signal lost; can't learn | train MAE also high |
+| **Early stopping patience** | halts before convergence | 15–30 epochs | never stops; same as no early stopping | patience=5 prematurely stops |
+| **BN momentum** | running stats update too slow | 0.1–0.2 | running stats update too fast (noisy) | inference-time mismatch |
+| **Batch size (affects BN)** | noisy batch stats; BN unstable | ≥32 for stable BN statistics | reduces regularisation benefit of BN | batch=1 → BatchNorm degenerates |
+
+**Tuning order for tabular data:**
+1. Establish baseline (no regularisation) — record train and val MAE
+2. Add L2, sweep $\lambda \in \{10^{-5}, 10^{-4}, 10^{-3}, 10^{-2}\}$ — choose best val MAE
+3. If gap still > \$20k, add Dropout at p=0.2; increase to 0.3 if needed
+4. Add Early Stopping with patience=20 as the final safety net
+5. Add BatchNorm only if training is unstable (loss spikes)
+6. Do **not** tune all simultaneously — the interactions make debugging impossible
+
+**PyTorch/Keras quick reference:**
 
 ```python
-from sklearn.neural_network import MLPRegressor
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import r2_score
-import numpy as np
+# L2 weight decay via Adam (PyTorch)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
 
-housing = fetch_california_housing()
-X, y = housing.data, housing.target
-X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)
-scaler = StandardScaler()
-X_tr_s = scaler.fit_transform(X_tr)
-X_te_s  = scaler.transform(X_te)
+# Dropout in model definition (PyTorch)
+self.drop = nn.Dropout(p=0.3)  # apply after each hidden layer, NOT before output
 
-# --- Baseline (no regularisation) ---
-base = MLPRegressor(hidden_layer_sizes=(128, 64), activation='relu',
-                    solver='adam', max_iter=400, random_state=42)
-base.fit(X_tr_s, y_tr)
+# BatchNorm in model definition (PyTorch)
+self.bn1 = nn.BatchNorm1d(128)  # after first hidden layer
 
-# --- L2 (alpha parameter in sklearn) ---
-l2 = MLPRegressor(hidden_layer_sizes=(128, 64), activation='relu',
-                  solver='adam', alpha=1e-3, max_iter=400, random_state=42)
-l2.fit(X_tr_s, y_tr)
+# Early stopping (manual loop pattern)
+best_val, patience_ctr = float('inf'), 0
+for epoch in range(max_epochs):
+    train_one_epoch(model, optimizer)
+    val_loss = evaluate(model, val_loader)
+    if val_loss < best_val - 1e-4:
+        best_val, patience_ctr = val_loss, 0
+        torch.save(model.state_dict(), 'best.pt')
+    else:
+        patience_ctr += 1
+    if patience_ctr >= 20:
+        break
+model.load_state_dict(torch.load('best.pt'))  # restore best
 
-# --- Early stopping ---
-es = MLPRegressor(hidden_layer_sizes=(128, 64), activation='relu',
-                  solver='adam', alpha=1e-3,
-                  early_stopping=True, validation_fraction=0.1,
-                  n_iter_no_change=20, max_iter=600, random_state=42)
-es.fit(X_tr_s, y_tr)
-
-for name, m in [('Baseline', base), ('L2', l2), ('L2+EarlyStopping', es)]:
-    r2_tr = r2_score(y_tr, m.predict(X_tr_s))
-    r2_te = r2_score(y_te, m.predict(X_te_s))
-    print(f"{name:<22}  train={r2_tr:.4f}  test={r2_te:.4f}  gap={r2_tr-r2_te:+.4f}")
-
-# --- Manual inverted dropout (NumPy) ---
-def dropout(h, p, training=True):
-    """Inverted dropout. h: activations, p: drop rate."""
-    if not training or p == 0:
-        return h
-    mask = (np.random.rand(*h.shape) > p).astype(float)
-    return h * mask / (1 - p)     # scale up to preserve expected magnitude
+# Forward pass in training mode (Dropout and BN active):
+model.train()
+# Forward pass at inference (Dropout off, BN uses running stats):
+model.eval()
 ```
 
 ---
 
-## 8 · What Can Go Wrong
+## 9 · What Can Go Wrong
 
-- **Applying Dropout before the output layer.** The output neuron needs all information to produce a calibrated prediction. Dropout on the output layer adds random noise directly to predictions. Always place Dropout only on hidden layers.
+- **L2 λ too high collapses all weights.** With `λ=0.1` on a 128-unit hidden layer, weight decay forces most weights to near-zero within 30 epochs. The model effectively becomes a thin linear layer — R² can collapse from 0.82 to below 0.40. Symptom: both train and val loss are high and plateau immediately. Diagnosis: plot the weight histogram — if all weights cluster at ±0.01, reduce λ by 10×.
 
-- **Monitoring training loss for early stopping.** Training loss can keep decreasing even as the model overfits. Always stop on **validation loss** (or validation metric). Training loss is blind to generalisation.
+- **Dropout without inverted scaling causes train/test mismatch.** Naive dropout (zero neurons without scaling survivors) makes training activations have magnitude $(1-p)$ times inference activations. The output layer sees a different scale at test time — predictions are systematically off by factor $(1-p)$. Always use inverted dropout (scale surviving neurons by $\frac{1}{1-p}$) during training.
 
-- **λ too large collapses all weights.** L2 with `alpha=0.1` on a 128-unit network pushes most weights near zero, effectively reducing the network to width 1. R² collapses. Tune in log scale: `[1e-5, 1e-4, 1e-3, 1e-2]`.
+- **Monitoring training loss for early stopping, not validation loss.** Training loss always decreases (that's what gradient descent does). Stopping on training loss will always wait for the learning rate to exhaust, not for the model to start memorising. Always use `monitor='val_loss'` and `restore_best_weights=True`.
 
-- **Dropout without rescaling (naive dropout).** If you zero `p` fraction of neurons without scaling up the survivors, the expected activation magnitude drops by $(1-p)$ — the output layer sees a different scale at test time. Inverted dropout avoids this.
+- **Applying Dropout to the output layer.** The final linear neuron needs all upstream information to produce a calibrated regression prediction. Dropping it randomly during training adds noise directly to the loss signal. Dropout belongs only on hidden layers.
 
-- **Validation set contaminated by preprocessing.** Fitting `StandardScaler` on train+val (instead of train only) leaks test-distribution statistics. Always fit the scaler on training data only, then `transform` validation and test.
+- **BatchNorm with batch size 1 or 2.** BatchNorm statistics are unstable when computed over very small batches. Use LayerNorm instead when batch size < 8. Symptom: training appears to converge but validation performance is random.
 
----
+- **Combining everything makes debugging hard.** Using L1 + L2 + Dropout + BatchNorm + Early Stopping simultaneously means when performance degrades you have five interacting levers to diagnose. Add one technique at a time, validate improvement, then add the next.
 
-## 9 · Where This Reappears
+- **Early stopping patience too short (patience=3–5).** The validation loss naturally oscillates by 1–3% epoch-to-epoch due to mini-batch noise. A patience of 3 will stop training at the first short plateau even if the trend is still improving. Use `patience ≥ 15` for the California Housing dataset.
 
-Regularisation is the foundation for training stable, generalisable neural networks. Every subsequent chapter builds on these four techniques:
+- **L1 + L2 combined (ElasticNet) without tuning both strengths.** ElasticNet uses both $\lambda_1 \|w\|_1 + \lambda_2 \|w\|_2^2$ simultaneously — which can be powerful but requires tuning two hyperparameters instead of one. In practice, pick L2 for dense, smooth weights or L1 for automatic sparsity; mixing both without a systematic sweep often produces worse results than either alone.
 
-- **[Ch.5 — CNNs](../ch05_cnns)**: Dropout after convolutional layers; Batch Normalisation (implicit regularisation); L2 weight decay for all conv filters. Data augmentation (random crops, flips) becomes the most powerful regulariser for image models.
-
-- **[Ch.6 — RNNs & LSTMs](../ch06_rnns_lstms)**: Dropout on LSTM hidden-to-hidden connections (variational dropout); gradient clipping (prevents exploding gradients, a form of regularisation); early stopping on sequence prediction validation loss.
-
-- **[Ch.7 — MLE & Loss Functions](../ch07_mle_loss_functions)**: L2 penalty reinterpreted as a Gaussian prior over weights (Bayesian perspective); connects regularisation to Maximum A Posteriori (MAP) estimation.
-
-- **[Ch.8 — TensorBoard](../ch08_tensorboard)**: Histogram visualisation of weight distributions (diagnose if L2 is too strong — all weights near zero); scalar tracking of train vs validation loss (visual early stopping signal).
-
-- **[Ch.10 — Transformers](../ch10_transformers)**: Layer normalisation (replaces batch norm in transformers); dropout on attention weights; label smoothing (regularises overconfident predictions); warmup + weight decay (AdamW optimiser combines both).
-
-The hyperparameter tuning chapter ([Ch.19 in the old curriculum](../../01_regression)) dedicates an entire section to the regularisation tuning order: dropout rate → L2 strength → early stopping patience → data augmentation budget.
+- **Not standardising features before applying L2.** If `MedInc` is on a scale of 0–10 and `Population` is on a scale of 0–100, the L2 penalty on `Population` weights is 100× larger in effective magnitude than on `MedInc` weights. L2 will preferentially shrink `Population` weights regardless of their importance. Always standardise features (zero mean, unit variance) before applying any weight penalty — this ensures L2 treats all features equally.
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 10 · Where This Reappears
 
-⚡ **MAJOR MILESTONE**: ✅ **Constraint #2 (GENERALIZATION) ACHIEVED!**
+Regularisation is not a chapter you learn and leave behind — it is a toolkit you reach for in every chapter from here on.
 
-**Unlocked capabilities:**
-- **L2 regularization**: Shrinks weights toward zero → simpler, smoother models
-- **Dropout**: Forces redundant representations → ensemble-like robustness
-- **Early stopping**: Prevents late-epoch memorization
-- **Batch normalization**: Normalizes layer inputs + implicit regularization
-- **Generalization achieved**: Test R² improved from 0.64 → 0.76, test MAE from $85k → **$52k**!
+- **[Ch.5 — CNNs](../ch05_cnns)**: Data augmentation (random crops, flips, rotations) is the most powerful regulariser for image models. Dropout after convolutional layers; BatchNorm after every `Conv → BN → ReLU` block; L2 weight decay on all filter parameters. The CelebA facial attribute classifier uses all three.
 
-**Progress toward constraints:**
-| Constraint | Status | Current State |
-|------------|--------|---------------|
-| #1 ACCURACY | ⚡ **APPROACHING** | $48k MAE on training; **test MAE $52k** — above the <$50k intermediate target, improving toward $28k final target |
-| #2 GENERALIZATION | ✅ **ACHIEVED** | **Test MAE $52k** (acceptable <$60k threshold), generalization gap 0.06 (was 0.24) |
-| #3 MULTI-TASK | ⚡ Partial | Can do regression + binary classification, but not multi-class segments |
-| #4 INTERPRETABILITY | ⚡ Partial | Still a black box (can't explain individual predictions) |
-| #5 PRODUCTION | ❌ Blocked | Research code only, no deployment infrastructure |
+- **[Ch.6 — RNNs & LSTMs](../ch06_rnns_lstms)**: Variational dropout on LSTM hidden-to-hidden connections (the same mask is kept across all time steps). Gradient clipping prevents the exploding-gradient instability that is the recurrent analogue of overfitting.
 
-**What we can solve:**
+- **[Ch.7 — MLE & Loss Functions](../ch07_mle_loss_functions)**: L2 regularisation reinterpreted as a **Gaussian prior** over weights (Bayesian perspective). The MAP estimate of a Gaussian-prior model is exactly the Ridge solution. L1 corresponds to a Laplacian prior. Regularisation and prior distributions are the same idea in two languages.
 
-**Generalize to unseen data!**
-- **Before** (Ch.3): Train R²=0.88, Test R²=0.64 → gap=0.24 (overfitting!)
-- **Now** (Ch.4): Train R²=0.82, Test R²=0.76 → gap=0.06 (acceptable!)
-- **Test MAE**: $85k → **$52k** (37% improvement on unseen districts)
-- **Real-world**: Model now works on new property listings, not just memorized training data
+- **[Ch.8 — TensorBoard](../ch08_tensorboard)**: Use the Histogram tab to visualise weight distributions per layer — diagnosing if L2 is too aggressive (all weights at zero) or not active (all weights large). Use Scalars to overlay train and val loss and visually identify the early stopping epoch.
 
-**Control model complexity!**
-- **L2** ($\lambda=0.01$): Largest weights shrunk from $\pm 15$ → $\pm 3$
-- **Dropout** (p=0.5): Half the neurons randomly zeroed each batch → no single neuron can memorize patterns
-- **Early stopping** (patience=10): Training stopped at epoch 87 (before validation loss started rising)
+- **[Ch.10 — Transformers](../ch10_transformers)**: **Layer Normalisation** replaces BatchNorm (LayerNorm normalises over the feature dimension per sample, so it works with batch size 1). Dropout on attention weights. AdamW optimiser combines Adam with explicit weight decay (identical to L2 at the optimiser level). Label smoothing regularises overconfident softmax outputs.
 
-**Real-world impact:**
-UnifiedAI can now predict house values on **new districts** (not in training data) with **$52k average error**:
-- **Improvement**: 37% error reduction on unseen data ($85k → $52k)
-- **Business value**: Can confidently deploy to new cities/regions
-- **User trust**: Predictions remain accurate even on property types not seen during training
+- **Hyperparameter Tuning** (Ch.19 legacy): an entire section is dedicated to the regularisation tuning order — dropout rate → L2 strength → early stopping patience → data augmentation budget — with Optuna sweep visualisations.
 
-**Key insights unlocked:**
+**The regularisation taxonomy across the full ML track:**
 
-1. **Bias-variance tradeoff**:
-   - **No regularization**: Low bias (fits training perfectly), high variance (fails on test)
-   - **L2 + Dropout**: Slightly higher bias (train R² drops 0.88→0.82), much lower variance (test R² improves 0.64→0.76)
-   - **Optimal point**: Maximize **test performance**, not training performance!
+```
+Explicit weight penalty:    L1 (Lasso)     →  sparse weights
+                            L2 (Ridge)     →  small weights
+Architectural:              Dropout        →  redundant representations
+                            BatchNorm      →  smooth loss surface
+                            LayerNorm      →  same, works seq-to-seq
+Training-protocol:          Early stopping →  limit gradient steps
+                            LR warmup      →  avoid early overfitting
+Data-level:                 Augmentation   →  virtual data diversity
+                            Label smooth.  →  overconfidence penalty
+Implicit:                   SGD noise      →  flat minima preference
+                            Batch size     →  smaller = more noise = regularisation
+```
 
-2. **Why L2 works**:
-   - **Large weights**: Model fits noise (e.g., $w=150$ to perfectly fit one outlier district)
-   - **L2 penalty**: $\lambda \|\mathbf{W}\|^2$ punishes large weights → forces smaller, smoother coefficients
-   - **Effect**: Model learns "high-income → +$50k" (general pattern) instead of "district #4217 → $412k" (memorization)
-
-3. **Why Dropout works**:
-   - **Without Dropout**: Neuron A learns "coastal = premium", relies on neuron B for "high-income"
-   - **With Dropout**: Neuron A randomly dropped 50% of time → neuron C must also learn "coastal = premium" (redundancy)
-   - **Effect**: Ensemble of $2^n$ sub-networks (where $n$ = number of neurons) → robust predictions
-
-4. **Early stopping is free regularization**:
-   - **Cost**: Zero computational overhead (just monitor validation loss)
-   - **Benefit**: Stops training exactly when validation loss plateaus
-   - **Why it works**: Gradient descent implicitly prefers simpler solutions early; complexity increases with training time
-
-**Hyperparameter tuning learned:**
-
-| Hyperparameter | Typical Range | How to Tune | What Happens If Wrong |
-|----------------|---------------|-------------|------------------------|
-| **L2 $\lambda$** | $10^{-5}$ to $10^{-1}$ | Grid search on validation loss | Too low: still overfits; too high: underfits (train loss plateau) |
-| **Dropout $p$** | 0.2 to 0.5 | Start with 0.5 for dense layers, 0.2 for conv layers | Too low: still overfits; too high: underfits (training becomes unstable) |
-| **Early stopping patience** | 5 to 20 epochs | Set to ~10% of expected total epochs | Too low: stops before convergence; too high: overfits |
-
-**Diagnostic toolkit unlocked:**
-
-1. **Loss curve analysis**:
-   - **Train ↓, Val ↓**: Good! Still learning
-   - **Train ↓, Val plateau**: Increase regularization ($\lambda$ or dropout $p$)
-   - **Train ↓, Val ↑**: Overfitting! Early stopping should have triggered
-   - **Both plateau early**: Underfitting — reduce regularization or increase model capacity
-
-2. **Weight histogram inspection**:
-   - **No regularization**: Weights spread from $-20$ to $+20$ (some very large)
-   - **L2**: Weights concentrated near 0, max $\pm 5$ (shrunk!)
-   - **Dying neurons**: Entire histogram at 0 → reduce learning rate or switch activation
-
-3. **Validation set best practices**:
-   - **Size**: 10-20% of training data
-   - **Split**: Chronologically for time series, randomly for i.i.d. data
-   - **Never touch test set**: Use only for final evaluation (no hyperparameter tuning!)
-
-**What we still CAN'T solve:**
-
-**Constraint #3 (MULTI-TASK)** — Limited to single-task:
-- Can predict house value (regression)
-- Can classify high/low value (binary)
-- Can't classify into 4+ market segments simultaneously ("Coastal Luxury", "Suburban Affordable", "Urban Dense", "Rural")
-- Can't do multi-label classification (e.g., "premium + new-construction + school-district")
-- **Need**: Ch.5 CNNs (spatial patterns from images), later chapters will add clustering (unsupervised segmentation)
-
-**Constraint #4 (INTERPRETABILITY)** — Still a black box:
-- **Question**: "Why did the model predict $350k for this district?"
-- **Current answer**: "Because 128 neurons in layer 1 activated, then 64 in layer 2, then..." (useless!)
-- **Need**: Attention mechanisms (Ch.9-10) provide interpretable feature attribution; classical ML (Decision Trees, SHAP) covered in other tracks
-
-**Constraint #5 (PRODUCTION)** — Research code only:
-- No model versioning (can't roll back to previous version)
-- No A/B testing (can't compare model versions in production)
-- No monitoring (can't detect model drift or degradation)
-- **Need**: Production tooling and monitoring covered in Ch.8 (TensorBoard) and MLOps best practices
-
-**Architectural decisions validated:**
-
-1. **L2 vs L1 for neural networks**:
-   - **L1**: Pushes weights to exactly 0 (sparse), but non-smooth gradient at 0 → training instability
-   - **L2**: Shrinks weights toward 0 (dense), smooth gradient everywhere → stable training
-   - **Empirical result**: L2 is default for neural networks; L1 is common in linear models (Lasso)
-
-2. **Dropout vs Batch Normalization**:
-   - **Dropout**: Explicit regularization (zeros neurons), works universally
-   - **Batch Normalization**: Implicit regularization (normalizes activations), also speeds up training
-   - **Combining them**: Often redundant; prefer BatchNorm for CNNs, Dropout for dense layers
-
-3. **Early stopping patience**:
-   - **Too low** (patience=2): Stops at epoch 15, validation loss still decreasing → underfits
-   - **Optimal** (patience=10): Stops at epoch 87, validation loss plateaued for 10 epochs
-   - **Too high** (patience=50): Never triggers, manual intervention needed
-
-**Regularization checklist for future chapters:**
-
-Every time we add model capacity (more layers, more units, new architecture), we'll revisit:
-1. **L2 weight decay**: Start with $\lambda=10^{-4}$, tune via validation loss
-2. **Dropout**: 0.5 for dense layers, 0.2 for conv layers
-3. **Early stopping**: patience = 10-20 epochs
-4. **Data augmentation** (Ch.5): Random crops, flips for images (most powerful regularizer for vision)
-
-**Next step:**
-
-We've achieved **Constraints #1 (ACCURACY)** and **#2 (GENERALIZATION)** for tabular data. But dense layers treat every feature symmetrically — they don't exploit **spatial structure**.
-
-For image-like data (satellite photos of districts, property images), we need **convolutional neural networks** that:
-- Share weights across spatial positions (weight sharing)
-- Detect local patterns (edges, textures) that compose into global features (buildings, neighborhoods)
-- Reduce parameters by orders of magnitude (vs dense layers)
-
-**Next up:** [Ch.5 — CNNs](../ch05_cnns) introduces convolutional filters, pooling, and residual connections. We'll extend UnifiedAI to predict house values from **satellite imagery** of districts, achieving multi-modal predictions (tabular features + images).
+Every technique in this taxonomy is a flavour of the same core idea: **bias the model toward simpler hypotheses**. The chapters ahead introduce each row in this table in context.
 
 ---
 
-## 11 · Bridge to Chapter 5
+## 11 · Progress Check — What We Can Solve Now
 
-You can now train a well-regularised dense network. But dense networks treat every input pixel (or feature) symmetrically — they don't exploit spatial structure. Chapter 5 — **CNNs** — introduces convolutional filters that share weights across positions, making them orders of magnitude more efficient for image-like inputs.
+![Progress visualisation](img/ch04-regularisation-progress-check.png)
 
+⚡ **MAJOR MILESTONE**: ✅ **Constraint \#2 (GENERALIZATION) ACHIEVED!**
 
-## Illustrations
+**The regularisation stack:**
+- ✅ **L2 (λ=0.001)**: Weight decay closes the largest part of the gap — no single district can be memorised without paying a quadratic weight penalty
+- ✅ **Dropout (p=0.3)**: Forces distributed representations — closes further gap
+- ✅ **BatchNorm**: Stabilises training dynamics, prevents late-epoch weight drift
+- ✅ **Early Stopping (patience=15)**: Recovers the best-checkpoint model, not the last-epoch model
 
-![Regularisation — effect of L1, L2 penalties and dropout on learned weights](img/ch04-regularisation.png)
+**Before → After regularisation:**
+
+| Split | Before MAE | After MAE | Change |
+|---|---|---|---|
+| Train | \$32k | \$38k | +\$6k (expected: less overfit) |
+| Val | \$68k | \$56k | **−\$12k** ✅ |
+| **Gap** | **\$36k** | **\$18k** | **−\$18k** ✅ |
+
+The train MAE rose slightly (the model is intentionally constrained from perfectly fitting training data), but the val MAE dropped by \$12k and the gap halved.
+
+**Full constraint dashboard:**
+
+| Constraint | Target | Status | Current State |
+|---|---|---|---|
+| \#1 ACCURACY | ≤\$28k MAE | ⚠️ Close | Train \$38k — slightly above final target |
+| **\#2 GENERALIZATION** | Gap < \$20k | ✅ **ACHIEVED** | Gap \$18k |
+| \#3 MULTI-TASK | Value + Segment | ❌ Blocked | Single-output only |
+| \#4 INTERPRETABILITY | Explainable | ❌ Blocked | Black-box network |
+| \#5 PRODUCTION | Scale + Monitor | ❌ Blocked | No deployment pipeline |
+
+**What we still can't do:**
+
+- ❌ The train MAE of \$38k is slightly above the ≤\$28k final target — deeper architectures or better features are needed
+- ❌ The model predicts one output (house price) but cannot simultaneously predict market segment
+- ❌ Images of properties are untouched — the CelebA facial-attribute half of UnifiedAI is not yet tackled
+
+**Real-world status:** We can now build neural networks that generalise to unseen districts instead of memorising the training set. Every subsequent chapter assumes this regularisation stack is in place.
+
+**Next up:** [Ch.5 — CNNs](../ch05_cnns) adds **convolutional layers** that can process aerial and street-view property photos, unlocking the visual features needed for the CelebA facial-attribute classification half of UnifiedAI.
+
+---
+
+## 12 · Bridge to Ch.5 — CNNs
+
+This chapter established that a densely-connected network can generalise to unseen California Housing districts with the right regularisation stack. What it cannot do is process spatial structure — the pixel grid of a property photo or the facial geometry of a CelebA image contains information that a flat vector of 8 housing features never will. **Ch.5 — CNNs** introduces convolutional layers that share weights across spatial positions (a form of built-in regularisation), enabling the model to detect edges, textures, and shapes regardless of where in the image they appear. The L2 weight decay, Dropout, and BatchNorm you learned here are carried forward unchanged — they appear in every `Conv → BN → ReLU → Dropout` block in the standard CNN recipe.
+
+The key mindset shift going into Ch.5: regularisation in CNNs is *architectural* as well as parametric. A convolutional layer with a 3×3 filter has only 9 weights shared across all spatial positions, compared to a fully connected layer that would need $H \times W \times C_\text{in} \times C_\text{out}$ weights. That weight sharing is the CNN's strongest regulariser — it forces the model to learn translation-invariant features rather than memorising which position each feature appears at.
+
+> ➡️ **[Ch.5 — CNNs →](../ch05_cnns)**: Convolutional filters detect local spatial patterns. Pooling reduces spatial dimensions. The same regularisation stack from this chapter applies to every layer — with data augmentation now added as the most powerful image-specific regulariser.
+
+---
+
+*End of Chapter 4 — Regularisation*

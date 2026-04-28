@@ -81,6 +81,8 @@ $$
 $$
 → Now class 1 (water bottle) and class 2 (juice box) have meaningful probabilities — this **dark knowledge** teaches the student that "soda can is more similar to water bottle than to cereal box."
 
+**What temperature scaling achieves:** Without temperature, the student only learns "class 0 is correct" from the one-hot label `[1, 0, 0, 0, 0]`. With temperature $\tau=5$, the student learns a **similarity structure**: "class 0 is most correct (65%), but class 1 shares some visual features (18%), class 2 shares fewer (12%), and classes 3-4 are unrelated (2-3%)." This richer supervision means the small student model doesn't have to rediscover class relationships from scratch — it inherits the teacher's understanding of "beverage container shapes are similar, but cereals are geometrically different." Result: 83% mAP instead of 78% (5% accuracy recovery from just soft targets).
+
 ### 1.2 Distillation Loss (KL Divergence)
 
 Student minimizes the **KL divergence** between its soft predictions and the teacher's soft targets:
@@ -528,77 +530,7 @@ $$
 
 ---
 
-## 7 · Code Skeleton — PyTorch Distillation
-
-```python
-import torch
-import torch.nn.functional as F
-from torchvision.models.detection import maskrcnn_resnet50_fpn
-from torchvision.models.detection import maskrcnn_mobilenet_v2
-
-# Load pretrained teacher
-teacher = maskrcnn_resnet50_fpn(num_classes=21)
-teacher.load_state_dict(torch.load('teacher_resnet50.pth'))
-teacher.eval()  # Freeze teacher
-
-# Initialize student
-student = maskrcnn_mobilenet_v2(num_classes=21)
-optimizer = torch.optim.Adam(student.parameters(), lr=1e-4)
-
-# Hyperparameters
-tau = 5.0
-alpha = 0.8
-num_epochs = 100
-
-# Distillation training loop
-for epoch in range(num_epochs):
-    for images, targets in train_loader:
-        images = images.to(device)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        
-        # Teacher predictions (frozen)
-        with torch.no_grad():
-            teacher_outputs = teacher(images)
-            teacher_logits = teacher_outputs['logits']  # [B, C, H, W]
-            teacher_probs_soft = F.softmax(teacher_logits / tau, dim=1)
-        
-        # Student predictions
-        student_outputs = student(images)
-        student_logits = student_outputs['logits']
-        student_probs_soft = F.softmax(student_logits / tau, dim=1)
-        student_probs_hard = F.softmax(student_logits, dim=1)
-        
-        # Distillation loss (match teacher's soft distribution)
-        loss_distill = (tau ** 2) * F.kl_div(
-            student_probs_soft.log(),
-            teacher_probs_soft,
-            reduction='batchmean'
-        )
-        
-        # Hard label loss (match ground truth)
-        loss_hard = F.cross_entropy(student_probs_hard, targets['labels'])
-        
-        # Combined loss
-        loss = alpha * loss_distill + (1 - alpha) * loss_hard
-        
-        # Backpropagation
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-    
-    # Evaluate student
-    student.eval()
-    mAP = evaluate_detection(student, val_loader)
-    print(f"Epoch {epoch+1}: mAP = {mAP:.2f}%")
-    student.train()
-
-# Save distilled student
-torch.save(student.state_dict(), 'student_mobilenetv2_distilled.pth')
-```
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 ### Problem 1: Student Too Small (Under-Capacity)
 
@@ -634,7 +566,7 @@ torch.save(student.state_dict(), 'student_mobilenetv2_distilled.pth')
 
 ---
 
-## 9 · Progress Check — ProductionCV Constraints
+## 8 · Progress Check — ProductionCV Constraints
 
 > ⚡ **Constraint tracking** — how does distillation push us toward the grand challenge?
 
@@ -663,7 +595,7 @@ torch.save(student.state_dict(), 'student_mobilenetv2_distilled.pth')
 
 ---
 
-## 10 · Bridge to Ch.10 — Pruning & Mixed Precision Training
+## 9 · Bridge to Ch.10 — Pruning & Mixed Precision Training
 
 You've distilled the ResNet-50 teacher (97 MB, 85.4% mAP) into a MobileNetV2 student (10.7 MB, 83.2% mAP) — compressing 9× while losing only 2.2% accuracy. This is a massive win for edge deployment.
 

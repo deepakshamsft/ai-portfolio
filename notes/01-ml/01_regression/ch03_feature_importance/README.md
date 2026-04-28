@@ -94,7 +94,7 @@ Before diving into the methods, there is one concept to hold in mind throughout:
 
 Some features in our dataset measure overlapping things. `AveRooms` and `AveBedrms` both capture dwelling size — their **inter-feature** Pearson ρ = 0.85. `Latitude` and `Longitude` both encode geography — neither is informative alone, but together they pinpoint a district on the California map. When features share signal like this, the three importance methods will give *systematically different rankings* for those features — and that divergence is information, not noise.
 
-> 📖 **What is ρ exactly?** If the formula is unfamiliar, [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) builds up covariance and Pearson correlation step by step with a small worked example and animated diagrams. It also proves why $R^2_j = \rho^2$ — the identity that powers Method 1 below.
+> 📖 **What is ρ exactly?** If the formula is unfamiliar, [MathUnderTheHood Ch.7 § 4b](../../../00-math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) builds up covariance and Pearson correlation step by step with a small worked example and animated diagrams. It also proves why $R^2_j = \rho^2$ — the identity that powers Method 1 below.
 
 - **Method 1 (Univariate R²)** measures each feature in total isolation — it cannot see that AveRooms and AveBedrms are measuring the same thing, so it may give both modest scores.
 - **Method 2 (Standardised Weights)** trains a joint model — now AveRooms must *compete* with AveBedrms for the shared signal. One may end up with an inflated weight, the other suppressed or even negative.
@@ -118,7 +118,7 @@ These metrics are the building blocks for Method 1 (Univariate R²) and provide 
 
 **When you reach for it:** Use Pearson as the first pass for Linear Regression. A feature with |ρ| > 0.3 is a prime candidate for a linear model. Always plot the scatter first — a curve or cluster that Pearson misses will be visible immediately.
 
-> 📖 **Need the formula intuition first?** [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) walks through covariance and Pearson from scratch — signed rectangles, unit-cancellation, and why $R^2 = \rho^2$ — with animated diagrams. Come back here once the formula feels grounded.
+> 📖 **Need the formula intuition first?** [MathUnderTheHood Ch.7 § 4b](../../../00-math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) walks through covariance and Pearson from scratch — signed rectangles, unit-cancellation, and why $R^2 = \rho^2$ — with animated diagrams. Come back here once the formula feels grounded.
 
 $$\rho(x_j, y) = \frac{\sum(x_{ij}-\bar{x}_j)(y_i - \bar{y})}{\sqrt{\sum(x_{ij}-\bar{x}_j)^2 \cdot \sum(y_i-\bar{y})^2}}$$
 
@@ -134,7 +134,7 @@ where $\rho$ (rho) is the correlation coefficient, $x_{ij}$ is the value of feat
 
 **When you reach for it:** Use MI as a general "first pass" when working with tree-based models (Random Forest, XGBoost) or when you suspect non-linear patterns. It finds hidden relationships that Pearson would miss entirely — the model architecture then determines whether those relationships get exploited.
 
-> 📖 **Want the full information-theoretic foundation?** [MathUnderTheHood Ch.7 § 4b](../../../math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) covers covariance and Pearson for linear relationships. Mutual Information extends the same "how do two things relate?" question to *any* shape. Both are measuring association — Pearson with a straight ruler, MI with a magnifying glass.
+> 📖 **Want the full information-theoretic foundation?** [MathUnderTheHood Ch.7 § 4b](../../../00-math_under_the_hood/ch07_probability_statistics/README.md#4b--covariance-and-pearson-correlation--do-two-things-move-together) covers covariance and Pearson for linear relationships. Mutual Information extends the same "how do two things relate?" question to *any* shape. Both are measuring association — Pearson with a straight ruler, MI with a magnifying glass.
 
 Mutual information measures *any* statistical dependence, not just linear:
 
@@ -192,86 +192,7 @@ MI sums these deviations across the entire surface — so any shape of relations
 
 ![Mutual information accumulation: animation showing how MI builds up from the joint density surface — each region contributes based on its log-ratio weight, with the final sum representing total information shared between X and Y](img/ch03-mi-accumulation.gif)
 
-*The animation above shows the MI calculation as a weighted sum over the scatter plot. Each cell is shaded by its log-ratio $\log(p(x,y) / (p(x)p(y)))$ — blue where the relationship concentrates, grey where it matches independence. The final MI score is the volume under this signed surface, weighted by the actual joint density.*
-
-#### Building the MI Formula — A Toy Worked Example
-
-Like Pearson's wind-speed example, let's make MI concrete with a small dataset. Suppose you're predicting house prices ($y$) based on neighbourhood walkability score ($x$), and you observe 8 districts:
-
-| District | Walkability $x$ | Price $y$ (\$100k) | Bin assignment |
-|----------|----------------|-------------------|----------------|
-| 1 | 2 | 1.2 | Low walk, Low price |
-| 2 | 3 | 1.5 | Low walk, Low price |
-| 3 | 7 | 2.8 | High walk, High price |
-| 4 | 8 | 3.1 | High walk, High price |
-| 5 | 2 | 1.0 | Low walk, Low price |
-| 6 | 8 | 2.9 | High walk, High price |
-| 7 | 3 | 1.4 | Low walk, Low price |
-| 8 | 7 | 3.0 | High walk, High price |
-
-For simplicity, bin the features into two bins each: Low (≤ 5) and High (> 5) for walkability; Low (< 2.0) and High (≥ 2.0) for price.
-
-**Step 1 — Count occurrences in each cell:**
-
-|  | Price Low | Price High | Row Total |
-|---|---|---|---|
-| **Walk Low** | 4 | 0 | 4 |
-| **Walk High** | 0 | 4 | 4 |
-| **Column Total** | 4 | 4 | 8 |
-
-*(Row totals give the marginal p(x); column totals give the marginal p(y))*
-
-**Step 2 — Compute probabilities:**
-
-Joint probabilities $p(x, y)$:
-- $p(\text{Low walk, Low price}) = 4/8 = 0.50$
-- $p(\text{Low walk, High price}) = 0/8 = 0.00$
-- $p(\text{High walk, Low price}) = 0/8 = 0.00$
-- $p(\text{High walk, High price}) = 4/8 = 0.50$
-
-Marginal probabilities:
-- $p(\text{Low walk}) = 4/8 = 0.50$
-- $p(\text{High walk}) = 4/8 = 0.50$
-- $p(\text{Low price}) = 4/8 = 0.50$
-- $p(\text{High price}) = 4/8 = 0.50$
-
-**Step 3 — Compute the independence baseline $p(x) \cdot p(y)$:**
-
-If walkability told you nothing about price, each cell would have probability = (row total) × (column total):
-- $p(\text{Low walk}) \times p(\text{Low price}) = 0.50 \times 0.50 = 0.25$
-- $p(\text{Low walk}) \times p(\text{High price}) = 0.50 \times 0.50 = 0.25$
-- $p(\text{High walk}) \times p(\text{Low price}) = 0.50 \times 0.50 = 0.25$
-- $p(\text{High walk}) \times p(\text{High price}) = 0.50 \times 0.50 = 0.25$
-
-**Step 4 — Compute the log ratio for each cell:**
-
-|  | Price Low | Price High |
-|---|---|---|
-| **Walk Low** | $\log(0.50/0.25) = \log(2) \approx 0.693$ | $\log(0.00/0.25) = -\infty$ (skip—undefined) |
-| **Walk High** | $\log(0.00/0.25) = -\infty$ (skip—undefined) | $\log(0.50/0.25) = \log(2) \approx 0.693$ |
-
-When $p(x,y) = 0$, that cell contributes nothing to the sum (the product $p(x,y) \log(\cdot)$ becomes $0 \times (-\infty) = 0$ by convention).
-
-**Step 5 — Weight each log ratio by its joint probability and sum:**
-
-$$I(X; Y) = \sum_{x,y} p(x,y) \log\frac{p(x,y)}{p(x)p(y)}$$
-
-$$= 0.50 \times 0.693 + 0.00 \times (\text{skip}) + 0.00 \times (\text{skip}) + 0.50 \times 0.693$$
-
-$$= 0.3465 + 0.3465 = \mathbf{0.693} \text{ bits}$$
-
-**What does 0.693 bits mean?** In this toy example, knowing walkability score completely determines price category — it's a perfect step function. The MI of 0.693 bits = $\log(2)$ is the maximum MI you can get between two binary variables: knowing $x$ eliminates all uncertainty about $y$ (reduces your guessing entropy from 1 bit to 0 bits). For comparison:
-
-| MI score | What it signals | Example |
-|---|---|---|
-| 0.00 bits | No relationship — knowing $x$ tells you nothing about $y$ | Random scatter |
-| 0.10 bits | Weak relationship — knowing $x$ slightly narrows $y$ | Very noisy correlation |
-| 0.35 bits | Moderate relationship — knowing $x$ substantially constrains $y$ | Pearson ρ ≈ 0.5 linear case |
-| 0.693 bits | Strong relationship — for binary features, near-perfect association | Perfect step function (our example) |
-
-> 💡 **Connection to entropy:** The maximum MI between two binary variables is $\log(2) \approx 0.693$ bits, which equals the entropy $H(Y)$ of a fair coin flip. When MI = $H(Y)$, knowing $X$ removes *all* uncertainty about $Y$ — they're functionally dependent.
-
-**Why this toy example matters:** Notice that Pearson correlation on this same dataset would be ρ ≈ +0.95 (nearly perfect linear). Both Pearson and MI flag the strong relationship, so where's the advantage? The advantage shows up when the relationship is *non-linear* but still perfectly predictive — see the parabola case below.
+*The animation above shows the MI calculation as a weighted sum over the scatter plot. Each region in the animation is shaded by its log-ratio $\log(p(x,y) / (p(x)p(y)))$ — blue where the relationship concentrates, grey where it matches independence. The final MI score is the volume under this signed surface, weighted by the actual joint density.*
 
 #### When Pearson Fails — Two Cases Where MI Catches Signal
 
@@ -482,7 +403,11 @@ That is not the end of the story.
 
 ---
 
-### 3.3 · Feature Scaling — Why Raw Weights Are Uninterpretable
+## 3A · Prerequisite: Feature Scaling
+
+> ⚠️ **This is NOT a feature importance method** — it's a data preparation step required before comparing feature weights. Methods 1 and 3 don't need scaling; Method 2 (Standardised Weights) requires it. This section explains why and how.
+
+### Why Raw Weights Are Uninterpretable
 
 Before comparing weights across features you need a common unit. Raw weights are unit-dependent: a weight of +0.40 for `MedInc` (measured in steps of $10k) and −0.000014 for `Population` (measured per person) look 28,000× apart — but that gap is almost entirely a scale artefact, not an importance signal.
 
@@ -511,7 +436,7 @@ Gradient for Pop:   ~5000    Gradient for Pop:    ~0.8
 
 > ⚠️ **Pipeline rule:** Always fit the scaler on training data only, then transform both train and test. Fitting on the full dataset leaks test statistics into training.
 
-#### 3.3.1 Understanding Positive Skew — Why Some Features Need Log Transform
+### 3A.1 Understanding Positive Skew — Why Some Features Need Log Transform
 
 **What is skew?** Skew measures distributional asymmetry. In a symmetric distribution (like a normal curve), the mean equals the median. **Positive skew** means a long right tail — most values cluster near the low end, but a few extreme values stretch far to the right, pulling the mean above the median.
 
@@ -528,7 +453,7 @@ Symmetric distribution:       Positively skewed distribution:
 
 **Example:** `Population` ranges from 3 to 35,682. After standardization, a typical district (Population = 1,500) becomes −0.1σ, while the extreme district (Population = 35,682) becomes +12σ. The model's weight updates are dominated by that one extreme case, even though it's not representative.
 
-#### 3.3.2 Log Transform & Box-Cox
+### 3A.2 Log Transform & Box-Cox
 
 When a feature has a heavy right tail (long positive skew), standardisation alone may not help — the largest values still dominate. Log-transforming first compresses the tail:
 
@@ -568,11 +493,11 @@ The raw scale ranges over 4× (322–2401); the log scale compresses this to a 2
 
 ---
 
-### 3.4 Method 2 — Standardised Weights (Partial Contribution)
+### 3.3 Method 2 — Standardised Weights (Partial Contribution)
 
 > **How ŷ is determined here:** There is **one model containing all features simultaneously** — the same Ch.2 model. No features are removed. ŷ = $w_1 x_1 + w_2 x_2 + \cdots + w_p x_p + b$. The standardised weight $|w_j^{\text{std}}|$ measures the **marginal (partial) effect** of feature $j$: how much ŷ shifts for a 1-σ change in $x_j$ while all other features are held fixed at their current values. This is why rankings can flip versus Method 1 — a feature that was absorbing shared signal alone now only gets credit for what it adds *above and beyond* all other features.
 
-Feature Scaling (above) is the prerequisite. After `StandardScaler`, the fitted absolute weight measures how much the model *uses* each feature when all others are present:
+**Prerequisite:** Feature scaling (Section 3A above) is required. After `StandardScaler`, the fitted absolute weight measures how much the model *uses* each feature when all others are present:
 
 $$\text{importance}_j^{\text{partial}} = |w_j^{\text{std}}|$$
 
@@ -638,7 +563,7 @@ This apparent contradiction is the most important insight in the chapter.
 
 ---
 
-### 3.5 Why M1 and M2 Often Disagree — The Joint Signal Problem
+### 3.4 Why M1 and M2 Often Disagree — The Joint Signal Problem
 
 MedInc is a powerful standalone predictor *precisely because* it is correlated with many other variables. Rich districts tend to have newer housing, more rooms, and be in coastal locations. When those other features enter the model alongside MedInc, they absorb portions of the signal that MedInc was previously soaking up alone. MedInc's partial contribution shrinks to what it contributes *above and beyond* everything else.
 
@@ -657,7 +582,7 @@ M1 and M2 together already reveal a lot, but they share a blind spot: both rely 
 
 ---
 
-### 3.6 Method 3 — Permutation Importance
+### 3.5 Method 3 — Permutation Importance
 
 > **How ŷ is determined here:** The **original full model is used unchanged — it is never retrained**. ŷ still equals $w_1 x_1 + w_2 x_2 + \cdots + w_p x_p + b$ with the same fitted weights from training. What changes is the **input**: for feature $j$, its column is randomly shuffled across all test rows, destroying its correlation with $y$ while keeping its marginal distribution intact. The model then makes predictions with the same weights but scrambled signal for that one feature. The rise in MAE reveals how badly those fixed weights are handicapped — i.e., how much the model was genuinely relying on that feature's ordering. **Critically, this is not the same as removing the feature and retraining.** Retraining would allow correlated features to compensate; permutation does not — it tests the trained model's reliance, not the feature's replaceability.
 
@@ -704,7 +629,7 @@ Permutation importance is generally the most trustworthy of the three methods be
 
 ---
 
-### 3.7 Three-Method Convergence — Reading the Full Picture
+### 3.6 Three-Method Convergence — Reading the Full Picture
 
 ![Three-method reveal animation](img/three-method-reveal.gif)
 
@@ -771,7 +696,7 @@ The side-by-side bar chart makes the ranking reversal concrete:
 
 ---
 
-### 3.8 Variance Threshold — Dropping Near-Constant Features
+### 3.7 Variance Threshold — Dropping Near-Constant Features
 
 **Why this comes after Methods 1-3:** Unlike Pearson/MI (§ 3.1, which measure feature→target relationships), Variance Threshold is a **quality filter** — it checks whether a feature varies at all, independent of the target. You group it with multicollinearity diagnostics because both address feature quality and redundancy rather than predictive signal.
 
@@ -799,7 +724,7 @@ For California Housing: none of the 8 base features hits this threshold, but eng
 
 ---
 
-### 3.9 Multicollinearity — When Features Compete for the Same Signal
+### 3.8 Multicollinearity — When Features Compete for the Same Signal
 
 Multicollinearity is the condition where two or more features are strongly correlated with each other. When this happens:
 
@@ -829,7 +754,7 @@ The target column (`MedHouseVal`) shows that only MedInc has substantial direct 
 
 ---
 
-### 3.10 · Variance Inflation Factor (VIF) — When Collinearity Makes Weights Unreliable
+### 3.9 · Variance Inflation Factor (VIF) — When Collinearity Makes Weights Unreliable
 
 > ⚡ **Constraint #4 — Interpretability:** VIF is your diagnostic for deciding whether standardised weights are trustworthy enough to hand to a compliance officer or stakeholder. High VIF (> 5) means the weight is unstable across training runs — not acceptable for regulated decisions.
 
@@ -924,13 +849,13 @@ For SmartVal AI, we'll keep both for now and let Ridge handle it in Ch.5 — but
 
 ---
 
-### 3.11 Joint Feature Importance — When Two Features Are Stronger Together
+### 3.10 Joint Feature Importance — When Two Features Are Stronger Together
 
 VIF catches the *competition* case: two features measure the same thing, weights blow up, one should be dropped or merged.
 
-But the opposite case exists too. Two features can encode **complementary dimensions** of the same concept — individually weak, jointly irreplaceable. Neither Latitude nor Longitude alone can tell you whether a district is in San Francisco or Los Angeles, but together they place every district precisely on the California map. This is the **cooperation case**, and none of the three methods from § 3.2-3.6 directly measures it.
+But the opposite case exists too. Two features can encode **complementary dimensions** of the same concept — individually weak, jointly irreplaceable. Neither Latitude nor Longitude alone can tell you whether a district is in San Francisco or Los Angeles, but together they place every district precisely on the California map. This is the **cooperation case**, and none of the three methods from § 3.2-3.5 directly measures it.
 
-#### 3.11.1 The Diagnostic — Joint Permutation Importance
+#### 3.10.1 The Diagnostic — Joint Permutation Importance
 
 The method is a straightforward extension of Method 3. Instead of shuffling one feature at a time, **shuffle both together** and measure the performance drop. Then compare three numbers:
 
@@ -954,7 +879,7 @@ $$\Delta_{\text{interact}}(j,k) = \pi_{jk} - \pi_j - \pi_k$$
 
 Positive → the pair has synergistic signal the individual scores miss. Negative → the features are substitutes (consistent with VIF > 1).
 
-#### 3.11.2 Worked Example — Latitude and Longitude
+#### 3.10.2 Worked Example — Latitude and Longitude
 
 From the California Housing dataset (numbers approximate, all in $\Delta$ MAE ×$1k):
 
@@ -979,7 +904,7 @@ Now contrast with AveRooms / AveBedrms:
 
 Shuffling both together does almost no extra damage — the features were substitutes. Dropping AveBedrms loses essentially nothing.
 
-#### 3.11.3 What to Do When You Find Genuine Joint Importance
+#### 3.10.3 What to Do When You Find Genuine Joint Importance
 
 **For linear models** — the model has no way to discover interactions on its own; you must engineer them:
 
@@ -993,7 +918,7 @@ Shuffling both together does almost no extra damage — the features were substi
 
 **The general principle**: if $\Delta_{\text{interact}}(j,k) > 0.5 \times \pi_j$ (the joint uplift is more than half the stronger feature's individual importance), consider creating a composite or interaction feature rather than treating them as independent columns.
 
-#### 3.11.4 The Flag — How to Spot Candidates Without Exhaustive Search
+#### 3.10.4 The Flag — How to Spot Candidates Without Exhaustive Search
 
 Checking all $\binom{p}{2}$ pairs for joint permutation importance is $O(p^2)$ — feasible for $p \leq 20$, expensive for larger datasets. Two cheaper pre-screens:
 
@@ -1003,7 +928,7 @@ Checking all $\binom{p}{2}$ pairs for joint permutation importance is $O(p^2)$ �
 
 ---
 
-### 3.12 Putting It Together — A Three-View Dashboard
+### 3.11 Putting It Together — A Three-View Dashboard
 
 | Feature | Univariate R² | \|Std weight\| | Permutation | VIF | Verdict |
 |---|---|---|---|---|---|
@@ -1146,166 +1071,7 @@ terms (Ch.4) and Ridge regularization (Ch.5) sort out the redundancy.
 
 ---
 
-## 7 · Code Skeleton
-
-The complete Ch.3 workflow in six sequential blocks. Each block produces one column of the three-view dashboard.
-
-```python
-import numpy as np
-import pandas as pd
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
-from sklearn.inspection import permutation_importance
-
-# ── 0. Load and split ──────────────────────────────────────────────────────
-data   = fetch_california_housing()
-X      = pd.DataFrame(data.data, columns=data.feature_names)
-y      = data.target  # MedHouseVal in $100k
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-scaler     = StandardScaler()
-X_train_s  = scaler.fit_transform(X_train)
-X_test_s   = scaler.transform(X_test)    # use TRAIN statistics only
-```
-
-```python
-# ── 1. Univariate R² — no model fitting needed ───────────────────────────
-# Pearson r² = univariate R² (proved in §3)
-target_corr   = pd.concat([pd.DataFrame(X_train_s, columns=data.feature_names),
-                            pd.Series(y_train, name="target")], axis=1).corr()
-univariate_r2 = target_corr["target"].drop("target") ** 2
-print("Univariate R²:")
-print(univariate_r2.sort_values(ascending=False).to_string())
-```
-
-```python
-# ── 2. Correlation heatmap — feature × feature ────────────────────────────
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-feat_corr = pd.DataFrame(X_train_s, columns=data.feature_names).corr()
-
-fig, ax = plt.subplots(figsize=(9, 7), facecolor="#1a1a2e")
-sns.heatmap(feat_corr, annot=True, fmt=".2f", cmap="coolwarm",
-            center=0, vmin=-1, vmax=1, ax=ax,
-            annot_kws={"size": 8}, linewidths=0.5)
-ax.set_title("California Housing — Feature Correlation Heatmap",
-             color="white", pad=12)
-plt.tight_layout()
-plt.savefig("img/ch03-correlation-heatmap.png", dpi=150, facecolor="#1a1a2e")
-plt.close()
-```
-
-```python
-# ── 3. Standardised weights (partial importance) ─────────────────────────
-model = LinearRegression()
-model.fit(X_train_s, y_train)
-
-stdw = pd.Series(np.abs(model.coef_), index=data.feature_names)
-print("\nStandardised |weight|:")
-print(stdw.sort_values(ascending=False).to_string())
-```
-
-```python
-# ── 4. VIF ────────────────────────────────────────────────────────────────
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-
-# Add intercept column for statsmodels
-X_vif  = np.column_stack([np.ones(X_train_s.shape[0]), X_train_s])
-print("\nVIF:")
-for i, name in enumerate(data.feature_names):
-    vif = variance_inflation_factor(X_vif, i + 1)  # +1 to skip const col
-    flag = " ⚡" if vif > 5 else ("  ✅" if vif < 3 else "  ⚠️")
-    print(f"  {name:12s}: {vif:5.1f}{flag}")
-```
-
-```python
-# ── 5. Permutation importance ─────────────────────────────────────────────
-perm = permutation_importance(
-    model, X_test_s, y_test,
-    n_repeats=30, random_state=42, scoring="neg_mean_absolute_error"
-)
-perm_importance = pd.Series(
-    perm.importances_mean, index=data.feature_names
-)
-print("\nPermutation importance (ΔMAE when feature shuffled):")
-print((perm_importance * 100_000).sort_values(ascending=False)
-      .apply(lambda v: f"+${v:,.0f}").to_string())
-```
-
-```python
-# ── 6. Three-view dashboard ───────────────────────────────────────────────
-dashboard = pd.DataFrame({
-    "Univariate R²" : univariate_r2,
-    "|Std weight|"  : stdw,
-    "Permutation"   : perm_importance,
-    "VIF"           : pd.Series(
-        [variance_inflation_factor(X_vif, i+1)
-         for i in range(len(data.feature_names))],
-        index=data.feature_names
-    ),
-})
-print("\n=== Three-View Dashboard ===")
-print(dashboard.sort_values("Permutation", ascending=False).round(3).to_string())
-```
-
-**Expected output:**
-
-```
-=== Three-View Dashboard ===
-           Univariate R²  |Std weight|  Permutation   VIF
-MedInc             0.473        0.830       0.334    1.5  ✅ Strong, independent
-Latitude           0.021        0.890       0.165    3.5  ✅ Jointly irreplaceable
-Longitude          0.002        0.870       0.133    3.4  ✅ Jointly irreplaceable
-AveOccup           0.001        0.030       0.058    1.8  ⚠️ Modest but clean
-HouseAge           0.001        0.060       0.029    1.2  ✅ Small, independent
-AveRooms           0.023        0.120       0.016    7.2  ⚡ Collinear w/ AveBedrms
-AveBedrms          0.002        0.100       0.005    6.8  ⚡ Collinear w/ AveRooms
-Population         0.001        0.010       0.002    2.1  ❌ Near-zero contribution
-```
-
-```python
-# ── 7. Log transform, variance threshold, and filter selection ─────────────
-from sklearn.preprocessing import PowerTransformer
-from sklearn.feature_selection import VarianceThreshold, mutual_info_regression
-from scipy.stats import pearsonr
-
-# Log transform before scaling
-# Option 1: manual log1p
-skewed_cols = [4]  # Population column index
-X_log = np.log1p(X_train.values[:, skewed_cols])
-
-# Option 2: Box-Cox (requires strictly positive values)
-pt = PowerTransformer(method='box-cox')
-X_boxcox = pt.fit_transform(X_train.values[:, skewed_cols])
-
-# Variance threshold — drop near-zero-variance features
-vt = VarianceThreshold(threshold=0.01)
-X_filtered = vt.fit_transform(X_train_s)
-print("Kept features:", X_filtered.shape[1])  # vs original X.shape[1]
-
-# Filter selection: Pearson and Mutual Information
-pearson_scores = [pearsonr(X_train_s[:, j], y_train)[0] for j in range(X_train_s.shape[1])]
-mi_scores = mutual_info_regression(X_train_s, y_train, random_state=42)
-
-filter_df = pd.DataFrame({
-    "Feature": data.feature_names,
-    "Pearson ρ": pearson_scores,
-    "Mutual Info": mi_scores,
-}).set_index("Feature").sort_values("Mutual Info", ascending=False)
-print("\nFilter selection scores:")
-print(filter_df.round(3).to_string())
-```
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 - **Reading univariate R² as the full importance story** — MedInc has R² = 0.473 alone; everything else is below 0.023. A naive analyst declares "only income matters, drop the other 7 features." But permutation importance shows Latitude alone is worth +\$9k MAE. Univariate R² measures *standalone* signal; it completely misses features whose value is joint (Lat/Lon) or whose signal is shared (AveRooms). **Fix:** Always run permutation importance or standardized weights as a second view before dropping anything.
 
@@ -1344,7 +1110,7 @@ flowchart TD
 
 ---
 
-## 9 · Progress Check — What We Can Solve Now
+## 8 · Progress Check — What We Can Solve Now
 
 ✅ **Unlocked capabilities:**
 - **Three-view importance ranking**: Univariate R², standardised weights, and permutation importance each computed and reconciled
@@ -1385,7 +1151,7 @@ flowchart LR
 
 ---
 
-## 10 · Bridge to Chapter 4
+## 9 · Bridge to Chapter 4
 
 Ch.3 mapped the feature landscape with three independent lenses. The verdict:
 

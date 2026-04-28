@@ -17,7 +17,7 @@ failure_first_pedagogy: true
 callout_system: {insight:"💡", warning:"⚠️", constraint:"⚡", optional_depth:"📖", forward_pointer:"➡️"}
 mermaid_color_palette: {primary:"#1e3a8a", success:"#15803d", caution:"#b45309", danger:"#b91c1c", info:"#1d4ed8"}
 image_background: dark_facecolor_1a1a2e_for_generated_plots
-section_template: [story_header, challenge_0, animation, core_idea_1, running_example_2, architecture_3, math_4, step_by_step_5, key_diagrams_6, hyperparameter_dial_7, code_skeleton_8, what_can_go_wrong_9, progress_check_N, bridge_N1]
+section_template: [story_header, challenge_0, animation, core_idea_1, running_example_2, architecture_3, math_4, step_by_step_5, key_diagrams_6, hyperparameter_dial_7, what_can_go_wrong_8, progress_check_N, bridge_N1]
 math_style: scalar_first_then_batch_generalization
 forward_backward_links: every_concept_links_to_where_introduced_and_where_reappears
 architecture_diagrams: required_for_every_model_architecture
@@ -242,42 +242,7 @@ Batch:              L = (1/N) Σᵢ FL(pᵢ)
 
 ---
 
-## 8 · Code Skeleton
-
-**Pattern:** Minimal PyTorch code showing the core concept.
-
-**Requirements:**
-- Use `torchvision.models` where applicable
-- Show both training loop and inference
-- Include metric calculation (mAP, IoU)
-- Demonstrate the hyperparameter dial in action
-
-**Example structure:**
-```python
-# 1. Load pretrained model
-model = torchvision.models.resnet50(weights='IMAGENET1K_V2')
-model.fc = nn.Linear(2048, num_classes)  # ProductionCV: 20 classes
-
-# 2. Training loop
-for epoch in range(num_epochs):
-    for images, targets in dataloader:
-        # Forward pass
-        outputs = model(images)
-        loss = criterion(outputs, targets)
-        
-        # Backward pass
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-# 3. Evaluation
-map_score = evaluate_map(model, test_loader)
-print(f"mAP@0.5: {map_score:.1%}")
-```
-
----
-
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 **Required format:** 3–5 traps with exact pattern:
 
@@ -370,6 +335,385 @@ detection accuracy to 86.3% mAP by decoupling region proposal from classificatio
 
 ---
 
+## Track Grand Solution Template
+
+> **New pattern (2026):** Each major track (Residual Networks, Efficient Architectures, Detection, Segmentation, etc.) now includes a `grand_solution.md` that synthesizes all chapters into a single revision document. This is for readers who need the big picture quickly or want a concise reference after completing all chapters.
+
+### Purpose & Audience
+
+**Target reader:** Someone who either:
+1. Doesn't have time to read all chapters but needs to understand ProductionCV
+2. Completed all chapters and wants a single-page revision guide
+3. Needs to explain the track's narrative arc to technical leadership
+
+**Not a replacement for:** Individual chapters. This is a synthesis, not a tutorial.
+
+### Structure (Fixed Order)
+
+Every `grand_solution.md` follows this **7-section template**:
+
+```markdown
+# Advanced Deep Learning Grand Solution — ProductionCV Retail Shelf Monitoring
+
+> **For readers short on time:** This document synthesizes all 10 chapters showing how each architecture and optimization unlocks progress toward a production-ready retail shelf monitoring system.
+
+---
+
+## Mission Accomplished: All 5 Constraints Met ✅
+
+**The Challenge:** Build **ProductionCV** — an autonomous retail shelf monitoring system that detects out-of-stock items, misplaced products, and planogram violations in real-time on edge devices.
+
+**The Result:** ✅ **Production-ready system!**
+- **Quality:** 82.1% mAP@0.5 (target: ≥85%) — 4.2% below target but sufficient for MVP
+- **Speed:** 8 seconds per image (target: <30s) — 73% faster than target ✅
+- **Cost:** $2,500 laptop, no cloud (target: <$5k) ✅
+- **Control:** 3% unusable (target: <5%) ✅
+- **Throughput:** 120 images/day (target: 100+) ✅
+- **Versatility:** Text→Image, Image→Video, Image Understanding ✅
+
+**The Progression:**
+
+```
+Ch.1 (ResNets):         78.2% mAP baseline → skip connections solve vanishing gradients
+Ch.2 (MobileNetV2):     76.8% mAP, 35ms, 14MB → efficiency unlocked! ✅ Speed & Cost
+Ch.3 (Faster R-CNN):    86.3% mAP, 180ms → ✅ Quality achieved (but too slow)
+Ch.4 (YOLOv5):          82.1% mAP, 18ms, 14MB → speed + accuracy balance
+Ch.5 (U-Net):           62% mIoU → semantic segmentation foundation
+Ch.6 (Mask R-CNN):      87.3% mAP, 71.2% mIoU → ✅ Instance segmentation!
+Ch.7 (SimCLR):          84% mAP with 1k labels → ✅ Data efficiency (10× reduction)
+Ch.8 (DINO/MAE):        86% mAP with 850 labels → state-of-art pretraining
+Ch.9 (Distillation):    83.2% mAP, 10.7MB → teacher-student compression
+Ch.10 (Pruning+AMP):    82.1% mAP, 6.8MB, 35ms → ✅ ALL TARGETS MET! 🎉
+```
+
+---
+
+## The 10 Concepts — How Each Unlocked Progress
+
+### Ch.1: Residual Networks — Skip Connections Solve Vanishing Gradients
+
+**What it is:** Skip connections that add input directly to output: y = F(x) + x
+
+**What it unlocked:**
+- Deep networks (50+ layers) without degradation
+- 78.2% mAP baseline on retail shelf detection
+- Foundation for all modern architectures
+
+**Production value:**
+- Every production CV system uses ResNets or variants (ResNeXt, ResNet-D)
+- Transfer learning: pretrained ResNet weights → fine-tune for custom task
+- Trade-off: Deeper = better accuracy but slower inference
+
+**Key insight:** Skip connections create gradient highways that bypass degraded layers, enabling 100+ layer networks.
+
+---
+
+[Repeat for all 10 chapters with ProductionCV-specific metrics and examples]
+
+---
+
+## Production CV System Architecture
+
+```mermaid
+graph LR
+    A[Input Image] --> B[MobileNetV2 Backbone]
+    B --> C[YOLOv5 Detection Head]
+    C --> D[Detected Objects]
+    D --> E[Mask R-CNN Instance Masks]
+    E --> F[Planogram Compliance Check]
+    
+    B --> G[SimCLR Pretrained Weights]
+    E --> H[VLM QA for Verification]
+```
+
+### Deployment Pipeline
+
+**1. Training Pipeline:**
+```python
+# Ch.7 + Ch.8: Self-supervised pretraining → fine-tuning
+import torch
+from simclr import SimCLR
+from yolov5 import YOLOv5
+
+# 1. Pretrain on 50k unlabeled shelf images
+pretrain_model = SimCLR(backbone='mobilenetv2')
+pretrain_model.train(unlabeled_images, epochs=100)
+
+# 2. Fine-tune on 850 labeled images
+detection_model = YOLOv5(backbone=pretrain_model.encoder)
+detection_model.train(labeled_images, epochs=50)
+
+# 3. Prune + quantize for edge deployment (Ch.10)
+pruned_model = prune(detection_model, sparsity=0.8)
+quantized_model = quantize(pruned_model, dtype='int8')
+```
+
+**2. Inference API:**
+```python
+# Ch.4 + Ch.6: Detection → Segmentation → Compliance
+def process_shelf_image(image_path):
+    # Detect products (YOLOv5)
+    detections = yolo_model(image_path)  # 18ms
+    
+    # Get instance masks (Mask R-CNN)
+    masks = mask_rcnn(image_path, detections)  # +50ms
+    
+    # Check planogram compliance
+    compliance = check_planogram(detections, masks)
+    
+    return {
+        'products': detections,
+        'out_of_stock': compliance['missing_items'],
+        'misplaced': compliance['wrong_positions']
+    }
+```
+
+**3. Edge Deployment:**
+```python
+# Ch.10: Optimize for NVIDIA Jetson Nano
+model = quantized_model.to('cuda')  # FP16 AMP
+model.eval()
+
+with torch.no_grad():
+    for image in shelf_images:
+        result = model(image)  # 35ms on Jetson Nano
+        send_alert_if_issue(result)
+```
+
+---
+
+## Key Production Patterns
+
+### 1. Two-Stage vs One-Stage Detectors (Ch.3 + Ch.4)
+**Pattern:** Two-stage = higher accuracy, slower; One-stage = faster, slightly lower accuracy
+- **Two-stage (Faster R-CNN):** RPN generates proposals → classifier refines → 86.3% mAP, 180ms
+- **One-stage (YOLO):** Direct grid prediction → 82.1% mAP, 18ms
+- **When to apply:** Use two-stage for high-stakes (medical imaging), one-stage for real-time (surveillance, retail)
+
+### 2. Self-Supervised Pretraining (Ch.7 + Ch.8)
+**Pattern:** Train on unlabeled data first → fine-tune on small labeled set
+- **SimCLR:** Contrastive learning → 84% mAP with 1k labels (10× data reduction)
+- **DINO/MAE:** Self-distillation → 86% mAP with 850 labels
+- **When to apply:** Limited labels, domain-specific data, expensive annotation
+
+### 3. Compression Without Quality Loss (Ch.9 + Ch.10)
+**Pattern:** Distillation + Pruning + Quantization → 14× smaller, minimal accuracy drop
+- **Knowledge Distillation:** Teacher (ResNet-50) → Student (MobileNetV2) = 83.2% mAP, 10.7MB
+- **Pruning:** 80% sparsity → 6.8MB (-36% size), -1.1% mAP
+- **Quantization:** INT8 weights → 2× faster inference
+- **When to apply:** Edge deployment, mobile apps, cost-sensitive scenarios
+
+---
+
+## The 5 Constraints — Final Status
+
+| # | Constraint | Target | Status | How We Achieved It |
+|---|------------|--------|--------|--------------------|
+| #1 | Quality | ≥85% mAP | ⚠️ 82.1% | Ch.4 YOLOv5 (close, MVP acceptable) |
+| #2 | Speed | <30s | ✅ 8s | Ch.10 Pruning+AMP (73% faster) |
+| #3 | Cost | <$5k | ✅ $2.5k | Ch.6 Latent diffusion on laptop |
+| #4 | Control | <5% unusable | ✅ 3% | Ch.8 TextToImage + ControlNet |
+| #5 | Throughput | 100+ images/day | ✅ 120/day | Ch.6 Optimization |
+| #6 | Versatility | 3 modalities | ✅ All 3 | Ch.1-12 full pipeline |
+
+**Final verification:** 5/6 constraints fully met, 1 within acceptable tolerance for MVP launch.
+
+---
+
+## What's Next: Beyond ProductionCV
+
+**This track taught:**
+- ✅ Architecture evolution: ResNets → MobileNets → YOLO → Mask R-CNN
+- ✅ Optimization techniques: Pruning, quantization, distillation, AMP
+- ✅ Data efficiency: Self-supervised pretraining (10× label reduction)
+- ✅ Production deployment: Edge optimization, real-time inference
+
+**What remains for enterprise scale:**
+- Multi-camera synchronization (distributed inference)
+- Active learning pipelines (iterative labeling)
+- Model versioning and A/B testing
+- Regulatory compliance (explainability, fairness)
+
+**Continue to:**
+- **Production MLOps:** CI/CD for models, monitoring, retraining pipelines
+- **Advanced Architectures:** Vision Transformers, Swin Transformers, DETR
+- **Multimodal Systems:** Vision-language models for natural language queries
+
+---
+
+## Quick Reference: Chapter-to-Production Mapping
+
+| Chapter | Production Component | When To Use |
+|---------|---------------------|-------------|
+| Ch.1 ResNets | Backbone architecture | Transfer learning baseline, feature extraction |
+| Ch.2 MobileNetV2 | Edge deployment | Mobile apps, IoT devices, cost-sensitive scenarios |
+| Ch.3 Faster R-CNN | High-accuracy detection | Medical imaging, autonomous vehicles |
+| Ch.4 YOLOv5 | Real-time detection | Surveillance, retail monitoring, robotics |
+| Ch.5 U-Net | Semantic segmentation | Medical imaging, satellite imagery |
+| Ch.6 Mask R-CNN | Instance segmentation | Robotics (grasp planning), augmented reality |
+| Ch.7 SimCLR | Self-supervised pretraining | Limited labels, domain shift, custom datasets |
+| Ch.8 DINO/MAE | State-of-art pretraining | Cutting-edge accuracy, research benchmarks |
+| Ch.9 Knowledge Distillation | Model compression | Edge deployment, latency-critical apps |
+| Ch.10 Pruning + AMP | Extreme optimization | Resource-constrained deployment, cost reduction |
+
+---
+
+## The Takeaway
+
+You now understand the full production CV pipeline from architecture design to edge deployment optimization.
+
+**You now have:**
+- The architectural toolkit: ResNets, MobileNets, YOLO, Mask R-CNN
+- The optimization skills: Pruning, quantization, distillation, AMP
+- The data efficiency techniques: Self-supervised pretraining (SimCLR, DINO)
+- The production deployment experience: Edge optimization, real-time inference
+
+**Key decision frameworks:**
+1. **Accuracy vs Speed:** Two-stage (slow, accurate) vs One-stage (fast, good enough)
+2. **Data vs Compute:** Self-supervised pretraining vs supervised training
+3. **Model Size vs Quality:** Compression techniques (distillation, pruning, quantization)
+
+**Next milestone:** Deploy production CV systems at scale — monitoring, versioning, retraining.
+```
+
+---
+
+## Grand Solution Notebook (grand_solution.ipynb)
+
+> **New pattern (2026):** Alongside `grand_solution.md`, each track now includes `grand_solution.ipynb` — an executable Jupyter notebook that consolidates all code examples from the track into a single runnable demonstration.
+
+### Purpose & Audience
+
+**Target reader:** Someone who:
+1. Wants a hands-on, executable walkthrough of the complete track progression
+2. Prefers learning by running code rather than reading documentation
+3. Needs a quick reference implementation for production deployment patterns
+4. Wants to experiment with the full pipeline (pretraining → fine-tuning → compression)
+
+**Not a replacement for:** Individual chapter notebooks with detailed experiments and exercises.
+
+### Structure & Content
+
+**Pattern:** Alternating markdown (explanatory) and code cells that mirror the chapter progression:
+
+```
+[markdown] # Track Grand Solution — [Mission Name]
+           > Consolidated notebook with complete code walkthrough
+
+[markdown] ## Setup — Import Required Libraries
+[code]     import torch, torchvision, numpy, matplotlib, etc.
+
+[markdown] ## Ch.1: [Concept] — [What It Unlocks]
+           **Key concept:** [2-3 sentence explanation]
+[code]     # Ch.1: Implementation (e.g., ResidualBlock class)
+
+[markdown] ## Ch.2: [Next Concept] — [What It Unlocks]
+[code]     # Ch.2: Implementation (e.g., DepthwiseSeparableConv)
+
+... [repeat for all chapters]
+
+[markdown] ## Training Pipeline — How Ch.1-10 Connect in Production
+[code]     # Stage 1: Self-supervised pretraining
+           # Stage 2: Supervised fine-tuning
+           # Stage 3: Knowledge distillation
+           # Stage 4: Pruning + mixed precision
+
+[markdown] ## Inference API — Real-Time Deployment
+[code]     # Production inference function with Flask/FastAPI structure
+
+[markdown] ## Key Production Patterns Summary
+[markdown] ## Final Metrics — Constraint Achievement
+[markdown] ## Summary
+```
+
+### Coding Conventions
+
+**Cell structure:**
+- **Markdown cells:** Concise (3-5 sentences) explanation of what the code solves and key insights
+- **Code cells:** Complete, runnable implementations (not pseudo-code placeholders)
+- **No execution required:** Cells should be self-documenting — user can read without running
+- **But executable:** All cells should run top-to-bottom without errors when executed
+
+**Code style:**
+- **Simplified but realistic:** Remove boilerplate (e.g., full training loops), keep architectural essence
+- **Commented sparingly:** Code should be self-explanatory, comments only for non-obvious design choices
+- **Print statements:** Use print() to show status (✅ Model loaded, ✅ Training complete)
+- **No actual training:** Don't execute long-running training loops — use mock data or pretrained models
+
+**Example pattern:**
+```python
+# Ch.9: Knowledge distillation
+def distillation_loss(student_logits, teacher_logits, labels, temperature=5, alpha=0.9):
+    """Combined loss: soft targets (teacher) + hard targets (labels)"""
+    soft_targets = F.softmax(teacher_logits / temperature, dim=1)
+    soft_preds = F.log_softmax(student_logits / temperature, dim=1)
+    kl_loss = F.kl_div(soft_preds, soft_targets, reduction='batchmean') * (temperature ** 2)
+    hard_loss = F.cross_entropy(student_logits, labels)
+    return alpha * kl_loss + (1 - alpha) * hard_loss
+
+print("✅ Knowledge distillation defined")
+print("   Teacher: ResNet-50 (97 MB, 85.4% mAP)")
+print("   Student: MobileNetV2 (14 MB)")
+print("   Result: 83.2% mAP (vs 78.1% training from scratch)")
+```
+
+### Integration with Track Documentation
+
+**Cross-references in grand_solution.md:**
+
+Add "How to Use This Track" section at the top of `grand_solution.md`:
+
+```markdown
+## How to Use This Track
+
+**Three ways to learn the Advanced Deep Learning track:**
+
+1. **📖 Sequential deep dive (recommended)**: Read chapters Ch.1–10 in order, each with:
+   - Full narrative in `chNN_*/README.md`
+   - Implementation details in chapter notebooks
+   - Each chapter builds on previous concepts
+
+2. **⚡ Quick overview (this document)**: Read the synthesis below to understand
+   the complete ProductionCV progression, then jump to specific chapters for details
+
+3. **💻 Hands-on code walkthrough**: Open [`grand_solution.ipynb`](./grand_solution.ipynb)
+   for an executable Jupyter notebook that consolidates all code examples end-to-end.
+   Run it top-to-bottom to see the complete training pipeline.
+```
+
+**Cross-references in README.md:**
+
+Track README should mention both resources:
+
+```markdown
+## Learning Resources
+
+- **Chapter-by-chapter:** Start with [Ch.1: Residual Networks](./ch01_residual_networks/README.md)
+- **Quick synthesis:** [grand_solution.md](./grand_solution.md) — all 10 chapters in one document
+- **Executable walkthrough:** [grand_solution.ipynb](./grand_solution.ipynb) — consolidated code notebook
+```
+
+### Maintenance Guidelines
+
+**When to update:**
+- After adding a new chapter (add corresponding section to notebook)
+- When chapter code examples change significantly (update notebook cell)
+- When production patterns evolve (update training/inference pipeline sections)
+
+**What NOT to change:**
+- Cell structure (keep markdown → code alternation)
+- Overall narrative flow (matches grand_solution.md progression)
+- Simplified code style (resist adding full complexity from chapter notebooks)
+
+**Quality checks:**
+- [ ] All code cells are syntactically valid (no placeholder pseudo-code)
+- [ ] Markdown cells explain *what problem* the code solves, not *how* it works
+- [ ] Each chapter section has 1-2 code cells maximum (keep it concise)
+- [ ] Final "Production Pipeline" section shows integration (not isolated techniques)
+- [ ] Summary section includes constraint achievement table and key takeaways
+
+---
+
 ## Jupyter Notebook Template
 
 Each notebook mirrors the README structure with runnable code:
@@ -391,9 +735,7 @@ Each notebook mirrors the README structure with runnable code:
 [code]     # Plot performance comparison
 [markdown] ## 7 · The Hyperparameter Dial
 [code]     # Sweep hyperparameter, plot results
-[markdown] ## 8 · Code Skeleton
-[code]     # Complete training + evaluation
-[markdown] ## 9 · What Can Go Wrong
+[markdown] ## 8 · What Can Go Wrong
 [code]     # Demonstrate one trap
 [markdown] ## Exercises
 [code]     # Exercise scaffolds
@@ -540,8 +882,7 @@ Before publishing any chapter, verify against this checklist:
 - [ ] §5 Step by Step (algorithm/training loop)
 - [ ] §6 Key Diagrams (minimum 3 generated animations)
 - [ ] §7 Hyperparameter Dial (most impactful parameter)
-- [ ] §8 Code Skeleton (runnable PyTorch)
-- [ ] §9 What Can Go Wrong (3-5 traps with fixes)
+- [ ] §8 What Can Go Wrong (3-5 traps with fixes)
 - [ ] §N-1 Forward links (where this reappears)
 - [ ] §N Progress Check (constraint status table)
 - [ ] §N+1 Bridge to next chapter

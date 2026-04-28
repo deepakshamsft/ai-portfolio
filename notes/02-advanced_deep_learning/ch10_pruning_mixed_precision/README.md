@@ -660,74 +660,7 @@ Input Data (FP32)
 
 ---
 
-## 7 · Code Skeleton — Pruning + Mixed Precision
-
-```python
-import torch
-import torch.nn as nn
-import torch.nn.utils.prune as prune
-from torch.cuda.amp import autocast, GradScaler
-from torchvision.models.detection import maskrcnn_mobilenet_v3_large_320_fpn
-
-# Step 1: Load distilled model from Ch.9
-model = maskrcnn_mobilenet_v3_large_320_fpn(num_classes=21)
-model.load_state_dict(torch.load('student_mobilenet_distilled.pth'))
-model.to(device)
-
-# Step 2: Global unstructured pruning (80% sparsity)
-parameters_to_prune = [
-    (module, 'weight') for name, module in model.named_modules()
-    if isinstance(module, (nn.Conv2d, nn.Linear))
-]
-
-prune.global_unstructured(
-    parameters_to_prune,
-    pruning_method=prune.L1Unstructured,
-    amount=0.80,
-)
-
-# Make pruning permanent (remove reparameterization)
-for module, param_name in parameters_to_prune:
-    prune.remove(module, param_name)
-
-print(f"Sparsity: {compute_sparsity(model):.1f}%")
-
-# Step 3: Fine-tune with mixed precision
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
-scaler = GradScaler()
-
-model.train()
-for epoch in range(10):
-    for images, targets in train_loader:
-        images = [img.to(device) for img in images]
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        
-        optimizer.zero_grad()
-        
-        # AMP forward pass
-        with autocast():
-            loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
-        
-        # AMP backward pass
-        scaler.scale(losses).backward()
-        scaler.step(optimizer)
-        scaler.update()
-    
-    print(f"Epoch {epoch+1}/10: Loss = {losses.item():.4f}")
-
-# Step 4: Save pruned model
-torch.save(model.state_dict(), 'student_mobilenet_pruned.pth')
-
-# Step 5: Evaluate
-model.eval()
-mAP, IoU, latency = evaluate_model(model, val_loader)
-print(f"Final: {mAP:.1f}% mAP, {IoU:.1f}% IoU, {latency:.0f}ms")
-```
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 ### Problem 1: Accuracy Collapse (Pruning Too Aggressively)
 
@@ -765,7 +698,7 @@ print(f"Final: {mAP:.1f}% mAP, {IoU:.1f}% IoU, {latency:.0f}ms")
 
 ---
 
-## 9 · Progress Check — ProductionCV Grand Challenge COMPLETE! 🎉
+## 8 · Progress Check — ProductionCV Grand Challenge COMPLETE! 🎉
 
 ![ProductionCV victory dashboard](img/ch10-productioncv-victory.png)
 
@@ -802,7 +735,7 @@ Ch.10 (Pruning + AMP): 6.8 MB, 82.1% mAP, 71.2% IoU, 35ms → COMPLETE! 🎉
 
 ---
 
-## 10 · Bridge to AI Infrastructure Track
+## 9 · Bridge to AI Infrastructure Track
 
 You've completed the **Advanced Deep Learning (Track 7)** and achieved the ProductionCV grand challenge. But the journey doesn't end here.
 

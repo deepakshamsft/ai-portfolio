@@ -11,18 +11,18 @@ canonical_chapters: ["notes/01-ml/01_regression/ch01_linear_regression/README.md
 voice: second_person_practitioner
 register: technical_but_conversational
 formula_motivation: required_before_each_formula
-numerical_walkthroughs: california_housing_3_to_5_rows_with_explicit_arithmetic
+numerical_walkthroughs: judicious_california_housing_examples_when_clarifying
 dataset: california_housing_only_no_synthetic_data_except_toy_subsets
 failure_first_pedagogy: true
 callout_system: {insight:"💡", warning:"⚠️", constraint:"⚡", optional_depth:"📖", forward_pointer:"➡️"}
 mermaid_color_palette: {primary:"#1e3a8a", success:"#15803d", caution:"#b45309", danger:"#b91c1c", info:"#1d4ed8"}
 image_background: dark_facecolor_1a1a2e_for_generated_plots
-section_template: [story_header, challenge_0, animation, core_idea_1, running_example_2, math_3, step_by_step_4, key_diagrams_5, hyperparameter_dial_6, code_skeleton_7, what_can_go_wrong_8, progress_check_N, bridge_N1]
+section_template: [story_header, challenge_0, animation, core_idea_1, running_example_2, math_3, step_by_step_4, key_diagrams_5, hyperparameter_dial_6, what_can_go_wrong_7, progress_check_N, bridge_N1]
 math_style: scalar_first_then_vector_generalization
 ascii_matrix_diagrams: required_for_matrix_operations
 forward_backward_links: every_concept_links_to_where_it_was_introduced_and_where_it_reappears
 conformance_check: compare_new_chapter_against_ch01_and_ch02_before_publishing
-red_lines: [no_formula_without_verbal_explanation, no_concept_without_california_housing_grounding, no_section_without_forward_backward_context, no_math_derivation_without_toy_numerical_example, no_callout_box_without_actionable_content]
+red_lines: [no_formula_without_verbal_explanation, no_concept_without_california_housing_grounding, no_section_without_forward_backward_context, no_unnecessary_arithmetic_obscuring_intuition, no_callout_box_without_actionable_content]
 -->
 
 ---
@@ -201,9 +201,6 @@ Every chapter README now follows this **extended structure** (adds §0 Challenge
 ## The Hyperparameter Dial
 (the main tunable, its effect, typical starting value)
 
-## Code Skeleton
-(minimal Python — illustrative, not copy-paste production)
-
 ## What Can Go Wrong
 (3–5 bullet traps, each one sentence)
 
@@ -232,7 +229,473 @@ Every chapter README now follows this **extended structure** (adds §0 Challenge
 (one clause what this established + one clause what next chapter adds)
 ```
 
-**Note:** Interview checklists are maintained in the centralized [Interview_guide.md](interview-guide.md) file, not in individual chapters.
+**Note:** Interview checklists are maintained in the centralized [Interview_guide.md](../interview_guides/interview-guide.md) file, not in individual chapters.
+
+---
+
+## Track Grand Solution Template
+
+> **New pattern (2026):** Each major track (Regression, Classification, Neural Networks, etc.) now includes a `grand_solution.md` that synthesizes all chapters into a single revision document. This is for readers who need the big picture quickly or want a concise reference after completing all chapters.
+
+### Purpose & Audience
+
+**Target reader:** Someone who either:
+1. Doesn't have time to read all chapters but needs to understand the concepts
+2. Completed all chapters and wants a single-page revision guide
+3. Needs to explain the track's narrative arc to stakeholders
+
+**Not a replacement for:** Individual chapters. This is a synthesis, not a tutorial.
+
+### Structure (Fixed Order)
+
+Every `grand_solution.md` follows this **7-section template**:
+
+```markdown
+# [Track Name] Grand Solution — [Grand Challenge Name]
+
+> **For readers short on time:** [One-sentence summary of what this document does]
+
+---
+
+## Mission Accomplished: [Final Metric] ✅
+
+**The Challenge:** [One-sentence restatement of grand challenge]
+**The Result:** [Final metric achieved]
+**The Progression:** [ASCII diagram or table showing chapter-by-chapter improvement]
+
+---
+
+## The N Concepts — How Each Unlocked Progress
+
+### Ch.1: [Concept Name] — [One-Line Tagline]
+
+**What it is:** [2-3 sentences max, plain English]
+
+**What it unlocked:**
+- [Metric improvement]
+- [Specific capability]
+- [New dial/technique]
+
+**Production value:**
+- [Why this matters in deployed systems]
+- [Cost/performance trade-offs]
+- [When to use vs alternatives]
+
+**Key insight:** [One sentence — the "aha" moment]
+
+---
+
+[Repeat for all chapters in track]
+
+---
+
+## Production ML System Architecture
+
+[Mermaid diagram showing how all concepts integrate]
+
+### Deployment Pipeline (How Ch.X-Y Connect in Production)
+
+**1. Training Pipeline:**
+```python
+# [Code showing integration of all chapters]
+```
+
+**2. Inference API:**
+```python
+# [Code showing production prediction flow]
+```
+
+**3. Monitoring Dashboard:**
+```python
+# [Code showing health checks and alerts]
+```
+
+---
+
+## Key Production Patterns
+
+### 1. [Pattern Name] (Ch.X + Ch.Y + Ch.Z)
+**[Pattern description]**
+- [Rule 1]
+- [Rule 2]
+- [When to apply]
+
+[Repeat for 3-5 major patterns]
+
+---
+
+## The 5 Constraints — Final Status
+
+| # | Constraint | Target | Status | How We Achieved It |
+|---|------------|--------|--------|--------------------|
+| #1 | ACCURACY | [target] | ✅ [metric] | [Chapter + technique] |
+| ... | ... | ... | ... | ... |
+
+---
+
+## What's Next: Beyond [Track Name]
+
+**This track taught:** [3-5 key takeaways as checklist]
+
+**What remains for [Grand Challenge]:** [Gaps that require other tracks]
+
+**Continue to:** [Link to next track]
+
+---
+
+## Quick Reference: Chapter-to-Production Mapping
+
+| Chapter | Production Component | When To Use |
+|---------|---------------------|-------------|
+| Ch.1 | [Component] | [Decision rule] |
+| ... | ... | ... |
+
+---
+
+## The Takeaway
+
+[3-4 paragraphs summarizing the universal principles learned]
+
+**You now have:**
+- [Deliverable 1]
+- [Deliverable 2]
+- [Deliverable 3]
+
+**Next milestone:** [Preview of next track's goal]
+```
+
+### Voice & Style Rules for Grand Solutions
+
+**Tone:** Executive summary meets technical reference. You're briefing a senior engineer who's smart but time-constrained.
+
+**Voice patterns:**
+- ✅ **Direct:** "Ch.3 unlocked VIF auditing. This prevents multicollinearity."
+- ❌ **Verbose:** "In Chapter 3, we learned about an important technique called VIF auditing, which is a method that helps us identify and prevent issues related to multicollinearity in our features."
+- ✅ **Metric-focused:** "$70k → $32k MAE (54% improvement)"
+- ❌ **Vague:** "Much better accuracy than before"
+- ✅ **Production-grounded:** "VIF audit runs before every training job. Alert if VIF > 5."
+- ❌ **Academic:** "VIF is a useful diagnostic statistic for assessing multicollinearity."
+
+**Content density:**
+- Each chapter summary: 150-200 words max
+- Each "Key insight": One sentence, no exceptions
+- Code blocks: 15-25 lines max (illustrative, not exhaustive)
+- Mermaid diagrams: 1-2 per document (architecture + maybe progression)
+
+**What to include:**
+- ✅ Exact metrics at each stage ($70k, $55k, $48k, ...)
+- ✅ Specific hyperparameters that matter (α=1.0, degree=2, ...)
+- ✅ Production patterns (when/why to use each technique)
+- ✅ Chapter interdependencies ("Ch.4 requires Ch.3's scaling")
+- ✅ Mermaid flowchart showing full pipeline integration
+
+**What to exclude:**
+- ❌ Mathematical derivations (that's in individual chapters)
+- ❌ Historical context (who invented what, when)
+- ❌ Step-by-step tutorials (that's in chapter READMEs)
+- ❌ Exercise problems (that's in notebooks)
+- ❌ Duplicate content across sections (say it once, reference it later)
+
+**Formatting conventions:**
+- Use checkmark bullets for capabilities unlocked: ✅ ❌ ⚡ ➡️
+
+---
+
+## Grand Solution Companion Notebook (grand_solution.ipynb)
+
+> **New pattern (2026):** Each `grand_solution.md` now has a companion `grand_solution.ipynb` that consolidates all code examples into a single executable notebook. This is the "run the entire track in one go" experience.
+
+### Purpose & Audience
+
+**Target reader:** Someone who either:
+1. Wants to see all code examples in one place before diving into chapters
+2. Needs a quick reference for how all concepts integrate in code
+3. Wants to run the complete solution end-to-end to verify it works
+4. Prefers hands-on exploration over reading lengthy documentation
+
+**Not a replacement for:** Individual chapter notebooks. This consolidates code for the big picture; chapter notebooks provide detailed explanations and exercises.
+
+### Structure & Content
+
+Every `grand_solution.ipynb` follows this structure:
+
+```
+1. Header cell: Purpose, prerequisites, what you'll build
+2. Setup & imports cell: All libraries needed for the track
+3. Data loading cell: California Housing or track-specific dataset
+4. Chapter progression cells (one per chapter):
+   - Markdown cell: "Ch.X: [Concept] — [Problem it solves]"
+   - Code cell: Consolidated implementation from that chapter
+   - Output cell: Key metric or result achieved
+5. Multi-chapter integration cells:
+   - Multi-modal fusion (if applicable)
+   - Complete training pipeline
+   - Production inference pattern
+6. Summary cell: Progression table, final metrics, key insights
+7. Next steps cell: Links to other tracks, production patterns demonstrated
+```
+
+### Cell Organization Rules
+
+**Markdown cells:**
+- ✅ **Concise explanations:** 2-3 sentences max per concept
+- ✅ **Problem framing:** "**Problem:** [What's blocking us]"
+- ✅ **Solution statement:** "**Solution:** [How this chapter addresses it]"
+- ✅ **Result metric:** "**Result:** [Specific improvement achieved]"
+- ✅ **Key concept highlight:** "**Key concept:** [One-sentence insight]"
+- ✅ **Chapter header format:**
+  ```markdown
+  ## Chapter N: [Concept Name] — [One-Line Tagline]
+  
+  **Problem:** [What's broken or missing]
+  
+  **Solution:** [Technique introduced in this chapter]
+  
+  **Result:** [Metric improvement]
+  
+  **Key concept:** [Core insight that matters]
+  ```
+- ❌ **Lengthy tutorials:** That's in chapter READMEs
+- ❌ **Mathematical derivations:** That's in chapter notebooks
+- ❌ **Historical context:** Keep focus on problem → solution → result
+
+**Code cells:**
+- ✅ **Self-contained:** Each cell runs independently (imports at top if needed)
+- ✅ **Commented:** Inline comments explain non-obvious decisions
+  ```python
+  # Bayesian average: (C*m + sum(ratings)) / (C + count)
+  # C=10 means "trust prior with weight of 10 ratings"
+  movie_stats['bayesian_avg'] = (C * m + movie_stats['rating_sum']) / (C + movie_stats['rating_count'])
+  ```
+- ✅ **Chapter references:** `# Ch.4: Dropout regularization`
+- ✅ **Production patterns:** Show actual deployment code, not toy examples
+- ✅ **Example usage blocks:** After defining functions/classes, demonstrate them
+  ```python
+  # Example usage
+  item_cf = ItemBasedCF(k_neighbors=20)
+  item_cf.fit(train)
+  recs = item_cf.recommend(user_id=1, k=10)
+  print(f"Ch.2 Item-Based CF — Hit Rate@10: {hr_cf:.1%}")
+  ```
+- ❌ **Incomplete snippets:** No `# ... rest of implementation ...`
+- ❌ **Overcomplicated:** Simplify for clarity, note "production would add X"
+- ❌ **Silent execution:** Always print key results after training/evaluation
+
+**Output cells:**
+- ✅ **Key metrics:** "✅ Ch.4 Regularized MAE: $43k"
+- ✅ **Progress indicators:** "Ch.2 → Ch.4: 55% improvement (68% → 83% HR@10)"
+- ✅ **Visual confirmation:** Loss curves, architecture summaries, progression charts
+- ✅ **Success markers:** Use checkmarks (✅) and arrows (→) to show progression
+- ❌ **Verbose logs:** Suppress training output (`verbose=0`)
+- ❌ **Unnecessary details:** Don't print full datasets, raw model weights, or debug info
+
+### Integration with grand_solution.md
+
+**Cross-references (required):**
+
+1. **In grand_solution.md header:**
+   ```markdown
+   ## How to Use This Document
+   
+   **Three ways to learn this track:**
+   
+   1. **Big picture first (recommended for time-constrained readers):**
+      - Read this `grand_solution.md` → understand narrative
+      - Run [grand_solution.ipynb](grand_solution.ipynb) → see code consolidated
+      - Dive into individual chapters for depth
+   
+   2. **Hands-on exploration:**
+      - Run [grand_solution.ipynb](grand_solution.ipynb) directly
+      - Code consolidates: setup → each chapter → integration
+      - Each cell includes markdown explaining what problem it solves
+   
+   3. **Sequential deep dive (recommended for mastery):**
+      - Start with Ch.1 → progress through Ch.N
+      - Return to this document for synthesis
+   ```
+
+2. **In grand_solution.ipynb first cell:**
+   ```markdown
+   > **Purpose:** This notebook consolidates all code from Chapters 1-N into an 
+   > executable end-to-end demonstration. For conceptual explanations, see 
+   > [grand_solution.md](grand_solution.md). For detailed tutorials, see individual 
+   > chapter folders.
+   ```
+
+3. **In grand_solution.ipynb summary cell:**
+   ```markdown
+   ## Summary: The Complete Journey
+   
+   [Progression table showing baseline → Ch.1 → ... → final metric]
+   
+   **Continue learning:**
+   - [grand_solution.md](grand_solution.md) — Production patterns and synthesis
+   - Individual chapters — Deep dives with exercises
+   ```
+
+### Code Consolidation Rules
+
+**From chapter notebooks to grand solution:**
+
+1. **Collapse repeated patterns:**
+   ```python
+   # Chapter notebooks might repeat data loading 10 times
+   # Grand solution: Load once at top, reference throughout
+   
+   # ✅ Good:
+   X_train, X_test, y_train, y_test = load_and_split_housing()
+   # Ch.2 uses X_train...
+   # Ch.3 uses X_train...
+   
+   # ❌ Bad:
+   # Ch.2:
+   X_train, X_test, y_train, y_test = load_and_split_housing()
+   # Ch.3:
+   X_train, X_test, y_train, y_test = load_and_split_housing()  # Duplicate!
+   ```
+
+2. **Preserve chapter boundaries:**
+   ```python
+   # ✅ Good: Clear chapter markers with section headings
+   ## Chapter 2: Collaborative Filtering
+   # **Problem:** Baseline not personalized
+   # **Solution:** User-based and item-based CF
+   # **Result:** 68% HR@10 — 26-point jump
+   
+   baseline_model = build_dense_network()
+   
+   ## Chapter 4: Neural CF
+   # **Problem:** Linear dot product can't capture complex tastes
+   # **Solution:** Neural network with GMF + MLP paths
+   # **Result:** 83% HR@10
+   
+   reg_model = build_regularized_network()
+   
+   # ❌ Bad: Everything in one giant cell
+   baseline_model = ...
+   reg_model = ...
+   final_model = ...  # Lost the narrative!
+   ```
+
+3. **Show progressive refinement:**
+   ```python
+   # ✅ Good: Each chapter improves on previous with visible metrics
+   baseline_mae = 55000  # Ch.2
+   reg_mae = 43000       # Ch.4 (10% improvement)
+   cnn_mae = 38000       # Ch.5 (12% improvement)
+   
+   # Plot progression
+   plt.plot([55, 43, 38], label='MAE per chapter')
+   
+   # Print confirmation after each chapter
+   print(f"Ch.2 Baseline — MAE: ${baseline_mae:,}")
+   print(f"Ch.4 Regularized — MAE: ${reg_mae:,} (↓{100*(1-reg_mae/baseline_mae):.0f}%)")
+   
+   # ❌ Bad: Only final result
+   final_mae = 28000  # Where did this come from?
+   ```
+
+4. **Simplify for clarity:**
+   ```python
+   # ✅ Good: Demonstrate pattern, note production differences
+   # Simplified for demo - production would use actual images
+   X_images = np.random.rand(1000, 224, 224, 3)  # Placeholder
+   
+   # ❌ Bad: Full production complexity
+   # 500 lines of image preprocessing...
+   ```
+
+5. **Extract reusable functions:**
+   ```python
+   # ✅ Good: Define once, use in multiple chapters
+   def load_movielens_100k():
+       """Load MovieLens 100k dataset."""
+       ratings = pd.read_csv('ml-100k/u.data', ...)
+       movies = pd.read_csv('ml-100k/u.item', ...)
+       users = pd.read_csv('ml-100k/u.user', ...)
+       return ratings, movies, users
+   
+   # Ch.1, Ch.2, Ch.3 all use this
+   ratings, movies, users = load_movielens_100k()
+   
+   # ❌ Bad: Copy-paste same loading code in every chapter section
+   ```
+
+6. **Add "Example usage" blocks:**
+   ```python
+   # ✅ Good: After defining classes, show how to use them
+   class MatrixFactorization:
+       # ... full implementation ...
+   
+   # Example usage
+   mf_model = MatrixFactorization(n_factors=50, learning_rate=0.01)
+   mf_model.fit(train)
+   print(f"Ch.3 Matrix Factorization — Hit Rate@10: {hr_mf:.1%}")
+   
+   # ❌ Bad: Just define the class, no demonstration
+   ```
+
+### File Naming Convention
+
+```
+notes/01-ml/
+├── 01_regression/
+│   ├── grand_solution.md      ← Conceptual synthesis
+│   ├── grand_solution.ipynb   ← Code consolidation
+│   └── ch01_linear_regression/
+│       ├── README.md
+│       └── notebook.ipynb
+├── 03_neural_networks/
+│   ├── grand_solution.md
+│   ├── grand_solution.ipynb   ← Complete UnifiedAI demo
+│   └── ch01_xor_problem/
+│       ├── README.md
+│       └── notebook.ipynb
+```
+
+**File locations:**
+- Both `grand_solution.md` and `grand_solution.ipynb` live at track root
+- Individual chapter folders remain unchanged
+- Both reference each other clearly
+
+### Testing Checklist
+
+Before publishing a `grand_solution.ipynb`:
+
+- [ ] **Runs top-to-bottom:** All cells execute without errors
+- [ ] **Clear outputs:** Key metrics printed, no verbose logs
+- [ ] **Chapter boundaries:** Each chapter clearly marked in markdown cells
+- [ ] **Progressive improvement:** Shows baseline → final metric journey
+- [ ] **Production patterns:** Demonstrates actual deployment code structure
+- [ ] **Cross-references:** Links to grand_solution.md and individual chapters
+- [ ] **Concise explanations:** Markdown cells stay under 3 sentences per concept
+- [ ] **Self-contained:** All imports and data loading at the top
+- [ ] **Visual confirmation:** Include at least one plot or architecture summary
+- [ ] **Next steps:** Final cell links to other tracks and resources
+
+---
+- Show progression as ASCII tables or code block diagrams
+- Use `inline code` for hyperparameters, `$metric$` for dollars
+- Chapter references: "Ch.3" or "Ch.5-7" (never "Chapter Five")
+- Bold for emphasis: **only** for metrics, constraints, or first-mention concepts
+
+**Structure discipline:**
+- **Every chapter summary** must have all 4 subsections (What it is / What it unlocked / Production value / Key insight)
+- **Production patterns** section must show code — not just prose
+- **Mermaid architecture diagram** is mandatory — shows end-to-end flow
+- **Quick Reference table** is mandatory — chapter → production component mapping
+
+**Update triggers:**
+When adding a new chapter to a track:
+1. Add chapter summary to "The N Concepts" section
+2. Update progression diagram/table with new metrics
+3. Add chapter to "Production Patterns" if it introduces a new pattern
+4. Update "Quick Reference" table with new chapter's production component
+5. Update final metrics in "Mission Accomplished" and "5 Constraints" sections
+
+---
+
+**Note:** Interview checklists are maintained in the centralized [Interview_guide.md](../interview_guides/interview-guide.md) file, not in individual chapters.
 
 ---
 
@@ -599,7 +1062,7 @@ Xᵀ · e                                            (2×3) · (3×1) → (2×1)
 
 **The forward pointer callout box** (`> ➡️`) is used for concepts that will be formally introduced later but need to be planted early. Ch.01 plants the seed for R² at the end of the loss section with a `> ➡️` callout that says R² will be introduced in Ch.02 §1.5 where comparing two models makes it meaningful.
 
-**Cross-track links** to MathUnderTheHood are standard for rigorous derivations. Always reference the specific chapter: `[MathUnderTheHood ch06 — Gradient & Chain Rule](../math_under_the_hood/ch06_gradient_chain_rule)`.
+**Cross-track links** to MathUnderTheHood are standard for rigorous derivations. Always reference the specific chapter: `[MathUnderTheHood ch06 — Gradient & Chain Rule](../00-math_under_the_hood/ch06_gradient_chain_rule)`.
 
 ---
 
@@ -672,8 +1135,6 @@ All Mermaid nodes use `stroke:#e2e8f0,stroke-width:2px,color:#ffffff` for text l
 | `d` | Number of features |
 
 **Comments explain *why*, not *what*.** The code line `scaler.fit(X_train)` does not need a comment saying "fit the scaler". It needs a comment like `# use TRAIN statistics only — applying to test set avoids leakage`.
-
-**The manual gradient descent loop always appears alongside the sklearn version** in the Code Skeleton section. The manual version is labelled "Educational: gradient descent from scratch" and the sklearn version is the production reference.
 
 ---
 

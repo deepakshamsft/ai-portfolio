@@ -60,14 +60,21 @@ instance_3 = {bbox: [70, 120, 170, 220], mask: binary_mask_3, class: "cereal_box
 
 ## 1 · The Core Idea: Detect + Segment Each Instance
 
-Mask R-CNN combines object detection with segmentation in a unified architecture:
+Mask R-CNN evolved through three failures before arriving at the production architecture:
 
-**Faster R-CNN (Ch.3) produces:**
-- Bounding boxes: `[x1, y1, x2, y2]`
-- Class labels: `{0: background, 1: product, 2: ...}`
-- Confidence scores: `[0, 1]`
+**Attempt 1: Faster R-CNN alone (Ch.3) → No pixel masks**
+- Produces bounding boxes `[x1, y1, x2, y2]` and class labels
+- **Problem:** Can detect "product" but can't segment its exact shape → can't count overlapping boxes, can't measure shelf coverage
 
-**Mask R-CNN adds:**
+**Attempt 2: Add mask head to detection head → Coarse masks**
+- Predict 28×28 binary mask per RoI after RoI pooling
+- **Problem:** RoI pooling quantizes coordinates (rounds 14.7 → 14) → mask boundaries misaligned by 2-3 pixels → IoU drops from 71% to 64%
+
+**Attempt 3: Replace RoI pooling with RoIAlign → Precise masks ✅**
+- Use bilinear interpolation to preserve sub-pixel precision
+- **Result:** 71.2% IoU (exceeds 70% target), pixel-perfect instance boundaries
+
+**What Mask R-CNN adds to Faster R-CNN:**
 - Per-instance binary mask: `28×28` matrix (upsampled to fit RoI)
 - One mask per detected object (not per pixel like semantic segmentation)
 
@@ -576,169 +583,7 @@ Training stabilization:
 
 ---
 
-## 8 · Code Skeleton
-
-### Mask R-CNN Implementation (PyTorch + Torchvision)
-
-```python
-import torch
-import torchvision
-from torchvision.models.detection import maskrcnn_resnet50_fpn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-
-def get_mask_rcnn_model(num_classes):
-    """
-    Load pretrained Mask R-CNN with ResNet-50 backbone.
-    Replace heads for custom number of classes.
-    """
-    # Load pretrained model (COCO weights)
-    model = maskrcnn_resnet50_fpn(pretrained=True)
-    
-    # Replace box predictor
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    
-    # Replace mask predictor
-    in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-    hidden_layer = 256
-    model.roi_heads.mask_predictor = MaskRCNNPredictor(
-        in_features_mask, hidden_layer, num_classes
-    )
-    
-    return model
-
-# Create model (5 classes: background, product, empty, tag, edge)
-model = get_mask_rcnn_model(num_classes=5).cuda()
-print(f"Model parameters: {sum(p.numel() for p in model.parameters())/1e6:.2f}M")
-
-# Optimizer
-params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
-
-# Training loop
-num_epochs = 20
-
-for epoch in range(num_epochs):
-    model.train()
-    epoch_loss = 0
-    
-    for images, targets in train_loader:
-        # targets = [
-        #   {boxes: [N, 4], labels: [N], masks: [N, H, W]},  # image 1
-        #   {boxes: [M, 4], labels: [M], masks: [M, H, W]},  # image 2
-        #   ...
-        # ]
-        
-        images = [img.cuda() for img in images]
-        targets = [{k: v.cuda() for k, v in t.items()} for t in targets]
-        
-        # Forward pass (returns loss dict during training)
-        loss_dict = model(images, targets)
-        losses = sum(loss for loss in loss_dict.values())
-        
-        # Backward pass
-        optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
-        
-        epoch_loss += losses.item()
-    
-    print(f"Epoch [{epoch+1}/{num_epochs}] Loss: {epoch_loss/len(train_loader):.4f}")
-
-# Inference
-model.eval()
-with torch.no_grad():
-    predictions = model(test_images.cuda())
-    # predictions = [
-    #   {boxes: [K, 4], labels: [K], scores: [K], masks: [K, 1, 28, 28]},
-    #   ...
-    # ]
-    
-    for pred in predictions:
-        boxes = pred['boxes']  # [K, 4]
-        labels = pred['labels']  # [K]
-        scores = pred['scores']  # [K]
-        masks = pred['masks']  # [K, 1, 28, 28]
-        
-        # Filter by confidence
-        keep = scores > 0.7
-        boxes = boxes[keep]
-        masks = masks[keep]
-        
-        # Visualize
-        for box, mask in zip(boxes, masks):
-            # mask shape: [1, 28, 28] → resize to fit box
-            x1, y1, x2, y2 = box.int().tolist()
-            mask_resized = torch.nn.functional.interpolate(
-                mask.unsqueeze(0), size=(y2 - y1, x2 - x1), mode='bilinear'
-            )
-            mask_binary = (mask_resized > 0.5).squeeze().cpu().numpy()
-            # Overlay mask on image at (x1, y1)
-```
-
-### Evaluate mAP (COCO-style)
-
-```python
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-import json
-
-def evaluate_mask_rcnn(model, data_loader, coco_gt):
-    """
-    Evaluate Mask R-CNN using COCO API (AP@[0.5:0.95], AP@0.50, AP@0.75).
-    """
-    model.eval()
-    results = []
-    
-    with torch.no_grad():
-        for images, targets in data_loader:
-            images = [img.cuda() for img in images]
-            predictions = model(images)
-            
-            # Convert predictions to COCO format
-            for pred, target in zip(predictions, targets):
-                image_id = target['image_id'].item()
-                
-                boxes = pred['boxes'].cpu().numpy()
-                labels = pred['labels'].cpu().numpy()
-                scores = pred['scores'].cpu().numpy()
-                masks = pred['masks'].cpu().numpy()
-                
-                for box, label, score, mask in zip(boxes, labels, scores, masks):
-                    # Convert mask to COCO RLE format
-                    from pycocotools import mask as maskUtils
-                    mask_binary = (mask[0] > 0.5).astype(np.uint8)
-                    rle = maskUtils.encode(np.asfortranarray(mask_binary))
-                    rle['counts'] = rle['counts'].decode('utf-8')
-                    
-                    results.append({
-                        'image_id': image_id,
-                        'category_id': int(label),
-                        'bbox': box.tolist(),
-                        'score': float(score),
-                        'segmentation': rle
-                    })
-    
-    # Evaluate
-    coco_dt = coco_gt.loadRes(results)
-    coco_eval = COCOeval(coco_gt, coco_dt, 'segm')  # 'segm' for instance segmentation
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
-    
-    return coco_eval.stats  # [AP@[0.5:0.95], AP@0.50, AP@0.75, ...]
-
-# Run evaluation
-stats = evaluate_mask_rcnn(model, val_loader, coco_gt)
-print(f"mAP@[0.5:0.95]: {stats[0]:.4f}")
-print(f"mAP@0.50: {stats[1]:.4f}")
-print(f"mAP@0.75: {stats[2]:.4f}")
-```
-
----
-
-## 9 · What Can Go Wrong
+## 8 · What Can Go Wrong
 
 ⚠️ **Small objects vanish:** If anchor scales don't match object sizes, RPN misses small products. *Solution: Add 16-pixel anchors for travel-size items, or use FPN (Feature Pyramid Network) for multi-scale detection.*
 
@@ -752,7 +597,7 @@ print(f"mAP@0.75: {stats[2]:.4f}")
 
 ---
 
-## 10 · Where This Reappears
+## 9 · Where This Reappears
 
 - **Ch.7-8 (Self-Supervised Learning — SimCLR, DINO):** Pretrain Mask R-CNN backbone on 50k unlabeled shelf images, then fine-tune on 1k labeled → reduces annotation cost 10×.
 - **Ch.9 (Knowledge Distillation):** Distill Mask R-CNN (178 MB) → YOLOv5 with segmentation head (45 MB), maintain 90% accuracy for edge deployment.
@@ -761,7 +606,7 @@ print(f"mAP@0.75: {stats[2]:.4f}")
 
 ---
 
-## 11 · Progress Check — What We Can Solve Now
+## 10 · Progress Check — What We Can Solve Now
 
 ![ProductionCV progress after Ch.6](img/ch06-progress-check.png)
 
@@ -785,6 +630,6 @@ print(f"mAP@0.75: {stats[2]:.4f}")
 
 ---
 
-## 12 · Bridge to the Next Chapter
+## 11 · Bridge to the Next Chapter
 
 Instance segmentation achieves production-grade accuracy (71% IoU) but requires 1,000 labeled images with pixel-level masks (expensive annotation: $50/image × 1,000 = $50k). Ch.7 introduces **self-supervised learning** — train on 50k unlabeled images using contrastive loss (SimCLR), then fine-tune on just 200 labeled images. This unlocks constraint #5 (data efficiency <1,000 labels) by learning representations from raw data.

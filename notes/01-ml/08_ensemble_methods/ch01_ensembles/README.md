@@ -197,62 +197,7 @@ flowchart LR
 
 ---
 
-## 7 · Code Skeleton
-
-```python
-import numpy as np
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-from sklearn.metrics import mean_squared_error, r2_score, f1_score
-
-# ── Data ──────────────────────────────────────────────────────────────────────
-data = fetch_california_housing()
-X, y_reg = data.data, data.target
-y_cls = (y_reg > np.median(y_reg)).astype(int)  # binary: high-value district?
-
-X_train, X_test, y_tr, y_te, y_tr_cls, y_te_cls = train_test_split(
-    X, y_reg, y_cls, test_size=0.2, random_state=42)
-```
-
-```python
-# ── Single Tree vs Random Forest (Regression) ────────────────────────────────
-dt = DecisionTreeRegressor(max_depth=None, random_state=42)
-dt.fit(X_train, y_tr)
-
-rf = RandomForestRegressor(n_estimators=200, max_features='sqrt',
-                           oob_score=True, random_state=42, n_jobs=-1)
-rf.fit(X_train, y_tr)
-
-rmse_dt = np.sqrt(mean_squared_error(y_te, dt.predict(X_test)))
-rmse_rf = np.sqrt(mean_squared_error(y_te, rf.predict(X_test)))
-improvement = (rmse_dt - rmse_rf) / rmse_dt * 100
-
-print(f"Decision Tree RMSE: {rmse_dt:.4f}")
-print(f"Random Forest RMSE: {rmse_rf:.4f}")
-print(f"Improvement: {improvement:.1f}%  (target: >5%)")
-print(f"OOB R²: {rf.oob_score_:.4f}")
-```
-
-```python
-# ── Single Tree vs Random Forest (Classification) ────────────────────────────
-dt_cls = DecisionTreeClassifier(max_depth=None, random_state=42)
-dt_cls.fit(X_train, y_tr_cls)
-
-rf_cls = RandomForestClassifier(n_estimators=200, max_features='sqrt',
-                                oob_score=True, random_state=42, n_jobs=-1)
-rf_cls.fit(X_train, y_tr_cls)
-
-f1_dt = f1_score(y_te_cls, dt_cls.predict(X_test))
-f1_rf = f1_score(y_te_cls, rf_cls.predict(X_test))
-print(f"Decision Tree F1: {f1_dt:.4f}")
-print(f"Random Forest F1: {f1_rf:.4f}")
-```
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 | Mistake | Symptom | Fix |
 |---------|---------|-----|
@@ -276,7 +221,7 @@ flowchart TD
 
 ---
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 The bagging concept you've just learned is the foundation for multiple advanced techniques:
 
@@ -288,7 +233,7 @@ The bagging concept you've just learned is the foundation for multiple advanced 
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ![Progress visualization](img/ch01-progress-check.png) ← **Note**: This is a placeholder reference for future visual dashboard
 
@@ -313,7 +258,7 @@ The bagging concept you've just learned is the foundation for multiple advanced 
 
 ---
 
-## 11 · Bridge to Chapter 2
+## 10 · Bridge to Chapter 2
 
 Random Forest reduces **variance** by averaging decorrelated trees, but it doesn't reduce **bias** — shallow forests of stumps still underfit. Chapter 2 introduces **boosting**, where trees train *sequentially* with each one correcting the ensemble's remaining errors.
 
@@ -622,103 +567,7 @@ Round 3: F_3(x) = F_2(x) + η·tree_3(residual_2) → ...
 
 ---
 
-## 7 · Code Skeleton
-
-```python
-import numpy as np
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.metrics import mean_squared_error, r2_score, f1_score
-
-# ── Data ──────────────────────────────────────────────────────────────────────
-data = fetch_california_housing()
-X, y_reg = data.data, data.target
-y_cls = (y_reg > np.median(y_reg)).astype(int)
-
-X_train, X_test, y_tr, y_te, y_tr_cls, y_te_cls = train_test_split(
- X, y_reg, y_cls, test_size=0.2, random_state=42)
-
-scaler = StandardScaler()
-X_tr_sc = scaler.fit_transform(X_train)
-X_te_sc = scaler.transform(X_test)
-```
-
-```python
-# ── SVM Classification ────────────────────────────────────────────────────────
-svm = SVC(kernel='rbf', C=10, gamma='scale', probability=True, random_state=42)
-svm.fit(X_tr_sc, y_tr_cls)
-
-print(f"SVM F1: {f1_score(y_te_cls, svm.predict(X_te_sc)):.4f}")
-print(f"Support vectors: {svm.n_support_} (one count per class)")
-print(f"Total SVs: {svm.support_vectors_.shape[0]} of {len(X_train)} training points")
-```
-
-```python
-# ── Random Forest Regression ──────────────────────────────────────────────────
-rf = RandomForestRegressor(n_estimators=200, max_features='sqrt',
- oob_score=True, random_state=42, n_jobs=-1)
-rf.fit(X_train, y_tr) # tree-based: no scaling needed
-
-y_pred_rf = rf.predict(X_test)
-rmse_rf = np.sqrt(mean_squared_error(y_te, y_pred_rf))
-print(f"Random Forest — RMSE: {rmse_rf:.4f} R²: {r2_score(y_te, y_pred_rf):.4f}")
-print(f"OOB R²: {rf.oob_score_:.4f} (free validation — no test set used)")
-```
-
-```python
-# ── XGBoost Regression ────────────────────────────────────────────────────────
-try:
- from xgboost import XGBRegressor
-
- X_tr2, X_val, y_tr2, y_val = train_test_split(X_train, y_tr,
- test_size=0.15, random_state=42)
- xgb = XGBRegressor(
- n_estimators=1000,
- learning_rate=0.05,
- max_depth=4,
- subsample=0.8,
- colsample_bytree=0.8,
- reg_lambda=1.0,
- random_state=42,
- early_stopping_rounds=30,
- eval_metric='rmse',
- verbosity=0,
- )
- xgb.fit(X_tr2, y_tr2, eval_set=[(X_val, y_val)], verbose=False)
-
- y_pred_xgb = xgb.predict(X_test)
- rmse_xgb = np.sqrt(mean_squared_error(y_te, y_pred_xgb))
- print(f"XGBoost — RMSE: {rmse_xgb:.4f} R²: {r2_score(y_te, y_pred_xgb):.4f}")
- print(f"Best iteration: {xgb.best_iteration}")
-
-except ImportError:
- print("XGBoost not installed. Run: pip install xgboost")
-```
-
-```python
-# ── Baseline comparison ───────────────────────────────────────────────────────
-lr = LinearRegression().fit(X_tr_sc, y_tr)
-dt = DecisionTreeRegressor(max_depth=8, random_state=42).fit(X_train, y_tr)
-
-models = {
- 'Linear Regression': (lr.predict(X_te_sc), 'scaled'),
- 'Decision Tree': (dt.predict(X_test), 'raw'),
- 'Random Forest': (y_pred_rf, 'raw'),
-}
-for name, (preds, _) in models.items():
- rmse = np.sqrt(mean_squared_error(y_te, preds))
- r2 = r2_score(y_te, preds)
- print(f"{name:22s} RMSE: {rmse:.4f} R²: {r2:.4f}")
-```
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 - **Boosting on noisy labels overfits fast.** Each tree corrects the previous tree's errors — including mislabelled training points. After enough rounds, the model memorises noise. Use `early_stopping_rounds` with a held-out validation set; never fit to convergence on training data alone.
 
@@ -732,7 +581,7 @@ for name, (preds, _) in models.items():
 
 ---
 
-## 9 · Progress Check — What We Can Solve Now
+## 8 · Progress Check — What We Can Solve Now
 
 ⚡ **MAJOR MILESTONE**: ✅ **Constraint #4 (INTERPRETABILITY) ACHIEVED!**
 
@@ -861,7 +710,7 @@ We've mastered **supervised learning** (Constraints #1, #2, #4 achieved!). But a
 
 ---
 
-## 10 · Bridge to Chapter 12
+## 9 · Bridge to Chapter 12
 
 Ch.11 completed the supervised learning toolkit — we can now classify and regress with neural networks, trees, ensembles, and SVMs. Ch.12 — **Clustering** — shifts to unsupervised learning: no labels, no target variable. The goal is to discover natural structure in the data. The real estate platform's districts will cluster into neighbourhood types nobody defined in advance.
 

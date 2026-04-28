@@ -73,6 +73,22 @@ Problems:
 
 **Model Context Protocol (MCP)** collapses the N×M integration problem to N+M by defining a standard JSON-RPC 2.0 protocol for agent-tool communication. You write each tool integration once as an MCP server; any compliant agent becomes an MCP client and discovers available tools at runtime without hardcoded schemas. **Integration count scales linearly with agents plus tools, not multiplicatively.**
 
+### Agent vs MCP Server — Role Clarity
+
+One common point of confusion: **what is an agent, and what is an MCP server?**
+
+| Aspect | Agent (MCP Client) | MCP Server |
+|--------|-------------------|------------|
+| **Role** | **Consumes** tools and resources | **Exposes** tools and resources |
+| **Example** | Pricing Agent, Negotiation Agent | ERP Server, Supplier Quote Server |
+| **Protocol Side** | Sends `tools/call` requests | Responds with `result` or `error` |
+| **Implementation** | LangChain, AutoGen, Semantic Kernel, Claude Desktop | Python MCP SDK, Node.js MCP SDK, custom JSON-RPC server |
+| **Cardinality** | N agents (8 in OrderFlow) | M servers (20 in OrderFlow) |
+| **Reusability** | Agent-specific logic (orchestration, decision-making) | Cross-agent reusable (any client can call any server) |
+| **LLM Required?** | Yes (agent makes decisions) | No (server is deterministic code) |
+
+**Key insight**: One agent is an MCP client. It can call multiple MCP servers. One MCP server can be called by multiple agents. This is the **N+M collapse** — instead of writing N×M custom integrations, you write N clients + M servers.
+
 ---
 
 ## § 2 · Running Example: PO #2024-1847 Pricing Lookup
@@ -285,13 +301,7 @@ PricingAgent (MCP Client)          pricing-mcp-server          TechFurnish API
 
 ---
 
-## § 7 · Code Skeleton
-
-*(See implementation details below)*
-
----
-
-## § 8 · What Can Go Wrong
+## § 7 · What Can Go Wrong
 
 **1. Tool schema drift**: Server updates tool signature without versioning → clients send old argument shape → validation fails.
 - **Fix**: Version your tools (e.g., `get_supplier_quote_v2`) or use semantic versioning in MCP server manifest. Deprecate old versions gracefully.
@@ -310,7 +320,7 @@ PricingAgent (MCP Client)          pricing-mcp-server          TechFurnish API
 
 ---
 
-## § 9 · Progress Check — What We Can Solve Now
+## § 8 · Progress Check — What We Can Solve Now
 
 ```mermaid
 graph LR
@@ -405,13 +415,13 @@ Result: ✅ Full decision chain reconstructed in 30 seconds
 
 ---
 
-## § 10 · Bridge to Chapter 3
+## § 9 · Bridge to Chapter 3
 
 MCP collapsed agent-to-tool integration from N×M to N+M, but agent-to-agent coordination is still point-to-point. Ch.3 (A2A) defines the delegation protocol — Agent Cards advertise capabilities, task lifecycle tracks request→response, SSE streams long-running results → **enables hierarchical orchestration without hardcoded agent endpoints**.
 
 ---
 
-## § 11 · The Math
+## § 10 · The Math
 
 ### The N×M Integration Problem
 
@@ -441,71 +451,11 @@ The server returns a result object $r_t(\mathbf{a})$. The MCP protocol guarantee
 | $\mathcal{S}_t$ | Tool's JSON Schema contract |
 | $r_t(\mathbf{a})$ | Tool result for arguments $\mathbf{a}$ |
 
----
 
-## § 12 · Code Skeleton
-
-```python
-# Educational: minimal MCP client from scratch (stdio transport)
-import json, subprocess
-from typing import Any
-
-class MCPClient:
-    """
-    Minimal MCP stdio client — illustrates the JSON-RPC 2.0 message exchange.
-    Production: use the official `mcp` Python library instead.
-    """
-    def __init__(self, command: list[str]):
-        self.proc = subprocess.Popen(command, stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE, text=True)
-        self._request_id = 0
-
-    def _call(self, method: str, params: dict) -> Any:
-        self._request_id += 1
-        msg = {"jsonrpc": "2.0", "id": self._request_id, "method": method, "params": params}
-        self.proc.stdin.write(json.dumps(msg) + "\n")
-        self.proc.stdin.flush()
-        response = json.loads(self.proc.stdout.readline())
-        if "error" in response:
-            raise RuntimeError(f"MCP error: {response['error']}")
-        return response["result"]
-
-    def list_tools(self) -> list:
-        return self._call("tools/list", {})["tools"]
-
-    def call_tool(self, name: str, arguments: dict) -> Any:
-        return self._call("tools/call", {"name": name, "arguments": arguments})
-```
-
-```python
-# Production: MCP client with the official SDK + LangChain integration
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from langchain_mcp_adapters.tools import load_mcp_tools
-from langgraph.prebuilt import create_react_agent
-from langchain_openai import ChatOpenAI
-
-async def build_orderflow_mcp_agent():
-    """
-    Connect OrderFlow agents to all 20 tool servers via MCP.
-    Each agent gets its own subset of tools (least-privilege).
-    """
-    server_params = StdioServerParameters(
-        command="uvx", args=["mcp-server-orderflow"]  # OrderFlow MCP server
-    )
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            tools = await load_mcp_tools(session)
-            # Filter to only tools this agent needs (least-privilege)
-            pricing_tools = [t for t in tools if t.name in ("get_quote", "compare_suppliers")]
-            agent = create_react_agent(ChatOpenAI(model="gpt-4o"), pricing_tools)
-            return agent
-```
 
 ---
 
-## § 13 · Where This Reappears
+## § 11 · Where This Reappears
 
 | Chapter | How MCP concepts appear |
 |---------|------------------------|
@@ -546,7 +496,7 @@ No. MCP exposes data as Resources that an agent can address by URI — it handle
 ## Prerequisites
 
 - [Ch.1 — Message Formats & Shared Context](../ch01_message_formats) — tool calls in the OpenAI message schema
-- [AI / ReActAndSemanticKernel](../.$103-ai/ch06_react_and_semantic_kernel/react-and-semantic-kernel.md) — the ReAct tool-use loop that MCP standardises
+- [AI / ReActAndSemanticKernel](../.03-ai/ch06_react_and_semantic_kernel/react-and-semantic-kernel.md) — the ReAct tool-use loop that MCP standardises
 
 ## Next
 

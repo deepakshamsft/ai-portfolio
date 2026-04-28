@@ -27,10 +27,21 @@
 Two problems at once:
 
 **Problem 1 — Overfitting risk:**
-Ch.4 expanded 8 features to 44 polynomial features. Many of these are noise:
+[Ch.4](../ch04_polynomial_features/README.md) expanded 8 features to 44 polynomial features through degree-2 polynomial expansion (8 original + 8 squared + 28 interaction pairs — see [Ch.4 § Feature Expansion](../ch04_polynomial_features/README.md#2--running-example)). Many of these are noise:
 - `AveOccup²` — does the *square* of average occupancy really predict house value?
 - `Population × AveBedrms` — is this a real signal or random correlation?
 - Degree-3 expansion would create 164 features — most would be garbage
+
+**The 44 polynomial features from our 8 originals:**
+
+| Feature Type | Count | Examples |
+|--------------|-------|----------|
+| **Original features** | 8 | MedInc, HouseAge, AveRooms, AveBedrms, Population, AveOccup, Latitude, Longitude |
+| **Squared terms** | 8 | MedInc², HouseAge², AveRooms², AveBedrms², Population², AveOccup², Latitude², Longitude² |
+| **Interaction pairs** | 28 | MedInc×HouseAge, MedInc×AveRooms, MedInc×Latitude, HouseAge×Latitude, AveRooms×AveBedrms, Population×AveOccup, Latitude×Longitude, ... (all 28 unique pairs) |
+| **Total** | **44** | |
+
+Not all 44 features carry real signal. Some are noise artifacts of the polynomial expansion — correlations that exist in training but won't generalize to new districts.
 
 **Problem 2 — Multicollinearity from Ch.2:**
 - `AveRooms` and `AveBedrms` (ρ = 0.85) → unstable weights
@@ -74,7 +85,7 @@ Regularization adds a **penalty term** to the loss function that discourages lar
 
 $$L_\text{total} = \underbrace{\text{MSE}}_{\text{fit the data}} + \underbrace{\lambda \cdot \text{penalty}(\mathbf{w})}_{\text{keep weights small}}$$
 
-### The Mechanism
+### 1.1 · The Mechanism
 
 **Without regularization (OLS from Ch.2):**
 - Optimizer minimizes MSE with no restrictions
@@ -88,7 +99,9 @@ $$L_\text{total} = \underbrace{\text{MSE}}_{\text{fit the data}} + \underbrace{\
 
 **The key insight:** Large weights amplify noise. If `Population × AveBedrms` varies randomly between districts (2.3 vs 2.5), a weight of 0.21 turns that noise into $4,200 prediction swings. Regularization forces the model to prove each feature deserves its influence.
 
-### The λ Knob
+**The headwind analogy:** Imagine each feature is a runner trying to reach the finish line (influencing the prediction). Without regularization, all 44 runners sprint forward — even the weak ones carried by training noise. Regularization adds a headwind that pushes back proportionally to how fast each runner is moving (for Ridge) or with constant force (for Lasso). **Only the truly worthy features — those with genuine predictive signal — can fight through the headwind and maintain their influence on the output.** Noise features, lacking real strength, get blown back to near-zero (Ridge) or knocked out completely (Lasso). The model learns to trust only features that prove they're strong enough to matter.
+
+### 1.2 · The λ Knob
 
 - **λ = 0**: No penalty → OLS behavior (risk overfitting)
 - **λ → ∞**: Maximum penalty → all weights collapse to zero (underfitting)
@@ -100,9 +113,9 @@ $$L_\text{total} = \underbrace{\text{MSE}}_{\text{fit the data}} + \underbrace{\
 
 ## 2 · Running Example: How Ridge and Lasso Behave on California Housing
 
-**The scenario:** Ch.4 expanded 8 features to 44 polynomial features. Training MAE = $42k, test MAE = $48k — a $6k gap signals overfitting. Let's trace how regularization fixes this on 3 actual districts.
+**The scenario:** [Ch.4](../ch04_polynomial_features/README.md) expanded 8 features to 44 polynomial features through degree-2 polynomial expansion. Training MAE = $42k, test MAE = $48k — a $6k gap signals overfitting. Let's trace how regularization fixes this on 3 actual districts.
 
-### The Data (3 California Housing Districts)
+### 2.1 · The Data (3 California Housing Districts)
 
 | District | MedInc | Latitude | AveRooms | AveBedrms | True Value | Ch.4 Prediction | Error |
 |----------|--------|----------|----------|-----------|------------|-----------------|-------|
@@ -117,7 +130,7 @@ $$L_\text{total} = \underbrace{\text{MSE}}_{\text{fit the data}} + \underbrace{\
 
 These features capture training-set correlations that don't generalize. District #1's large error (+$33k) comes partly from noise features amplifying random variations.
 
-### How Ridge (L2) Fixes This
+### 2.2 · How Ridge (L2) Fixes This
 
 **Ridge with λ = 1.0** shrinks all 44 weights but keeps them non-zero:
 
@@ -139,7 +152,7 @@ These features capture training-set correlations that don't generalize. District
 
 **Test MAE:** $48k → **$38k** (Ridge shrinks noise → better generalization)
 
-### How Lasso (L1) Fixes This Differently
+### 2.3 · How Lasso (L1) Fixes This Differently
 
 **Lasso with λ = 0.001** zeros out 12 of 44 features completely:
 
@@ -155,7 +168,7 @@ These features capture training-set correlations that don't generalize. District
 
 **Test MAE:** $48k → $39k (Lasso kills noise → automatic feature selection)
 
-### Three Key Patterns
+### 2.4 · Three Key Patterns
 
 **1. Signal strength determines survival:**  
 Strong features (`MedInc`, `Latitude`) resist shrinkage in both Ridge and Lasso. Weak features (`Population × AveBedrms`) shrink dramatically or hit zero.
@@ -214,6 +227,52 @@ The L1 penalty also has a **geometric corner at zero** — the absolute value cr
 
 **Intuition:** Lasso doesn't just shrink weights — it forces the model to make hard choices. When $\lambda$ is high enough, weak features get cut completely. Features with strong signal survive; noise features hit exact zero. This is **automatic feature selection** — the model tells you which features matter.
 
+### Why Ridge NEVER Zeros Weights But Lasso DOES — The Mathematical Distinction
+
+The difference boils down to **how the penalty gradient scales** as weights approach zero:
+
+| Aspect | Ridge (L2) | Lasso (L1) |
+|--------|-----------|------------|
+| **Penalty term** | $\lambda w_j^2$ | $\lambda |w_j|$ |
+| **Gradient at $w_j$** | $2\lambda w_j$ (proportional to weight) | $\lambda \cdot \text{sign}(w_j)$ (constant ±1) |
+| **Force near zero** | Weakens as $w_j \to 0$ | Stays constant at $\pm\lambda$ |
+| **Result** | Asymptotic approach — gets infinitely close but never reaches zero | Hard landing — crosses zero if MSE gradient < $\lambda$ |
+
+**Visual proof with a noisy feature:**
+
+Consider `Population × AveOccup` (a noise feature with weak MSE gradient ≈ 0.0005):
+
+**Ridge path with λ=1.0:**
+```
+Iteration  |  w_j    |  MSE grad  |  Ridge grad (2λw)  |  Net force  |  Next w_j
+----------------------------------------------------------------------------------
+0          |  0.100  |  +0.0005   |  +0.200            |  −0.1995    |  0.080
+50         |  0.010  |  +0.0005   |  +0.020            |  −0.0195    |  0.008
+100        |  0.001  |  +0.0005   |  +0.002            |  −0.0015    |  0.0008
+∞          |  ~0.00025 | +0.0005  |  +0.0005           |  ≈0         |  **STUCK near zero**
+```
+
+Ridge gradient weakens as $w_j \to 0$, eventually balancing the tiny MSE gradient. The weight **never reaches exact zero**.
+
+**Lasso path with λ=0.001:**
+```
+Iteration  |  w_j    |  MSE grad  |  Lasso grad  |  Net force  |  Next w_j
+----------------------------------------------------------------------------------
+0          |  0.100  |  +0.0005   |  +0.001      |  −0.0005    |  0.099
+10         |  0.010  |  +0.0005   |  +0.001      |  −0.0005    |  0.009
+20         |  0.001  |  +0.0005   |  +0.001      |  −0.0005    |  0.000
+21         |  **0.000** | N/A    |  N/A         |  N/A        |  **ZEROED**
+```
+
+Lasso gradient stays constant at +0.001 regardless of $w_j$. Once $w_j$ gets small enough that the MSE gradient (+0.0005) can't overcome the penalty gradient (+0.001), the weight hits **exact zero** and stays there.
+
+**The geometric intuition:**
+
+- **Ridge's L2 ball** is smooth everywhere — weights slide smoothly toward zero but never quite reach the axis
+- **Lasso's L1 diamond** has sharp corners on the axes — weights can "land" on these corners (where one weight = 0) and stick
+
+This is why Lasso is called a **feature selection** method — it makes binary decisions (keep vs eliminate), while Ridge makes **continuous shrinkage** decisions (turn down the volume).
+
 ### 3.3 · Loss Function Convergence: How Regularization Affects Optimization
 
 **The key question:** How do MSE, MSE+L1, and MSE+L2 converge differently during gradient descent?
@@ -271,7 +330,7 @@ flowchart TD
 
 ## 4 · Key Diagrams: Weight Shrinkage and Convergence Paths
 
-### Weight Shrinkage: Ridge vs Lasso
+### 4.1 · Weight Shrinkage: Ridge vs Lasso
 
 The fundamental difference between Ridge (L2) and Lasso (L1) is how they treat weak features:
 
@@ -284,7 +343,7 @@ The fundamental difference between Ridge (L2) and Lasso (L1) is how they treat w
 - **Lasso:** Features hit exact zero at different thresholds — automatic feature selection happens progressively
 - **The geometry:** Ridge's L2 ball is smooth; Lasso's L1 diamond has corners on the axes where weights become exactly zero
 
-### Weight Evolution During Optimization
+### 4.2 · Weight Evolution During Optimization
 
 The animations above show how weights change **across different λ values**. But how do weights evolve **during training** with a fixed λ?
 
@@ -306,7 +365,7 @@ This is why Lasso is called a "feature selection" method — it doesn't just shr
 
 ⚡ **Victory:** SmartVal AI hit the <$40k target by tuning λ (regularization strength).
 
-### The Accuracy Needle
+### 5.1 · The Accuracy Needle
 
 ![Regularization needle: MAE drops as λ increases](img/ch05-regularization-needle.gif)
 
@@ -314,7 +373,7 @@ This is why Lasso is called a "feature selection" method — it doesn't just shr
 - **λ = 1.0**: Optimal → **$38k MAE** ✅  
 - **λ = 1000**: Over-penalized → $65k MAE (underfitting)
 
-### The U-Shaped Validation Curve
+### 5.2 · The U-Shaped Validation Curve
 
 ![Lambda sweep showing U-shaped curve with optimal point](img/ch05-lambda-sweep.png)
 
@@ -326,9 +385,9 @@ This is why Lasso is called a "feature selection" method — it doesn't just shr
 1. Try λ values spanning powers of 10: `[0.001, 0.01, 0.1, 1, 10, 100]`
 2. Use cross-validation to measure test MAE at each λ
 3. Pick the λ that minimizes test MAE
-4. Let `GridSearchCV` automate this (see §6)
+4. Let `GridSearchCV` automate this
 
-### Weight Evolution Across Powers of 10
+### 5.3 · Weight Evolution Across Powers of 10
 
 ![Weight shrinkage across lambda values](img/ch05-lambda-powers-sweep.gif)
 
@@ -348,75 +407,7 @@ This is why Lasso is called a "feature selection" method — it doesn't just shr
 
 ---
 
-## 6 · Code Skeleton: GridSearchCV Finds λ Automatically
-
-```python
-import numpy as np
-from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.linear_model import Ridge, Lasso
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import mean_absolute_error
-
-# 1. Load and split
-data = fetch_california_housing()
-X, y = data.data, data.target
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-# 2. Pipeline: Poly → Scale → Regularize
-def make_pipeline(model):
-    return Pipeline([
-        ('poly', PolynomialFeatures(degree=2, include_bias=False)),
-        ('scaler', StandardScaler()),
-        ('model', model)
-    ])
-
-# 3. Ridge — sweep λ
-ridge_pipe = make_pipeline(Ridge())
-ridge_params = {'model__alpha': [0.001, 0.01, 0.1, 1, 10, 100]}
-ridge_cv = GridSearchCV(ridge_pipe, ridge_params, cv=5,
-                        scoring='neg_mean_absolute_error', n_jobs=-1)
-ridge_cv.fit(X_train, y_train)
-ridge_mae = mean_absolute_error(y_test, ridge_cv.predict(X_test)) * 100_000
-print(f"Ridge: best α={ridge_cv.best_params_['model__alpha']}, MAE=${ridge_mae:,.0f}")
-
-# 4. Lasso — sweep α
-lasso_pipe = make_pipeline(Lasso(max_iter=10000))
-lasso_params = {'model__alpha': [0.0001, 0.001, 0.01, 0.1]}
-lasso_cv = GridSearchCV(lasso_pipe, lasso_params, cv=5,
-                        scoring='neg_mean_absolute_error', n_jobs=-1)
-lasso_cv.fit(X_train, y_train)
-lasso_mae = mean_absolute_error(y_test, lasso_cv.predict(X_test)) * 100_000
-n_zero = np.sum(lasso_cv.best_estimator_.named_steps['model'].coef_ == 0)
-print(f"Lasso: best α={lasso_cv.best_params_['model__alpha']}, "
-      f"MAE=${lasso_mae:,.0f}, {n_zero} features zeroed")
-```
-
-### Inspecting Lasso's Feature Selection
-
-```python
-# Which features did Lasso keep/drop?
-poly = lasso_cv.best_estimator_.named_steps['poly']
-feature_names = poly.get_feature_names_out(data.feature_names)
-coefs = lasso_cv.best_estimator_.named_steps['model'].coef_
-
-print("\n✅ Features KEPT by Lasso:")
-for name, c in sorted(zip(feature_names, coefs), key=lambda x: abs(x[1]), reverse=True):
-    if c != 0:
-        print(f"  {name:30s}: {c:+.4f}")
-
-print(f"\n❌ Features ZEROED by Lasso ({n_zero} total):")
-for name, c in zip(feature_names, coefs):
-    if c == 0:
-        print(f"  {name}")
-```
-
----
-
-## 7 · What Can Go Wrong
+## 6 · What Can Go Wrong
 
 - **Not standardizing before regularization** — λ penalizes large weights. If features are on different scales, the penalty is applied unevenly — large-scale features get penalized more, regardless of importance. **Fix:** Always standardize. The pipeline `PolynomialFeatures() → StandardScaler() → Ridge()` ensures equal treatment.
 
@@ -446,7 +437,7 @@ flowchart TD
 
 ---
 
-## 8 · Progress Check — What We Can Solve Now
+## 7 · Progress Check — What We Can Solve Now
 
 ⚡ **MILESTONE: $40k MAE TARGET ACHIEVED!**
 
@@ -489,7 +480,7 @@ flowchart LR
 
 ---
 
-## 9 · Bridge to Chapter 6
+## 8 · Bridge to Chapter 6
 
 ⚡ **SmartVal AI status update:** Two of five constraints are now **ACHIEVED**:
 - ✅ **Constraint #1 (ACCURACY <$40k)**: Ridge achieves $38k MAE

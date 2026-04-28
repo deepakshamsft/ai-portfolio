@@ -197,7 +197,7 @@ graph TB
 **Before starting:**
 - Python programming (NumPy, Pandas, Matplotlib)
 - Basic statistics (mean, variance, probability distributions)
-- Linear algebra (vectors, matrices, dot products) — see [Math Under The Hood](../math_under_the_hood)
+- Linear algebra (vectors, matrices, dot products) — see [Math Under The Hood](../00-math_under_the_hood)
 
 **Recommended** (but not required):
 - Calculus (derivatives, gradients) — covered in Math track Ch.3-6
@@ -214,14 +214,14 @@ graph TB
 **After ML fundamentals:**
 
 ### For LLMs and Agentic AI:
-- **[AI Track](../ai/README.md)** — LLMs, RAG, agents, prompt engineering
-- **[Multi-Agent AI](../multi_agent_ai/README.md)** — Agent-to-agent coordination, MCP, shared memory
+- **[AI Track](../03-ai/README.md)** — LLMs, RAG, agents, prompt engineering
+- **[Multi-Agent AI](../04-multi_agent_ai/README.md)** — Agent-to-agent coordination, MCP, shared memory
 
 ### For Production ML Infrastructure:
-- **[AI Infrastructure](../ai_infrastructure/README.md)** — GPUs, distributed training, model serving, MLOps
+- **[AI Infrastructure](../06-ai_infrastructure/README.md)** — GPUs, distributed training, model serving, MLOps
 
 ### For Deep Math Understanding:
-- **[Math Under The Hood](../math_under_the_hood)** — Linear algebra, calculus, probability (ML prerequisites)
+- **[Math Under The Hood](../00-math_under_the_hood)** — Linear algebra, calculus, probability (ML prerequisites)
 
 ---
 
@@ -291,4 +291,4 @@ If you want the most practical learning order, start with `01-Regression`, then 
 
 **Recommended core path**: `01-Regression → 02-Classification → 03-NeuralNetworks → 07-UnsupervisedLearning → 08-EnsembleMethods`
 
-📚 **Interview prep?** Use [Interview_guide.md](interview-guide.md) for the condensed review version of the track.
+📚 **Interview prep?** Use [Interview_guide.md](../interview_guides/interview-guide.md) for the condensed review version of the track.

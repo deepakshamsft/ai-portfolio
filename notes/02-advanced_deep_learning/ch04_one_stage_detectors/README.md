@@ -86,6 +86,9 @@ One-stage detectors treat object detection as a **regression problem**: predict 
 1. **Feature Pyramid Network (FPN):** Extract features at multiple scales (P3, P4, P5, P6, P7)
    - P3: Detects small objects (8× downsampling from input, 128×128 feature map)
    - P7: Detects large objects (128× downsampling, 8×8 feature map)
+
+> 💡 **Anchors tile the feature map:** Before you predict anything, you pre-define a grid of "anchor boxes" at every spatial location — like tiling the image with thousands of candidate bounding boxes at multiple scales and aspect ratios. The network doesn't invent box shapes from scratch; it **adjusts** these pre-defined anchors by predicting small offset corrections $(Δx, Δy, Δw, Δh)$. This makes training more stable: the network learns "shift this anchor left 5 pixels, make it 10% wider" instead of "guess absolute coordinates $(x, y, w, h)$ for an object you've never seen." At a 40×40 feature map with 9 anchors per location, you have 14,400 candidate boxes — most are background (99%), which is why focal loss is critical.
+
 2. **Dense anchors:** At each FPN level, place 9 anchors per location (3 scales × 3 ratios)
 3. **Classification + box regression:** Two sibling subnets (4 conv layers each)
    - Classification: Predict class probabilities (20 products + background)
@@ -423,152 +426,7 @@ Stride:             32                   16                   8
 
 ---
 
-## 7 · Code Skeleton — YOLOv5 with Torchvision
-
-```python
-import torch
-from PIL import Image
-import numpy as np
-
-# ─────────────────────────────────────────────────────────────
-# 1. Load YOLOv5 (Using Ultralytics' PyTorch Hub Implementation)
-# ─────────────────────────────────────────────────────────────
-# Install: pip install ultralytics
-
-from ultralytics import YOLO
-
-# Load pretrained YOLOv5s (small variant, 14 MB)
-model = YOLO('yolov5s.pt')
-
-# Fine-tune for custom dataset (20 product classes)
-# Assumes data.yaml with paths to train/val images and class names
-model.train(
-    data='retail_shelf_data.yaml',  # Dataset config
-    epochs=50,
-    imgsz=640,
-    batch=16,
-    name='retail_shelf_yolov5'
-)
-
-# ─────────────────────────────────────────────────────────────
-# 2. Inference on Test Image
-# ─────────────────────────────────────────────────────────────
-img_path = 'test_shelf.jpg'
-
-# Run inference
-results = model(img_path, conf=0.25, iou=0.45)
-
-# Extract detections
-detections = results[0].boxes  # Boxes object
-boxes = detections.xyxy.cpu().numpy()      # [N, 4] (x1, y1, x2, y2)
-confidences = detections.conf.cpu().numpy() # [N]
-class_ids = detections.cls.cpu().numpy()   # [N]
-
-print(f"Detected {len(boxes)} products:")
-for i in range(len(boxes)):
-    x1, y1, x2, y2 = boxes[i]
-    conf = confidences[i]
-    cls = int(class_ids[i])
-    print(f"  Box {i+1}: Class {cls}, Confidence {conf:.2f}, Bbox [{x1:.0f}, {y1:.0f}, {x2:.0f}, {y2:.0f}]")
-
-# ─────────────────────────────────────────────────────────────
-# 3. Visualize Results
-# ─────────────────────────────────────────────────────────────
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-
-img = Image.open(img_path)
-fig, ax = plt.subplots(figsize=(12, 8))
-ax.imshow(img)
-
-class_names = ['coca_cola', 'pepsi', 'sprite', ...]  # 20 product classes
-
-for i in range(len(boxes)):
-    x1, y1, x2, y2 = boxes[i]
-    conf = confidences[i]
-    cls = int(class_ids[i])
-    
-    # Draw box
-    rect = patches.Rectangle((x1, y1), x2-x1, y2-y1,
-                            linewidth=2, edgecolor='lime', facecolor='none')
-    ax.add_patch(rect)
-    
-    # Label
-    label = f"{class_names[cls]}: {conf:.2f}"
-    ax.text(x1, y1-5, label, color='white', fontsize=10, weight='bold',
-           bbox=dict(facecolor='lime', alpha=0.7, edgecolor='none'))
-
-ax.axis('off')
-plt.tight_layout()
-plt.savefig('yolov5_detections.png', dpi=150)
-plt.show()
-
-# ─────────────────────────────────────────────────────────────
-# 4. Benchmark Inference Speed
-# ─────────────────────────────────────────────────────────────
-import time
-
-model.to('cuda')  # Move to GPU
-warmup_runs = 10
-benchmark_runs = 100
-
-# Warmup
-for _ in range(warmup_runs):
-    _ = model(img_path)
-
-# Benchmark
-start = time.time()
-for _ in range(benchmark_runs):
-    _ = model(img_path)
-end = time.time()
-
-avg_time = (end - start) / benchmark_runs * 1000  # ms
-print(f"\nInference speed: {avg_time:.1f} ms per frame")
-print(f"FPS: {1000 / avg_time:.1f}")
-
-# ─────────────────────────────────────────────────────────────
-# 5. Evaluate mAP on Validation Set
-# ─────────────────────────────────────────────────────────────
-val_results = model.val(data='retail_shelf_data.yaml')
-
-print(f"\nValidation Results:")
-print(f"  mAP@0.5: {val_results.box.map50:.1%}")
-print(f"  mAP@0.5:0.95: {val_results.box.map:.1%}")
-print(f"  Precision: {val_results.box.p:.1%}")
-print(f"  Recall: {val_results.box.r:.1%}")
-```
-
-**Alternative: RetinaNet with Detectron2**
-
-```python
-# Install: pip install detectron2
-
-from detectron2 import model_zoo
-from detectron2.engine import DefaultPredictor
-from detectron2.config import get_cfg
-
-# Load RetinaNet (ResNet-50 backbone, FPN)
-cfg = get_cfg()
-cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/retinanet_R_50_FPN_3x.yaml"))
-cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/retinanet_R_50_FPN_3x.yaml")
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # Confidence threshold
-
-predictor = DefaultPredictor(cfg)
-
-# Inference
-img = cv2.imread('test_shelf.jpg')
-outputs = predictor(img)
-
-# Extract detections
-instances = outputs["instances"].to("cpu")
-boxes = instances.pred_boxes.tensor.numpy()  # [N, 4]
-scores = instances.scores.numpy()            # [N]
-classes = instances.pred_classes.numpy()     # [N]
-```
-
----
-
-## 8 · What Can Go Wrong
+## 7 · What Can Go Wrong
 
 1. **Grid cell limitation (original YOLO)** — If two objects' centers fall in the same grid cell, YOLO can only detect one (limited by $B=2$ boxes per cell). This fails for dense scenes (e.g., 10 soda cans clustered together). Fix: Use anchor-based detection (YOLOv2+) or increase grid resolution (19×19 instead of 7×7).
 
@@ -582,7 +440,7 @@ classes = instances.pred_classes.numpy()     # [N]
 
 ---
 
-## 9 · Where This Reappears
+## 8 · Where This Reappears
 
 - **Ch.5 (Semantic Segmentation)** — U-Net and DeepLab use encoder-decoder architectures similar to YOLOv5's backbone-neck structure. The PANet bidirectional feature fusion pattern reappears as skip connections in U-Net.
 
@@ -594,7 +452,7 @@ classes = instances.pred_classes.numpy()     # [N]
 
 ---
 
-## 10 · Progress Check — What We Can Solve Now
+## 9 · Progress Check — What We Can Solve Now
 
 ![ProductionCV constraint progress](img/ch04-progress-check.png)
 
@@ -623,7 +481,7 @@ classes = instances.pred_classes.numpy()     # [N]
 
 ---
 
-## 11 · Bridge to the Next Chapter
+## 10 · Bridge to the Next Chapter
 
 This chapter gave you **one-stage detection** — YOLO's grid-based prediction and RetinaNet's focal loss. You eliminated the region proposal bottleneck and achieved real-time inference (18ms per frame) on edge hardware. You unlocked Constraints #3 (latency) and #4 (model size), but traded 4% mAP for 10× speedup — a worthwhile trade-off for most production systems.
 

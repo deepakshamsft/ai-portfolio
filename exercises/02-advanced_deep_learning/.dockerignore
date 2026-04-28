@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+
+# Virtual Environment
+venv/
+env/
+.venv
+
+# IDEs
+.vscode
+.idea
+*.swp
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+
+# Documentation
+*.md
+docs/
+
+# Models (too large for Docker image)
+models/*.pth
+models/*.onnx
+models/checkpoints/
+
+# Data (mount as volume instead)
+data/
+
+# Logs (mount as volume instead)
+logs/
+
+# Jupyter
+notebooks/
+*.ipynb
+
+# Temporary
+*.tmp
+tmp/

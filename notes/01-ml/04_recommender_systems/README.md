@@ -8,13 +8,13 @@ This is not a Kaggle leaderboard chase. Every chapter builds toward a single pro
 
 ## The Grand Challenge: 5 Core Constraints
 
-| # | Constraint | Target | Why It Matters |
-|---|------------|--------|----------------|
+| # | Constraint | Quantified Target | Why It Matters |
+|---|------------|-------------------|----------------|
 | **#1** | **ACCURACY** | >85% hit rate @ top-10 | Users who don't click within 10 suggestions churn within 30 days. Every percentage point = $2M ARR |
-| **#2** | **COLD START** | Handle new users/items gracefully | 15% of monthly traffic is new signups with zero watch history. New releases have no ratings on day one |
-| **#3** | **SCALABILITY** | 1M+ ratings, <200ms latency | Production traffic is 10× the dev dataset. Batch retraining + real-time serving required |
-| **#4** | **DIVERSITY** | Not just popular movies | Recommending "The Shawshank Redemption" to everyone is 60% accurate but useless. Long-tail discovery drives retention |
-| **#5** | **EXPLAINABILITY** | "Because you liked X" | Users trust recommendations they understand. Black-box suggestions get ignored 40% more often |
+| **#2** | **COLD START** | New users: >60% hit@10 with ≤5 ratings<br>New items: >30% 1st-day discovery rate | 15% of monthly traffic is new signups with zero watch history. New releases have no ratings on day one |
+| **#3** | **SCALABILITY** | Handle 100k → 25M ratings<br>Maintain <200ms p95 latency | Production traffic is 250× the dev dataset. Batch retraining + real-time serving required |
+| **#4** | **DIVERSITY** | Catalog coverage >40%<br>Long-tail representation >25% | Recommending "The Shawshank Redemption" to everyone is 60% accurate but useless. Long-tail discovery drives retention |
+| **#5** | **EXPLAINABILITY** | >70% recs with explanation<br>>75% user "helpful" rating | Users trust recommendations they understand. Black-box suggestions get ignored 40% more often |
 
 ---
 
@@ -76,9 +76,23 @@ This is not a Kaggle leaderboard chase. Every chapter builds toward a single pro
 
 ---
 
-## The Dataset: MovieLens 100k
+## Success Criteria: How Constraints Are Measured
 
-Every chapter uses the same dataset: [MovieLens 100k](https://grouplens.org/datasets/movielens/100k/) from the GroupLens research lab.
+| Constraint | Metric | Measurement Method | Threshold |
+|------------|--------|-------------------|----------|
+| **#1 ACCURACY** | Hit Rate @ 10 | % of users with ≥1 click in top-10 recs | >85% |
+| **#2 COLD START** | New user HR@10<br>New item discovery | Test on users with ≤5 ratings<br>% items recommended on day 1 | >60%<br>>30% |
+| **#3 SCALABILITY** | P95 latency<br>Dataset size | 95th percentile API response time<br>MovieLens 100k → 25M transition | <200ms<br>✅ |
+| **#4 DIVERSITY** | Catalog coverage<br>Long-tail % | Unique items in recs / total catalog<br>% recs from bottom 50% popularity | >40%<br>>25% |
+| **#5 EXPLAINABILITY** | Explanation rate<br>User helpfulness | % recs with "Because you liked..."<br>User survey rating (1-5 scale) | >70%<br>>75% |
+
+> **Note**: Ch1-5 use MovieLens 100k for algorithm development. Ch6 demonstrates production scalability principles using 25M dataset techniques (sampling, approximate nearest neighbors, batch inference).
+
+---
+
+## The Dataset: MovieLens 100k (Development) → 25M (Production)
+
+**Development dataset (Ch1-5)**: [MovieLens 100k](https://grouplens.org/datasets/movielens/100k/) from the GroupLens research lab.
 
 ```python
 # 100,000 ratings from 943 users on 1,682 movies
@@ -91,24 +105,22 @@ from surprise import Dataset
 data = Dataset.load_builtin('ml-100k')
 ```
 
-**Why MovieLens?**
-- ✅ **Industry benchmark**: The standard academic dataset for recommender systems research
+**Production scaling (Ch6)**: [MovieLens 25M](https://grouplens.org/datasets/movielens/25m/) for scalability exercises.
+
+```python
+# 25,000,095 ratings from 162,541 users on 62,423 movies
+# Same schema as 100k (250× scale)
+# Used to demonstrate: ALS matrix factorization at scale,
+# approximate nearest neighbors (FAISS), batch inference patterns
+```
+
+**Why this progression?**
+- ✅ **Pedagogical clarity**: 100k trains in seconds, easy to iterate and debug
+- ✅ **Production realism**: 25M mirrors real-world scale (Netflix has billions, but principles are identical)
+- ✅ **Industry benchmark**: Both are standard datasets for recommender systems research
 - ✅ **Rich metadata**: 19 genre flags, timestamps, user demographics
-- ✅ **Manageable size**: 100k ratings (fits in memory, trains in seconds)
-- ✅ **Real sparsity**: 93.7% of the user-item matrix is empty — mirrors production
+- ✅ **Real sparsity**: 93.7% (100k) and 99.7% (25M) sparsity — mirrors production
 - ✅ **Cold start examples**: Can simulate new users/items by holding out data
-
-**Key statistics:**
-
-| Metric | Value |
-|--------|-------|
-| Users | 943 |
-| Movies | 1,682 |
-| Ratings | 100,000 |
-| Rating scale | 1–5 stars |
-| Sparsity | 93.7% |
-| Avg ratings/user | 106 |
-| Avg ratings/movie | 59 |
 
 ---
 
