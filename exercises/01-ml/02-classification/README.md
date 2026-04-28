@@ -1,53 +1,127 @@
-# Exercise 02: FaceAI — Production Classification System
+# Exercise 02: FaceAI — Interactive Classification System
 
-> **Grand Challenge:** Build a production-grade face classification API that achieves >90% accuracy on Olivetti Faces dataset while meeting 5 production constraints.
+> **Learning Goal:** Implement Logistic Regression/SVM/RandomForest with plug-and-play experimentation and immediate feedback  
+> **Prerequisites:** Completed [notes/01-ml/02-classification/](../../../notes/01-ml/02-classification/)  
+> **Time Estimate:** 4-5 hours (coding) + 1 hour (deployment, optional)  
+> **Difficulty:** ⭐⭐ Intermediate
 
-**Scaffolding Level:** 🟡 Medium (apply patterns from Track 01)
-
----
-
-## Objective
-
-Implement a complete ML classification pipeline with production patterns:
-- \>90% accuracy on held-out test set
-- <100ms inference latency (p99)
-- Multi-class prediction with confidence scores
-- Error handling and input validation
-- Configuration-driven training
-- Automated evaluation
+> **📦 Infrastructure Note:**  
+> All Docker, Prometheus, and deployment configurations are centralized in `../../_infrastructure/`.  
+> This exercise focuses on ML implementation only. Infrastructure files have been removed to reduce clutter.
 
 ---
 
-## What You'll Learn
+## 🎯 **What You'll Implement**
 
-- Train/validation/test splitting with stratification
-- HOG (Histogram of Oriented Gradients) feature extraction
-- Multi-class classification (Logistic Regression, SVM, Random Forest)
-- PCA dimensionality reduction
-- Model persistence (joblib)
-- REST API design for image classification (Flask)
-- Classification metrics (accuracy, precision, recall, F1, confusion matrix)
-- Unit testing for classification systems
+Starting from function stubs and inline TODOs, you'll build a complete face classification system with:
+
+### **Core Implementation (4-5 hours)**
+
+| File | What You Implement | TODOs | Time |
+|------|-------------------|-------|------|
+| `src/features.py` | HOG extraction + PCA + Scaling | 3 stages | 1h |
+| `src/models.py` | Logistic/SVM/RandomForest training | 3 classes | 2h |
+| `src/models.py` | ExperimentRunner with leaderboard | 2 methods | 30min |
+| `main.py` | Test evaluation + model saving | 2 sections | 30min |
+
+**Interactive Experience:**
+- ✅ See results immediately after each model trains
+- ✅ Leaderboard shows best model automatically
+- ✅ Rich console output with colors and tables
+- ✅ Experiment with 9 models in one run
+
+**Total:** 4-5 hours of focused coding
 
 ---
 
-## Setup
+### **What's Already Done (Utilities)**
 
-**Unix/macOS/WSL:**
+These files are complete and reusable:
+- ✅ `src/data.py` — Olivetti faces dataset loading
+- ✅ `src/evaluate.py` — Metrics computation (accuracy, precision, recall, F1)
+- ✅ `src/utils.py` — Logging and validation
+- ✅ `src/monitoring.py` — Prometheus metrics
+- ✅ `src/api.py` — Flask REST API (pre-built for deployment)
+
+**Philosophy:** Focus on ML algorithms, not boilerplate.
+
+---
+
+### **Optional: Production Deployment (1 hour)**
+
+After implementing core features, deploy via shared infrastructure:
 ```bash
-chmod +x setup.sh
-./setup.sh
-source venv/bin/activate
+# Navigate to infrastructure directory
+cd ../../_infrastructure
+
+# Follow deployment instructions in _infrastructure/README.md
 ```
 
-**Windows PowerShell:**
+**Infrastructure:** All Docker/Prometheus/Grafana configs are centralized in `../../_infrastructure/`.  
+See [_infrastructure/README.md](../../_infrastructure/README.md) for deployment details.
+
+---
+
+## 🚀 **Quick Start**
+
+### **1. Setup Environment**
+
+**PowerShell (Windows):**
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 .\setup.ps1
 .\venv\Scripts\Activate.ps1
 ```
 
----
+**Bash (Linux/Mac/WSL):**
+```bash
+chmod +x setup.sh
+./setup.sh
+source venv/bin/activate
+```
+
+### **2. Run Interactive Training**
+
+```bash
+python main.py
+```
+
+**Expected output:**
+```
+📊 LOADING DATA
+  ✓ Train: 320 samples × 4,096 pixels
+  ✓ Test:  80 samples × 4,096 pixels
+  ✓ Classes: 40 unique faces
+
+🔧 FEATURE ENGINEERING
+  Extracting HOG features...
+    HOG features: 1,764 dimensions
+  Applying PCA (target: 100 components)...
+    PCA: 100 components (explained variance: 85.2%)
+  ✓ Features scaled (mean=0, std=1)
+
+🤖 MODEL TRAINING
+
+→ Training Logistic (C=0.01)...
+  ✓ Logistic (C=0.01): CV Acc = 0.892 | F1 = 0.889 | Time: 1.2s
+
+→ Training Logistic (C=0.1)...
+  ✓ Logistic (C=0.1): CV Acc = 0.918 | F1 = 0.915 | Time: 1.1s
+
+→ Training SVM (rbf)...
+  ✓ SVM (C=1.0, rbf): CV Acc = 0.945 | Support vectors: 189 | Time: 2.3s
+
+📊 LEADERBOARD
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━┓
+┃ Model               ┃ CV Accuracy ┃ F1 Score ┃ Precision ┃ Recall ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━┩
+│ SVM (rbf)           │       0.945 │    0.942 │     0.943 │  0.942 │
+│ RF (n=200, d=15)    │       0.938 │    0.935 │     0.936 │  0.935 │
+│ Logistic (C=1.0)    │       0.918 │    0.915 │     0.916 │  0.915 │
+└─────────────────────┴─────────────┴──────────┴───────────┴────────┘
+
+🏆 Best model: SVM (rbf) | CV Accuracy: 0.945
+```
 
 ## Project Structure
 

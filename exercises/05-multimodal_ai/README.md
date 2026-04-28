@@ -1,416 +1,347 @@
-# Exercise 05: PixelSmith — Multimodal AI System
+# Exercise 05: PixelSmith AI — Multimodal Learning System
 
-> **Grand Challenge:** Build a production-grade multimodal AI system processing text, images, and audio with <30s generation time, CLIP score >0.7, and WER <15%.
+> **Learning Goal:** Implement CLIP contrastive learning and image captioning with zero-shot classification  
+> **Prerequisites:** Completed [notes/05-multimodal_ai/](../../notes/05-multimodal_ai/)  
+> **Time Estimate:** 8-10 hours (coding) + 2 hours (experimentation)  
+> **Difficulty:** ⭐⭐⭐⭐ Advanced
 
-**Scaffolding Level:** 🔴 Minimal (demonstrate independence)
-
----
-
-## Objective
-
-Implement a complete multimodal AI system with production patterns:
-- **CLIP** for text-image similarity and zero-shot classification
-- **Whisper** for automatic speech recognition
-- **Stable Diffusion** for text-to-image generation
-- **BLIP** for image captioning
-- Multimodal feature extraction and fusion
-- Flask API with multiple endpoints
-- Prometheus monitoring and MLflow tracking
-- Docker deployment with GPU support
+> **Note:** This exercise focuses on core multimodal AI implementation. Infrastructure files (Docker, Makefile, monitoring) have been removed to streamline learning. For production deployment patterns, see exercises 06-07 (AI Infrastructure & DevOps).
 
 ---
 
-## System Architecture
+## 🎯 **What You'll Implement**
 
-### Supported Modalities
+Starting from function stubs and inline TODOs, you'll build a complete vision-language system with:
 
-1. **Text Processing**
-   - CLIP text embeddings
-   - Text-image similarity scoring
-   - Zero-shot classification
+### **Core Implementation (8-10 hours)**
 
-2. **Image Processing**
-   - CLIP image embeddings
-   - Image captioning (BLIP)
-   - Text-to-image generation (Stable Diffusion)
-   - Image search
+| File | What You Implement | TODOs | Time |
+|------|-------------------|-------|------|
+| `src/features.py` | Image preprocessing, text tokenization, data loading | 7 methods | 2.5-3h |
+| `src/models.py` | CLIP similarity, zero-shot, captioning, evaluation | 8 methods | 4-5h |
+| `src/models.py` | ExperimentRunner for model comparison | 4 methods | 1h |
+| `main.py` | Zero-shot demo, captioning demo | 2 sections | 30-60min |
 
-3. **Audio Processing**
-   - Speech-to-text (Whisper)
-   - Audio feature extraction
-   - Language detection
+**Interactive Experience:**
+- ✅ See CLIP similarity scores immediately after computation
+- ✅ Watch zero-shot classification probabilities in real-time
+- ✅ Generate image captions with instant feedback
+- ✅ Compare models with automatic leaderboards
+- ✅ Rich console output with colors, tables, and metrics
 
-### Model Details
-
-| Model | Task | Size | Device |
-|-------|------|------|--------|
-| CLIP ViT-B/32 | Text-Image Similarity | ~350MB | CPU/GPU |
-| Whisper Base | Speech Recognition | ~140MB | CPU/GPU |
-| Stable Diffusion v1.5 | Text-to-Image | ~4GB | GPU |
-| BLIP Base | Image Captioning | ~990MB | CPU/GPU |
+**Total:** 8-10 hours of focused multimodal AI coding
 
 ---
 
-## Project Structure
+## 🎓 **What You'll Learn**
 
-```
-exercises/05-multimodal_ai/
-├── src/
-│   ├── __init__.py              # Package exports
-│   ├── utils.py                 # Logging, config, file handling
-│   ├── data.py                  # Multimodal data loaders
-│   ├── features.py              # Feature extraction & fusion
-│   ├── evaluate.py              # Evaluation metrics
-│   ├── monitoring.py            # Prometheus & MLflow
-│   ├── api.py                   # Flask REST API
-│   └── models/
-│       ├── __init__.py
-│       ├── clip.py              # CLIP model wrapper
-│       ├── whisper.py           # Whisper model wrapper
-│       ├── image_gen.py         # Stable Diffusion wrapper
-│       └── image_caption.py     # BLIP model wrapper
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py              # Pytest fixtures
-│   ├── test_clip.py             # CLIP tests
-│   ├── test_whisper.py          # Whisper tests
-│   ├── test_image_gen.py        # Generation tests
-│   └── test_api.py              # API endpoint tests
-├── config.yaml                  # System configuration
-├── requirements.txt             # Python dependencies
-├── Dockerfile                   # Multi-stage Docker build
-├── docker-compose.yml           # Service orchestration
-├── prometheus.yml               # Monitoring config
-├── Makefile                     # Build automation
-└── README.md                    # This file
-```
+### **Vision-Language Concepts**
+- 🎯 **Zero-shot learning**: Classify images into ANY categories without task-specific training
+- 🔗 **Contrastive learning**: Pull matched image-text pairs together, push unmatched apart
+- 🧠 **Cross-attention**: Decoder attends to image features while generating captions
+- 📐 **Joint embedding space**: Map images and text to shared representation space
+- 🌐 **Vision Transformer (ViT)**: Patch-based image encoding for transformer models
+
+### **Evaluation Metrics**
+- **CLIP Score**: Image-text alignment quality (cosine similarity > 0.7)
+- **T2I/I2T Accuracy**: Text/Image retrieval accuracy (target: > 70%)
+- **BLEU**: N-gram overlap with reference captions (target: > 0.3)
+- **CIDEr**: Consensus-based caption quality (target: > 1.0)
+- **ROUGE-L**: Longest common subsequence (target: > 0.5)
 
 ---
 
-## Setup
+## 🚀 **Quick Start**
 
-### Local Development
+### **1. Setup Environment**
 
-**Unix/macOS/WSL:**
-```bash
-chmod +x setup.sh
-./setup.sh
-source venv/bin/activate
-```
-
-**Windows PowerShell:**
+**PowerShell (Windows):**
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 .\setup.ps1
 .\venv\Scripts\Activate.ps1
 ```
 
-### Docker Deployment
-
-**CPU-only:**
+**Bash (Linux/Mac/WSL):**
 ```bash
-docker-compose up pixelsmith-api
+chmod +x setup.sh
+./setup.sh
+source venv/bin/activate
 ```
 
-**GPU-enabled (requires NVIDIA Docker):**
+### **2. Run Interactive Demo**
+
 ```bash
-docker-compose up pixelsmith-gpu
+python main.py
 ```
 
-**With monitoring (Prometheus + Grafana):**
-```bash
-docker-compose up
+**Expected output (after implementing TODOs):**
+```
+🔧 PREPROCESSING SETUP
+  ✓ Image transform built: size=224, augment=False, normalize=True
+
+🎯 ZERO-SHOT CLASSIFICATION DEMO
+  Results:
+┌─────────────────────────────┬─────────────┐
+│ Label                       │ Probability │
+│ a dog playing on the beach  │ 0.82        │
+│ a dog                       │ 0.65        │
+│ a beach                     │ 0.58        │
+└─────────────────────────────┴─────────────┘
+
+📝 IMAGE CAPTIONING DEMO
+  📷 beach.jpg
+  💬 a beautiful beach with turquoise water and white sand
+
+🤖 MODEL COMPARISON
+📊 CLIP LEADERBOARD
+┌─────────────────┬──────────────┬──────────────┬──────────────┐
+│ Model           │ T2I Accuracy │ I2T Accuracy │ Matched Sim  │
+│ CLIP-ViT-B/16   │ 78.1%        │ 76.3%        │ 0.812        │
+│ CLIP-ViT-B/32   │ 75.2%        │ 72.8%        │ 0.768        │
+└─────────────────┴──────────────┴──────────────┴──────────────┘
+
+🏆 Best CLIP: CLIP-ViT-B/16 | T2I: 78.1%
 ```
 
 ---
 
-## API Endpoints
+## 📋 **Implementation Guide**
 
-### 1. Text-Image Similarity
-Compute CLIP similarity between text and image.
+### **Phase 1: Image Preprocessing (45-60 min)**
 
-**Endpoint:** `POST /similarity`
+**File:** `src/features.py` → `ImagePreprocessor` class
 
-**Request:**
-```bash
-curl -X POST http://localhost:5000/similarity \
-  -F "text=a red car on a highway" \
-  -F "image=@car.jpg"
-```
+**TODO 1: Build Transform Pipeline (20-30 min)**
+- Create transform list with augmentation or inference transforms
+- Add ToTensor and ImageNet normalization
+- Key: RandomResizedCrop for augmentation, CenterCrop for inference
 
-**Response:**
-```json
-{
-  "similarity": 0.82,
-  "text": "a red car on a highway",
-  "threshold": 0.7
-}
-```
+**TODO 2-3: Preprocess Images (25 min total)**
+- Load and convert images to RGB
+- Apply transforms and stack into batches
 
----
-
-### 2. Speech-to-Text
-Transcribe audio to text using Whisper.
-
-**Endpoint:** `POST /transcribe`
-
-**Request:**
-```bash
-curl -X POST http://localhost:5000/transcribe \
-  -F "audio=@speech.wav"
-```
-
-**Response:**
-```json
-{
-  "text": "Hello, this is a test transcription.",
-  "language": "en",
-  "duration": 3.5
-}
-```
-
----
-
-### 3. Text-to-Image Generation
-Generate images from text prompts using Stable Diffusion.
-
-**Endpoint:** `POST /generate`
-
-**Request:**
-```bash
-curl -X POST http://localhost:5000/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "a beautiful sunset over mountains",
-    "negative_prompt": "blurry, low quality",
-    "num_inference_steps": 50,
-    "guidance_scale": 7.5,
-    "width": 512,
-    "height": 512,
-    "seed": 42
-  }' \
-  --output generated.png
-```
-
-**Response:** PNG image file
-
----
-
-### 4. Image Captioning
-Generate captions for images using BLIP.
-
-**Endpoint:** `POST /caption`
-
-**Request:**
-```bash
-curl -X POST http://localhost:5000/caption \
-  -F "image=@landscape.jpg"
-```
-
-**Response:**
-```json
-{
-  "caption": "a beautiful mountain landscape with trees and a lake"
-}
-```
-
----
-
-### 5. Multimodal Search
-Search using text, image, or audio queries.
-
-**Endpoint:** `POST /search`
-
-**Request:**
-```bash
-curl -X POST http://localhost:5000/search \
-  -F "text=mountain landscape" \
-  -F "image=@query.jpg"
-```
-
-**Response:**
-```json
-{
-  "results": [
-    {"id": 1, "score": 0.85, "type": "image"},
-    {"id": 2, "score": 0.78, "type": "text"}
-  ],
-  "query_modalities": ["text", "image"]
-}
-```
-
----
-
-## Performance Metrics
-
-### Success Criteria
-
-| Metric | Target | Measured |
-|--------|--------|----------|
-| CLIP Score | >0.7 | ✓ |
-| Word Error Rate | <15% | ✓ |
-| Caption BLEU | >0.3 | ✓ |
-| Generation Time | <30s | ✓ |
-| API Latency (p99) | <500ms | ✓ |
-
-### Monitoring
-
-**Prometheus Metrics:**
-- Request count by endpoint and modality
-- Request duration histograms
-- Active request gauges
-- Model load times
-- CLIP score distribution
-
-**MLflow Tracking:**
-- Model parameters
-- Evaluation metrics
-- Generated artifacts
-
-**Access Metrics:**
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/admin)
-- MLflow UI: http://localhost:5001
-
----
-
-## Configuration
-
-Edit `config.yaml` to customize:
-
-```yaml
-models:
-  clip:
-    model_name: "openai/clip-vit-base-patch32"
-    device: "cuda"  # or "cpu"
-  
-  whisper:
-    model_name: "openai/whisper-base"
-    device: "cuda"
-
-  stable_diffusion:
-    model_name: "runwayml/stable-diffusion-v1-5"
-    num_inference_steps: 50
-    guidance_scale: 7.5
-
-image:
-  max_width: 512
-  max_height: 512
-  max_file_size_mb: 10
-
-audio:
-  sample_rate: 16000
-  max_duration_sec: 30
-
-thresholds:
-  clip_score_min: 0.7
-  wer_max: 0.15
-```
-
----
-
-## Testing
-
-**Run all tests:**
-```bash
-make test
-```
-
-**Run fast tests only:**
-```bash
-make test-fast
-```
-
-**Test coverage:**
-```bash
-pytest tests/ --cov=src --cov-report=html
-open htmlcov/index.html
-```
-
----
-
-## Development Commands
-
-```bash
-# Install dependencies
-make install
-
-# Format code
-make format
-
-# Run linters
-make lint
-
-# Run API locally
-make run
-
-# Clean generated files
-make clean
-
-# Docker build
-make docker-build
-
-# Start services
-make docker-up
-
-# View logs
-make docker-logs
-```
-
----
-
-## Concepts Covered
-
-From [notes/05-multimodal_ai/](../../notes/05-multimodal_ai/):
-- Vision Transformers and CLIP embeddings
-- Diffusion models and Stable Diffusion
-- Speech recognition with Whisper
-- Image captioning with BLIP
-- Multimodal feature fusion
-- Production API design
-- Model monitoring and observability
-
----
-
-## Troubleshooting
-
-### Out of Memory (GPU)
+**Test:**
 ```python
-# In config.yaml, reduce batch size or enable CPU offload
-models:
-  stable_diffusion:
-    device: "cpu"  # Use CPU instead
-```
-
-### Slow Generation
-```bash
-# Reduce inference steps
-{
-  "num_inference_steps": 20  # Default: 50
-}
-```
-
-### Model Download Issues
-```bash
-# Set HuggingFace cache directory
-export HF_HOME=/path/to/large/disk
+from src.features import ImagePreprocessor
+preprocessor = ImagePreprocessor(image_size=224, normalize=True)
+tensor = preprocessor.preprocess("test.jpg")
+print(f"Shape: {tensor.shape}")  # Should be [3, 224, 224]
 ```
 
 ---
 
-## Resources
+### **Phase 2: Text Tokenization (40-50 min)**
 
-**Concept Review:**
+**File:** `src/features.py` → `TextTokenizer` class
+
+**TODO 4: Tokenize Text (25-35 min)**
+- Lowercase and split text
+- Add [SOS] and [EOS] tokens
+- Pad to max_length (77 for CLIP)
+- Create attention mask (1 for real tokens, 0 for padding)
+
+**TODO 5: Batch Tokenization (15 min)**
+- Tokenize multiple texts and stack masks
+
+**Key concept:** Attention masks tell the model which tokens to process
+
+---
+
+### **Phase 3: Data Loading (40-50 min)**
+
+**File:** `src/features.py` → `MultimodalDataLoader` class
+
+**TODO 6: Load Paired Data (40-50 min)**
+- Validate image-text alignment
+- Check file existence and handle corrupt images
+- Return valid image-text pairs
+
+**TODO 7: Create Batches (25-30 min)**
+- Stack images and masks into batches
+- Keep texts as lists for readability
+
+---
+
+### **Phase 4: CLIP Model (2.5-3 hours)**
+
+**File:** `src/models.py` → `CLIPModel` class
+
+**TODO 8: Compute Similarity (45-60 min)**
+- Process images and text with CLIP
+- Extract and normalize embeddings
+- Compute cosine similarity: `text_embeds @ image_embeds.T`
+
+**TODO 9: Zero-Shot Classification (30-45 min)**
+- Process image with multiple text labels
+- Apply softmax to get probabilities
+- Sort results by probability
+
+**TODO 10: Evaluate CLIP (60-90 min)**
+- Compute similarity matrix for test set
+- Calculate T2I accuracy (text retrieves correct image)
+- Calculate I2T accuracy (image retrieves correct text)
+- Compute mean matched similarity
+
+**Success criteria:**
+- Similarity > 0.7 for matched pairs
+- T2I/I2T accuracy > 70%
+
+---
+
+### **Phase 5: Image Captioning (2-2.5 hours)**
+
+**File:** `src/models.py` → `ImageCaptioningModel` class
+
+**TODO 11: Generate Caption (30-45 min)**
+- Load BLIP model
+- Generate with beam search
+- Decode tokens to text
+
+**TODO 12: Evaluate Captioning (90 min)**
+- Generate captions for test images
+- Compute BLEU, CIDEr, ROUGE-L metrics
+- Install: `pip install nltk pycocoevalcap rouge`
+
+**Success criteria:**
+- BLEU > 0.3
+- CIDEr > 1.0
+- ROUGE-L > 0.5
+
+---
+
+### **Phase 6: Experiment Runner (1 hour)**
+
+**File:** `src/models.py` → `ExperimentRunner` class
+
+**TODO 13-16: Experiment Framework (60 min)**
+- Run CLIP experiments and compare models
+- Run caption experiments and compare models
+- Print leaderboards sorted by metrics
+- Color-code results (green for good scores)
+
+---
+
+### **Phase 7: Demos (30-60 min)**
+
+**File:** `main.py`
+
+**TODO 17: Zero-Shot Demo (20-30 min)**
+- Create CLIP model and candidate labels
+- Run classification and print results table
+- Explain zero-shot learning
+
+**TODO 18: Captioning Demo (20-30 min)**
+- Create captioning model
+- Generate captions for demo images
+- Explain evaluation metrics
+
+---
+
+## 📊 **Success Criteria**
+
+Your implementation is successful when:
+
+### **CLIP**
+- [x] Similarity scores > 0.7 for matched pairs
+- [x] T2I/I2T accuracy > 70%
+- [x] Zero-shot works with novel categories
+- [x] Immediate feedback shows scores
+
+### **Captioning**
+- [x] BLEU > 0.3, CIDEr > 1.0, ROUGE-L > 0.5
+- [x] Captions are fluent and descriptive
+- [x] Metrics shown immediately
+
+### **System**
+- [x] All preprocessing works correctly
+- [x] Models load without errors
+- [x] Leaderboards sort by metrics
+- [x] Colorful console output
+
+---
+
+## 🔬 **Experimentation Ideas**
+
+### **1. Compare CLIP Variants**
+- `clip-vit-base-patch32` (fastest)
+- `clip-vit-base-patch16` (better quality)
+- `clip-vit-large-patch14` (best quality)
+
+**Question:** How much does model size improve accuracy?
+
+### **2. Compare Captioning Models**
+- `blip-image-captioning-base`
+- `blip-image-captioning-large`
+- `microsoft/git-base`
+
+**Question:** Best BLEU vs. speed tradeoff?
+
+### **3. Temperature Tuning**
+Try 0.7, 1.0, 1.5 for caption generation
+
+**Question:** How does temperature affect diversity?
+
+---
+
+## 📚 **Resources**
+
+### **Papers**
+- **CLIP**: [Learning Transferable Visual Models](https://arxiv.org/abs/2103.00020)
+- **BLIP**: [Bootstrapping Language-Image Pre-training](https://arxiv.org/abs/2201.12086)
+- **ViT**: [An Image is Worth 16x16 Words](https://arxiv.org/abs/2010.11929)
+
+### **Documentation**
+- [HuggingFace CLIP](https://huggingface.co/docs/transformers/model_doc/clip)
+- [HuggingFace BLIP](https://huggingface.co/docs/transformers/model_doc/blip)
+- [PyTorch Vision](https://pytorch.org/vision/stable/transforms.html)
+
+### **Internal Notes**
 - [notes/05-multimodal_ai/](../../notes/05-multimodal_ai/)
-- [CLIP Paper](https://arxiv.org/abs/2103.00020)
-- [Stable Diffusion](https://huggingface.co/runwayml/stable-diffusion-v1-5)
-- [Whisper Paper](https://arxiv.org/abs/2212.04356)
-
-**Model Documentation:**
-- [HuggingFace Transformers](https://huggingface.co/docs/transformers)
-- [HuggingFace Diffusers](https://huggingface.co/docs/diffusers)
 
 ---
 
-**Status:** ✅ Complete - Production-ready multimodal AI system  
-**Last Updated:** April 28, 2026
+## 🐛 **Troubleshooting**
+
+### **Model Downloads**
+```bash
+# Set proxy if needed
+export HF_ENDPOINT=https://hf-mirror.com
+```
+
+### **GPU Memory**
+```python
+# Use CPU if insufficient GPU memory
+config = ModelConfig(device="cpu", batch_size=4)
+```
+
+### **Missing Dependencies**
+```bash
+python -c "import nltk; nltk.download('punkt')"
+pip install git+https://github.com/tylin/coco-caption.git
+```
+
+---
+
+## ✅ **Completion Checklist**
+
+- [ ] `src/features.py`: 7 TODOs (preprocessing, tokenization, data loading)
+- [ ] `src/models.py`: 8 model TODOs (CLIP, captioning)
+- [ ] `src/models.py`: 4 ExperimentRunner TODOs (comparison framework)
+- [ ] `main.py`: 2 demos (zero-shot, captioning)
+- [ ] CLIP scores > 0.7, T2I/I2T > 70%
+- [ ] BLEU > 0.3, CIDEr > 1.0
+- [ ] Leaderboards work correctly
+
+**Total time:** 8-10 hours
+
+---
+
+## 🎯 **Next Steps**
+
+1. **Explore Applications**: Image search, clustering, anomaly detection
+2. **Fine-Tune Models**: Domain-specific CLIP/BLIP
+3. **Try New Models**: ALIGN, Florence, LLaVA
+4. **Build Apps**: VQA, image-to-text retrieval, text-to-image generation
+
+**Ready to implement multimodal AI? Start with `src/features.py`! 🚀**

@@ -1,18 +1,28 @@
-"""State preprocessing for AgentAI
+"""State preprocessing and feature engineering for AgentAI
 
-Provides: State normalization, feature scaling, preprocessing pipeline
+This module provides:
+- StatePreprocessor for normalization and scaling (with TODOs)
+- Feature engineering for state representation
+- Immediate feedback during preprocessing
+
+Learning objectives:
+1. Implement state normalization with StandardScaler
+2. Handle continuous vs discrete state spaces
+3. Apply clipping to prevent outliers
+4. See preprocessing statistics immediately
 """
 
 import logging
 from typing import Optional
 
 import numpy as np
+from rich.console import Console
 from sklearn.preprocessing import StandardScaler
 
 from src.utils import validate_positive
 
-
 logger = logging.getLogger("agentai")
+console = Console()
 
 
 class StatePreprocessor:
@@ -22,6 +32,11 @@ class StatePreprocessor:
     - State normalization (zero mean, unit variance)
     - Clipping to prevent outliers
     - Batch processing support
+    
+    Why normalization matters:
+    - Neural networks train faster with normalized inputs
+    - Prevents large state values from dominating gradients
+    - Improves numerical stability
     
     Attributes:
         scaler: Fitted StandardScaler
@@ -52,164 +67,116 @@ class StatePreprocessor:
         logger.info(f"Initialized StatePreprocessor (clip_range={clip_range})")
     
     def fit(self, states: np.ndarray) -> "StatePreprocessor":
-        """Fit scaler on training states.
-        
-        Args:
-            states: Array of states (n_samples, n_features)
-        
-        Returns:
-            Self for method chaining
-        
-        Raises:
-            ValueError: If states array is invalid
-        
-        Example:
-            >>> preprocessor.fit(training_states)
         """
-        if states.ndim != 2:
-            raise ValueError(f"States must be 2D array, got shape {states.shape}")
-        
-        if len(states) == 0:
-            raise ValueError("Cannot fit on empty states array")
-        
-        logger.info(f"Fitting scaler on {len(states)} states")
-        
-        try:
-            self.scaler.fit(states)
-            self.is_fitted = True
-            
-            logger.info(
-                f"Scaler fitted - Mean: {self.scaler.mean_}, "
-                f"Std: {self.scaler.scale_}"
-            )
-            
-            return self
-            
-        except Exception as e:
-            logger.error(f"Scaler fitting failed: {e}")
-            raise RuntimeError(f"Failed to fit scaler: {e}") from e
+        TODO: Fit scaler on training states
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement scaler fitting")
     
     def transform(
         self,
         states: np.ndarray,
         clip: bool = True
     ) -> np.ndarray:
-        """Transform states using fitted scaler.
-        
-        Args:
-            states: States to transform (can be single state or batch)
-            clip: Whether to clip values to [-clip_range, +clip_range]
-        
-        Returns:
-            Normalized states
-        
-        Raises:
-            RuntimeError: If scaler not fitted
-            ValueError: If states shape is invalid
-        
-        Example:
-            >>> normalized = preprocessor.transform(state)
         """
-        if not self.is_fitted:
-            raise RuntimeError("Scaler not fitted. Call fit() first.")
-        
-        # Handle single state (1D array)
-        single_state = False
-        if states.ndim == 1:
-            states = states.reshape(1, -1)
-            single_state = True
-        
-        if states.ndim != 2:
-            raise ValueError(f"States must be 1D or 2D array, got shape {states.shape}")
-        
-        try:
-            # Normalize
-            normalized = self.scaler.transform(states)
-            
-            # Clip outliers
-            if clip:
-                normalized = np.clip(normalized, -self.clip_range, self.clip_range)
-            
-            # Return single state if input was single
-            if single_state:
-                normalized = normalized[0]
-            
-            return normalized
-            
-        except Exception as e:
-            logger.error(f"State transformation failed: {e}")
-            raise RuntimeError(f"Failed to transform states: {e}") from e
+        TODO: Transform states using fitted scaler
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement state transformation")
     
     def fit_transform(
         self,
         states: np.ndarray,
         clip: bool = True
     ) -> np.ndarray:
-        """Fit scaler and transform states in one step.
-        
-        Args:
-            states: States to fit and transform
-            clip: Whether to clip values
-        
-        Returns:
-            Normalized states
-        
-        Example:
-            >>> normalized = preprocessor.fit_transform(training_states)
         """
-        self.fit(states)
-        return self.transform(states, clip=clip)
+        TODO: Fit scaler and transform states in one step
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement fit_transform")
     
     def inverse_transform(self, normalized_states: np.ndarray) -> np.ndarray:
-        """Convert normalized states back to original scale.
-        
-        Args:
-            normalized_states: Normalized states
-        
-        Returns:
-            States in original scale
-        
-        Raises:
-            RuntimeError: If scaler not fitted
-        
-        Example:
-            >>> original = preprocessor.inverse_transform(normalized)
         """
-        if not self.is_fitted:
-            raise RuntimeError("Scaler not fitted. Call fit() first.")
-        
-        # Handle single state
-        single_state = False
-        if normalized_states.ndim == 1:
-            normalized_states = normalized_states.reshape(1, -1)
-            single_state = True
-        
-        try:
-            original = self.scaler.inverse_transform(normalized_states)
-            
-            if single_state:
-                original = original[0]
-            
-            return original
-            
-        except Exception as e:
-            logger.error(f"Inverse transformation failed: {e}")
-            raise RuntimeError(f"Failed to inverse transform: {e}") from e
+        TODO: Convert normalized states back to original scale
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement inverse transform")
     
     def get_params(self) -> dict:
         """Get scaler parameters.
         
         Returns:
-            Dictionary with mean and scale
+            Dictionary with mean and std
         
-        Raises:
-            RuntimeError: If scaler not fitted
+        Example:
+            >>> params = preprocessor.get_params()
+            {"mean": [0.02, 0.01, -0.03, 0.00], "std": [0.52, 0.89, 0.21, 0.95]}
         """
         if not self.is_fitted:
             raise RuntimeError("Scaler not fitted. Call fit() first.")
         
         return {
             "mean": self.scaler.mean_.tolist(),
-            "scale": self.scaler.scale_.tolist(),
-            "clip_range": self.clip_range,
+            "std": self.scaler.scale_.tolist(),
+            "clip_range": self.clip_range
         }
+
+
+class StateEncoder:
+    """Encode categorical or discrete state features.
+    
+    For environments with discrete actions or mixed state spaces.
+    (Optional - not needed for CartPole, but useful for other environments)
+    """
+    
+    def __init__(self, n_categories: int):
+        """Initialize state encoder.
+        
+        Args:
+            n_categories: Number of discrete categories
+        """
+        self.n_categories = n_categories
+    
+    def one_hot_encode(self, state: int) -> np.ndarray:
+        """
+        TODO (Optional): One-hot encode discrete state
+        """
+        # TODO: Your implementation here (optional)
+        raise NotImplementedError("Implement one-hot encoding")
+
+
+class FeatureEngineer:
+    """Engineer features for RL state representation.
+    
+    Provides:
+    - Polynomial features (e.g., x² for nonlinear relationships)
+    - State history (previous N states for temporal context)
+    - Domain-specific features (e.g., angular velocity for pendulum)
+    
+    (Optional - for advanced exercises)
+    """
+    
+    def __init__(self, polynomial_degree: int = 1, history_length: int = 1):
+        """Initialize feature engineer.
+        
+        Args:
+            polynomial_degree: Degree for polynomial features
+            history_length: Number of previous states to include
+        """
+        self.polynomial_degree = polynomial_degree
+        self.history_length = history_length
+        self.state_history = []
+    
+    def add_polynomial_features(self, state: np.ndarray) -> np.ndarray:
+        """
+        TODO (Optional): Add polynomial features
+        """
+        # TODO: Your implementation here (optional)
+        raise NotImplementedError("Implement polynomial features")
+    
+    def add_state_history(self, state: np.ndarray) -> np.ndarray:
+        """
+        TODO (Optional): Add previous states as features
+        """
+        # TODO: Your implementation here (optional)
+        raise NotImplementedError("Implement state history")

@@ -1,25 +1,28 @@
-# Exercise 03: PizzaBot — Agentic AI Production System
+# Exercise 03: PizzaBot AI — LLM Fine-Tuning, RAG, and Prompt Engineering
 
-> **Grand Challenge:** Build Mamma Rosa's PizzaBot achieving 32% conversion rate, $41.80 AOV, <3s p95 latency, <$0.08/conversation, 98% jailbreak resistance.
+> **Grand Challenge:** Build production-quality AI models comparing LoRA fine-tuning, RAG pipelines, and few-shot prompting. Achieve BLEU 0.3+, retrieval accuracy 70%+, and perplexity <50.
 
-**Scaffolding Level:** 🔴 Minimal (demonstrate independence)
+**Scaffolding Level:** 🔴 Minimal (demonstrate independence with inline TODOs)
 
 ---
 
 ## Overview
 
-PizzaBot is a production-ready RAG (Retrieval-Augmented Generation) conversational AI system for pizza ordering. Built with LangChain, ChromaDB, and Flask, it demonstrates enterprise-grade chatbot patterns with vector search, intent detection, and comprehensive monitoring.
+PizzaBot AI is an educational exercise teaching modern LLM techniques through hands-on implementation. You'll build three different AI approaches from scratch and compare them:
 
-### Key Features
+1. **LLM Fine-Tuning** with LoRA/QLoRA (parameter-efficient training)
+2. **RAG Pipeline** with vector search and context injection
+3. **Few-Shot Prompting** with example-based learning
 
-- **RAG Pipeline**: ChromaDB vector database + sentence transformers for semantic search
-- **Conversation Management**: Multi-turn dialogue with state tracking
-- **Intent Detection**: Pattern-based classification for 7 intent types
-- **Order Validation**: Business logic for pizza ordering constraints
-- **Production Monitoring**: Prometheus metrics + MLflow tracking
-- **REST API**: Flask endpoints with CORS, rate limiting
-- **Docker Deployment**: Container orchestration with Prometheus & Grafana
-- **Comprehensive Testing**: 90%+ code coverage with pytest
+All with **immediate console feedback**, **evaluation metrics**, and **plug-and-play comparison**.
+
+### Key Learning Objectives
+
+- 🧠 **LLM Fine-Tuning**: Implement LoRA (Low-Rank Adaptation) for domain adaptation
+- 🔍 **RAG Pipeline**: Build retrieval-augmented generation with ChromaDB/FAISS
+- 📝 **Prompt Engineering**: Master few-shot learning and prompt optimization
+- 📊 **Evaluation**: Measure perplexity, BLEU, ROUGE, and retrieval accuracy
+- 🏆 **Comparison**: Discover which approach works best for pizza ordering
 
 ---
 
@@ -27,55 +30,211 @@ PizzaBot is a production-ready RAG (Retrieval-Augmented Generation) conversation
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      User Interface                      │
-│                    (Chat Client/API)                     │
+│                   Text Input (User Query)                │
 └────────────────────┬────────────────────────────────────┘
                      │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│                   Flask API Layer                        │
-│  POST /chat  │  GET /menu  │  GET /session  │  /metrics │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│                  Chatbot Engine                          │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │   Intent    │  │     RAG      │  │    Order      │  │
-│  │  Detector   │  │   Pipeline   │  │  Validator    │  │
-│  └─────────────┘  └──────────────┘  └───────────────┘  │
-└────────────────────┬────────────────────────────────────┘
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
-┌──────────────────┐  ┌────────────────────┐
-│   Vector DB      │  │    LLM Provider    │
-│   (ChromaDB)     │  │  (OpenAI/Local)    │
-│                  │  │                    │
-│  - Embeddings    │  │  - GPT-3.5-turbo   │
-│  - Semantic      │  │  - Fallback mode   │
-│    Search        │  │                    │
-└──────────────────┘  └────────────────────┘
+      ┌──────────────┴──────────────┬───────────────┐
+      │                             │               │
+      ▼                             ▼               ▼
+┌──────────────┐          ┌──────────────┐   ┌─────────────┐
+│  Fine-Tuned  │          │     RAG      │   │  Few-Shot   │
+│  LLM (LoRA)  │          │   Pipeline   │   │  Prompting  │
+└──────┬───────┘          └──────┬───────┘   └──────┬──────┘
+       │                         │                    │
+       │                    ┌────┴─────┐             │
+       │                    │          │             │
+       │                    ▼          ▼             │
+       │              ┌──────────┐ ┌─────────┐      │
+       │              │ Vector   │ │  LLM    │      │
+       │              │ Database │ │  Base   │      │
+       │              │(Chroma/  │ │ Model   │      │
+       │              │ FAISS)   │ │         │      │
+       │              └──────────┘ └─────────┘      │
+       │                                             │
+       └──────────────────┬──────────────────────────┘
+                          ▼
+              ┌─────────────────────┐
+              │  Evaluation Metrics  │
+              │  BLEU, ROUGE, PPL    │
+              │  Retrieval Accuracy  │
+              └─────────────────────┘
 ```
-
-### RAG Pipeline Flow
-
-1. **Query**: User sends message → Intent detection
-2. **Retrieve**: Query embeddings → ChromaDB search → Top-K relevant docs
-3. **Augment**: Combine retrieved context + conversation history → Build prompt
-4. **Generate**: LLM generates response → Return with metadata
 
 ---
 
-## Concepts Covered
+## Key Concepts
 
-Ch.1-12 from [notes/03-ai/](../../notes/03-ai/):
-- LLM fundamentals, tokenization, context windows
-- Prompt engineering & few-shot learning
-- Vector embeddings & semantic search
-- Agentic patterns (ReAct, Reflection)
-- Safety (jailbreak defense, content filtering)
-- Evaluation, cost analysis, fine-tuning
+### 1. LLM Fine-Tuning with LoRA
+
+**What is LoRA?**
+- Low-Rank Adaptation: Only train 0.1% of model parameters
+- Adds small trainable matrices to frozen LLM weights
+- Quality comparable to full fine-tuning, 10-100x faster
+
+**Why LoRA over Full Fine-Tuning?**
+- **Memory**: 7B model needs 14GB RAM vs. 28GB for full fine-tuning
+- **Speed**: Minutes vs. hours for domain adaptation
+- **Modularity**: Swap LoRA adapters without reloading base model
+
+**QLoRA Enhancement:**
+- Uses 4-bit quantization for even lower memory
+- 7B model runs on 6GB GPU (vs. 14GB with LoRA alone)
+- Minimal quality loss with bitsandbytes quantization
+
+**Implementation in `src/models.py`:**
+```python
+class LLMFineTuner(AIModel):
+    def train(self, train_data, eval_data, config):
+        # 1. Load base model (frozen)
+        # 2. Apply LoRA config (only train q_proj, v_proj)
+        # 3. Fine-tune on pizza ordering examples
+        # 4. Evaluate with perplexity and BLEU
+```
+
+**Time Estimate:** 60-90 minutes  
+**Metrics:** Perplexity (lower better), BLEU (0.3+ target)
+
+---
+
+### 2. RAG (Retrieval-Augmented Generation)
+
+**What is RAG?**
+1. **Retrieve**: Find relevant documents from vector database
+2. **Augment**: Inject documents into prompt context
+3. **Generate**: LLM generates response with grounded info
+
+**Why RAG?**
+- ✅ **No hallucinations**: Facts come from retrieved docs
+- ✅ **No retraining**: Just update document collection
+- ✅ **Explainable**: Can show which docs were used
+- ❌ **Latency**: Retrieval adds 50-200ms
+- ❌ **Context limits**: LLM context window constrains docs
+
+**RAG Pipeline:**
+```
+User Query
+  ↓
+Text Embedding (sentence-transformers)
+  ↓
+Vector Search (ChromaDB/FAISS)
+  ↓
+Top-K Documents Retrieved
+  ↓
+Context Injection (prompt engineering)
+  ↓
+LLM Generation
+  ↓
+Response with Citations
+```
+
+**Vector Database Options:**
+- **ChromaDB**: Easy API, persistent storage, metadata support
+- **FAISS**: Faster for 1M+ docs, more memory efficient
+
+**Implementation in `src/models.py` and `src/features.py`:**
+```python
+class RAGPipeline(AIModel):
+    def train(self, train_data, eval_data, config):
+        # 1. Load LLM and embedding model
+        # 2. Build vector database from training docs
+        # 3. Evaluate retrieval accuracy (70%+ target)
+        # 4. Evaluate generation quality (BLEU, ROUGE)
+
+class VectorDatabase:
+    def create(self, embedding_dim):
+        # ChromaDB or FAISS initialization
+    def add_documents(self, documents, embeddings):
+        # Index documents for semantic search
+    def query(self, query_embedding, top_k):
+        # Return top-k most similar documents
+```
+
+**Time Estimate:** 45-60 minutes  
+**Metrics:** Retrieval accuracy (70%+ target), BLEU, ROUGE-L
+
+---
+
+### 3. Few-Shot Prompting
+
+**What is Few-Shot Learning?**
+- Provide 3-7 example pairs in prompt
+- LLM learns pattern without training
+- Often matches fine-tuning quality!
+
+**Zero-Shot vs. Few-Shot vs. Many-Shot:**
+```
+Zero-Shot:
+  "You are a pizza ordering assistant. User: What pizzas do you have?"
+
+Few-Shot (3 examples):
+  "Example 1: Input: What's on the menu? Output: We have...
+   Example 2: Input: I want pepperoni. Output: Great! That's...
+   Example 3: Input: Delivery time? Output: 30-45 minutes...
+   
+   Now respond: Input: What pizzas do you have?"
+
+Many-Shot (10+ examples):
+  [Same pattern with more examples - hits context limit]
+```
+
+**When to Use Few-Shot?**
+- ✅ **Quick iteration**: No training needed
+- ✅ **Small datasets**: Works with 3-10 examples
+- ✅ **API-based LLMs**: Can't fine-tune GPT-4, use prompting
+- ❌ **Context limits**: Long prompts reduce output space
+- ❌ **Consistency**: Slight variations in phrasing matter
+
+**Implementation in `src/models.py`:**
+```python
+class PromptEngineer(AIModel):
+    def train(self, train_data, eval_data, config):
+        # 1. Select diverse few-shot examples (random or clustering)
+        # 2. Build prompt template with examples
+        # 3. Evaluate on test queries (BLEU, ROUGE)
+
+    def generate(self, prompt, ...):
+        # Inject few-shot examples into prompt
+        # Generate with base LLM (no training)
+```
+
+**Time Estimate:** 30-45 minutes  
+**Metrics:** BLEU, ROUGE-L (compare to fine-tuning)
+
+---
+
+## Evaluation Metrics
+
+### Perplexity (PPL)
+- **What**: Measures language model "confusion"
+- **Formula**: `PPL = exp(average_loss)`
+- **Target**: <50 for domain-specific tasks, <30 is excellent
+- **Used for**: Fine-tuned LLMs only (not RAG/few-shot)
+
+### BLEU Score
+- **What**: Precision-based metric (n-gram overlap)
+- **Range**: 0-1 (higher better)
+- **Target**: 0.3+ for conversational AI, 0.5+ for translation
+- **Used for**: All models (fine-tuning, RAG, few-shot)
+- **Limitation**: Favors exact matches, misses paraphrases
+
+### ROUGE-L Score
+- **What**: Recall-based metric (longest common subsequence)
+- **Range**: 0-1 (higher better)
+- **Target**: 0.4+ for summarization, 0.3+ for Q&A
+- **Used for**: All models, better for longer outputs
+- **Limitation**: Doesn't consider word order
+
+### Retrieval Accuracy
+- **What**: % of queries where expected doc is in top-k results
+- **Target**: 70%+ at k=5, 85%+ at k=10
+- **Used for**: RAG pipeline evaluation
+- **Formula**: `hits / total_queries`
+
+---
+
+## Infrastructure Note
+
+> **Note:** This exercise focuses on AI model implementation. Infrastructure files (Docker, Makefile, etc.) have been intentionally removed to keep the exercise focused on core LLM concepts. For production deployment patterns, see `exercises/01-ml/` which includes containerization and orchestration examples.
 
 ---
 
@@ -84,387 +243,186 @@ Ch.1-12 from [notes/03-ai/](../../notes/03-ai/):
 ```
 exercises/03-ai/
 ├── src/
-│   ├── __init__.py          # Package exports
-│   ├── api.py               # Flask API endpoints
-│   ├── models.py            # ChatbotEngine, IntentDetector, OrderValidator
-│   ├── rag.py               # RAG pipeline (retrieve, augment, generate)
-│   ├── embeddings.py        # EmbeddingManager + ChromaDB
-│   ├── data.py              # Knowledge base loader
-│   ├── evaluate.py          # Metrics: intent accuracy, latency, cost
-│   ├── monitoring.py        # Prometheus metrics decorators
-│   └── utils.py             # Logging, config, conversation tracking
-├── tests/
-│   ├── test_embeddings.py   # Vector DB tests
-│   ├── test_rag.py          # RAG pipeline tests
-│   ├── test_models.py       # Intent + validation tests
-│   ├── test_api.py          # API endpoint tests
-│   └── conftest.py          # Test fixtures
-├── knowledge_base/
-│   ├── menu.json            # Pizza menu (8 varieties)
-│   ├── faqs.txt             # 15 Q&A pairs
-│   └── policies.txt         # Delivery, refund, privacy policies
+│   ├── models.py           # LLMFineTuner, RAGPipeline, PromptEngineer (TODOs)
+│   ├── features.py         # TextPreprocessor, EmbeddingGenerator, VectorDatabase (TODOs)
+│   ├── utils.py            # Logging, config helpers
+│   └── __init__.py         # Package exports
+├── main.py                 # Interactive demo comparing all approaches
+├── requirements.txt        # Dependencies (transformers, sentence-transformers, etc.)
+├── README.md               # This file
 ├── data/
-│   └── chroma_db/           # Persistent vector database
-├── logs/
-│   ├── pizzabot.log         # Application logs
-│   └── conversations/       # Conversation history JSONs
-├── models/                  # Saved models (if using local LLM)
-├── config.yaml              # Centralized configuration
-├── requirements.txt         # Python dependencies
-├── Dockerfile               # Container definition
-├── docker-compose.yml       # Multi-container orchestration
-├── prometheus.yml           # Prometheus scrape config
-├── Makefile                 # Build automation
-└── README.md                # This file
+│   └── vector_db/          # Persisted ChromaDB/FAISS index
+├── knowledge_base/
+│   └── pizza_menu.txt      # Pizza ordering knowledge
+└── _REFERENCE/
+    ├── models_complete.py  # Solution reference (PizzaBot chatbot)
+    └── api_complete.py     # API reference (Flask endpoints)
 ```
 
 ---
 
 ## Setup
 
-### Prerequisites
+### 1. Install Dependencies
 
-- Python 3.11+
-- (Optional) OpenAI API key for GPT-3.5-turbo (fallback mode available)
-- Docker & Docker Compose (for containerized deployment)
-
-### Installation
-
-**Unix/macOS/WSL:**
 ```bash
-chmod +x setup.sh
-./setup.sh
-source venv/bin/activate
-```
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-**Windows PowerShell:**
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-.\setup.ps1
-.\venv\Scripts\Activate.ps1
-```
-
-**Manual Install:**
-```bash
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Install packages
 pip install -r requirements.txt
 ```
 
-### Environment Configuration
+**Key Dependencies:**
+- `transformers` (4.30+): HuggingFace LLMs
+- `peft` (0.4+): LoRA fine-tuning
+- `sentence-transformers` (2.2+): Embeddings
+- `chromadb` (0.4+): Vector database
+- `nltk` (3.8+): BLEU score
+- `rouge-score` (0.1+): ROUGE metrics
+- `rich` (13.0+): Beautiful console output
 
-Create `.env` file (optional for OpenAI):
-```bash
-OPENAI_API_KEY=sk-your-api-key-here
+### 2. Download NLTK Data
+
+```python
+import nltk
+nltk.download('stopwords')
+nltk.download('punkt')
 ```
 
-### Initialize Vector Database
+### 3. Run Interactive Demo
 
 ```bash
-make init-db
-# Or manually:
-python -c "from src.data import DataLoader; from src.embeddings import EmbeddingManager; ..."
+python main.py
 ```
 
 ---
 
-## Usage
+## Implementation Guide
 
-### 1. Run Development Server
+### Order of Implementation (Recommended)
 
-```bash
-# Using Makefile
-make run
+#### Phase 1: Text Processing & Embeddings (1-1.5 hours)
+1. `src/features.py` → `TextPreprocessor.preprocess()` [20 min]
+2. `src/features.py` → `TextPreprocessor.preprocess_batch()` [10 min]
+3. `src/features.py` → `EmbeddingGenerator.load()` [10 min]
+4. `src/features.py` → `EmbeddingGenerator.encode()` [5 min]
+5. `src/features.py` → `EmbeddingGenerator.encode_batch()` [10 min]
 
-# Or directly
-python -m src.api
-```
+**Test:** Run `main.py` — should see preprocessing and embedding generation
 
-Server runs on `http://localhost:5000`
+#### Phase 2: Vector Database (1-1.5 hours)
+6. `src/features.py` → `VectorDatabase.create()` [15 min]
+7. `src/features.py` → `VectorDatabase.add_documents()` [20 min]
+8. `src/features.py` → `VectorDatabase.query()` [20 min]
+9. `src/features.py` → `VectorDatabase.query_text()` [5 min]
+10. `src/features.py` → `VectorDatabase.evaluate_retrieval()` [25 min]
 
-### 2. Test API
+**Test:** Run `main.py` — should see retrieval accuracy
 
-**Health Check:**
-```bash
-curl http://localhost:5000/health
-```
+#### Phase 3: AI Models (2-3 hours)
+11. `src/models.py` → `PromptEngineer.train()` [30 min] ← Start here (easiest)
+12. `src/models.py` → `PromptEngineer.generate()` [10 min]
+13. `src/models.py` → `RAGPipeline.train()` [45 min]
+14. `src/models.py` → `RAGPipeline.generate()` [15 min]
+15. `src/models.py` → `LLMFineTuner.train()` [60 min] ← Most complex
+16. `src/models.py` → `LLMFineTuner.generate()` [10 min]
 
-**Chat Endpoint:**
-```bash
-curl -X POST http://localhost:5000/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "I want to order a pepperoni pizza",
-    "session_id": "user123"
-  }'
-```
+**Test:** Run `main.py` — should see each model train and generate
 
-**Get Menu:**
-```bash
-curl http://localhost:5000/menu
-```
+#### Phase 4: Experiment Framework (30 min)
+17. `src/models.py` → `ExperimentRunner.run_experiment()` [10 min]
+18. `src/models.py` → `ExperimentRunner.print_leaderboard()` [10 min]
 
-**Get Session:**
-```bash
-curl http://localhost:5000/session/user123
-```
-
-### 3. Example Conversations
-
-**Order Flow:**
-```
-User: Hello!
-Bot:  Hi! Welcome to Mamma Rosa's Pizza. How can I help you today?
-
-User: What pizzas do you have?
-Bot:  We have 8 delicious options: Margherita ($12.99), Pepperoni ($14.99), 
-      Vegetarian ($13.99), Hawaiian ($14.99), Meat Lovers ($16.99), BBQ Chicken 
-      ($15.99), Four Cheese ($14.99), and Spicy Italian ($15.99). All available 
-      in small, medium, or large. What would you like?
-
-User: I'll take a large pepperoni
-Bot:  Great choice! One large pepperoni pizza is $14.99. Could you please 
-      provide your delivery address?
-
-User: 123 Main Street, Springfield
-Bot:  Perfect! Your order for one large pepperoni pizza will be delivered to 
-      123 Main Street, Springfield. Total: $14.99. Estimated delivery: 30-45 
-      minutes. Confirm order?
-
-User: Yes
-Bot:  Order confirmed! Your pizza is being prepared. You can track your order 
-      at... Thank you for choosing Mamma Rosa's!
-```
-
-### 4. Docker Deployment
-
-**Build & Run:**
-```bash
-make docker-build
-make docker-up
-```
-
-**View Logs:**
-```bash
-make docker-logs
-```
-
-**Access Services:**
-- PizzaBot API: http://localhost:5000
-- Prometheus: http://localhost:9091
-- Grafana: http://localhost:3000 (admin/admin)
-
-**Stop Services:**
-```bash
-make docker-down
-```
+**Test:** Run `main.py` — should see full pipeline with leaderboard
 
 ---
 
-## Testing
+## Common Pitfalls & Hints
 
-### Run Tests
+### Memory Issues (CUDA Out of Memory)
+```python
+# Solution 1: Reduce batch size
+config = AIModelConfig(batch_size=4)  # Default: 8
 
-```bash
-# All tests with coverage
-make test
+# Solution 2: Use gradient checkpointing
+model.gradient_checkpointing_enable()
 
-# Specific test file
-pytest tests/test_rag.py -v
-
-# With coverage report
-pytest --cov=src --cov-report=html
+# Solution 3: Use QLoRA instead of LoRA
+use_qlora=True  # 4-bit quantization
 ```
 
-### Test Coverage Target
+### Slow Training
+```python
+# Use smaller model for testing
+base_model="gpt2"  # 124M params vs. gpt2-large (774M)
 
-- **Overall**: 90%+
-- **Core modules** (models.py, rag.py, api.py): 95%+
+# Reduce epochs
+max_epochs=3  # Default: 5
 
----
-
-## Monitoring
-
-### Prometheus Metrics
-
-Access metrics at `http://localhost:5000/metrics`
-
-**Key Metrics:**
-- `pizzabot_conversations_total` - Total conversations (by status)
-- `pizzabot_messages_total` - Messages processed (by role, intent)
-- `pizzabot_intent_predictions_total` - Intent classifications
-- `pizzabot_retrieval_latency_seconds` - RAG retrieval latency
-- `pizzabot_generation_latency_seconds` - LLM generation latency
-- `pizzabot_api_latency_seconds` - API request latency
-- `pizzabot_tokens_used_total` - Token consumption
-- `pizzabot_errors_total` - Errors (by type, component)
-
-### Grafana Dashboards
-
-1. Open http://localhost:3000
-2. Add Prometheus data source: http://prometheus:9090
-3. Import dashboard or create panels:
-   - Conversation volume over time
-   - Intent distribution pie chart
-   - Latency percentiles (p50, p95, p99)
-   - Error rate
-   - Token usage trends
-
-### MLflow Tracking
-
-```bash
-mlflow ui --backend-store-uri file:./logs/mlruns
+# Use CPU for quick testing
+use_gpu=False
 ```
 
-Access at `http://localhost:5001`
+### Low BLEU Scores
+- **Expected**: BLEU 0.2-0.4 for conversational AI (not translation)
+- **Improve**: More training data, longer training, better examples
+- **Check**: Are outputs in right format? Tokenization correct?
 
----
-
-## Configuration
-
-Edit `config.yaml` to customize:
-
-```yaml
-models:
-  embedding_model: "all-MiniLM-L6-v2"  # Sentence transformer
-  llm_model: "gpt-3.5-turbo"           # LLM for generation
-
-rag:
-  top_k: 3                              # Docs to retrieve
-  similarity_threshold: 0.7             # Min similarity score
-
-generation:
-  max_tokens: 500
-  temperature: 0.7
-
-conversation:
-  max_history: 10                       # Messages in context
-
-intents:
-  confidence_threshold: 0.6
-  supported_intents:
-    - order_pizza
-    - check_menu
-    - ask_question
-    - track_order
-    - cancel_order
-    - complain
-    - general_chat
-```
+### Poor Retrieval Accuracy
+- **Expected**: 60-80% at k=5 for small datasets
+- **Improve**: Better embedding model (all-mpnet-base-v2), more docs
+- **Check**: Are test queries semantically similar to training docs?
 
 ---
 
 ## Success Criteria
 
-### Performance Metrics
+**Minimum Viable Product (MVP):**
+- ✅ All TODOs implemented and working
+- ✅ BLEU ≥ 0.25 for at least one model
+- ✅ Retrieval accuracy ≥ 60% (RAG)
+- ✅ Leaderboard shows all 3 approaches
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Intent Accuracy | >90% | Evaluate on test set |
-| Response Relevance | >85% | Avg similarity of retrieved docs |
-| P95 Latency | <500ms | End-to-end API response |
-| Cost per Conversation | <$0.08 | Tokens × pricing |
-| Uptime | >99.5% | Docker health checks |
-
-### Business Metrics (Production)
-
-- Conversion rate: 32%+ (orders / conversations)
-- Average Order Value (AOV): $41.80+
-- Customer satisfaction: 4.5+/5 (post-order survey)
-- Jailbreak resistance: 98%+ (safety testing)
+**Stretch Goals:**
+- 🎯 BLEU ≥ 0.35 for fine-tuned model
+- 🎯 Retrieval accuracy ≥ 75%
+- 🎯 Perplexity < 30 for fine-tuned model
+- 🎯 Interactive demo works smoothly
 
 ---
 
-## Troubleshooting
+## References
 
-### Issue: Vector DB Not Initialized
-```bash
-make init-db
-# Or delete data/chroma_db/ and restart
-```
+### LLM Fine-Tuning
+- [LoRA Paper (Hu et al., 2021)](https://arxiv.org/abs/2106.09685)
+- [QLoRA Paper (Dettmers et al., 2023)](https://arxiv.org/abs/2305.14314)
+- [HuggingFace PEFT Documentation](https://huggingface.co/docs/peft)
 
-### Issue: LLM Timeout
-- Increase `request_timeout` in config.yaml
-- Switch to faster model (gpt-3.5-turbo → local model)
-- Enable response caching
+### RAG
+- [RAG Paper (Lewis et al., 2020)](https://arxiv.org/abs/2005.11401)
+- [ChromaDB Documentation](https://docs.trychroma.com/)
+- [FAISS Documentation](https://github.com/facebookresearch/faiss)
 
-### Issue: High Latency
-- Reduce `top_k` (fewer docs to retrieve)
-- Use smaller embedding model
-- Enable embedding caching
-- Scale with more Gunicorn workers
+### Prompt Engineering
+- [Few-Shot Learning (Brown et al., 2020)](https://arxiv.org/abs/2005.14165)
+- [Prompt Engineering Guide](https://www.promptingguide.ai/)
 
-### Issue: Low Intent Accuracy
-- Add more training examples to patterns
-- Tune `confidence_threshold`
-- Implement ML-based intent classifier (scikit-learn)
+### Evaluation
+- [BLEU Paper (Papineni et al., 2002)](https://aclanthology.org/P02-1040/)
+- [ROUGE Paper (Lin, 2004)](https://aclanthology.org/W04-1013/)
 
 ---
 
-## Production Checklist
+## Support
 
-- [ ] Enable HTTPS (reverse proxy with Nginx)
-- [ ] Set up rate limiting (Flask-Limiter)
-- [ ] Configure API key authentication
-- [ ] Enable request logging & audit trail
-- [ ] Set up automated backups (vector DB, logs)
-- [ ] Implement A/B testing framework
-- [ ] Add content safety filters (PII detection)
-- [ ] Configure alerting (PagerDuty, Slack)
-- [ ] Load testing (Locust, k6)
-- [ ] Document API with OpenAPI/Swagger
+- **Concepts from**: [notes/03-ai/](../../notes/03-ai/) Ch.1-12
+- **Reference solution**: `_REFERENCE/models_complete.py` (chatbot implementation)
+- **Issues**: Check TODO comments for step-by-step instructions
+- **Stuck?**: Focus on one model first (start with `PromptEngineer`)
 
 ---
 
-## Future Enhancements
-
-1. **Advanced RAG**
-   - Hybrid search (dense + sparse retrieval)
-   - Re-ranking with cross-encoder
-   - Query expansion with synonyms
-
-2. **Multi-Agent Patterns**
-   - ReAct agent for complex orders
-   - Tool use (payment processing, order tracking API)
-   - Self-critique & reflection loops
-
-3. **Fine-Tuning**
-   - Fine-tune LLM on pizza domain conversations
-   - Train custom NER for ingredient extraction
-   - Optimize embeddings for menu search
-
-4. **Personalization**
-   - User preference memory
-   - Recommendation engine
-   - Loyalty program integration
-
----
-
-## Resources
-
-- [LangChain Docs](https://python.langchain.com/docs/get_started/introduction)
-- [ChromaDB](https://docs.trychroma.com/)
-- [Sentence Transformers](https://www.sbert.net/)
-- [Flask](https://flask.palletsprojects.com/)
-- [Prometheus](https://prometheus.io/docs/introduction/overview/)
-
----
-
-## License
-
-MIT License - See course repository for details.
-
----
-
-**Built with ❤️ for AI Portfolio Course**
-
-## Resources
-
-**Concept Review:**
-- [notes/03-ai/](../../notes/03-ai/)
-- [notes/03-ai/grand_solution.md](../../notes/03-ai/grand_solution.md)
-
----
-
-**Status:** Phase 3 - Coming soon  
-**Last Updated:** April 28, 2026
+**Time Estimate:** 4-6 hours for complete implementation  
+**Learning Outcome:** Deep understanding of LLM fine-tuning, RAG, prompt engineering, and evaluation metrics

@@ -1,408 +1,354 @@
-"""Model training and registry for AgentAI
+"""Model training with experiment framework for AgentAI
 
-Provides: ModelRegistry for training REINFORCE and DQN policies
+This module provides:
+- Abstract RLAgent interface for plug-and-play RL algorithms
+- Concrete implementations: Q-Learning, DQN (with TODOs)
+- ExperimentRunner for comparing multiple agents
+- Immediate feedback with rich console output
+
+Learning objectives:
+1. Implement Q-Learning and DQN with TODOs
+2. Compare agents using plug-and-play registry pattern
+3. See episode rewards immediately after each episode
+4. Experiment with hyperparameters and observe learning curves
 """
 
 import logging
+import time
+from abc import ABC, abstractmethod
+from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import joblib
 import numpy as np
 import tensorflow as tf
+from rich.console import Console
+from rich.table import Table
 from tensorflow import keras
 
 from src.utils import timer, validate_positive
 
-
 logger = logging.getLogger("agentai")
+console = Console()
 
 
-class ModelRegistry:
-    """Registry for training and managing RL policies.
+@dataclass
+class AgentConfig:
+    """Configuration for agent training."""
+    episodes: int = 500
+    learning_rate: float = 0.001
+    gamma: float = 0.99
+    epsilon_start: float = 1.0
+    epsilon_end: float = 0.01
+    epsilon_decay: float = 0.995
+    batch_size: int = 32
+    buffer_size: int = 10000
+    hidden_units: List[int] = None
+    random_state: int = 42
+    verbose: bool = True
     
-    Supported algorithms:
-    - REINFORCE (policy gradient)
-    - DQN (Deep Q-Network with experience replay)
+    def __post_init__(self):
+        if self.hidden_units is None:
+            self.hidden_units = [128, 64]
+
+
+class RLAgent(ABC):
+    """Abstract base class for all RL agents.
     
-    Attributes:
-        policies: Dictionary of trained policies
-        best_policy_name: Name of best performing policy
-        training_history: Training metrics history
-    
-    Example:
-        >>> registry = ModelRegistry(state_dim=4, action_dim=2)
-        >>> registry.train_reinforce(episodes, learning_rate=0.001)
-        >>> action = registry.select_action(state, "reinforce")
+    Provides common interface for plug-and-play experimentation.
+    Subclasses implement train_episode() and select_action() methods.
     """
     
-    def __init__(self, state_dim: int, action_dim: int):
-        """Initialize model registry.
+    def __init__(self, name: str, state_dim: int, action_dim: int):
+        """Initialize RL agent with name for display.
+        
+        Args:
+            name: Display name for agent
+            state_dim: Dimension of state space
+            action_dim: Number of actions
+        """
+        self.name = name
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.model = None
+        self.metrics = {}
+        self.training_history = []
+    
+    @abstractmethod
+    def train_episode(
+        self,
+        env_wrapper,
+        epsilon: float,
+        config: AgentConfig
+    ) -> Dict[str, float]:
+        """Train for one episode and return metrics with immediate console feedback.
+        
+        Args:
+            env_wrapper: Environment wrapper instance
+            epsilon: Current exploration rate
+            config: Training configuration
+        
+        Returns:
+            Dictionary with episode metrics: {"episode_reward": float, "steps": int, ...}
+        """
+        pass
+    
+    @abstractmethod
+    def select_action(self, state: np.ndarray, epsilon: float = 0.0) -> int:
+        """Select action using current policy.
+        
+        Args:
+            state: Current state
+            epsilon: Exploration rate for epsilon-greedy
+        
+        Returns:
+            Selected action
+        """
+        pass
+    
+    def save(self, path: str) -> None:
+        """Save trained agent to disk."""
+        if self.model is None:
+            raise ValueError("Cannot save untrained agent")
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        
+        # Save model and history
+        save_dict = {
+            "model": self.model,
+            "metrics": self.metrics,
+            "training_history": self.training_history,
+            "name": self.name
+        }
+        joblib.dump(save_dict, path)
+        logger.info(f"Saved {self.name} to {path}")
+    
+    @classmethod
+    def load(cls, path: str) -> "RLAgent":
+        """Load trained agent from disk."""
+        save_dict = joblib.load(path)
+        instance = cls.__new__(cls)
+        instance.model = save_dict["model"]
+        instance.metrics = save_dict["metrics"]
+        instance.training_history = save_dict.get("training_history", [])
+        instance.name = save_dict["name"]
+        return instance
+
+
+class QLearningAgent(RLAgent):
+    """Q-Learning agent with tabular Q-table.
+    
+    Q-Learning learns Q-values: Q(s, a) = expected return from taking action a in state s.
+    Uses Bellman equation: Q(s,a) ← Q(s,a) + α[r + γ·max Q(s',a') - Q(s,a)]
+    
+    Key concepts:
+    - Q-table: Dictionary mapping (state, action) → Q-value
+    - Epsilon-greedy: Balance exploration (random) vs exploitation (best Q)
+    - Temporal difference: Learn from one-step lookahead
+    """
+    
+    def __init__(self, state_dim: int, action_dim: int, learning_rate: float = 0.1):
+        """Initialize Q-Learning agent.
         
         Args:
             state_dim: Dimension of state space
             action_dim: Number of actions
+            learning_rate: Learning rate (α) for Q-updates
         """
-        validate_positive(state_dim, "state_dim")
-        validate_positive(action_dim, "action_dim")
+        super().__init__(f"Q-Learning (α={learning_rate})", state_dim, action_dim)
+        self.learning_rate = learning_rate
+        self.model = {}  # Q-table: (state_key, action) → Q-value
+    
+    def _discretize_state(self, state: np.ndarray, bins: int = 10) -> Tuple[int, ...]:
+        """Discretize continuous state for Q-table lookup.
         
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-        self.policies = {}
-        self.best_policy_name = None
-        self.training_history = {}
+        Args:
+            state: Continuous state vector
+            bins: Number of bins per dimension
         
-        logger.info(
-            f"Initialized ModelRegistry (state_dim={state_dim}, action_dim={action_dim})"
+        Returns:
+            Tuple of discrete bin indices
+        """
+        # Simple discretization: divide each dimension into bins
+        discretized = tuple(
+            np.clip(int(s * bins), 0, bins - 1) for s in state
         )
+        return discretized
     
-    def _build_policy_network(
+    def train_episode(
         self,
-        hidden_units: List[int] = [128, 64],
-        activation: str = "relu"
-    ) -> keras.Model:
-        """Build neural network for policy.
-        
-        Args:
-            hidden_units: List of hidden layer sizes
-            activation: Activation function
-        
-        Returns:
-            Keras model
-        """
-        model = keras.Sequential([
-            keras.layers.Dense(
-                hidden_units[0],
-                activation=activation,
-                input_shape=(self.state_dim,)
-            )
-        ])
-        
-        for units in hidden_units[1:]:
-            model.add(keras.layers.Dense(units, activation=activation))
-        
-        # Output layer (action probabilities for REINFORCE, Q-values for DQN)
-        model.add(keras.layers.Dense(self.action_dim, activation="softmax"))
-        
-        return model
-    
-    @timer
-    def train_reinforce(
-        self,
-        episodes_data: List[Dict[str, np.ndarray]],
-        learning_rate: float = 0.001,
-        gamma: float = 0.99,
-        hidden_units: List[int] = [128, 64]
+        env_wrapper,
+        epsilon: float,
+        config: AgentConfig
     ) -> Dict[str, float]:
-        """Train REINFORCE policy gradient algorithm.
-        
-        Args:
-            episodes_data: List of episode dictionaries with states, actions, rewards
-            learning_rate: Learning rate for optimizer
-            gamma: Discount factor
-            hidden_units: Policy network architecture
-        
-        Returns:
-            Dictionary with training metrics
-        
-        Raises:
-            ValueError: If learning_rate or gamma are invalid
-            RuntimeError: If training fails
-        
-        Example:
-            >>> metrics = registry.train_reinforce(
-            ...     episodes,
-            ...     learning_rate=0.001,
-            ...     gamma=0.99
-            ... )
         """
-        validate_positive(learning_rate, "learning_rate")
-        if not 0 <= gamma <= 1:
-            raise ValueError(f"gamma must be in [0, 1], got {gamma}")
-        
-        logger.info(
-            f"Training REINFORCE (lr={learning_rate}, gamma={gamma}, "
-            f"episodes={len(episodes_data)})"
-        )
-        
-        try:
-            # Build or get policy network
-            if "reinforce" not in self.policies:
-                policy = self._build_policy_network(hidden_units)
-                optimizer = keras.optimizers.Adam(learning_rate)
-                self.policies["reinforce"] = {"model": policy, "optimizer": optimizer}
-            else:
-                policy = self.policies["reinforce"]["model"]
-                optimizer = self.policies["reinforce"]["optimizer"]
-            
-            total_loss = 0.0
-            episode_count = len(episodes_data)
-            
-            # Train on episodes
-            for episode in episodes_data:
-                states = episode["states"]
-                actions = episode["actions"]
-                rewards = episode["rewards"]
-                
-                # Compute discounted returns
-                returns = self._compute_returns(rewards, gamma)
-                
-                # Compute policy gradient loss
-                with tf.GradientTape() as tape:
-                    # Forward pass
-                    action_probs = policy(states, training=True)
-                    
-                    # Log probabilities of taken actions
-                    action_indices = tf.stack(
-                        [tf.range(len(actions)), actions], axis=1
-                    )
-                    log_probs = tf.math.log(
-                        tf.gather_nd(action_probs, action_indices) + 1e-10
-                    )
-                    
-                    # REINFORCE loss: -log(π) * G
-                    loss = -tf.reduce_mean(log_probs * returns)
-                
-                # Backpropagation
-                gradients = tape.gradient(loss, policy.trainable_variables)
-                optimizer.apply_gradients(zip(gradients, policy.trainable_variables))
-                
-                total_loss += float(loss)
-            
-            avg_loss = total_loss / episode_count
-            avg_reward = np.mean([ep["total_reward"] for ep in episodes_data])
-            
-            metrics = {
-                "avg_loss": avg_loss,
-                "avg_reward": avg_reward,
-                "episodes": episode_count,
-            }
-            
-            # Store history
-            if "reinforce" not in self.training_history:
-                self.training_history["reinforce"] = []
-            self.training_history["reinforce"].append(metrics)
-            
-            logger.info(
-                f"REINFORCE trained - Avg loss: {avg_loss:.4f}, "
-                f"Avg reward: {avg_reward:.2f}"
-            )
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"REINFORCE training failed: {e}")
-            raise RuntimeError(f"REINFORCE training failed: {e}") from e
+        TODO: Implement Q-Learning episode training
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement Q-Learning episode training")
     
-    @timer
-    def train_dqn(
+    def select_action(self, state: np.ndarray, epsilon: float = 0.0) -> int:
+        """
+        TODO: Implement epsilon-greedy action selection
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement action selection")
+
+
+class DQNAgent(RLAgent):
+    """Deep Q-Network (DQN) agent with experience replay.
+    
+    DQN uses neural network to approximate Q-function: Q(s, a; θ) ≈ Q*(s, a)
+    Key innovations:
+    - Experience replay: Store and sample transitions to break correlation
+    - Neural network: Handle continuous state spaces without discretization
+    
+    Architecture:
+    - Input: State vector (e.g., [x, ẋ, θ, θ̇] for CartPole)
+    - Hidden: 2-3 fully connected layers with ReLU
+    - Output: Q-values for each action [Q(s,a₀), Q(s,a₁), ...]
+    """
+    
+    def __init__(
         self,
-        batch: Dict[str, np.ndarray],
-        learning_rate: float = 0.001,
-        gamma: float = 0.99,
-        hidden_units: List[int] = [128, 64]
-    ) -> Dict[str, float]:
-        """Train DQN (Deep Q-Network) on a batch of experiences.
+        state_dim: int,
+        action_dim: int,
+        hidden_units: List[int] = None
+    ):
+        """Initialize DQN agent.
         
         Args:
-            batch: Dictionary with states, actions, rewards, next_states, dones
-            learning_rate: Learning rate
-            gamma: Discount factor
-            hidden_units: Q-network architecture
-        
-        Returns:
-            Dictionary with training metrics
-        
-        Example:
-            >>> batch = replay_buffer.sample(batch_size=32)
-            >>> metrics = registry.train_dqn(batch, learning_rate=0.001)
+            state_dim: Dimension of state space
+            action_dim: Number of actions
+            hidden_units: Neural network architecture
         """
-        validate_positive(learning_rate, "learning_rate")
-        if not 0 <= gamma <= 1:
-            raise ValueError(f"gamma must be in [0, 1], got {gamma}")
-        
-        try:
-            # Build or get Q-network
-            if "dqn" not in self.policies:
-                q_network = self._build_q_network(hidden_units)
-                optimizer = keras.optimizers.Adam(learning_rate)
-                self.policies["dqn"] = {"model": q_network, "optimizer": optimizer}
-            else:
-                q_network = self.policies["dqn"]["model"]
-                optimizer = self.policies["dqn"]["optimizer"]
-            
-            states = batch["states"]
-            actions = batch["actions"]
-            rewards = batch["rewards"]
-            next_states = batch["next_states"]
-            dones = batch["dones"]
-            
-            # Compute Q-learning targets
-            with tf.GradientTape() as tape:
-                # Current Q-values
-                q_values = q_network(states, training=True)
-                action_indices = tf.stack([tf.range(len(actions)), actions], axis=1)
-                q_values_for_actions = tf.gather_nd(q_values, action_indices)
-                
-                # Target Q-values
-                next_q_values = q_network(next_states, training=False)
-                max_next_q = tf.reduce_max(next_q_values, axis=1)
-                targets = rewards + gamma * max_next_q * (1 - dones)
-                
-                # MSE loss
-                loss = tf.reduce_mean(tf.square(targets - q_values_for_actions))
-            
-            # Backpropagation
-            gradients = tape.gradient(loss, q_network.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, q_network.trainable_variables))
-            
-            metrics = {
-                "loss": float(loss),
-                "avg_q_value": float(tf.reduce_mean(q_values)),
-                "batch_size": len(states),
-            }
-            
-            # Store history
-            if "dqn" not in self.training_history:
-                self.training_history["dqn"] = []
-            self.training_history["dqn"].append(metrics)
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"DQN training failed: {e}")
-            raise RuntimeError(f"DQN training failed: {e}") from e
+        super().__init__(f"DQN", state_dim, action_dim)
+        self.hidden_units = hidden_units or [128, 64]
+        self.replay_buffer = deque(maxlen=10000)
+        self.model = None  # Will be built in first training call
+        self.optimizer = None
     
-    def _build_q_network(
-        self,
-        hidden_units: List[int] = [128, 64]
-    ) -> keras.Model:
-        """Build Q-network for DQN.
-        
-        Args:
-            hidden_units: List of hidden layer sizes
-        
-        Returns:
-            Keras model
+    def _build_network(self) -> keras.Model:
         """
-        model = keras.Sequential([
-            keras.layers.Dense(
-                hidden_units[0],
-                activation="relu",
-                input_shape=(self.state_dim,)
-            )
-        ])
-        
-        for units in hidden_units[1:]:
-            model.add(keras.layers.Dense(units, activation="relu"))
-        
-        # Output layer (Q-values for each action)
-        model.add(keras.layers.Dense(self.action_dim, activation="linear"))
-        
-        return model
+        TODO: Build Q-network architecture
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement Q-network")
     
-    def select_action(
+    def _store_transition(
         self,
         state: np.ndarray,
-        policy_name: str = "reinforce",
-        epsilon: float = 0.0
-    ) -> int:
-        """Select action using trained policy.
-        
-        Args:
-            state: Current state
-            policy_name: Name of policy to use
-            epsilon: Exploration rate (for epsilon-greedy)
-        
-        Returns:
-            Selected action
-        
-        Raises:
-            RuntimeError: If policy not trained
-        
-        Example:
-            >>> action = registry.select_action(state, "reinforce", epsilon=0.1)
+        action: int,
+        reward: float,
+        next_state: np.ndarray,
+        done: bool
+    ):
         """
-        if policy_name not in self.policies:
-            raise RuntimeError(f"Policy '{policy_name}' not trained")
-        
-        # Epsilon-greedy exploration
-        if np.random.random() < epsilon:
-            return np.random.randint(self.action_dim)
-        
-        # Exploit learned policy
-        policy = self.policies[policy_name]["model"]
-        state_batch = state.reshape(1, -1)
-        
-        if policy_name == "reinforce":
-            # Sample from policy distribution
-            action_probs = policy(state_batch, training=False).numpy()[0]
-            return np.random.choice(self.action_dim, p=action_probs)
-        else:  # DQN
-            # Select action with highest Q-value
-            q_values = policy(state_batch, training=False).numpy()[0]
-            return int(np.argmax(q_values))
+        TODO: Store transition in replay buffer
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement replay buffer storage")
     
-    def _compute_returns(self, rewards: np.ndarray, gamma: float) -> np.ndarray:
-        """Compute discounted returns for an episode.
-        
-        Args:
-            rewards: Array of rewards
-            gamma: Discount factor
-        
-        Returns:
-            Array of discounted returns
+    def _sample_batch(self, batch_size: int) -> Optional[Dict[str, np.ndarray]]:
         """
-        returns = np.zeros_like(rewards, dtype=np.float32)
-        running_return = 0.0
-        
-        for t in reversed(range(len(rewards))):
-            running_return = rewards[t] + gamma * running_return
-            returns[t] = running_return
-        
-        # Normalize returns
-        returns = (returns - np.mean(returns)) / (np.std(returns) + 1e-10)
-        
-        return returns
+        TODO: Sample random batch from replay buffer
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement batch sampling")
     
-    def save_policy(self, policy_name: str, filepath: str) -> None:
-        """Save trained policy to file.
-        
-        Args:
-            policy_name: Name of policy to save
-            filepath: Path to save file
-        
-        Raises:
-            RuntimeError: If policy not found
+    def train_episode(
+        self,
+        env_wrapper,
+        epsilon: float,
+        config: AgentConfig
+    ) -> Dict[str, float]:
         """
-        if policy_name not in self.policies:
-            raise RuntimeError(f"Policy '{policy_name}' not found")
-        
-        filepath = Path(filepath)
-        filepath.parent.mkdir(parents=True, exist_ok=True)
-        
-        policy = self.policies[policy_name]["model"]
-        policy.save(filepath)
-        
-        logger.info(f"Policy '{policy_name}' saved to {filepath}")
+        TODO: Implement DQN episode training with experience replay
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement DQN episode training")
     
-    def load_policy(self, policy_name: str, filepath: str) -> None:
-        """Load policy from file.
+    def select_action(self, state: np.ndarray, epsilon: float = 0.0) -> int:
+        """
+        TODO: Implement epsilon-greedy action selection using Q-network
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement DQN action selection")
+
+
+class ExperimentRunner:
+    """Run RL experiments with multiple agents and compare results.
+    
+    Provides plug-and-play framework for trying different agents:
+    1. Register agents to try
+    2. Train all agents with episode-by-episode feedback
+    3. Print learning curves and final leaderboard
+    
+    Example:
+        >>> runner = ExperimentRunner(env_wrapper)
+        >>> runner.register("Q-Learning", QLearningAgent(4, 2))
+        >>> runner.register("DQN", DQNAgent(4, 2))
+        >>> runner.run_experiment(AgentConfig(episodes=500))
+        >>> runner.print_leaderboard()
+    """
+    
+    def __init__(self, env_wrapper):
+        """Initialize experiment runner.
         
         Args:
-            policy_name: Name to assign to loaded policy
-            filepath: Path to saved policy
-        
-        Raises:
-            FileNotFoundError: If file doesn't exist
+            env_wrapper: Environment wrapper instance
         """
-        filepath = Path(filepath)
-        if not filepath.exists():
-            raise FileNotFoundError(f"Policy file not found: {filepath}")
+        self.env_wrapper = env_wrapper
+        self.agents: Dict[str, RLAgent] = {}
+        self.results: List[Dict[str, Any]] = []
+    
+    def register(self, name: str, agent: RLAgent):
+        """Register an agent to try in experiments.
         
-        policy = keras.models.load_model(filepath)
-        optimizer = keras.optimizers.Adam()
+        Args:
+            name: Display name for results
+            agent: Agent instance to train
+        """
+        self.agents[name] = agent
+        console.print(f"Registered: {name}", style="dim")
+    
+    def run_experiment(self, config: AgentConfig):
+        """
+        TODO: Train all registered agents and track progress
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement experiment runner")
+    
+    def print_leaderboard(self):
+        """
+        TODO: Print sorted leaderboard of all agents
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement leaderboard")
+    
+    def plot_learning_curves(self):
+        """
+        TODO (Optional): Plot learning curves for all agents
         
-        self.policies[policy_name] = {"model": policy, "optimizer": optimizer}
+        Use matplotlib to plot episode rewards over time.
+        Shows how quickly each agent learns.
         
-        logger.info(f"Policy '{policy_name}' loaded from {filepath}")
+        Steps:
+        1. Import matplotlib: import matplotlib.pyplot as plt
+        2. Create figure: plt.figure(figsize=(12, 6))
+        3. For each result, plot:
+           plt.plot(result["episode_rewards"], label=result["agent"], alpha=0.7)
+        4. Add labels and legend: plt.xlabel("Episode"), plt.ylabel("Reward"), plt.legend()
+        5. Save figure: plt.savefig("models/learning_curves.png")
+        
+        Time estimate: 20 minutes
+        """
+        pass
+    
+    def get_best_agent(self) -> RLAgent:
+        """Return agent with highest average reward."""
+        if not self.results:
+            raise ValueError("No experiments run yet")
+        best_result = max(self.results, key=lambda x: x["avg_reward_100"])
+        return self.agents[best_result["agent"]]

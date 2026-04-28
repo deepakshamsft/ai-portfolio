@@ -1,319 +1,278 @@
-# Exercise 03: UnifiedAI — Production Neural Network System
+# Exercise 03: UnifiedAI — Neural Network Classification System
 
-> **Grand Challenge:** Build a production-grade neural network classification API that achieves >92% accuracy on synthetic multi-class dataset while meeting 5 production constraints.
+> **Learning Goal:** Implement MLP and CNN architectures with backpropagation, live training feedback, and architectural comparison  
+> **Prerequisites:** Completed [notes/01-ml/03-neural-networks/](../../../notes/01-ml/03-neural-networks/) and exercises/01-ml/01-regression/  
+> **Time Estimate:** 6-8 hours (coding) + 1-2 hours (experiments)  
+> **Difficulty:** ⭐⭐⭐ Advanced
 
-**Scaffolding Level:** 🟢 Full Implementation (complete working code provided)
-
----
-
-## Objective
-
-Implement a complete deep learning classification pipeline with production patterns:
-- \>92% accuracy on held-out test set
-- <100ms inference latency (p99)
-- Multi-class prediction with confidence scores (10 classes)
-- Early stopping and learning curve monitoring
-- Error handling and input validation
-- Configuration-driven training
-- TensorFlow/Keras integration
+> **📝 Note:** This exercise focuses on core ML implementation. Infrastructure files (Docker, Makefile, prometheus.yml) have been removed to keep the exercise focused on neural network concepts. For production deployment patterns, see `exercises/06-ai_infrastructure/`.
 
 ---
 
-## What You'll Learn
+## 🎯 What You'll Implement
 
-- Train/validation/test splitting with stratification for multi-class problems
-- Dense neural networks with Keras Sequential API
-- 1D CNN architectures for feature vectors
-- Early stopping and model checkpointing
-- Learning curve visualization (loss and accuracy)
-- TensorFlow model persistence and ONNX export capability
-- REST API design for feature-based classification (Flask)
-- Classification metrics for deep learning (accuracy, precision, recall, F1, confusion matrix)
-- Unit testing for neural network systems
+**Core Implementation (6-8 hours):**
+
+| File | What You Implement | TODOs | Time |
+|------|-------------------|-------|------|
+| `src/models.py` | MLP architecture (Dense + Dropout layers) | 1 build + 1 train | 45-60min |
+| `src/models.py` | CNN architecture (Conv1D + MaxPool) | 1 build + 1 train | 45-60min |
+| `src/models.py` | ExperimentRunner with leaderboard | 2 methods | 30min |
+| `main.py` | Test evaluation + visualization | 2 sections | 45min |
+
+**Interactive Experience:**
+- ✅ See loss/accuracy for every epoch as training happens
+- ✅ Compare 6 different architectures automatically
+- ✅ Leaderboard shows best model with overfitting detection
+- ✅ Rich console output with tables
+
+**Total:** 6-8 hours + 1-2 hours experimentation
 
 ---
 
-## Setup
+## 🧠 Neural Network Concepts You'll Master
 
-**Unix/macOS/WSL:**
-```bash
-chmod +x setup.sh
-./setup.sh
-source venv/bin/activate
-```
+### 1. Architecture Design
 
-**Windows PowerShell:**
+**Multi-Layer Perceptron (MLP):**
+- Input → Dense(128) → ReLU → Dropout → Dense(64) → ReLU → Dropout → Output (Softmax)
+
+**Convolutional Neural Network (CNN):**
+- Input → Conv1D → MaxPool → Dropout → Conv1D → MaxPool → GlobalAvgPool → Dense → Output
+
+### 2. Training Process
+
+**Forward Pass:** Input flows through layers, each computing output = activation(weights * input + bias)
+
+**Backpropagation:** Compute gradients using chain rule, starting from output layer
+
+**Gradient Descent:** Update weights: W_new = W_old - learning_rate * gradient
+
+### 3. Key Hyperparameters
+
+| Parameter | Typical Values | Effect |
+|-----------|----------------|--------|
+| `learning_rate` | 0.0001 - 0.01 | Too high: divergence; Too low: slow |
+| `batch_size` | 16, 32, 64, 128 | Larger: smoother gradients |
+| `dropout` | 0.1 - 0.5 | Higher: more regularization |
+| `architecture` | [64,32], [128,64,32] | Deeper: more capacity, more overfitting risk |
+
+---
+
+## 🚀 Quick Start
+
+### 1. Setup Environment
+
+**PowerShell (Windows):**
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 .\setup.ps1
 .\venv\Scripts\Activate.ps1
 ```
 
----
-
-## Project Structure
-
-```
-03_neural_networks/
-├── requirements.txt          # Dependencies (includes TensorFlow 2.13+, transformers)
-├── setup.sh / setup.ps1      # Environment setup
-├── config.yaml               # Hyperparameters
-├── Makefile                  # Common commands
-├── Dockerfile                # Production Docker image
-├── docker-compose.yml        # Multi-container deployment
-├── prometheus.yml            # Monitoring configuration
-├── README.md                 # This file
-├── src/
-│   ├── __init__.py           # ✅ Complete
-│   ├── utils.py              # ✅ Complete (logging, timing, reproducibility)
-│   ├── data.py               # ✅ Complete (synthetic dataset generation)
-│   ├── features.py           # ✅ Complete (StandardScaler + optional PCA)
-│   ├── models.py             # ✅ Complete (Dense NN, 1D CNN with Keras)
-│   ├── evaluate.py           # ✅ Complete (metrics, learning curves)
-│   ├── monitoring.py         # ✅ Complete (Prometheus metrics)
-│   └── api.py                # ✅ Complete (Flask REST API)
-├── tests/
-│   ├── __init__.py           # ✅ Complete
-│   ├── conftest.py           # ✅ Complete (pytest configuration)
-│   ├── test_data.py          # ✅ Complete
-│   ├── test_features.py      # ✅ Complete
-│   ├── test_models.py        # ✅ Complete (marked slow)
-│   └── test_api.py           # ✅ Complete
-├── models/                   # Model artifacts saved here
-├── data/                     # Data cached here
-└── logs/                     # Application logs
-```
-
----
-
-## Success Criteria
-
-Your exercise is complete when:
-- [x] All tests pass: `pytest tests/`
-- [x] Accuracy >92% on test set
-- [x] API returns predictions in <100ms
-- [x] Code passes linting: `black . && flake8 src/`
-- [x] Learning curves show convergence without overfitting
-- [x] Early stopping triggers before max epochs (efficient training)
-
----
-
-## Key Differences from Track 01 (Regression) and Track 02 (Classification)
-
-| Aspect | Track 01 (Regression) | Track 02 (Classification) | Track 03 (Neural Networks) |
-|--------|----------------------|---------------------------|----------------------------|
-| **Problem** | Predict continuous prices | Predict face classes | Predict synthetic classes |
-| **Models** | Ridge, Lasso, XGBoost | LogisticRegression, SVM, RandomForest | Dense NN, 1D CNN (TensorFlow/Keras) |
-| **Metrics** | MAE, RMSE, R² | Accuracy, P, R, F1 | Accuracy, P, R, F1 + Learning Curves |
-| **Features** | Polynomial + scaling | HOG + PCA | StandardScaler + optional PCA |
-| **Evaluation** | Residual plots | Confusion matrix | Confusion matrix + Learning Curves |
-| **Dataset** | California Housing | Olivetti Faces (400 samples) | Synthetic multi-class (10k samples) |
-| **Framework** | scikit-learn | scikit-learn | TensorFlow 2.13+ / Keras |
-| **Training** | Fit once | Fit once | Epochs with early stopping |
-| **API Input** | Feature dict | Flattened image | Feature vector (20 features) |
-
----
-
-## Quick Start
-
-1. **Setup environment:**
-   ```bash
-   ./setup.sh
-   source venv/bin/activate
-   ```
-
-2. **Run tests to verify installation:**
-   ```bash
-   make test
-   # Or: pytest tests/ -v -m "not slow"  # Skip slow model training tests
-   ```
-
-3. **Explore the data:**
-   ```python
-   from src.data import load_and_split
-   
-   X_train, X_val, X_test, y_train, y_val, y_test = load_and_split(
-       n_samples=10000,
-       n_features=20,
-       n_classes=10
-   )
-   print(f"Train: {X_train.shape}, Val: {X_val.shape}, Test: {X_test.shape}")
-   ```
-
-4. **Train models:**
-   ```python
-   from src.data import load_and_split
-   from src.features import FeatureEngineer
-   from src.models import ModelRegistry
-   
-   # Load data
-   X_train, X_val, X_test, y_train, y_val, y_test = load_and_split()
-   
-   # Engineer features
-   engineer = FeatureEngineer(scale_features=True, pca_components=None)
-   X_train_features = engineer.fit_transform(X_train)
-   X_val_features = engineer.transform(X_val)
-   X_test_features = engineer.transform(X_test)
-   
-   # Train Dense Neural Network
-   registry = ModelRegistry()
-   metrics = registry.train_dense_nn(
-       X_train_features, y_train, X_val_features, y_val,
-       architecture=[128, 64, 32],
-       dropout=0.3,
-       learning_rate=0.001,
-       batch_size=32,
-       epochs=50,
-       early_stopping_patience=5
-   )
-   print(f"Val Accuracy: {metrics['val_accuracy']:.3f}")
-   print(f"Epochs trained: {metrics['epochs_trained']}")
-   ```
-
-5. **Evaluate with learning curves:**
-   ```python
-   from src.evaluate import AutoEvaluator
-   
-   evaluator = AutoEvaluator()
-   
-   # Evaluate on test set
-   test_metrics = evaluator.evaluate(
-       registry.models["dense_nn"],
-       X_test_features,
-       y_test,
-       model_name="dense_nn",
-       set_name="test"
-   )
-   print(f"Test Accuracy: {test_metrics['accuracy']:.3f}")
-   
-   # Plot learning curves
-   evaluator.plot_learning_curves(registry.histories["dense_nn"])
-   
-   # Plot confusion matrix
-   evaluator.plot_confusion_matrix(y_test, evaluator.predictions)
-   ```
-
-6. **Save model and start API:**
-   ```python
-   from pathlib import Path
-   import joblib
-   
-   # Save model
-   registry.save_model("dense_nn", Path("models/best_model.h5"))
-   
-   # Save feature engineer
-   joblib.dump(engineer, "models/feature_engineer.pkl")
-   ```
-   
-   ```bash
-   # Start API
-   make serve
-   # Test: curl -X GET http://localhost:5000/health
-   ```
-
-7. **Make predictions via API:**
-   ```bash
-   curl -X POST http://localhost:5000/predict \
-     -H "Content-Type: application/json" \
-     -d '{"features": [0.1, 0.2, -0.5, 0.8, 1.2, -0.3, 0.7, -0.9, 0.4, 0.6, -0.1, 0.3, 0.9, -0.7, 0.2, -0.4, 0.5, 0.1, -0.6, 0.8]}'
-   ```
-
----
-
-## Production Constraints
-
-This exercise addresses neural network-specific production requirements:
-
-✅ **Fully implemented:**
-- Structured logging with TensorFlow integration
-- Early stopping to prevent overfitting
-- Input validation for feature vectors
-- Model persistence (Keras .h5 format)
-- Configuration-driven hyperparameters (architecture, dropout, learning rate)
-- Learning curve visualization
-- Prometheus monitoring
-- Docker deployment
-
-⚠️ **Your extensions (optional):**
-- Hyperparameter tuning with Optuna
-- Model versioning with MLflow
-- ONNX export for cross-platform deployment
-- Data augmentation strategies
-- Ensemble of Dense + CNN models
-
----
-
-## Tips & Hints
-
-1. **Early stopping:** Neural networks benefit from early stopping to prevent overfitting. Monitor validation loss and restore best weights.
-
-2. **Learning curves:** Always plot loss/accuracy curves. If train loss << val loss, you're overfitting. Consider:
-   - Increase dropout
-   - Reduce model complexity
-   - Add L2 regularization
-
-3. **Batch size:** Start with 32. Larger batches (64-128) train faster but may generalize worse. Smaller batches (8-16) are noisier but can help escape local minima.
-
-4. **Architecture:** The default [128, 64, 32] is a good starting point. Deeper networks aren't always better for small feature sets (20 features).
-
-5. **1D CNN:** The `train_cnn_1d` method treats the 20 features as a 1D sequence. CNNs can learn local patterns in feature space. Compare against Dense NN.
-
-6. **Feature scaling:** Critical for neural networks. Always use StandardScaler before training.
-
----
-
-## Common Issues
-
-**Issue:** Model achieves 100% train accuracy but poor val accuracy  
-**Fix:** Increase dropout, reduce model size, or add L2 regularization
-
-**Issue:** Training is very slow  
-**Fix:** Increase batch_size, reduce epochs, or use GPU
-
-**Issue:** `ImportError: No module named 'tensorflow'`  
-**Fix:** Ensure TensorFlow is installed: `pip install tensorflow>=2.13.0,<3.0.0`
-
-**Issue:** API returns 503 "Model not loaded"  
-**Fix:** Train and save model first: `registry.save_model("dense_nn", Path("models/best_model.h5"))`
-
----
-
-## Deployment
-
-**Docker:**
+**Bash (Linux/Mac/WSL):**
 ```bash
-# Build image
-make docker-build
-
-# Run container
-make docker-run
-
-# Or use docker-compose for full stack (API + Prometheus)
-docker-compose up -d
+chmod +x setup.sh
+./setup.sh
+source venv/bin/activate
 ```
 
-**Prometheus metrics:**
-- Access at: http://localhost:9090
-- Query: `prediction_latency_seconds`
-- Dashboard: Monitor p50, p95, p99 latencies
+### 2. Run Interactive Training
+
+```bash
+python main.py
+```
+
+**Expected output:**
+```
+🧠 NEURAL NETWORK TRAINING
+→ Training Shallow MLP (64, 32)...
+    Epoch  1: loss=0.8234, acc=0.7120, val_loss=0.6543, val_acc=0.7890
+    Epoch  2: loss=0.5123, acc=0.8234, val_loss=0.4987, val_acc=0.8456
+    ...
+  ✓ Shallow MLP: Val Acc = 89.67% | Epochs: 23 | Time: 12.3s
+
+🏆 LEADERBOARD
+Best model: Deep CNN (64, 32, 16) | Val Acc: 91.23%
+```
 
 ---
 
-## Resources
+## 📚 Implementation Guide
 
-**Concept Review:**
-- [notes/01-ml/03_neural_networks/](../../notes/01-ml/03_neural_networks/) — Complete track
-- [TensorFlow Documentation](https://www.tensorflow.org/api_docs/python/tf/keras)
-- [Keras Sequential API](https://keras.io/guides/sequential_model/)
+### Phase 1: MLP Architecture (45-60 min)
 
-**Related Tracks:**
-- Track 01 (Regression) — Foundation for ML pipelines
-- Track 02 (Classification) — Multi-class classification patterns
-- Track 05 (Multimodal AI) — Advanced deep learning architectures
+**File:** `src/models.py` → `MLPClassifier.build_model()`
+
+**What you'll implement:**
+1. Create Sequential model
+2. Add input layer
+3. Loop through architecture to add Dense + Dropout layers
+4. Add output layer (softmax)
+5. Compile with Adam optimizer
+
+**Key concepts:**
+- **Dense layer:** Fully connected
+- **ReLU:** f(x) = max(0, x)
+- **Dropout:** Randomly zero out neurons (regularization)
+- **Softmax:** Convert logits to probabilities
+
+### Phase 2: MLP Training (30-45 min)
+
+**File:** `src/models.py` → `MLPClassifier.train()`
+
+**What you'll implement:**
+1. Build model
+2. Create custom Callback for live epoch feedback
+3. Setup early stopping
+4. Train with model.fit()
+5. Extract and print metrics
+
+**Concepts:**
+- **Batch:** Subset of data (e.g., 32 samples)
+- **Epoch:** One complete pass through dataset
+- **Early stopping:** Stop if val loss stops improving
+
+### Phase 3: CNN Architecture (45-60 min)
+
+**File:** `src/models.py` → `CNNClassifier.build_model()`
+
+**What you'll implement:**
+1. Create Sequential model
+2. Add input layer (2D: features × 1 channel)
+3. Loop to add Conv1D + MaxPooling + Dropout
+4. Add GlobalAveragePooling
+5. Add Dense + output layer
+
+**CNN concepts:**
+- **Conv1D:** Learn local patterns
+- **MaxPooling:** Downsample
+- **GlobalAvgPool:** Reduce to 1D
+
+### Phase 4: CNN Training (20-30 min)
+
+**Key difference:** Must reshape input to (samples, features, 1)
+
+### Phase 5: Experiment Framework (30 min)
+
+**File:** `src/models.py` → `ExperimentRunner`
+
+Implement:
+1. `run_experiment()`: Train all registered networks
+2. `print_leaderboard()`: Sort by val accuracy
 
 ---
 
-## License
+## 🔬 Experimentation Guide
 
-MIT License - See main repository for details.
+### Experiment 1: Architecture Depth
+```python
+runner.register("Shallow", MLPClassifier([64]))
+runner.register("Deep", MLPClassifier([256, 128, 64, 32]))
+```
+
+**Question:** Does deeper always mean better?
+
+### Experiment 2: Dropout Rates
+```python
+for dropout in [0.0, 0.1, 0.3, 0.5]:
+    runner.register(f"dropout={dropout}", MLPClassifier([128, 64], dropout=dropout))
+```
+
+**Question:** What's the optimal dropout rate?
+
+### Experiment 3: Learning Rates
+```python
+for lr in [0.0001, 0.001, 0.01]:
+    runner.register(f"lr={lr}", MLPClassifier([128, 64], learning_rate=lr))
+```
+
+**Question:** What happens with too high or too low learning rates?
+
+---
+
+## 📊 Understanding Training Curves
+
+### Healthy Training
+- Loss decreases, accuracy increases
+- Train and val metrics track each other
+
+### Overfitting
+- Train loss decreases, val loss increases
+- Large gap between train/val accuracy
+
+**Solutions:** Increase dropout, reduce capacity, early stopping
+
+### Underfitting
+- Both train and val metrics poor
+- Plateaus early
+
+**Solutions:** Increase capacity, train longer, decrease dropout
+
+---
+
+## 🐛 Common Issues
+
+### Issue 1: Shape mismatch in CNN
+**Solution:** Reshape input to (samples, features, 1)
+
+### Issue 2: Loss is NaN
+**Solutions:**
+- Reduce learning rate
+- Check data normalization
+
+### Issue 3: Overfitting
+**Solutions:**
+- Increase dropout
+- Reduce model capacity
+- Early stopping (already implemented)
+
+---
+
+## ✅ Success Criteria
+
+- [ ] All TODOs implemented
+- [ ] `python main.py` runs without errors
+- [ ] Live epoch feedback displays
+- [ ] Leaderboard shows 6 models sorted by Val Acc
+- [ ] Best model achieves Val Acc > 85%
+- [ ] Test evaluation prints final metrics
+
+---
+
+## 🎓 What You've Learned
+
+### Neural Network Fundamentals
+✅ Forward pass, backpropagation, gradient descent  
+✅ Activation functions: ReLU, softmax  
+
+### Architecture Design
+✅ MLP: Fully connected networks  
+✅ CNN: Convolutional networks  
+✅ Layer types: Dense, Conv1D, MaxPooling, Dropout  
+✅ Regularization techniques  
+
+### Training Dynamics
+✅ Batch vs epoch concepts  
+✅ Early stopping  
+✅ Overfitting vs underfitting detection  
+
+### Hyperparameter Tuning
+✅ Learning rate, dropout rate, batch size effects  
+✅ Architecture depth/width trade-offs  
+
+---
+
+## 📚 Resources
+
+- [TensorFlow/Keras Documentation](https://www.tensorflow.org/api_docs/python/tf/keras)
+- [notes/01-ml/03-neural-networks/](../../../notes/01-ml/03-neural-networks/)
+- [Deep Learning Book](https://www.deeplearningbook.org/)
+- [CS231n Neural Networks Notes](http://cs231n.github.io/neural-networks-1/)
+
+---
+
+**Estimated completion time:** 6-8 hours + 1-2 hours experimentation
+
+Good luck! 🚀
 

@@ -1,406 +1,346 @@
-"""Model training and registry for FlixAI
+"""Model training with experiment framework for FlixAI
 
-Provides: ModelRegistry for training Matrix Factorization and Neural CF
+This module provides:
+- Abstract Recommender interface for plug-and-play models
+- Concrete implementations: Collaborative Filtering, Matrix Factorization (with TODOs)
+- ExperimentRunner for comparing multiple recommendation algorithms
+- Immediate feedback with rich console output
+
+Learning objectives:
+1. Implement collaborative filtering with user-item similarity
+2. Implement matrix factorization using SVD decomposition
+3. Compare models using plug-and-play registry pattern
+4. See results immediately after each model trains
+5. Experiment with different hyperparameters and observe impact
 """
 
 import logging
+import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import joblib
 import numpy as np
 import pandas as pd
+from rich.console import Console
+from rich.table import Table
 from scipy.sparse.linalg import svds
-
-from src.utils import timer, validate_positive
-
+from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger("flixai")
+console = Console()
 
 
-class ModelRegistry:
-    """Registry for training and managing recommender models.
+@dataclass
+class ModelConfig:
+    """Configuration for model training."""
+    random_state: int = 42
+    verbose: bool = True
+
+
+class Recommender(ABC):
+    """Abstract base class for all recommenders.
     
-    Supported models:
-    - Matrix Factorization (SVD)
-    - Neural Collaborative Filtering (TensorFlow)
-    - Item-based Collaborative Filtering
-    
-    Attributes:
-        models: Dictionary of trained models
-        best_model_name: Name of best performing model
-        user_factors: User latent factors (matrix factorization)
-        item_factors: Item latent factors (matrix factorization)
-    
-    Example:
-        >>> registry = ModelRegistry()
-        >>> registry.train_matrix_factorization(ratings_train, n_factors=50)
-        >>> predictions = registry.predict(user_id=123, k=10)
+    Provides common interface for plug-and-play experimentation.
+    Subclasses implement train() and recommend() methods.
     """
     
-    def __init__(self):
-        """Initialize empty model registry."""
-        self.models = {}
-        self.best_model_name = None
-        self.user_factors = None
-        self.item_factors = None
-        self.user_bias = None
-        self.item_bias = None
-        self.global_mean = None
-        
-        logger.info("Initialized ModelRegistry")
+    def __init__(self, name: str):
+        """Initialize recommender with name for display."""
+        self.name = name
+        self.model = None
+        self.metrics = {}
+        self.user_item_matrix = None
     
-    @timer
-    def train_matrix_factorization(
+    @abstractmethod
+    def train(
         self,
         ratings: pd.DataFrame,
         user_item_matrix: pd.DataFrame,
-        n_factors: int = 50,
-        regularization: float = 0.1
+        config: ModelConfig
     ) -> Dict[str, float]:
-        """Train matrix factorization model using SVD.
-        
-        Decompose user-item matrix into user and item latent factors:
-        R ≈ U @ Σ @ V^T
+        """Train recommender and return metrics with immediate console feedback.
         
         Args:
             ratings: DataFrame with user_id, item_id, rating columns
-            user_item_matrix: User-item matrix (users x items)
-            n_factors: Number of latent factors
-            regularization: Regularization parameter (not used in SVD, for compatibility)
+            user_item_matrix: User-item matrix (users × items)
+            config: Training configuration
         
         Returns:
-            Dictionary with training metrics
-        
-        Raises:
-            ValueError: If n_factors is not positive
-            RuntimeError: If training fails
-        
-        Example:
-            >>> metrics = registry.train_matrix_factorization(
-            ...     train_ratings, user_item_train, n_factors=50
-            ... )
-            >>> print(f"Train RMSE: {metrics['rmse']:.3f}")
+            Dictionary with metrics: {"rmse": float, "mae": float, "coverage": float}
         """
-        validate_positive(n_factors, "n_factors")
-        
-        logger.info(f"Training Matrix Factorization (n_factors={n_factors})")
-        
-        try:
-            # Compute global mean and center the matrix
-            self.global_mean = user_item_matrix.values[user_item_matrix.values > 0].mean()
-            
-            # Center ratings
-            centered_matrix = user_item_matrix.values.copy()
-            centered_matrix[centered_matrix > 0] -= self.global_mean
-            
-            # Apply SVD
-            logger.info("Computing SVD decomposition...")
-            U, sigma, Vt = svds(centered_matrix, k=n_factors)
-            
-            # Store factors
-            self.user_factors = U
-            self.item_factors = Vt.T
-            sigma_diag = np.diag(sigma)
-            
-            # Store full model
-            self.models["matrix_factorization"] = {
-                'user_factors': self.user_factors,
-                'item_factors': self.item_factors,
-                'sigma': sigma_diag,
-                'global_mean': self.global_mean,
-                'n_factors': n_factors
-            }
-            
-            # Compute training metrics
-            predictions = self._predict_all(user_item_matrix)
-            actual = user_item_matrix.values[user_item_matrix.values > 0]
-            predicted = predictions[user_item_matrix.values > 0]
-            
-            rmse = np.sqrt(np.mean((actual - predicted) ** 2))
-            mae = np.mean(np.abs(actual - predicted))
-            
-            metrics = {
-                "rmse": float(rmse),
-                "mae": float(mae),
-                "n_factors": n_factors
-            }
-            
-            logger.info(f"Matrix Factorization trained - RMSE: {rmse:.3f}, MAE: {mae:.3f}")
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"Matrix Factorization training failed: {e}")
-            raise RuntimeError(f"Matrix Factorization training failed: {e}") from e
+        pass
     
-    def _predict_all(self, user_item_matrix: pd.DataFrame) -> np.ndarray:
-        """Predict all ratings using matrix factorization.
-        
-        Args:
-            user_item_matrix: User-item matrix
-        
-        Returns:
-            Predicted ratings matrix
-        """
-        model = self.models.get("matrix_factorization")
-        if model is None:
-            raise RuntimeError("Matrix factorization model not trained")
-        
-        predictions = (
-            self.user_factors @ model['sigma'] @ self.item_factors.T
-            + model['global_mean']
-        )
-        
-        return predictions
-    
-    @timer
-    def train_neural_cf(
-        self,
-        ratings: pd.DataFrame,
-        embedding_dim: int = 50,
-        hidden_layers: list = [128, 64, 32],
-        dropout_rate: float = 0.2,
-        learning_rate: float = 0.001,
-        batch_size: int = 256,
-        n_epochs: int = 10
-    ) -> Dict[str, float]:
-        """Train neural collaborative filtering model.
-        
-        Uses TensorFlow to learn user and item embeddings through
-        multi-layer perceptron.
-        
-        Args:
-            ratings: DataFrame with user_id, item_id, rating columns
-            embedding_dim: Dimension of user/item embeddings
-            hidden_layers: List of hidden layer sizes
-            dropout_rate: Dropout rate for regularization
-            learning_rate: Learning rate for optimizer
-            batch_size: Batch size for training
-            n_epochs: Number of training epochs
-        
-        Returns:
-            Dictionary with training metrics
-        
-        Example:
-            >>> metrics = registry.train_neural_cf(
-            ...     train_ratings,
-            ...     embedding_dim=50,
-            ...     n_epochs=10
-            ... )
-        """
-        try:
-            import tensorflow as tf
-        except ImportError:
-            logger.error("TensorFlow not installed. Install with: pip install tensorflow")
-            raise RuntimeError("TensorFlow required for neural CF")
-        
-        logger.info(
-            f"Training Neural CF (embedding_dim={embedding_dim}, "
-            f"layers={hidden_layers}, epochs={n_epochs})"
-        )
-        
-        try:
-            # Prepare data
-            n_users = ratings['user_id'].max() + 1
-            n_items = ratings['item_id'].max() + 1
-            
-            user_ids = ratings['user_id'].values
-            item_ids = ratings['item_id'].values
-            ratings_values = ratings['rating'].values
-            
-            # Build model
-            user_input = tf.keras.Input(shape=(1,), name='user_input')
-            item_input = tf.keras.Input(shape=(1,), name='item_input')
-            
-            # Embeddings
-            user_embedding = tf.keras.layers.Embedding(
-                n_users, embedding_dim, name='user_embedding'
-            )(user_input)
-            item_embedding = tf.keras.layers.Embedding(
-                n_items, embedding_dim, name='item_embedding'
-            )(item_input)
-            
-            # Flatten
-            user_vec = tf.keras.layers.Flatten()(user_embedding)
-            item_vec = tf.keras.layers.Flatten()(item_embedding)
-            
-            # Concatenate
-            concat = tf.keras.layers.Concatenate()([user_vec, item_vec])
-            
-            # Hidden layers
-            x = concat
-            for units in hidden_layers:
-                x = tf.keras.layers.Dense(units, activation='relu')(x)
-                x = tf.keras.layers.Dropout(dropout_rate)(x)
-            
-            # Output
-            output = tf.keras.layers.Dense(1, activation='linear', name='output')(x)
-            
-            # Compile model
-            model = tf.keras.Model(inputs=[user_input, item_input], outputs=output)
-            model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate),
-                loss='mse',
-                metrics=['mae']
-            )
-            
-            logger.info(f"Model architecture: {model.count_params()} parameters")
-            
-            # Train model
-            history = model.fit(
-                [user_ids, item_ids],
-                ratings_values,
-                batch_size=batch_size,
-                epochs=n_epochs,
-                validation_split=0.1,
-                verbose=0
-            )
-            
-            # Store model
-            self.models["neural_cf"] = model
-            
-            # Get final metrics
-            final_loss = history.history['loss'][-1]
-            final_mae = history.history['mae'][-1]
-            
-            metrics = {
-                "rmse": float(np.sqrt(final_loss)),
-                "mae": float(final_mae),
-                "n_epochs": n_epochs,
-                "n_params": model.count_params()
-            }
-            
-            logger.info(f"Neural CF trained - RMSE: {metrics['rmse']:.3f}, MAE: {metrics['mae']:.3f}")
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"Neural CF training failed: {e}")
-            raise RuntimeError(f"Neural CF training failed: {e}") from e
-    
-    def predict_rating(
+    @abstractmethod
+    def recommend(
         self,
         user_id: int,
-        item_id: int,
-        model_name: str = "matrix_factorization"
-    ) -> float:
-        """Predict rating for a user-item pair.
+        k: int = 10,
+        exclude_seen: bool = True
+    ) -> List[Tuple[int, float]]:
+        """Generate top-k recommendations for a user.
+        
+        Args:
+            user_id: User ID to generate recommendations for
+            k: Number of recommendations
+            exclude_seen: Whether to exclude items user has already rated
+        
+        Returns:
+            List of (item_id, predicted_rating) tuples
+        """
+        pass
+    
+    def save(self, path: str) -> None:
+        """Save trained model to disk."""
+        if self.model is None:
+            raise ValueError("Cannot save untrained model")
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump({
+            'model': self.model,
+            'user_item_matrix': self.user_item_matrix,
+            'metrics': self.metrics
+        }, path)
+        logger.info(f"Saved {self.name} to {path}")
+    
+    @classmethod
+    def load(cls, path: str) -> "Recommender":
+        """Load trained model from disk."""
+        data = joblib.load(path)
+        instance = cls.__new__(cls)
+        instance.model = data['model']
+        instance.user_item_matrix = data['user_item_matrix']
+        instance.metrics = data.get('metrics', {})
+        return instance
+
+
+class CollaborativeFilteringRecommender(Recommender):
+    """User-based collaborative filtering recommender.
+    
+    Finds similar users and recommends items they liked.
+    Uses cosine similarity to measure user-user similarity.
+    """
+    
+    def __init__(self, n_neighbors: int = 20):
+        """Initialize collaborative filtering recommender.
+        
+        Args:
+            n_neighbors: Number of similar users to consider
+        """
+        super().__init__(f"Collaborative Filtering (k={n_neighbors})")
+        self.n_neighbors = n_neighbors
+        self.user_similarity = None
+    
+    def train(
+        self,
+        ratings: pd.DataFrame,
+        user_item_matrix: pd.DataFrame,
+        config: ModelConfig
+    ) -> Dict[str, float]:
+        """
+        TODO: Implement collaborative filtering training
+        
+        Args:
+            ratings: DataFrame with user_id, item_id, rating columns
+            user_item_matrix: User-item matrix (users × items)
+            config: Training configuration
+        
+        Returns:
+            Dictionary with metrics: {"rmse": float, "mae": float, "coverage": float}
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement collaborative filtering training")
+    
+    def _predict_rating(self, user_id: int, item_id: int) -> float:
+        """
+        TODO: Predict rating for user-item pair using k-nearest neighbors
         
         Args:
             user_id: User ID
             item_id: Item ID
-            model_name: Name of model to use
         
         Returns:
-            Predicted rating
-        
-        Example:
-            >>> rating = registry.predict_rating(user_id=123, item_id=456)
+            Predicted rating (1-5)
         """
-        if model_name == "matrix_factorization":
-            if self.user_factors is None:
-                raise RuntimeError("Matrix factorization model not trained")
-            
-            prediction = (
-                np.dot(self.user_factors[user_id], self.item_factors[item_id])
-                + self.global_mean
-            )
-            return float(np.clip(prediction, 1, 5))
-        
-        elif model_name == "neural_cf":
-            model = self.models.get("neural_cf")
-            if model is None:
-                raise RuntimeError("Neural CF model not trained")
-            
-            prediction = model.predict(
-                [np.array([user_id]), np.array([item_id])],
-                verbose=0
-            )[0][0]
-            return float(np.clip(prediction, 1, 5))
-        
-        else:
-            raise ValueError(f"Unknown model: {model_name}")
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement rating prediction")
     
-    def recommend_items(
+    def recommend(
         self,
         user_id: int,
         k: int = 10,
-        exclude_seen: bool = True,
-        seen_items: Optional[set] = None,
-        model_name: str = "matrix_factorization"
-    ) -> list:
-        """Recommend top-k items for a user.
+        exclude_seen: bool = True
+    ) -> List[Tuple[int, float]]:
+        """Generate top-k recommendations using collaborative filtering.
         
         Args:
             user_id: User ID
             k: Number of recommendations
-            exclude_seen: Whether to exclude already-seen items
-            seen_items: Set of item IDs already seen by user
-            model_name: Name of model to use
+            exclude_seen: Whether to exclude already-rated items
         
         Returns:
             List of (item_id, predicted_rating) tuples
-        
-        Example:
-            >>> recommendations = registry.recommend_items(user_id=123, k=10)
-            >>> print(f"Top item: {recommendations[0][0]} (score: {recommendations[0][1]:.2f})")
         """
-        if model_name == "matrix_factorization":
-            if self.user_factors is None:
-                raise RuntimeError("Matrix factorization model not trained")
-            
-            # Compute scores for all items
-            user_vector = self.user_factors[user_id]
-            scores = self.item_factors @ user_vector + self.global_mean
-            
-            # Exclude seen items
-            if exclude_seen and seen_items:
-                for item_id in seen_items:
-                    scores[item_id] = -np.inf
-            
-            # Get top-k
-            top_k_indices = np.argsort(scores)[::-1][:k]
-            recommendations = [(int(idx), float(scores[idx])) for idx in top_k_indices]
-            
-            return recommendations
+        if self.user_similarity is None:
+            raise ValueError("Model not trained yet")
         
-        else:
-            raise ValueError(f"Recommendation not implemented for model: {model_name}")
+        # Get all item predictions
+        n_items = self.user_item_matrix.shape[1]
+        predictions = []
+        
+        for item_id in range(n_items):
+            # Skip if user already rated this item
+            if exclude_seen and self.user_item_matrix.iloc[user_id, item_id] > 0:
+                continue
+            
+            pred = self._predict_rating(user_id, item_id)
+            predictions.append((item_id, pred))
+        
+        # Sort by predicted rating and return top-k
+        predictions.sort(key=lambda x: x[1], reverse=True)
+        return predictions[:k]
+
+
+class MatrixFactorizationRecommender(Recommender):
+    """Matrix factorization recommender using SVD.
     
-    def save(self, model_name: str, path: str) -> None:
-        """Save trained model to disk.
+    Decomposes user-item matrix into user and item latent factors:
+    R ≈ U @ Σ @ V^T
+    
+    Lower-rank approximation captures latent preferences.
+    """
+    
+    def __init__(self, n_factors: int = 50):
+        """Initialize matrix factorization recommender.
         
         Args:
-            model_name: Name of model to save
-            path: Path to save model
-        
-        Example:
-            >>> registry.save("matrix_factorization", "models/mf_model.pkl")
+            n_factors: Number of latent factors
         """
-        model_path = Path(path)
-        model_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        model = self.models.get(model_name)
-        if model is None:
-            raise ValueError(f"Model {model_name} not found in registry")
-        
-        joblib.dump(model, model_path)
-        logger.info(f"Model '{model_name}' saved to {model_path}")
+        super().__init__(f"Matrix Factorization (k={n_factors})")
+        self.n_factors = n_factors
+        self.user_factors = None
+        self.item_factors = None
+        self.global_mean = None
+        self.sigma = None
     
-    def load(self, model_name: str, path: str) -> None:
-        """Load trained model from disk.
+    def train(
+        self,
+        ratings: pd.DataFrame,
+        user_item_matrix: pd.DataFrame,
+        config: ModelConfig
+    ) -> Dict[str, float]:
+        """
+        TODO: Implement matrix factorization training using SVD
         
         Args:
-            model_name: Name to assign to loaded model
-            path: Path to model file
+            ratings: DataFrame with ratings
+            user_item_matrix: User-item matrix
+            config: Training configuration
         
-        Example:
-            >>> registry.load("matrix_factorization", "models/mf_model.pkl")
+        Returns:
+            Dictionary with metrics
         """
-        model_path = Path(path)
-        if not model_path.exists():
-            raise FileNotFoundError(f"Model file not found: {model_path}")
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement matrix factorization training")
+    
+    def recommend(
+        self,
+        user_id: int,
+        k: int = 10,
+        exclude_seen: bool = True
+    ) -> List[Tuple[int, float]]:
+        """
+        TODO: Generate top-k recommendations using matrix factorization
         
-        self.models[model_name] = joblib.load(model_path)
-        logger.info(f"Model '{model_name}' loaded from {model_path}")
+        Args:
+            user_id: User ID to generate recommendations for
+            k: Number of recommendations
+            exclude_seen: Whether to exclude items user has already rated
+        
+        Returns:
+            List of (item_id, predicted_rating) tuples
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement recommendation generation")
+
+
+class ExperimentRunner:
+    """Run experiments with multiple recommenders and compare results.
+    
+    Provides plug-and-play framework for trying different models:
+    1. Register recommenders to try
+    2. Run all experiments with immediate feedback
+    3. Print leaderboard sorted by performance
+    
+    Example:
+        >>> runner = ExperimentRunner()
+        >>> runner.register("CF (k=20)", CollaborativeFilteringRecommender(n_neighbors=20))
+        >>> runner.register("MF (k=50)", MatrixFactorizationRecommender(n_factors=50))
+        >>> runner.run_experiment(ratings_train, user_item_train, ModelConfig())
+        >>> runner.print_leaderboard()
+    """
+    
+    def __init__(self):
+        """Initialize empty experiment runner."""
+        self.recommenders: Dict[str, Recommender] = {}
+        self.results: List[Dict[str, Any]] = []
+    
+    def register(self, name: str, recommender: Recommender):
+        """Register a recommender to try in experiments.
+        
+        Args:
+            name: Display name for results
+            recommender: Recommender instance to train
+        """
+        self.recommenders[name] = recommender
+        console.print(f"Registered: {name}", style="dim")
+    
+    def run_experiment(
+        self,
+        ratings: pd.DataFrame,
+        user_item_matrix: pd.DataFrame,
+        config: ModelConfig
+    ):
+        """
+        TODO: Run all registered recommenders and compare
+        
+        Args:
+            ratings: DataFrame with ratings
+            user_item_matrix: User-item matrix
+            config: Training configuration
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement experiment runner")
+    
+    def print_leaderboard(self):
+        """
+        TODO: Print sorted leaderboard of all models
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement leaderboard")
+    
+    def get_best_model(self) -> Recommender:
+        """Return recommender with lowest RMSE."""
+        if not self.results:
+            raise ValueError("No experiments run yet")
+        best_result = min(self.results, key=lambda x: x["rmse"])
+        return self.recommenders[best_result["model"]]
+    
+    def evaluate_recommendations(
+        self,
+        test_ratings: pd.DataFrame,
+        k: int = 10
+    ) -> Dict[str, float]:
+        """
+        TODO: Evaluate recommendation quality on test set
+        
+        Args:
+            test_ratings: Test ratings DataFrame
+            k: Number of recommendations
+        
+        Returns:
+            Dictionary with precision and recall metrics
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement recommendation evaluation")

@@ -1,415 +1,250 @@
-"""Model training and registry for FaceAI
+"""Model training with experiment framework for FaceAI
 
-Provides: ModelRegistry for training LogisticRegression, SVM, RandomForest with persistence
+This module provides:
+- Abstract Classifier interface for plug-and-play models
+- Concrete implementations: LogisticRegression, SVM, RandomForest (with TODOs)
+- ExperimentRunner for comparing multiple models
+- Immediate feedback with rich console output
+
+Learning objectives:
+1. Implement Logistic Regression/SVM/RandomForest with cross-validation
+2. Compare models using plug-and-play registry pattern
+3. See results immediately after each model trains
+4. Experiment with hyperparameters and observe impact
 """
 
 import logging
+import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import joblib
 import numpy as np
+from rich.console import Console
+from rich.table import Table
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
-
-from src.utils import timer, validate_positive
-
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 logger = logging.getLogger("faceai")
+console = Console()
 
 
-class ModelRegistry:
-    """Registry for training and managing multiple classification models.
+@dataclass
+class ModelConfig:
+    """Configuration for model training."""
+    cv_folds: int = 5
+    random_state: int = 42
+    verbose: bool = True
+
+
+
+class Classifier(ABC):
+    """Abstract base class for all classifiers.
     
-    Supported models:
-    - Logistic Regression (multi-class)
-    - Support Vector Machine (SVM)
-    - Random Forest
-    
-    Attributes:
-        models: Dictionary of trained models
-        best_model_name: Name of best performing model
-        cv_scores: Cross-validation scores for each model
-    
-    Example:
-        >>> registry = ModelRegistry()
-        >>> registry.train_logistic_regression(X_train, y_train, C=1.0)
-        >>> registry.train_svm(X_train, y_train, C=1.0, kernel='rbf')
-        >>> predictions = registry.predict(X_test, "logistic_regression")
+    Provides common interface for plug-and-play experimentation.
+    Subclasses implement train() and predict() methods.
     """
     
-    def __init__(self):
-        """Initialize empty model registry."""
-        self.models = {}
-        self.best_model_name = None
-        self.cv_scores = {}
-        
-        logger.info("Initialized ModelRegistry")
+    def __init__(self, name: str):
+        """Initialize classifier with name for display."""
+        self.name = name
+        self.model = None
+        self.metrics = {}
     
-    @timer
-    def train_logistic_regression(
-        self,
-        X: np.ndarray,
-        y: np.ndarray,
-        C: float = 1.0,
-        max_iter: int = 1000,
-        cv_folds: int = 5
-    ) -> Dict[str, float]:
-        """Train Logistic Regression model.
+    @abstractmethod
+    def train(self, X: np.ndarray, y: np.ndarray, config: ModelConfig) -> Dict[str, float]:
+        """Train model and return metrics with immediate console feedback.
         
         Args:
             X: Training features
             y: Training labels
-            C: Inverse of regularization strength (smaller = more regularization)
-            max_iter: Maximum iterations for solver
-            cv_folds: Number of cross-validation folds
+            config: Training configuration
         
         Returns:
-            Dictionary with training metrics (accuracy, cv_accuracy)
-        
-        Raises:
-            ValueError: If C is not positive
-            RuntimeError: If training fails
-        
-        Example:
-            >>> metrics = registry.train_logistic_regression(X_train, y_train, C=1.0)
-            >>> print(f"CV Accuracy: {metrics['cv_accuracy']:.3f}")
+            Dictionary with metrics: {"accuracy": float, "cv_accuracy": float, ...}
         """
-        validate_positive(C, "C")
-        
-        logger.info(f"Training LogisticRegression (C={C}, max_iter={max_iter})")
-        
-        try:
-            model = LogisticRegression(
-                C=C,
-                max_iter=max_iter,
-                multi_class='multinomial',
-                solver='lbfgs',
-                random_state=42
-            )
-            model.fit(X, y)
-            
-            # Cross-validation
-            cv_accuracy = self._cross_validate(model, X, y, cv_folds)
-            
-            # Store model
-            self.models["logistic_regression"] = model
-            self.cv_scores["logistic_regression"] = cv_accuracy
-            
-            # Training metrics
-            train_accuracy = model.score(X, y)
-            
-            metrics = {
-                "train_accuracy": float(train_accuracy),
-                "cv_accuracy": float(cv_accuracy),
-            }
-            
-            logger.info(
-                f"LogisticRegression trained - "
-                f"CV Acc: {cv_accuracy:.3f}, Train Acc: {train_accuracy:.3f}"
-            )
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"LogisticRegression training failed: {e}")
-            raise RuntimeError(f"LogisticRegression training failed: {e}") from e
+        pass
     
-    @timer
-    def train_svm(
-        self,
-        X: np.ndarray,
-        y: np.ndarray,
-        C: float = 1.0,
-        kernel: str = 'rbf',
-        gamma: str = 'scale',
-        cv_folds: int = 5
-    ) -> Dict[str, float]:
-        """Train Support Vector Machine model.
+    @abstractmethod
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Make predictions on new data."""
+        pass
+    
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        """Get prediction probabilities (if supported)."""
+        if self.model is None:
+            raise ValueError("Model not trained yet")
+        if not hasattr(self.model, 'predict_proba'):
+            raise ValueError(f"{self.name} does not support predict_proba")
+        return self.model.predict_proba(X)
+    
+    def save(self, path: str) -> None:
+        """Save trained model to disk."""
+        if self.model is None:
+            raise ValueError("Cannot save untrained model")
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(self.model, path)
+        logger.info(f"Saved {self.name} to {path}")
+    
+    @classmethod
+    def load(cls, path: str) -> "Classifier":
+        """Load trained model from disk."""
+        model = joblib.load(path)
+        instance = cls.__new__(cls)
+        instance.model = model
+        return instance
+
+
+
+class LogisticRegressor(Classifier):
+    """Logistic Regression for multi-class classification.
+    
+    Logistic Regression uses sigmoid function: P(y=1|x) = 1/(1 + e^(-wx))
+    For multi-class: uses softmax + multinomial loss
+    Regularization: C parameter (smaller C = more regularization)
+    """
+    
+    def __init__(self, C: float = 1.0, max_iter: int = 1000):
+        """Initialize Logistic Regression classifier.
         
         Args:
-            X: Training features
-            y: Training labels
+            C: Inverse regularization strength (smaller = more regularization)
+            max_iter: Maximum iterations for solver
+        """
+        super().__init__(f"Logistic (C={C})")
+        self.C = C
+        self.max_iter = max_iter
+    
+    def train(self, X: np.ndarray, y: np.ndarray, config: ModelConfig) -> Dict[str, float]:
+        """TODO: Implement Logistic Regression training with cross-validation and metrics."""
+        raise NotImplementedError("Implement Logistic Regression training")
+    
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Make predictions using trained Logistic Regression model."""
+        if self.model is None:
+            raise ValueError("Model not trained yet")
+        return self.model.predict(X)
+
+
+class SVMClassifier(Classifier):
+    """Support Vector Machine classifier with kernel trick.
+    
+    SVM finds optimal hyperplane that maximizes margin between classes.
+    Kernel trick: Projects data to higher dimensions for non-linear boundaries
+    - 'linear': Works well for linearly separable data
+    - 'rbf': Radial basis function for complex boundaries
+    - 'poly': Polynomial kernel for polynomial relationships
+    """
+    
+    def __init__(self, C: float = 1.0, kernel: str = 'rbf', gamma: str = 'scale'):
+        """Initialize SVM classifier.
+        
+        Args:
             C: Regularization parameter
             kernel: Kernel type ('linear', 'rbf', 'poly', 'sigmoid')
             gamma: Kernel coefficient ('scale' or 'auto' or float)
-            cv_folds: Number of cross-validation folds
-        
-        Returns:
-            Dictionary with training metrics
-        
-        Example:
-            >>> metrics = registry.train_svm(X_train, y_train, C=1.0, kernel='rbf')
         """
-        validate_positive(C, "C")
-        
-        logger.info(f"Training SVM (C={C}, kernel={kernel}, gamma={gamma})")
-        
-        try:
-            model = SVC(
-                C=C,
-                kernel=kernel,
-                gamma=gamma,
-                random_state=42
-            )
-            model.fit(X, y)
-            
-            # Cross-validation
-            cv_accuracy = self._cross_validate(model, X, y, cv_folds)
-            
-            # Store model
-            self.models["svm"] = model
-            self.cv_scores["svm"] = cv_accuracy
-            
-            # Training metrics
-            train_accuracy = model.score(X, y)
-            
-            metrics = {
-                "train_accuracy": float(train_accuracy),
-                "cv_accuracy": float(cv_accuracy),
-                "n_support_vectors": int(model.n_support_.sum()),
-            }
-            
-            logger.info(
-                f"SVM trained - CV Acc: {cv_accuracy:.3f}, "
-                f"Support vectors: {metrics['n_support_vectors']}"
-            )
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"SVM training failed: {e}")
-            raise RuntimeError(f"SVM training failed: {e}") from e
+        super().__init__(f"SVM (C={C}, {kernel})")
+        self.C = C
+        self.kernel = kernel
+        self.gamma = gamma
     
-    @timer
-    def train_random_forest(
-        self,
-        X: np.ndarray,
-        y: np.ndarray,
-        n_estimators: int = 100,
-        max_depth: int = 10,
-        cv_folds: int = 5,
-        **kwargs
-    ) -> Dict[str, float]:
-        """Train Random Forest model.
+    def train(self, X: np.ndarray, y: np.ndarray, config: ModelConfig) -> Dict[str, float]:
+        """TODO: Implement SVM training with cross-validation and support vector metrics."""
+        raise NotImplementedError("Implement SVM training")
+    
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Make predictions using trained SVM model."""
+        if self.model is None:
+            raise ValueError("Model not trained yet")
+        return self.model.predict(X)
+
+
+class RandomForestClassifier(Classifier):
+    """Random Forest ensemble classifier.
+    
+    Random Forest builds multiple decision trees on random subsets:
+    1. Bootstrap sampling: Each tree trained on random sample (with replacement)
+    2. Random features: Each split considers random subset of features
+    3. Voting: Final prediction is majority vote across all trees
+    
+    Key advantages:
+    - Handles non-linear relationships naturally
+    - Resistant to overfitting (with enough trees)
+    - Provides feature importance scores
+    """
+    
+    def __init__(self, n_estimators: int = 100, max_depth: int = 10):
+        """Initialize Random Forest classifier.
         
         Args:
-            X: Training features
-            y: Training labels
-            n_estimators: Number of trees
-            max_depth: Maximum tree depth
-            cv_folds: Number of cross-validation folds
-            **kwargs: Additional RandomForest parameters
-        
-        Returns:
-            Dictionary with training metrics
-        
-        Example:
-            >>> metrics = registry.train_random_forest(
-            ...     X_train, y_train,
-            ...     n_estimators=100,
-            ...     max_depth=10
-            ... )
+            n_estimators: Number of trees in forest
+            max_depth: Maximum depth of each tree
         """
-        logger.info(
-            f"Training RandomForest (n_estimators={n_estimators}, max_depth={max_depth})"
-        )
-        
-        try:
-            model = RandomForestClassifier(
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-                random_state=42,
-                **kwargs
-            )
-            model.fit(X, y)
-            
-            # Cross-validation
-            cv_accuracy = self._cross_validate(model, X, y, cv_folds)
-            
-            # Store model
-            self.models["random_forest"] = model
-            self.cv_scores["random_forest"] = cv_accuracy
-            
-            # Training metrics
-            train_accuracy = model.score(X, y)
-            
-            metrics = {
-                "train_accuracy": float(train_accuracy),
-                "cv_accuracy": float(cv_accuracy),
-            }
-            
-            logger.info(
-                f"RandomForest trained - CV Acc: {cv_accuracy:.3f}, "
-                f"Train Acc: {train_accuracy:.3f}"
-            )
-            
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"RandomForest training failed: {e}")
-            raise RuntimeError(f"RandomForest training failed: {e}") from e
+        super().__init__(f"RandomForest (n={n_estimators}, d={max_depth})")
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
     
-    def predict(self, X: np.ndarray, model_name: str = None) -> np.ndarray:
-        """Make predictions using specified model.
+    def train(self, X: np.ndarray, y: np.ndarray, config: ModelConfig) -> Dict[str, float]:
+        """TODO: Implement Random Forest training with cross-validation."""
+        raise NotImplementedError("Implement Random Forest training")
+    
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Make predictions using trained Random Forest model."""
+        if self.model is None:
+            raise ValueError("Model not trained yet")
+        return self.model.predict(X)
+
+
+class ExperimentRunner:
+    """Run experiments with multiple classifiers and compare results.
+    
+    Provides plug-and-play framework for trying different models:
+    1. Register classifiers to try
+    2. Run all experiments with immediate feedback
+    3. Print leaderboard sorted by performance
+    
+    Example:
+        >>> runner = ExperimentRunner()
+        >>> runner.register("Logistic (C=0.1)", LogisticRegressor(C=0.1))
+        >>> runner.register("Logistic (C=1.0)", LogisticRegressor(C=1.0))
+        >>> runner.register("SVM (RBF)", SVMClassifier(C=1.0, kernel='rbf'))
+        >>> runner.run_experiment(X_train, y_train, ModelConfig())
+        >>> runner.print_leaderboard()
+    """
+    
+    def __init__(self):
+        """Initialize empty experiment runner."""
+        self.classifiers: Dict[str, Classifier] = {}
+        self.results: List[Dict[str, Any]] = []
+    
+    def register(self, name: str, classifier: Classifier):
+        """Register a classifier to try in experiments.
         
         Args:
-            X: Features to predict on
-            model_name: Name of model to use (None = best model)
-        
-        Returns:
-            Array of predictions
-        
-        Raises:
-            ValueError: If model_name not found
-            RuntimeError: If no models trained
-        
-        Example:
-            >>> predictions = registry.predict(X_test, "logistic_regression")
+            name: Display name for results
+            classifier: Classifier instance to train
         """
-        if not self.models:
-            raise RuntimeError("No models trained. Train a model first.")
-        
-        if model_name is None:
-            model_name = self.get_best_model_name()
-        
-        if model_name not in self.models:
-            raise ValueError(
-                f"Model '{model_name}' not found. Available: {list(self.models.keys())}"
-            )
-        
-        model = self.models[model_name]
-        return model.predict(X)
+        self.classifiers[name] = classifier
+        console.print(f"Registered: {name}", style="dim")
     
-    def predict_proba(self, X: np.ndarray, model_name: str = None) -> np.ndarray:
-        """Get prediction probabilities.
-        
-        Args:
-            X: Features to predict on
-            model_name: Name of model to use (None = best model)
-        
-        Returns:
-            Array of class probabilities
-        
-        Raises:
-            ValueError: If model doesn't support predict_proba
-        """
-        if not self.models:
-            raise RuntimeError("No models trained. Train a model first.")
-        
-        if model_name is None:
-            model_name = self.get_best_model_name()
-        
-        model = self.models[model_name]
-        
-        if not hasattr(model, 'predict_proba'):
-            raise ValueError(f"Model '{model_name}' does not support predict_proba")
-        
-        return model.predict_proba(X)
+    def run_experiment(self, X: np.ndarray, y: np.ndarray, config: ModelConfig):
+        """TODO: Train all registered classifiers and store results."""
+        raise NotImplementedError("Implement experiment runner")
     
-    def get_best_model_name(self) -> str:
-        """Get name of model with highest cross-validation accuracy.
-        
-        Returns:
-            Name of best model
-        
-        Raises:
-            RuntimeError: If no models trained
-        """
-        if not self.cv_scores:
-            raise RuntimeError("No models trained with cross-validation")
-        
-        best_name = max(self.cv_scores, key=self.cv_scores.get)
-        self.best_model_name = best_name
-        
-        return best_name
+    def print_leaderboard(self):
+        """TODO: Display sorted leaderboard table comparing all trained models."""
+        raise NotImplementedError("Implement leaderboard")
     
-    def save_model(self, model_name: str, path: str) -> None:
-        """Save model to disk using joblib.
-        
-        Args:
-            model_name: Name of model to save
-            path: File path for saved model
-        
-        Raises:
-            ValueError: If model not found
-        
-        Example:
-            >>> registry.save_model("logistic_regression", "models/lr_v1.pkl")
-        """
-        if model_name not in self.models:
-            raise ValueError(f"Model '{model_name}' not found")
-        
-        model_path = Path(path)
-        model_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        joblib.dump(self.models[model_name], model_path)
-        logger.info(f"Saved {model_name} to {path}")
-    
-    def load_model(self, model_name: str, path: str) -> None:
-        """Load model from disk.
-        
-        Args:
-            model_name: Name to assign loaded model
-            path: File path of saved model
-        
-        Raises:
-            FileNotFoundError: If model file not found
-        
-        Example:
-            >>> registry.load_model("logistic_regression", "models/lr_v1.pkl")
-        """
-        model_path = Path(path)
-        if not model_path.exists():
-            raise FileNotFoundError(f"Model file not found: {path}")
-        
-        self.models[model_name] = joblib.load(model_path)
-        logger.info(f"Loaded {model_name} from {path}")
-    
-    def _cross_validate(
-        self,
-        model: Any,
-        X: np.ndarray,
-        y: np.ndarray,
-        cv_folds: int
-    ) -> float:
-        """Perform cross-validation and return mean accuracy.
-        
-        Args:
-            model: Model to cross-validate
-            X: Features
-            y: Labels
-            cv_folds: Number of folds
-        
-        Returns:
-            Mean accuracy across folds
-        """
-        scores = cross_val_score(
-            model, X, y,
-            cv=cv_folds,
-            scoring='accuracy'
-        )
-        accuracy = scores.mean()
-        
-        return float(accuracy)
-    
-    def get_model_summary(self) -> dict:
-        """Get summary of all trained models.
-        
-        Returns:
-            Dictionary with model names and CV scores
-        
-        Example:
-            >>> summary = registry.get_model_summary()
-            >>> print(summary)
-        """
-        if not self.cv_scores:
-            return {}
-        
-        return {
-            "models": list(self.cv_scores.keys()),
-            "cv_scores": self.cv_scores,
-            "best_model": self.get_best_model_name() if self.cv_scores else None,
-        }
+    def get_best_model(self) -> Classifier:
+        """Return classifier with highest CV accuracy."""
+        if not self.results:
+            raise ValueError("No experiments run yet")
+        best_result = max(self.results, key=lambda x: x["cv_accuracy"])
+        return self.classifiers[best_result["model"]]
+

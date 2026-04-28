@@ -1,366 +1,335 @@
-"""Model Registry and Compression Techniques
+"""Advanced Deep Learning Model Training with Transfer Learning
 
-Implements object detection models and compression methods:
-- Faster R-CNN, YOLOv8, Mask R-CNN
-- Knowledge distillation
-- Pruning
-- Quantization
+This module provides:
+- Abstract DeepModel base class for plug-and-play architectures
+- Concrete implementations: ResNet, Transformer, EfficientNet (with TODOs)
+- ExperimentRunner for comparing deep learning models
+- Immediate feedback with rich console output and training curves
+
+Learning objectives:
+1. Implement ResNet with residual connections and skip connections
+2. Build Transformer with self-attention and positional encoding
+3. Apply transfer learning (freeze/unfreeze layers, fine-tuning)
+4. Use advanced training techniques (mixed precision, gradient accumulation)
+5. Compare architectures using plug-and-play registry pattern
+6. Monitor training with real-time metrics and loss curves
+
+Advanced concepts:
+- Residual connections solve vanishing gradients
+- Skip connections enable deeper networks (100+ layers)
+- Self-attention captures long-range dependencies
+- Transfer learning reuses pretrained ImageNet weights
+- Mixed precision (FP16) speeds up training 2-3x
+- Gradient accumulation simulates larger batch sizes
 """
 
-import os
+import logging
+import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import torch
 import torch.nn as nn
-import torchvision
-from torchvision.models.detection import fasterrcnn_resnet50_fpn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from typing import Dict, Optional, Tuple
-import mlflow
-from ultralytics import YOLO
-from src.utils import setup_logger, timing_decorator, ensure_dir
+import torch.nn.functional as F
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.cuda.amp import GradScaler, autocast
+from rich.console import Console
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn
+import torchvision.models as models
+
+logger = logging.getLogger("deeplearning")
+console = Console()
 
 
-logger = setup_logger()
+@dataclass
+class TrainingConfig:
+    """Configuration for deep learning training."""
+    epochs: int = 20
+    batch_size: int = 32
+    learning_rate: float = 1e-4
+    weight_decay: float = 0.01
+    mixed_precision: bool = True
+    gradient_accumulation_steps: int = 1
+    early_stopping_patience: int = 5
+    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    random_state: int = 42
 
 
-class ModelRegistry:
-    """
-    Registry for object detection models with compression capabilities.
+class DeepModel(ABC):
+    """Abstract base class for all deep learning models.
+    
+    Provides common interface for plug-and-play experimentation.
+    Subclasses implement build_model(), train(), and predict() methods.
     """
     
-    def __init__(self, config: Dict):
-        """
-        Initialize model registry.
+    def __init__(self, name: str, num_classes: int = 10):
+        """Initialize deep model with name for display.
         
         Args:
-            config: Configuration dictionary
+            name: Model name for leaderboard display
+            num_classes: Number of output classes
         """
-        self.config = config
-        self.model_config = config['model']
-        self.compression_config = config['compression']
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-        logger.info(f"Initialized ModelRegistry on device: {self.device}")
+        self.name = name
+        self.num_classes = num_classes
+        self.model = None
+        self.metrics = {}
+        self.training_history = {"train_loss": [], "val_loss": [], "val_acc": []}
     
-    def create_model(self, architecture: Optional[str] = None) -> nn.Module:
-        """
-        Create model based on architecture.
-        
-        Args:
-            architecture: Model architecture ('faster_rcnn', 'yolov8', 'mask_rcnn')
-            
-        Returns:
-            PyTorch model
-        """
-        if architecture is None:
-            architecture = self.model_config['architecture']
-        
-        logger.info(f"Creating {architecture} model...")
-        
-        if architecture == 'faster_rcnn':
-            return self.train_faster_rcnn()
-        elif architecture == 'yolov8':
-            return self.train_yolov8()
-        elif architecture == 'mask_rcnn':
-            return self.train_mask_rcnn()
-        else:
-            raise ValueError(f"Unknown architecture: {architecture}")
-    
-    @timing_decorator
-    def train_faster_rcnn(self) -> nn.Module:
-        """
-        Create and train Faster R-CNN model.
+    @abstractmethod
+    def build_model(self) -> nn.Module:
+        """Build and return the neural network architecture.
         
         Returns:
-            Trained Faster R-CNN model
+            PyTorch nn.Module
         """
-        num_classes = self.model_config['num_classes']
-        
-        # Load pretrained model
-        model = fasterrcnn_resnet50_fpn(
-            pretrained=self.model_config['pretrained']
-        )
-        
-        # Replace the classifier head
-        in_features = model.roi_heads.box_predictor.cls_score.in_features
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-        
-        model = model.to(self.device)
-        
-        logger.info(f"Created Faster R-CNN with {num_classes} classes")
-        
-        return model
+        pass
     
-    @timing_decorator
-    def train_yolov8(self) -> YOLO:
-        """
-        Create and train YOLOv8 model.
-        
-        Returns:
-            Trained YOLOv8 model
-        """
-        # Load YOLOv8 model
-        model_size = 'n'  # nano for edge deployment
-        model = YOLO(f'yolov8{model_size}.pt')
-        
-        logger.info(f"Created YOLOv8{model_size} model")
-        
-        return model
-    
-    @timing_decorator
-    def train_mask_rcnn(self) -> nn.Module:
-        """
-        Create and train Mask R-CNN model for instance segmentation.
-        
-        Returns:
-            Trained Mask R-CNN model
-        """
-        num_classes = self.model_config['num_classes']
-        
-        # Load pretrained Mask R-CNN
-        model = torchvision.models.detection.maskrcnn_resnet50_fpn(
-            pretrained=self.model_config['pretrained']
-        )
-        
-        # Replace classifier head
-        in_features = model.roi_heads.box_predictor.cls_score.in_features
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-        
-        model = model.to(self.device)
-        
-        logger.info(f"Created Mask R-CNN with {num_classes} classes")
-        
-        return model
-    
-    @timing_decorator
-    def apply_distillation(
+    @abstractmethod
+    def train(
         self,
-        student_model: nn.Module,
-        teacher_model: nn.Module,
-        train_loader: torch.utils.data.DataLoader
-    ) -> nn.Module:
-        """
-        Apply knowledge distillation to compress model.
+        train_loader: torch.utils.data.DataLoader,
+        val_loader: torch.utils.data.DataLoader,
+        config: TrainingConfig
+    ) -> Dict[str, float]:
+        """Train model and return metrics with immediate console feedback.
         
         Args:
-            student_model: Student model to train
-            teacher_model: Teacher model to distill from
             train_loader: Training data loader
-            
+            val_loader: Validation data loader
+            config: Training configuration
+        
         Returns:
-            Distilled student model
+            Dictionary with metrics: {
+                "val_loss": float,
+                "val_acc": float,
+                "train_loss": float,
+                "best_epoch": int
+            }
         """
-        logger.info("Applying knowledge distillation...")
-        
-        distill_config = self.compression_config['distillation']
-        temperature = distill_config['temperature']
-        alpha = distill_config['alpha']
-        
-        teacher_model.eval()
-        student_model.train()
-        
-        optimizer = torch.optim.Adam(
-            student_model.parameters(),
-            lr=self.config['training']['learning_rate']
-        )
-        
-        # Training loop (simplified for demonstration)
-        epochs = min(10, self.config['training']['epochs'])
-        
-        for epoch in range(epochs):
-            total_loss = 0.0
-            
-            for batch in train_loader:
-                images = [img.to(self.device) for img in [b['image'] for b in batch]]
-                targets = [{k: v.to(self.device) for k, v in t.items() if k != 'image'} for t in batch]
-                
-                # Teacher predictions (no grad)
-                with torch.no_grad():
-                    teacher_outputs = teacher_model(images)
-                
-                # Student predictions
-                student_outputs = student_model(images, targets)
-                
-                # Distillation loss (simplified)
-                hard_loss = sum(loss for loss in student_outputs.values())
-                
-                # In production, implement proper soft target loss
-                soft_loss = torch.tensor(0.0, device=self.device)
-                
-                loss = alpha * hard_loss + (1 - alpha) * soft_loss
-                
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                
-                total_loss += loss.item()
-            
-            avg_loss = total_loss / len(train_loader)
-            logger.info(f"Distillation epoch {epoch + 1}/{epochs}, Loss: {avg_loss:.4f}")
-        
-        logger.info("Knowledge distillation completed")
-        return student_model
+        pass
     
-    @timing_decorator
-    def apply_pruning(self, model: nn.Module) -> nn.Module:
-        """
-        Apply structured pruning to reduce model size.
+    def predict(self, X: torch.Tensor) -> torch.Tensor:
+        """Make predictions on new data.
         
         Args:
-            model: Model to prune
-            
+            X: Input tensor [batch_size, channels, height, width]
+        
         Returns:
-            Pruned model
+            Predictions [batch_size, num_classes]
         """
-        logger.info("Applying model pruning...")
+        if self.model is None:
+            raise ValueError("Model not trained yet")
         
-        pruning_config = self.compression_config['pruning']
-        pruning_ratio = pruning_config['pruning_ratio']
-        
-        # Apply structured pruning (L1 norm based)
-        import torch.nn.utils.prune as prune
-        
-        for name, module in model.named_modules():
-            if isinstance(module, nn.Conv2d):
-                prune.l1_unstructured(module, name='weight', amount=pruning_ratio)
-                prune.remove(module, 'weight')
-        
-        logger.info(f"Applied {pruning_ratio * 100}% pruning")
-        
-        return model
+        self.model.eval()
+        with torch.no_grad():
+            outputs = self.model(X)
+        return outputs
     
-    @timing_decorator
-    def apply_quantization(self, model: nn.Module) -> nn.Module:
-        """
-        Apply quantization to reduce model size and improve inference speed.
+    def save(self, path: str) -> None:
+        """Save trained model to disk."""
+        if self.model is None:
+            raise ValueError("Cannot save untrained model")
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'metrics': self.metrics,
+            'training_history': self.training_history
+        }, path)
+        logger.info(f"Saved {self.name} to {path}")
+    
+    @classmethod
+    def load(cls, path: str, num_classes: int) -> "DeepModel":
+        """Load trained model from disk."""
+        checkpoint = torch.load(path)
+        instance = cls.__new__(cls)
+        instance.build_model()
+        instance.model.load_state_dict(checkpoint['model_state_dict'])
+        instance.metrics = checkpoint.get('metrics', {})
+        instance.training_history = checkpoint.get('training_history', {})
+        return instance
+
+
+class ResNetModel(DeepModel):
+    """ResNet-50 with residual connections and transfer learning.
+    
+    ResNet Architecture (He et al., 2015):
+    - Residual blocks: F(x) + x (identity shortcut)
+    - Skip connections allow gradients to flow backward
+    - Enables training 50-200+ layer networks
+    - Batch normalization after each conv layer
+    
+    Transfer Learning Strategy:
+    1. Load pretrained ImageNet weights (1.28M images, 1000 classes)
+    2. Freeze early layers (feature extractors) → faster training
+    3. Replace final FC layer for our num_classes
+    4. Fine-tune last few layers on our dataset
+    """
+    
+    def __init__(self, num_classes: int = 10, pretrained: bool = True, freeze_layers: int = 3):
+        """Initialize ResNet model.
         
         Args:
-            model: Model to quantize
-            
-        Returns:
-            Quantized model
+            num_classes: Number of output classes
+            pretrained: Use ImageNet pretrained weights
+            freeze_layers: Number of initial layer groups to freeze (0-4)
+                          0 = train all, 4 = freeze all except final FC
         """
-        logger.info("Applying quantization...")
-        
-        quant_config = self.compression_config['quantization']
-        quant_type = quant_config['quantization_type']
-        
-        model.eval()
-        
-        if quant_type == 'int8':
-            # Dynamic quantization
-            quantized_model = torch.quantization.quantize_dynamic(
-                model,
-                {nn.Linear, nn.Conv2d},
-                dtype=torch.qint8
-            )
-        elif quant_type == 'float16':
-            # Convert to FP16
-            quantized_model = model.half()
-        else:
-            raise ValueError(f"Unknown quantization type: {quant_type}")
-        
-        logger.info(f"Applied {quant_type} quantization")
-        
-        return quantized_model
+        super().__init__(f"ResNet-50 (freeze={freeze_layers})", num_classes)
+        self.pretrained = pretrained
+        self.freeze_layers = freeze_layers
     
-    def compress_pipeline(
+    def build_model(self) -> nn.Module:
+        """TODO: Build ResNet-50 with transfer learning and frozen layers."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement ResNet-50 with transfer learning")
+    
+    def train(
         self,
-        model: nn.Module,
-        train_loader: Optional[torch.utils.data.DataLoader] = None
-    ) -> nn.Module:
-        """
-        Apply full compression pipeline: distillation → pruning → quantization.
-        
-        Args:
-            model: Model to compress
-            train_loader: Training data loader (for distillation)
-            
-        Returns:
-            Compressed model
-        """
-        logger.info("Starting compression pipeline...")
-        
-        # Step 1: Knowledge distillation (if enabled)
-        if self.compression_config['distillation']['enabled'] and train_loader:
-            teacher_model = self.create_model()  # Create teacher
-            model = self.apply_distillation(model, teacher_model, train_loader)
-        
-        # Step 2: Pruning (if enabled)
-        if self.compression_config['pruning']['enabled']:
-            model = self.apply_pruning(model)
-        
-        # Step 3: Quantization (if enabled)
-        if self.compression_config['quantization']['enabled']:
-            model = self.apply_quantization(model)
-        
-        logger.info("Compression pipeline completed")
-        
-        return model
-    
-    def save_model(self, model: nn.Module, path: str) -> None:
-        """
-        Save model to disk.
-        
-        Args:
-            model: Model to save
-            path: Save path
-        """
-        ensure_dir(os.path.dirname(path))
-        torch.save(model.state_dict(), path)
-        logger.info(f"Model saved to {path}")
-    
-    def load_model(self, path: str, architecture: Optional[str] = None) -> nn.Module:
-        """
-        Load model from disk.
-        
-        Args:
-            path: Model path
-            architecture: Model architecture
-            
-        Returns:
-            Loaded model
-        """
-        model = self.create_model(architecture)
-        model.load_state_dict(torch.load(path, map_location=self.device))
-        model.eval()
-        logger.info(f"Model loaded from {path}")
-        return model
+        train_loader: torch.utils.data.DataLoader,
+        val_loader: torch.utils.data.DataLoader,
+        config: TrainingConfig
+    ) -> Dict[str, float]:
+        """TODO: Train ResNet with mixed precision and gradient accumulation."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement ResNet training")
 
 
-if __name__ == "__main__":
-    import argparse
-    from src.utils import load_config
-    from src.data import COCODataLoader
+class TransformerModel(DeepModel):
+    """Vision Transformer (ViT) with self-attention and positional encoding.
     
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='config.yaml')
-    parser.add_argument('--mode', type=str, default='train', choices=['train', 'compress'])
-    args = parser.parse_args()
+    Transformer Architecture (Vaswani et al., 2017; Dosovitskiy et al., 2020):
+    - Self-attention: learns relationships between all image patches
+    - Positional encoding: adds position information (no conv structure)
+    - Multi-head attention: attends to different representation subspaces
+    - Feed-forward networks: per-patch transformations
     
-    config = load_config(args.config)
+    How it works:
+    1. Split image into 16×16 patches (224×224 → 14×14 = 196 patches)
+    2. Flatten patches and project to embedding dimension
+    3. Add positional embeddings (learnable or sinusoidal)
+    4. Pass through N transformer encoder layers
+    5. Use [CLS] token embedding for classification
     
-    # Initialize components
-    registry = ModelRegistry(config)
-    data_loader = COCODataLoader(config)
+    Key difference from ResNet:
+    - ResNet: local receptive fields (conv kernels)
+    - Transformer: global receptive field (attention across all patches)
+    """
     
-    # Load data
-    train_ds, val_ds, test_ds = data_loader.load_and_split()
-    train_loader, val_loader, test_loader = data_loader.create_dataloaders(
-        train_ds, val_ds, test_ds
-    )
-    
-    if args.mode == 'train':
-        # Train baseline model
-        model = registry.create_model()
-        model_path = os.path.join(config['paths']['model_dir'], 'baseline_model.pth')
-        registry.save_model(model, model_path)
+    def __init__(
+        self,
+        num_classes: int = 10,
+        pretrained: bool = True,
+        freeze_encoder: bool = False
+    ):
+        """Initialize Vision Transformer.
         
-    elif args.mode == 'compress':
-        # Load baseline and apply compression
-        baseline_path = os.path.join(config['paths']['model_dir'], 'baseline_model.pth')
-        model = registry.load_model(baseline_path)
-        
-        compressed_model = registry.compress_pipeline(model, train_loader)
-        
-        compressed_path = os.path.join(config['paths']['model_dir'], 'compressed_model.pth')
-        registry.save_model(compressed_model, compressed_path)
+        Args:
+            num_classes: Number of output classes
+            pretrained: Use pretrained weights (ViT-B/16 on ImageNet-21k)
+            freeze_encoder: Freeze transformer encoder blocks
+        """
+        super().__init__(f"ViT-B/16 (freeze={freeze_encoder})", num_classes)
+        self.pretrained = pretrained
+        self.freeze_encoder = freeze_encoder
+    
+    def build_model(self) -> nn.Module:
+        """TODO: Build Vision Transformer (ViT-B/16) with transfer learning."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement Vision Transformer")
+    
+    def train(
+        self,
+        train_loader: torch.utils.data.DataLoader,
+        val_loader: torch.utils.data.DataLoader,
+        config: TrainingConfig
+    ) -> Dict[str, float]:
+        """TODO: Implement training with learning rate warm-up."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement Transformer training")
+
+
+class EfficientNetModel(DeepModel):
+    """EfficientNet-B0 with compound scaling and transfer learning.
+    
+    EfficientNet (Tan & Le, 2019):
+    - Compound scaling: balance depth, width, resolution
+    - Mobile inverted bottleneck (MBConv) blocks
+    - Squeeze-and-excitation (SE) blocks for channel attention
+    """
+    
+    def __init__(self, num_classes: int = 10, pretrained: bool = True):
+        """Initialize EfficientNet-B0."""
+        super().__init__("EfficientNet-B0", num_classes)
+        self.pretrained = pretrained
+    
+    def build_model(self) -> nn.Module:
+        """TODO: Build EfficientNet-B0 with transfer learning."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement EfficientNet-B0")
+    
+    def train(
+        self,
+        train_loader: torch.utils.data.DataLoader,
+        val_loader: torch.utils.data.DataLoader,
+        config: TrainingConfig
+    ) -> Dict[str, float]:
+        """TODO: Reuse ResNet.train() implementation."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement EfficientNet training")
+
+
+class ExperimentRunner:
+    """Experiment runner for comparing deep learning models."""
+    
+    def __init__(self):
+        """Initialize experiment runner."""
+        self.models: Dict[str, DeepModel] = {}
+        self.results: List[Dict[str, Any]] = []
+    
+    def register(self, name: str, model: DeepModel) -> None:
+        """Register a model for comparison."""
+        self.models[name] = model
+        console.print(f"  → Registered: {name}", style="dim")
+    
+    def run_experiment(
+        self,
+        train_loader: torch.utils.data.DataLoader,
+        val_loader: torch.utils.data.DataLoader,
+        config: TrainingConfig
+    ) -> None:
+        """TODO: Run all registered models and collect results."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement experiment runner")
+    
+    def print_leaderboard(self) -> None:
+        """TODO: Print beautiful leaderboard with Rich table."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement leaderboard printing")
+    
+    def get_best_model(self) -> DeepModel:
+        """Get the best performing model."""
+        if not self.results:
+            raise ValueError("No results available. Run experiment first.")
+        return self.results[0]["model"]
+
+
+# ============================================
+# UTILITY FUNCTIONS
+# ============================================
+
+def count_parameters(model: nn.Module) -> int:
+    """Count trainable parameters in model."""
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def freeze_batch_norm(model: nn.Module) -> None:
+    """Freeze batch normalization layers during fine-tuning."""
+    for module in model.modules():
+        if isinstance(module, nn.BatchNorm2d):
+            module.eval()
+            for param in module.parameters():
+                param.requires_grad = False

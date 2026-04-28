@@ -1,22 +1,35 @@
-"""Feature engineering for EnsembleAI
+"""Feature engineering and importance analysis for EnsembleAI
 
-Provides: Feature scaling, mutual information feature selection
+This module provides:
+- Feature scaling and selection with mutual information
+- Feature importance extraction from ensemble models
+- Visualization of feature contributions
+- Immediate feedback with rich console output
+
+Learning objectives:
+1. Implement feature selection via mutual information
+2. Extract feature importance from tree-based ensembles
+3. Compare feature rankings across ensemble methods
+4. Visualize feature importance patterns
 """
 
 import logging
-from typing import Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from rich.console import Console
+from rich.table import Table
+from sklearn.feature_selection import SelectKBest, mutual_info_classif
 from sklearn.preprocessing import StandardScaler
-from sklearn.feature_selection import mutual_info_classif, SelectKBest
-
 
 logger = logging.getLogger("ensembleai")
+console = Console()
 
 
 class FeatureEngineer:
-    """Feature engineering pipeline with scaling and feature selection.
+    """Feature engineering pipeline with scaling and selection.
     
     Pipeline stages:
     1. Standardization (zero mean, unit variance)
@@ -69,110 +82,14 @@ class FeatureEngineer:
         )
     
     def fit_transform(self, X: pd.DataFrame, y: pd.Series = None) -> pd.DataFrame:
-        """Fit feature engineering pipeline and transform data.
-        
-        Args:
-            X: Input features
-            y: Target labels (required for feature selection)
-        
-        Returns:
-            Transformed features
-        
-        Raises:
-            ValueError: If X contains NaN or inf values, or y missing when needed
-        """
-        self._validate_input(X, "fit_transform")
-        
-        if self.feature_selection and y is None:
-            raise ValueError("y is required when feature_selection=True")
-        
-        X_transformed = X.copy()
-        
-        # Stage 1: Feature selection (before scaling for interpretability)
-        if self.feature_selection and self.top_k_features is not None:
-            logger.info(f"Selecting top {self.top_k_features} features via mutual information")
-            
-            self.selector = SelectKBest(
-                score_func=mutual_info_classif,
-                k=min(self.top_k_features, X.shape[1])
-            )
-            X_transformed = self.selector.fit_transform(X_transformed, y)
-            
-            # Get selected feature names and scores
-            selected_mask = self.selector.get_support()
-            selected_features = X.columns[selected_mask].tolist()
-            feature_scores = self.selector.scores_[selected_mask]
-            
-            self.selected_feature_scores = dict(zip(selected_features, feature_scores))
-            
-            # Convert back to DataFrame
-            X_transformed = pd.DataFrame(
-                X_transformed,
-                index=X.index,
-                columns=selected_features
-            )
-            
-            logger.info(f"Features selected: {X.shape[1]} → {X_transformed.shape[1]}")
-            logger.info(f"Top 5 features: {sorted(self.selected_feature_scores.items(), key=lambda x: -x[1])[:5]}")
-        
-        # Stage 2: Standardization
-        if self.scale_features:
-            logger.info("Standardizing features")
-            self.scaler = StandardScaler()
-            X_transformed_values = self.scaler.fit_transform(X_transformed)
-            
-            X_transformed = pd.DataFrame(
-                X_transformed_values,
-                index=X_transformed.index,
-                columns=X_transformed.columns
-            )
-        
-        self.feature_names = list(X_transformed.columns)
-        self._fitted = True
-        
-        logger.info(f"Feature engineering complete: {len(self.feature_names)} features")
-        
-        return X_transformed
+        """TODO: Fit scaler/selector, transform data, store feature_names and _fitted=True"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement fit_transform - see TODO above")
     
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Transform data using fitted pipeline.
-        
-        Args:
-            X: Input features
-        
-        Returns:
-            Transformed features
-        
-        Raises:
-            RuntimeError: If pipeline not fitted
-            ValueError: If X contains NaN/inf or wrong features
-        """
-        if not self._fitted:
-            raise RuntimeError("Pipeline not fitted. Call fit_transform() first.")
-        
-        self._validate_input(X, "transform")
-        
-        X_transformed = X.copy()
-        
-        # Stage 1: Feature selection
-        if self.selector is not None:
-            X_transformed = self.selector.transform(X_transformed)
-            X_transformed = pd.DataFrame(
-                X_transformed,
-                index=X.index,
-                columns=self.feature_names
-            )
-        
-        # Stage 2: Standardization
-        if self.scaler is not None:
-            X_transformed_values = self.scaler.transform(X_transformed)
-            X_transformed = pd.DataFrame(
-                X_transformed_values,
-                index=X_transformed.index,
-                columns=X_transformed.columns
-            )
-        
-        return X_transformed
+        """TODO: Apply fitted selector and scaler transforms to new data"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement transform - see TODO above")
     
     def _validate_input(self, X: pd.DataFrame, method: str) -> None:
         """Validate input data.
@@ -198,15 +115,46 @@ class FeatureEngineer:
         
         # For transform, check feature consistency
         if method == "transform" and self._fitted:
-            expected_features = set(self.feature_names) if self.selector else set(X.columns)
-            actual_features = set(X.columns)
-            
-            if self.selector is None and actual_features != expected_features:
-                missing = expected_features - actual_features
-                extra = actual_features - expected_features
-                error_msg = []
-                if missing:
-                    error_msg.append(f"Missing features: {missing}")
-                if extra:
-                    error_msg.append(f"Extra features: {extra}")
-                raise ValueError(f"Feature mismatch. {', '.join(error_msg)}")
+            if self.selector is not None:
+                expected_features = set(X.columns)
+                if not expected_features.issuperset(set(self.feature_names)):
+                    raise ValueError(
+                        f"{method}: Feature mismatch. Expected features matching training data."
+                    )
+
+
+class FeatureImportanceAnalyzer:
+    """Analyze and visualize feature importance from ensemble models.
+    
+    Extracts feature importance from tree-based ensembles and provides:
+    - Ranking of features by importance
+    - Comparison across multiple models
+    - Visualization of importance patterns
+    
+    Example:
+        >>> analyzer = FeatureImportanceAnalyzer()
+        >>> analyzer.add_model("Bagging", bagging_model, X_train)
+        >>> analyzer.add_model("Boosting", boosting_model, X_train)
+        >>> analyzer.print_comparison()
+        >>> analyzer.plot_importance()
+    """
+    
+    def __init__(self):
+        """Initialize feature importance analyzer."""
+        self.importances: Dict[str, Dict[str, float]] = {}
+        console.print("Initialized FeatureImportanceAnalyzer", style="dim")
+    
+    def add_model(self, name: str, model, feature_names: List[str]) -> None:
+        """TODO: Extract model.model.feature_importances_ and store in self.importances[name]"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement add_model - see TODO above")
+    
+    def print_comparison(self, top_k: int = 10) -> None:
+        """TODO: Create Rich table comparing feature importance across all models, sorted by average"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement print_comparison - see TODO above")
+    
+    def plot_importance(self, top_k: int = 10, save_path: Optional[str] = None) -> None:
+        """TODO: Create grouped bar plot comparing top_k feature importances across models"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement plot_importance - see TODO above")

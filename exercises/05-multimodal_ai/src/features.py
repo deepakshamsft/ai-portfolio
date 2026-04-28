@@ -1,203 +1,161 @@
-"""
-Multimodal feature extraction
+"""Image-text preprocessing with immediate feedback for PixelSmith AI
+
+This module provides:
+- Image preprocessing: augmentation, resize, normalize
+- Text tokenization: CLIP-style tokenization with padding/truncation
+- Image-text alignment: paired data loading and validation
+- Immediate console feedback showing preprocessing results
+
+Learning objectives:
+1. Understand vision-language preprocessing requirements
+2. Implement image augmentation for multimodal training
+3. Tokenize text for transformer models (CLIP, BLIP)
+4. Validate image-text alignment for contrastive learning
+5. See preprocessing output in real-time
 """
 
-import torch
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Union
+
 import numpy as np
-from typing import Dict, List, Optional, Union
+import torch
 from PIL import Image
-from .models.clip import CLIPModel
-from .models.whisper import WhisperModel
-from .utils import setup_logger
+from rich.console import Console
+from rich.table import Table
+from torchvision import transforms
+
+logger = logging.getLogger("pixelsmith")
+console = Console()
 
 
-logger = setup_logger(__name__)
-
-
-class MultimodalFeatureExtractor:
-    """
-    Extract and fuse features from multiple modalities.
+class ImagePreprocessor:
+    """Preprocessing pipeline for vision-language models.
+    
+    Key requirements for CLIP/BLIP:
+    - Images: RGB, 224x224 (ViT-B) or 336x336 (ViT-L), normalized
+    - Augmentation: random crop, flip, color jitter (training only)
+    - Normalization: ImageNet stats (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     """
     
     def __init__(
         self,
-        clip_model: Optional[CLIPModel] = None,
-        whisper_model: Optional[WhisperModel] = None,
-        fusion_method: str = "concatenate"
+        image_size: int = 224,
+        normalize: bool = True,
+        augment: bool = False
     ):
-        """
-        Initialize feature extractor.
+        """Initialize image preprocessor.
         
         Args:
-            clip_model: CLIP model for text/image features
-            whisper_model: Whisper model for audio features
-            fusion_method: Method to fuse features ("concatenate", "average", "attention")
+            image_size: Target image size (224 for ViT-B, 336 for ViT-L)
+            normalize: Apply ImageNet normalization
+            augment: Apply data augmentation (for training)
         """
-        self.clip_model = clip_model
-        self.whisper_model = whisper_model
-        self.fusion_method = fusion_method
-        
-        logger.info(f"Initialized multimodal feature extractor with fusion: {fusion_method}")
+        self.image_size = image_size
+        self.normalize = normalize
+        self.augment = augment
+        self._build_transform()
     
-    def extract_text_features(self, text: str) -> np.ndarray:
-        """
-        Extract text features using CLIP.
-        
-        Args:
-            text: Input text
-        
-        Returns:
-            Text feature vector
-        """
-        if self.clip_model is None:
-            raise ValueError("CLIP model not initialized")
-        
-        return self.clip_model.get_text_embedding(text)
+    def _build_transform(self):
+        """TODO: Build torchvision transform pipeline (augmentation + normalization)"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement image transform - see TODO above")
     
-    def extract_image_features(self, image: Union[str, Image.Image]) -> np.ndarray:
-        """
-        Extract image features using CLIP.
-        
-        Args:
-            image: Image path or PIL Image
-        
-        Returns:
-            Image feature vector
-        """
-        if self.clip_model is None:
-            raise ValueError("CLIP model not initialized")
-        
-        return self.clip_model.get_image_embedding(image)
+    def preprocess(self, image: Union[str, Image.Image]) -> torch.Tensor:
+        """TODO: Load image, convert to RGB, apply transform → tensor [3, H, W]"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement image preprocessing - see TODO above")
     
-    def extract_audio_features(self, audio: Union[str, np.ndarray]) -> np.ndarray:
-        """
-        Extract audio features using Whisper encoder.
-        
-        Args:
-            audio: Audio path or waveform
-        
-        Returns:
-            Audio feature vector
-        """
-        if self.whisper_model is None:
-            raise ValueError("Whisper model not initialized")
-        
-        # Transcribe and use text embedding as audio features
-        # (Whisper encoder features could also be extracted directly)
-        result = self.whisper_model.transcribe(audio)
-        text = result["text"]
-        
-        return self.extract_text_features(text)
+    def preprocess_batch(
+        self, 
+        images: List[Union[str, Image.Image]]
+    ) -> torch.Tensor:
+        """TODO: Process and stack images into batch tensor [B, 3, H, W]"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement batch preprocessing - see TODO above")
+
+
+class TextTokenizer:
+    """Text tokenization for vision-language models.
     
-    def extract_multimodal_features(
+    CLIP tokenization:
+    - Max length: 77 tokens (including [SOS], [EOS])
+    - Vocabulary: 49,408 BPE tokens
+    - Padding: pad to max length with [PAD] token
+    - Truncation: truncate if exceeds max length
+    """
+    
+    def __init__(
         self,
-        text: Optional[str] = None,
-        image: Optional[Union[str, Image.Image]] = None,
-        audio: Optional[Union[str, np.ndarray]] = None
-    ) -> Dict[str, np.ndarray]:
-        """
-        Extract features from all available modalities.
+        max_length: int = 77,
+        pad_token: str = "[PAD]",
+        truncate: bool = True
+    ):
+        """Initialize text tokenizer.
         
         Args:
-            text: Input text
-            image: Input image
-            audio: Input audio
-        
-        Returns:
-            Dictionary mapping modality names to feature vectors
+            max_length: Maximum sequence length (77 for CLIP)
+            pad_token: Padding token
+            truncate: Truncate sequences exceeding max_length
         """
-        features = {}
-        
-        if text is not None:
-            features["text"] = self.extract_text_features(text)
-        
-        if image is not None:
-            features["image"] = self.extract_image_features(image)
-        
-        if audio is not None:
-            features["audio"] = self.extract_audio_features(audio)
-        
-        logger.info(f"Extracted features from {len(features)} modalities")
-        
-        return features
+        self.max_length = max_length
+        self.pad_token = pad_token
+        self.truncate = truncate
     
-    def fuse_features(self, features: Dict[str, np.ndarray]) -> np.ndarray:
-        """
-        Fuse features from multiple modalities.
-        
-        Args:
-            features: Dictionary mapping modality names to feature vectors
-        
-        Returns:
-            Fused feature vector
-        """
-        if not features:
-            raise ValueError("No features to fuse")
-        
-        feature_arrays = list(features.values())
-        
-        if self.fusion_method == "concatenate":
-            # Simple concatenation
-            fused = np.concatenate(feature_arrays, axis=0)
-        
-        elif self.fusion_method == "average":
-            # Average pooling
-            # Pad features to same length if needed
-            max_len = max(f.shape[0] for f in feature_arrays)
-            padded = []
-            for f in feature_arrays:
-                if f.shape[0] < max_len:
-                    f = np.pad(f, (0, max_len - f.shape[0]))
-                padded.append(f)
-            
-            fused = np.mean(padded, axis=0)
-        
-        elif self.fusion_method == "attention":
-            # Learned attention weights (placeholder - would need training)
-            # For now, use equal weights
-            max_len = max(f.shape[0] for f in feature_arrays)
-            padded = []
-            for f in feature_arrays:
-                if f.shape[0] < max_len:
-                    f = np.pad(f, (0, max_len - f.shape[0]))
-                padded.append(f)
-            
-            weights = np.ones(len(padded)) / len(padded)
-            fused = np.average(padded, axis=0, weights=weights)
-        
-        else:
-            raise ValueError(f"Unknown fusion method: {self.fusion_method}")
-        
-        logger.info(f"Fused {len(features)} features into shape {fused.shape}")
-        
-        return fused
+    def tokenize(self, text: str) -> Dict[str, torch.Tensor]:
+        """TODO: Tokenize text → add [SOS]/[EOS], pad to max_length, create attention mask"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement text tokenization - see TODO above")
     
-    def compute_multimodal_similarity(
+    def tokenize_batch(self, texts: List[str]) -> Dict[str, torch.Tensor]:
+        """TODO: Tokenize multiple texts and stack attention masks"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement batch tokenization - see TODO above")
+
+
+class MultimodalDataLoader:
+    """Load and validate image-text paired data.
+    
+    Critical for contrastive learning:
+    - Each image must have corresponding text
+    - Validation: check file exists, readable, non-corrupt
+    - Alignment: ensure indices match (image[i] ↔ text[i])
+    """
+    
+    def __init__(
         self,
-        query: Dict[str, Union[str, Image.Image, np.ndarray]],
-        target: Dict[str, Union[str, Image.Image, np.ndarray]]
-    ) -> float:
-        """
-        Compute similarity between two multimodal inputs.
+        image_dir: str,
+        image_preprocessor: ImagePreprocessor,
+        text_tokenizer: TextTokenizer
+    ):
+        """Initialize multimodal data loader.
         
         Args:
-            query: Query modalities
-            target: Target modalities
-        
-        Returns:
-            Similarity score
+            image_dir: Directory containing images
+            image_preprocessor: Image preprocessing pipeline
+            text_tokenizer: Text tokenization pipeline
         """
-        # Extract features
-        query_features = self.extract_multimodal_features(
-            text=query.get("text"),
-            image=query.get("image"),
-            audio=query.get("audio")
-        )
-        
-        target_features = self.extract_multimodal_features(
-            text=target.get("text"),
-            image=target.get("image"),
-            audio=target.get("audio")
+        self.image_dir = Path(image_dir)
+        self.image_preprocessor = image_preprocessor
+        self.text_tokenizer = text_tokenizer
+    
+    def load_paired_data(
+        self,
+        image_files: List[str],
+        captions: List[str]
+    ) -> List[Dict[str, Any]]:
+        """TODO: Load and validate image-text pairs, skip corrupt/missing files"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement paired data loading - see TODO above")
+    
+    def create_batches(
+        self,
+        paired_data: List[Dict[str, Any]],
+        batch_size: int
+    ) -> List[Dict[str, torch.Tensor]]:
+        """TODO: Stack paired data into batches of specified size"""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement batch creation - see TODO above"
         )
         
         # Fuse features

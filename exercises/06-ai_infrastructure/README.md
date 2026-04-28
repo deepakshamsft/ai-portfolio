@@ -4,6 +4,8 @@
 
 **Scaffolding Level:** 🟡 Medium (infrastructure patterns provided)
 
+> **📝 Note:** This exercise focuses on core MLOps implementation patterns. Infrastructure files (Dockerfile, docker-compose.yml, Makefile) have been removed to streamline focus on Python-based components. All TODOs have been simplified to 1-line descriptions for clarity. Use `setup.ps1`/`setup.sh` for environment setup.
+
 ---
 
 ## Objective

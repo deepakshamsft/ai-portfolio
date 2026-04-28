@@ -1,331 +1,338 @@
+"""AI model training with LLM fine-tuning and RAG pipeline
+
+This module provides:
+- Abstract AIModel interface for plug-and-play LLM systems
+- LLMFineTuner: Fine-tune models with LoRA/QLoRA (with TODOs)
+- RAGPipeline: Retrieval-Augmented Generation system (with TODOs)
+- PromptEngineer: Few-shot prompt optimization (with TODOs)
+- ExperimentRunner: Compare different AI approaches
+- Immediate feedback with rich console output
+
+Learning objectives:
+1. Implement LLM fine-tuning with parameter-efficient methods (LoRA/QLoRA)
+2. Build RAG pipeline with vector search and context injection
+3. Engineer effective prompts with few-shot examples
+4. Compare AI approaches using plug-and-play registry pattern
+5. Evaluate with perplexity, BLEU, ROUGE, and retrieval accuracy
+6. See results immediately after each model trains
 """
-Chatbot models including conversation state and intent detection
-"""
 
-from typing import Dict, Any, List, Optional
-import re
-from datetime import datetime
-from .rag import RAGPipeline
-from .utils import setup_logger, extract_order_items, calculate_total, validate_delivery_address
+import logging
+import time
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-logger = setup_logger(__name__)
+import numpy as np
+from rich.console import Console
+from rich.table import Table
+
+logger = logging.getLogger("pizzabot")
+console = Console()
 
 
-class IntentDetector:
-    """Detect user intent from message."""
+@dataclass
+class AIModelConfig:
+    """Configuration for AI model training."""
+    max_epochs: int = 3
+    batch_size: int = 8
+    learning_rate: float = 2e-4
+    random_state: int = 42
+    verbose: bool = True
+    max_length: int = 512
+    use_gpu: bool = True
+
+
+class AIModel(ABC):
+    """Abstract base class for all AI models.
     
-    def __init__(self, confidence_threshold: float = 0.6):
-        self.confidence_threshold = confidence_threshold
-        
-        # Intent patterns (keyword-based for simplicity)
-        self.intent_patterns = {
-            'order_pizza': [
-                r'\border\b', r'\bbuy\b', r'\bwant\b', r'\bget\b',
-                r'\bpizza\b.*\bplease\b', r'\bi\'ll have\b'
-            ],
-            'check_menu': [
-                r'\bmenu\b', r'\bwhat.*\bhave\b', r'\boptions\b',
-                r'\bpizzas?\b.*\bavailable\b', r'\bwhat.*\boffer\b'
-            ],
-            'ask_question': [
-                r'\bwhat\b', r'\bhow\b', r'\bwhen\b', r'\bwhere\b',
-                r'\bcan i\b', r'\bdo you\b', r'\btell me\b'
-            ],
-            'track_order': [
-                r'\btrack\b', r'\bwhere.*\border\b', r'\bstatus\b',
-                r'\bdelivery.*\btime\b', r'\bwhen.*\barrive\b'
-            ],
-            'cancel_order': [
-                r'\bcancel\b', r'\bdon\'t want\b', r'\bnevermind\b',
-                r'\bremove\b.*\border\b'
-            ],
-            'complain': [
-                r'\bcomplaint\b', r'\bproblem\b', r'\bwrong\b',
-                r'\bcold\b', r'\blate\b', r'\bnot happy\b'
-            ],
-            'general_chat': [
-                r'\bhello\b', r'\bhi\b', r'\bhey\b', r'\bthanks?\b',
-                r'\bbye\b', r'\bgoodbye\b'
-            ]
-        }
-    
-    def detect(self, message: str) -> Dict[str, Any]:
-        """
-        Detect intent from user message.
-        
-        Args:
-            message: User message
-            
-        Returns:
-            Intent detection result with confidence
-        """
-        message_lower = message.lower()
-        
-        # Check each intent
-        intent_scores = {}
-        for intent, patterns in self.intent_patterns.items():
-            score = 0
-            for pattern in patterns:
-                if re.search(pattern, message_lower):
-                    score += 1
-            
-            # Normalize score
-            if patterns:
-                intent_scores[intent] = score / len(patterns)
-        
-        # Get highest scoring intent
-        if intent_scores:
-            best_intent = max(intent_scores, key=intent_scores.get)
-            confidence = intent_scores[best_intent]
-        else:
-            best_intent = 'general_chat'
-            confidence = 0.5
-        
-        return {
-            'intent': best_intent,
-            'confidence': confidence,
-            'all_scores': intent_scores
-        }
-
-
-class OrderValidator:
-    """Validate pizza orders."""
-    
-    def __init__(self, config: Dict[str, Any]):
-        self.min_quantity = config['orders']['min_quantity']
-        self.max_quantity = config['orders']['max_quantity']
-        self.max_pizzas_per_order = config['orders']['max_pizzas_per_order']
-        self.require_delivery_address = config['orders']['require_delivery_address']
-    
-    def validate(
-        self,
-        order_items: List[Dict[str, Any]],
-        delivery_address: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Validate order.
-        
-        Args:
-            order_items: List of order items
-            delivery_address: Delivery address
-            
-        Returns:
-            Validation result
-        """
-        errors = []
-        
-        # Check if order is empty
-        if not order_items:
-            errors.append("No items in order")
-        
-        # Check number of pizzas
-        total_pizzas = sum(item['quantity'] for item in order_items)
-        if total_pizzas > self.max_pizzas_per_order:
-            errors.append(f"Maximum {self.max_pizzas_per_order} pizzas per order")
-        
-        # Check quantity limits
-        for item in order_items:
-            if item['quantity'] < self.min_quantity:
-                errors.append(f"Minimum quantity is {self.min_quantity}")
-            if item['quantity'] > self.max_quantity:
-                errors.append(f"Maximum quantity per item is {self.max_quantity}")
-        
-        # Check delivery address
-        if self.require_delivery_address:
-            if not delivery_address:
-                errors.append("Delivery address required")
-            elif not validate_delivery_address(delivery_address):
-                errors.append("Invalid delivery address format")
-        
-        return {
-            'valid': len(errors) == 0,
-            'errors': errors,
-            'total_pizzas': total_pizzas if not errors else 0
-        }
-
-
-class ChatbotEngine:
+    Provides common interface for plug-and-play experimentation.
+    Subclasses implement train() and generate() methods.
     """
-    Main chatbot engine coordinating RAG, intent detection, and conversation state.
+    
+    def __init__(self, name: str):
+        """Initialize AI model with name for display."""
+        self.name = name
+        self.model = None
+        self.tokenizer = None
+        self.metrics = {}
+    
+    @abstractmethod
+    def train(
+        self,
+        train_data: List[Dict[str, str]],
+        eval_data: Optional[List[Dict[str, str]]],
+        config: AIModelConfig
+    ) -> Dict[str, float]:
+        """Train model and return metrics with immediate console feedback.
+        
+        Args:
+            train_data: Training examples [{"input": "...", "output": "..."}]
+            eval_data: Validation examples (optional)
+            config: Training configuration
+        
+        Returns:
+            Dictionary with metrics: {"perplexity": float, "train_loss": float, ...}
+        """
+        pass
+    
+    @abstractmethod
+    def generate(
+        self,
+        prompt: str,
+        max_length: int = 256,
+        temperature: float = 0.7
+    ) -> str:
+        """Generate text from prompt.
+        
+        Args:
+            prompt: Input prompt
+            max_length: Maximum tokens to generate
+            temperature: Sampling temperature (higher = more creative)
+        
+        Returns:
+            Generated text
+        """
+        pass
+    
+    def save(self, path: str) -> None:
+        """Save trained model to disk."""
+        if self.model is None:
+            raise ValueError("Cannot save untrained model")
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        # Model-specific save logic implemented in subclasses
+        logger.info(f"Saved {self.name} to {path}")
+
+
+class LLMFineTuner(AIModel):
+    """LLM fine-tuning with LoRA (Low-Rank Adaptation).
+    
+    LoRA adds trainable low-rank matrices to frozen LLM weights:
+    - Only 0.1% of parameters trained → faster, less memory
+    - Quality comparable to full fine-tuning
+    - Useful for domain adaptation (pizza ordering, medical, legal, etc.)
+    
+    QLoRA variant uses 4-bit quantization for even lower memory.
     """
     
     def __init__(
         self,
-        rag_pipeline: RAGPipeline,
-        config: Dict[str, Any]
+        base_model: str = "gpt2",
+        lora_r: int = 8,
+        lora_alpha: int = 32,
+        use_qlora: bool = False
+    ):
+        """Initialize LLM fine-tuner.
+        
+        Args:
+            base_model: Base model name (gpt2, llama2, mistral, etc.)
+            lora_r: LoRA rank (higher = more capacity, slower)
+            lora_alpha: LoRA scaling factor
+            use_qlora: Use 4-bit quantization for lower memory
+        """
+        super().__init__(f"FineTune-{base_model} (r={lora_r})")
+        self.base_model = base_model
+        self.lora_r = lora_r
+        self.lora_alpha = lora_alpha
+        self.use_qlora = use_qlora
+    
+    def train(
+        self,
+        train_data: List[Dict[str, str]],
+        eval_data: Optional[List[Dict[str, str]]],
+        config: AIModelConfig
+    ) -> Dict[str, float]:
+        """
+        TODO: Implement LLM fine-tuning with LoRA/QLoRA (load model, apply LoRA config, train, evaluate with perplexity/BLEU)
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement LLM fine-tuning")
+    
+    def generate(
+        self,
+        prompt: str,
+        max_length: int = 256,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        TODO: Generate text using fine-tuned model (tokenize, generate, decode)
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement text generation")
+
+
+class RAGPipeline(AIModel):
+    """Retrieval-Augmented Generation (RAG) pipeline.
+    
+    RAG enhances LLM responses with relevant retrieved context:
+    1. Retrieve: Vector search finds relevant documents
+    2. Augment: Inject documents into prompt context
+    3. Generate: LLM generates response with grounded information
+    
+    Benefits:
+    - Reduces hallucinations (facts come from retrieved docs)
+    - No retraining needed (just update document collection)
+    - Better for factual Q&A vs. pure generation
+    """
+    
+    def __init__(
+        self,
+        base_model: str = "gpt2",
+        embedding_model: str = "all-MiniLM-L6-v2",
+        vector_db: str = "chromadb",
+        top_k: int = 3
+    ):
+        """Initialize RAG pipeline.
+        
+        Args:
+            base_model: LLM for generation
+            embedding_model: Model for document embeddings
+            vector_db: Vector database (chromadb or faiss)
+            top_k: Number of documents to retrieve
+        """
+        super().__init__(f"RAG-{base_model} (k={top_k})")
+        self.base_model = base_model
+        self.embedding_model = embedding_model
+        self.vector_db_type = vector_db
+        self.top_k = top_k
+        self.vector_db = None
+        self.embedder = None
+    
+    def train(
+        self,
+        train_data: List[Dict[str, str]],
+        eval_data: Optional[List[Dict[str, str]]],
+        config: AIModelConfig
+    ) -> Dict[str, float]:
+        """
+        TODO: Build RAG pipeline with vector database (load LLM, create embedder, index documents, evaluate retrieval + generation)
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement RAG pipeline")
+    
+    def generate(
+        self,
+        prompt: str,
+        max_length: int = 256,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        TODO: Generate response with retrieved context (encode query, retrieve docs, build augmented prompt, generate)
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement RAG generation")
+
+
+class PromptEngineer(AIModel):
+    """Prompt engineering with few-shot examples.
+    
+    Few-shot learning provides examples in the prompt:
+    - Zero-shot: No examples, just instruction
+    - Few-shot: 2-5 examples showing desired behavior
+    - Many-shot: 10+ examples (context window permitting)
+    
+    Often matches fine-tuning quality without training!
+    """
+    
+    def __init__(
+        self,
+        base_model: str = "gpt2",
+        n_shot: int = 3
+    ):
+        """Initialize prompt engineer.
+        
+        Args:
+            base_model: LLM for generation
+            n_shot: Number of examples to include in prompt
+        """
+        super().__init__(f"FewShot-{base_model} (n={n_shot})")
+        self.base_model = base_model
+        self.n_shot = n_shot
+        self.few_shot_examples = []
+    
+    def train(
+        self,
+        train_data: List[Dict[str, str]],
+        eval_data: Optional[List[Dict[str, str]]],
+        config: AIModelConfig
+    ) -> Dict[str, float]:
+        """
+        TODO: Build few-shot prompt with best examples (load LLM, select diverse examples, evaluate with BLEU/ROUGE)
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement few-shot prompt engineering")
+    
+    def generate(
+        self,
+        prompt: str,
+        max_length: int = 256,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        TODO: Generate with few-shot examples (build prompt with examples, generate, extract answer)
+        """
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement few-shot generation")
+
+
+class ExperimentRunner:
+    """Run experiments with multiple AI models and compare results.
+    
+    Provides plug-and-play framework for trying different approaches:
+    1. Register AI models to try (fine-tuning, RAG, few-shot)
+    2. Run all experiments with immediate feedback
+    3. Print leaderboard sorted by performance
+    
+    Example:
+        >>> runner = ExperimentRunner()
+        >>> runner.register("LoRA r=8", LLMFineTuner("gpt2", lora_r=8))
+        >>> runner.register("RAG k=3", RAGPipeline("gpt2", top_k=3))
+        >>> runner.register("3-shot", PromptEngineer("gpt2", n_shot=3))
+        >>> runner.run_experiment(train_data, eval_data, AIModelConfig())
+        >>> runner.print_leaderboard()
+    """
+    
+    def __init__(self):
+        """Initialize empty experiment runner."""
+        self.models: Dict[str, AIModel] = {}
+        self.results: List[Dict[str, Any]] = []
+    
+    def register(self, name: str, model: AIModel):
+        """Register an AI model to try in experiments.
+        
+        Args:
+            name: Display name for results
+            model: AIModel instance to train
+        """
+        self.models[name] = model
+        console.print(f"Registered: {name}", style="dim")
+    
+    def run_experiment(
+        self,
+        train_data: List[Dict[str, str]],
+        eval_data: List[Dict[str, str]],
+        config: AIModelConfig
     ):
         """
-        Initialize chatbot engine.
-        
-        Args:
-            rag_pipeline: RAGPipeline instance
-            config: Configuration dictionary
+        TODO: Run all registered AI models and collect results with error handling
         """
-        self.rag_pipeline = rag_pipeline
-        self.config = config
-        
-        # Initialize components
-        self.intent_detector = IntentDetector(
-            confidence_threshold=config['intents']['confidence_threshold']
-        )
-        self.order_validator = OrderValidator(config)
-        
-        # Conversation state
-        self.sessions = {}
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement experiment runner")
     
-    def process_message(
-        self,
-        session_id: str,
-        message: str
-    ) -> Dict[str, Any]:
+    def print_leaderboard(self):
         """
-        Process user message and generate response.
-        
-        Args:
-            session_id: Session identifier
-            message: User message
-            
-        Returns:
-            Response with metadata
+        TODO: Print sorted leaderboard table comparing all AI models by BLEU score
         """
-        # Initialize session if new
-        if session_id not in self.sessions:
-            self.sessions[session_id] = {
-                'messages': [],
-                'context': {},
-                'order': None,
-                'created_at': datetime.now()
-            }
-        
-        session = self.sessions[session_id]
-        
-        # Detect intent
-        intent_result = self.intent_detector.detect(message)
-        intent = intent_result['intent']
-        
-        logger.info(
-            f"Session {session_id}: Intent={intent} "
-            f"(confidence={intent_result['confidence']:.2f})"
-        )
-        
-        # Add message to history
-        session['messages'].append({
-            'role': 'user',
-            'content': message,
-            'intent': intent,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        # Handle based on intent
-        if intent == 'order_pizza':
-            response = self._handle_order(session_id, message)
-        elif intent == 'check_menu':
-            response = self._handle_menu_query(session_id, message)
-        elif intent == 'track_order':
-            response = self._handle_order_tracking(session_id, message)
-        elif intent == 'cancel_order':
-            response = self._handle_cancellation(session_id, message)
-        else:
-            # Use RAG for general questions
-            response = self._handle_general_query(session_id, message)
-        
-        # Add response to history
-        session['messages'].append({
-            'role': 'assistant',
-            'content': response['response'],
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        # Add intent and session info to response
-        response['intent'] = intent
-        response['session_id'] = session_id
-        
-        return response
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement leaderboard")
     
-    def _handle_order(self, session_id: str, message: str) -> Dict[str, Any]:
-        """Handle pizza order intent."""
-        session = self.sessions[session_id]
-        
-        # Use RAG to get menu context
-        rag_result = self.rag_pipeline.query(
-            message,
-            conversation_history=session['messages']
-        )
-        
-        # Try to extract order items (simplified)
-        # In production, this would use more sophisticated NER
-        response_text = rag_result['response']
-        
-        # Check if we need delivery address
-        if not session['context'].get('delivery_address'):
-            response_text += "\n\nCould you please provide your delivery address?"
-        
-        return {
-            'response': response_text,
-            'context_docs': rag_result['context_docs'],
-            'tokens_used': rag_result['tokens_used']
-        }
-    
-    def _handle_menu_query(self, session_id: str, message: str) -> Dict[str, Any]:
-        """Handle menu inquiry."""
-        session = self.sessions[session_id]
-        
-        rag_result = self.rag_pipeline.query(
-            message,
-            conversation_history=session['messages']
-        )
-        
-        return {
-            'response': rag_result['response'],
-            'context_docs': rag_result['context_docs'],
-            'tokens_used': rag_result['tokens_used']
-        }
-    
-    def _handle_order_tracking(self, session_id: str, message: str) -> Dict[str, Any]:
-        """Handle order tracking."""
-        # Simplified - would integrate with actual order system
-        return {
-            'response': "I don't see any active orders for this session. Would you like to place a new order?",
-            'context_docs': [],
-            'tokens_used': 0
-        }
-    
-    def _handle_cancellation(self, session_id: str, message: str) -> Dict[str, Any]:
-        """Handle order cancellation."""
-        session = self.sessions[session_id]
-        
-        if session.get('order'):
-            session['order'] = None
-            response = "Your order has been cancelled. Is there anything else I can help you with?"
-        else:
-            response = "I don't see any active order to cancel. Can I help you with anything else?"
-        
-        return {
-            'response': response,
-            'context_docs': [],
-            'tokens_used': 0
-        }
-    
-    def _handle_general_query(self, session_id: str, message: str) -> Dict[str, Any]:
-        """Handle general questions using RAG."""
-        session = self.sessions[session_id]
-        
-        rag_result = self.rag_pipeline.query(
-            message,
-            conversation_history=session['messages']
-        )
-        
-        return {
-            'response': rag_result['response'],
-            'context_docs': rag_result['context_docs'],
-            'tokens_used': rag_result['tokens_used']
-        }
-    
-    def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """Get session data."""
-        return self.sessions.get(session_id)
-    
-    def clear_session(self, session_id: str) -> None:
-        """Clear session data."""
-        if session_id in self.sessions:
-            del self.sessions[session_id]
+    def get_best_model(self) -> AIModel:
+        """Return model with highest BLEU score."""
+        if not self.results:
+            raise ValueError("No experiments run yet")
+        valid_results = [r for r in self.results if 'bleu' in r]
+        if not valid_results:
+            raise ValueError("No results with BLEU scores")
+        best_result = max(valid_results, key=lambda x: x['bleu'])
+        return self.models[best_result['model']]

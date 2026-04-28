@@ -1,6 +1,12 @@
 """Feature engineering for FraudShield
 
-Provides: Scaling, optional PCA dimensionality reduction for anomaly detection
+Provides: Scaling and optional PCA dimensionality reduction for anomaly detection
+
+Learning objectives:
+1. Understand why standardization is critical for distance-based methods
+2. Implement PCA for dimensionality reduction
+3. Preserve anomaly patterns during feature transformation
+4. See immediate feedback on feature transformations
 """
 
 import logging
@@ -8,11 +14,13 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from rich.console import Console
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 
 logger = logging.getLogger("fraudshield")
+console = Console()
 
 
 class FeatureEngineer:
@@ -67,114 +75,14 @@ class FeatureEngineer:
         )
     
     def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Fit feature engineering pipeline and transform data.
-        
-        Args:
-            X: Input features
-        
-        Returns:
-            Transformed features
-        
-        Raises:
-            ValueError: If X contains NaN or inf values
-        """
-        self._validate_input(X, "fit_transform")
-        
-        X_transformed = X.copy()
-        
-        # Stage 1: Standardization
-        if self.scale_features:
-            logger.info("Standardizing features")
-            self.scaler = StandardScaler()
-            X_transformed_values = self.scaler.fit_transform(X_transformed)
-            
-            X_transformed = pd.DataFrame(
-                X_transformed_values,
-                index=X_transformed.index,
-                columns=X_transformed.columns
-            )
-            
-            logger.info(
-                f"Scaling complete - mean: {X_transformed.mean().mean():.3f}, "
-                f"std: {X_transformed.std().mean():.3f}"
-            )
-        
-        # Stage 2: Optional PCA
-        if self.n_components_pca is not None:
-            logger.info(f"Applying PCA with {self.n_components_pca} components")
-            
-            n_features = X_transformed.shape[1]
-            if self.n_components_pca > n_features:
-                logger.warning(
-                    f"n_components_pca ({self.n_components_pca}) > n_features ({n_features}). "
-                    f"Using {n_features} components instead."
-                )
-                self.n_components_pca = n_features
-            
-            self.pca = PCA(n_components=self.n_components_pca, random_state=42)
-            X_transformed_values = self.pca.fit_transform(X_transformed)
-            
-            # Create new column names for PCA components
-            pca_columns = [f"pc_{i+1}" for i in range(X_transformed_values.shape[1])]
-            X_transformed = pd.DataFrame(
-                X_transformed_values,
-                index=X_transformed.index,
-                columns=pca_columns
-            )
-            
-            explained_var = self.pca.explained_variance_ratio_.sum()
-            logger.info(
-                f"PCA complete: {n_features} → {X_transformed.shape[1]} features, "
-                f"explained variance: {explained_var:.1%}"
-            )
-        
-        self.feature_names = list(X_transformed.columns)
-        self._fitted = True
-        
-        logger.info(f"Feature engineering complete: {len(self.feature_names)} features")
-        
-        return X_transformed
+        """TODO: Fit standardization and optional PCA, then transform data."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement fit_transform")
     
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Transform data using fitted pipeline.
-        
-        Args:
-            X: Input features
-        
-        Returns:
-            Transformed features
-        
-        Raises:
-            RuntimeError: If pipeline not fitted
-            ValueError: If X contains NaN/inf or wrong features
-        """
-        if not self._fitted:
-            raise RuntimeError("Pipeline not fitted. Call fit_transform() first.")
-        
-        self._validate_input(X, "transform")
-        
-        X_transformed = X.copy()
-        
-        # Stage 1: Standardization
-        if self.scaler is not None:
-            X_transformed_values = self.scaler.transform(X_transformed)
-            X_transformed = pd.DataFrame(
-                X_transformed_values,
-                index=X_transformed.index,
-                columns=X_transformed.columns
-            )
-        
-        # Stage 2: PCA
-        if self.pca is not None:
-            X_transformed_values = self.pca.transform(X_transformed)
-            pca_columns = [f"pc_{i+1}" for i in range(X_transformed_values.shape[1])]
-            X_transformed = pd.DataFrame(
-                X_transformed_values,
-                index=X_transformed.index,
-                columns=pca_columns
-            )
-        
-        return X_transformed
+        """TODO: Apply fitted transformations to new data."""
+        # TODO: Your implementation here
+        raise NotImplementedError("Implement transform")
     
     def _validate_input(self, X: pd.DataFrame, operation: str) -> None:
         """Validate input data.

@@ -1,546 +1,114 @@
-# Exercise 04: Multi-Agent AI System
+# Exercise 04: Multi-Agent AI System (TODO Version)
 
-> **Grand Challenge:** Build a production-ready multi-agent coordination system with task planning, execution, and monitoring capabilities
+> **Learning Challenge:** Build a collaborative multi-agent system with task decomposition, message passing, and coordination
 
-**Scaffolding Level:** 🔴 Minimal (demonstrate independence)
+**Scaffolding Level:** 🟡 Medium (guided TODOs with time estimates)
 
-A sophisticated multi-agent system implementing task decomposition, coordinated execution, real-time evaluation, and production monitoring using LangChain, AutoGen, Redis, and Prometheus.
+See [main.py](main.py), [src/models.py](src/models.py), and [src/features.py](src/features.py) for implementation.
 
----
+## Quick Start
 
-## Table of Contents
+```bash
+# Install dependencies
+pip install rich
 
-- [Architecture](#architecture)
-- [Agent Roles](#agent-roles)
-- [Communication Patterns](#communication-patterns)
-- [Setup](#setup)
-- [Usage](#usage)
-- [API Endpoints](#api-endpoints)
-- [Success Criteria](#success-criteria)
-- [Example Workflows](#example-workflows)
-- [Monitoring](#monitoring)
-- [Development](#development)
-
----
-
-## Architecture
-
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Multi-Agent Coordinator                    │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ Planner  │  │ Executor │  │  Critic  │  │Researcher│   │
-│  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
-│       │             │              │              │          │
-│       └─────────────┴──────────────┴──────────────┘          │
-│                          │                                    │
-└──────────────────────────┼────────────────────────────────────┘
-                           │
-            ┌──────────────┴──────────────┐
-            │                             │
-    ┌───────▼────────┐          ┌────────▼────────┐
-    │ Message Queue  │          │   Monitoring    │
-    │    (Redis)     │          │  (Prometheus)   │
-    └────────────────┘          └─────────────────┘
-            │                             │
-            └─────────────┬───────────────┘
-                          │
-                  ┌───────▼───────┐
-                  │   Flask API   │
-                  └───────────────┘
+# Run demonstration (after implementing TODOs)
+python main.py
 ```
 
-### Components
+> **Note:** Infrastructure files (Dockerfile, docker-compose.yml, Makefile) have been removed for simplicity. Use setup.ps1 (Windows) or setup.sh (Unix) for environment setup.
 
-1. **Agent Coordinator**: Orchestrates multi-agent workflows with dependency management
-2. **Message Queue**: Redis-based inter-agent communication
-3. **Monitoring**: Prometheus metrics for system observability
-4. **State Manager**: Shared state management across agents
-5. **Evaluator**: Performance metrics and success criteria validation
+## What You'll Build
 
----
+A multi-agent system with:
+- **CoordinatorAgent**: Decomposes tasks and orchestrates workers
+- **WorkerAgent**: Executes atomic tasks in parallel  
+- **ResearchAgent**: Gathers information with caching
+- **Message passing**: Request/response/broadcast patterns
+- **Shared state**: Conflict detection and versioning
+- **Metrics**: Real-time coordination analytics
 
-## Agent Roles
+## Implementation Tasks
 
-### 1. PlannerAgent
-**Role:** Task decomposition and planning
+### Phase 1: Agents (src/models.py)
 
-**Responsibilities:**
-- Break down complex tasks into executable subtasks
-- Identify task dependencies and execution order
-- Detect parallel execution opportunities
-- Estimate task complexity and duration
-- Generate critical path analysis
+1. **CoordinatorAgent.process_task()** - Task decomposition and worker assignment
+2. **CoordinatorAgent.respond_to_message()** - Handle worker responses
+3. **WorkerAgent.process_task()** - Execute tasks independently
+4. **WorkerAgent.respond_to_message()** - Process task requests
+5. **ResearchAgent.process_task()** - Research with caching
+6. **ExperimentRunner.run_experiment()** - Orchestrate multi-agent collaboration
+7. **ExperimentRunner.print_metrics()** - Display coordination metrics
 
-**Configuration:** [agents/planner.yaml](agents/planner.yaml)
+### Phase 2: Infrastructure (src/features.py)
 
-### 2. ExecutorAgent
-**Role:** Execute atomic tasks
+8. **MessageParser.parse_message()** - Validate and parse messages
+9. **MessageParser.extract_task_from_message()** - Extract task details
+10. **MessageParser.validate_response()** - Match requests and responses
+11. **SharedStateManager.update()** - State updates with conflict detection
+12. **SharedStateManager.get()** - Retrieve state values
+13. **SharedStateManager.lock/unlock()** - Exclusive state access
+14. **ConversationHistory.add_message()** - Track conversation history
+15. **ConversationHistory.get_conversation()** - Retrieve conversation thread
+16. **MessageRouter.route()** - Route messages with priority handling
 
-**Responsibilities:**
-- Execute generic, computation, and data processing tasks
-- Manage parallel task execution (max 3 concurrent)
-- Handle task retries and error recovery
-- Track execution metrics
+**Total: 17 TODOs** (see inline code comments for details)
 
-**Configuration:** [agents/executor.yaml](agents/executor.yaml)
+## Core Concepts
 
-### 3. CriticAgent
-**Role:** Evaluate results and provide feedback
+### Agent Autonomy
+Each agent has inbox, outbox, state, and metrics. They operate independently.
 
-**Responsibilities:**
-- Evaluate task results against quality criteria
-- Calculate scores: completeness, quality, accuracy, efficiency
-- Generate constructive feedback
-- Identify areas for improvement
-- Suggest next steps
-
-**Configuration:** [agents/critic.yaml](agents/critic.yaml)
-
-### 4. ResearcherAgent
-**Role:** Gather information and context
-
-**Responsibilities:**
-- Search knowledge base and external sources
-- Synthesize findings with confidence scores
-- Generate recommendations
-- Maintain and update knowledge base
-
-**Configuration:** [agents/researcher.yaml](agents/researcher.yaml)
-
----
-
-## Communication Patterns
+### Task Decomposition
+- **Low complexity**: 1 subtask
+- **Medium complexity**: 3 subtasks (research → execute → validate)
+- **High complexity**: 5 subtasks (research → design → execute → test → validate)
 
 ### Message Passing
-
-Agents communicate via standardized messages:
-
 ```python
-{
-    "type": "task_request" | "task_response" | "feedback" | "status_update",
-    "sender": "agent_name",
-    "receiver": "agent_name",
-    "content": {...},
-    "timestamp": "ISO-8601",
-    "id": "unique_id"
-}
+Message(sender, recipient, content, timestamp, message_type)
 ```
+Types: request, response, broadcast
 
-### Coordination Flow
-
-1. **Planning Phase**: PlannerAgent decomposes task
-2. **Research Phase** (optional): ResearcherAgent gathers context
-3. **Execution Phase**: ExecutorAgent executes subtasks in order
-4. **Evaluation Phase**: CriticAgent evaluates results
-5. **Refinement Loop** (if needed): Re-execute based on feedback
+### Coordination Pattern
+```
+Coordinator receives task → Decomposes → Assigns to workers (round-robin) 
+→ Workers execute in parallel → Coordinator aggregates results
+```
 
 ### Shared State
+- Locks prevent conflicts
+- Versioning enables rollback
+- Timestamps track ordering
 
-StateManager provides:
-- Shared state across agents
-- State change history
-- Snapshot/restore capabilities
-- Thread-safe updates
-
----
-
-## Setup
-
-### Local Setup
-
-**Unix/macOS/WSL:**
-```bash
-chmod +x setup.sh
-./setup.sh
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create necessary directories
-mkdir -p logs data models
-```
-
-**Windows PowerShell:**
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-.\setup.ps1
-.\venv\Scripts\Activate.ps1
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create necessary directories
-New-Item -ItemType Directory -Force logs, data, models
-```
-
-### Docker Setup
-
-```bash
-# Build and start all services
-make docker-build
-make docker-up
-
-# Check logs
-make docker-logs
-
-# Stop services
-make docker-down
-```
-
-### Configuration
-
-Edit [config.yaml](config.yaml) to customize:
-- Agent parameters (iterations, thresholds, etc.)
-- Communication settings (Redis host, retry policy)
-- LLM configuration (model, temperature, tokens)
-- Monitoring settings (Prometheus port, metrics prefix)
-
----
-
-## Usage
-
-### Running the API Server
-
-**Local:**
-```bash
-# Production mode
-python src/api.py
-
-# or using Make
-make run
-
-# Development mode with auto-reload
-make run-dev
-```
-
-**Docker:**
-```bash
-docker-compose up
-```
-
-API available at: `http://localhost:5000`
-
-### Executing Tasks via API
-
-```bash
-# Simple task
-curl -X POST http://localhost:5000/task \
-  -H "Content-Type: application/json" \
-  -d '{
-    "description": "Research and analyze machine learning deployment patterns"
-  }'
-
-# Task with constraints
-curl -X POST http://localhost:5000/task \
-  -H "Content-Type: application/json" \
-  -d '{
-    "description": "Optimize database query performance",
-    "constraints": {
-      "time_limit": 60,
-      "quality_threshold": 0.85
-    }
-  }'
-```
-
-### Using Python Client
-
-```python
-import requests
-
-# Execute task
-response = requests.post(
-    'http://localhost:5000/task',
-    json={
-        'description': 'Research and implement API rate limiting',
-        'constraints': {'quality_threshold': 0.8}
-    }
-)
-
-result = response.json()
-print(f"Task ID: {result['task_id']}")
-print(f"Status: {result['status']}")
-print(f"Execution Time: {result['execution_time']}s")
-print(f"Agents Used: {result['agents_used']}")
-```
-
----
-
-## API Endpoints
-
-### POST /task
-Execute multi-agent task
-
-**Request:**
-```json
-{
-  "description": "Task description",
-  "constraints": {
-    "time_limit": 60,
-    "quality_threshold": 0.8
-  },
-  "workflow": "custom"
-}
-```
-
-**Response:**
-```json
-{
-  "task_id": "task_1234567890",
-  "status": "success",
-  "plan": {
-    "subtasks": [...],
-    "execution_order": [...],
-    "complexity": 0.65
-  },
-  "results": [...],
-  "evaluation": {
-    "score": 0.87,
-    "passes_threshold": true
-  },
-  "execution_time": 2.34,
-  "agents_used": ["planner_agent", "executor_agent", "critic_agent"]
-}
-```
-
-### GET /agents
-List all agents and their status
-
-### GET /metrics
-Get system metrics (JSON or Prometheus format)
-
-### GET /queue/status
-Get message queue statistics
-
-### GET /health
-Health check endpoint
-
----
+### Emergent Behavior
+Simple agent rules → complex system behavior (load balancing, caching, specialization)
 
 ## Success Criteria
 
-### Performance Targets
+- [ ] All 17 TODOs implemented
+- [ ] `python main.py` runs without errors
+- [ ] 3 demo tasks complete with visible output
+- [ ] Coordination metrics display properly
+- [ ] Message routing works between agents
 
-✅ **Task Completion Rate:** > 85%
-- Percentage of tasks completed successfully
-- Current: Monitored via `/metrics` endpoint
+## Extension Ideas
 
-✅ **Coordination Efficiency:** > 0.7
-- Measures effective agent collaboration
-- Factors: parallel execution, time efficiency, success rate
-- Current: Monitored via `/metrics` endpoint
+**Level 1:** CriticAgent, priority queues, retry logic, task dependencies
 
-### Evaluation Metrics
+**Level 2:** LLM integration (OpenAI), threading, agent learning, visualization
 
-1. **Completion Rate**: Success ratio of executed tasks
-2. **Coordination Efficiency**: Agent collaboration effectiveness
-3. **Average Execution Time**: Per-task execution duration
-4. **Agent Utilization**: Individual agent performance
+**Level 3:** Persistent state (Redis), distributed deployment, AutoGen, Prometheus
 
-Check current metrics:
-```bash
-curl http://localhost:5000/metrics | python -m json.tool
-```
+## Reference
 
----
+Full documentation with detailed explanations available in files:
+- [src/models.py](src/models.py) - Agent implementations with TODOs
+- [src/features.py](src/features.py) - Infrastructure with TODOs
+- [main.py](main.py) - Demonstration script
 
-## Example Workflows
-
-### 1. Research + Plan + Execute
-
-**Task:** Research and implement caching strategy
-
-**Flow:**
-1. ResearcherAgent gathers caching best practices
-2. PlannerAgent creates implementation plan
-3. ExecutorAgent implements cache layer
-4. CriticAgent evaluates implementation quality
-
-### 2. Complex Analysis Workflow
-
-**Task:** Analyze system performance and optimize bottlenecks
-
-**Flow:**
-1. PlannerAgent decomposes into:
-   - Profile system performance
-   - Identify bottlenecks
-   - Generate optimization strategies
-   - Implement optimizations
-   - Validate improvements
-2. ExecutorAgent executes each phase
-3. CriticAgent provides continuous feedback
-4. Refinement loop if quality < threshold
-
-### 3. Parallel Execution
-
-**Task:** Process multiple independent datasets
-
-**Flow:**
-1. PlannerAgent identifies parallel opportunities
-2. ExecutorAgent (max 3 concurrent) processes datasets
-3. CriticAgent evaluates aggregate results
+Each TODO is a 1-line description. See _REFERENCE/ directory for complete implementations.
 
 ---
 
-## Monitoring
-
-### Prometheus Metrics
-
-Access Prometheus UI: `http://localhost:9090`
-
-**Available Metrics:**
-- `multiagent_agent_actions_total` - Agent action counts
-- `multiagent_messages_sent_total` - Message counts
-- `multiagent_tasks_total` - Task execution counts
-- `multiagent_task_duration_seconds` - Task duration histogram
-- `multiagent_coordination_efficiency` - Coordination score
-- `multiagent_completion_rate` - Task completion rate
-
-### Example Queries
-
-```promql
-# Average task duration
-rate(multiagent_task_duration_seconds_sum[5m]) / 
-rate(multiagent_task_duration_seconds_count[5m])
-
-# Task success rate
-rate(multiagent_tasks_total{status="success"}[5m])
-
-# Coordination efficiency over time
-multiagent_coordination_efficiency
-```
-
-### Logging
-
-Logs available at:
-- **Local:** Console output with structured logging
-- **Docker:** `docker-compose logs -f multiagent-api`
-- **Files:** `logs/` directory (if configured)
-
----
-
-## Development
-
-### Running Tests
-
-```bash
-# All tests with coverage
-make test
-
-# Fast test run (no coverage)
-make test-fast
-
-# Specific test file
-pytest tests/test_agents.py -v
-```
-
-### Code Quality
-
-```bash
-# Format code
-make format
-
-# Check linting
-make lint
-```
-
-### Project Structure
-
-```
-exercises/04-multi_agent_ai/
-├── src/                          # Source code
-│   ├── agents/                   # Agent implementations
-│   │   ├── base.py              # Base agent class
-│   │   ├── planner.py           # Planner agent
-│   │   ├── executor.py          # Executor agent
-│   │   ├── critic.py            # Critic agent
-│   │   └── researcher.py        # Researcher agent
-│   ├── coordinator.py           # Multi-agent coordinator
-│   ├── messaging.py             # Message queue
-│   ├── evaluate.py              # Evaluation metrics
-│   ├── monitoring.py            # Prometheus monitoring
-│   ├── utils.py                 # Utilities
-│   └── api.py                   # Flask API
-├── agents/                       # Agent configurations
-│   ├── planner.yaml
-│   ├── executor.yaml
-│   ├── critic.yaml
-│   └── researcher.yaml
-├── tests/                        # Test suite
-│   ├── test_agents.py
-│   ├── test_coordinator.py
-│   ├── test_messaging.py
-│   └── test_api.py
-├── config.yaml                   # System configuration
-├── requirements.txt              # Dependencies
-├── Dockerfile                    # Container image
-├── docker-compose.yml            # Multi-container setup
-├── prometheus.yml                # Prometheus config
-└── Makefile                      # Build automation
-```
-
-### Adding New Agents
-
-1. Create agent class extending `BaseAgent`:
-```python
-from src.agents.base import BaseAgent
-
-class CustomAgent(BaseAgent):
-    def process(self, task):
-        # Implementation
-        return result
-```
-
-2. Add agent configuration in `agents/custom.yaml`
-3. Register in `config.yaml`
-4. Add tests in `tests/test_agents.py`
-
----
-
-## Resources
-
-**Concept Review:**
-- [notes/04-multi_agent_ai/](../../notes/04-multi_agent_ai/)
-- [LangChain Documentation](https://python.langchain.com/)
-- [Microsoft AutoGen](https://github.com/microsoft/autogen)
-
-**Related Projects:**
-- Exercise 01 (ML): Production patterns reference
-- Exercise 03 (AI): LLM integration patterns
-
----
-
-## Troubleshooting
-
-### Redis Connection Issues
-```bash
-# Check Redis is running
-docker-compose ps redis
-
-# View Redis logs
-docker-compose logs redis
-
-# Test connection
-redis-cli ping
-```
-
-### Agent Not Responding
-1. Check agent is enabled in `config.yaml`
-2. Review logs for error messages
-3. Verify message queue is operational
-4. Check agent status: `GET /agents`
-
-### Low Coordination Efficiency
-1. Review parallel execution opportunities
-2. Check task dependencies (circular deps?)
-3. Analyze agent processing times
-4. Monitor via Prometheus dashboard
-
----
-
-**Status:** ✅ Production Ready  
-**Last Updated:** April 28, 2026
+*For questions, see [CONTRIBUTING.md](../../CONTRIBUTING.md)*
