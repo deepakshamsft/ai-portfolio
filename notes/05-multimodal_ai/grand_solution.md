@@ -1019,6 +1019,32 @@ The next generation of creative tools will be local-first, privacy-preserving, a
 
 ---
 
+## Further Reading & Resources
+
+### Articles
+
+- [Understanding CLIP: The Model That Changed Vision-Language AI](https://towardsdatascience.com/understanding-clip-model-6b7b07b8f0a1) — Deep dive into CLIP's contrastive learning approach and zero-shot capabilities
+- [Stable Diffusion Deep Dive: How It Works](https://towardsdatascience.com/stable-diffusion-best-open-source-version-of-dall-e-2-ebcdf1cb64bc) — Complete technical breakdown of Stable Diffusion's VAE, U-Net, and CLIP components
+- [Diffusion Models: A Comprehensive Survey](https://towardsdatascience.com/diffusion-models-made-easy-8414298ce4da) — Overview of DDPM, DDIM, and modern diffusion architectures
+- [ControlNet Explained: Precise Control for Stable Diffusion](https://medium.com/@sonicviz/controlnet-a-game-changer-in-ai-image-generation-c6e8e6b9e35a) — How ControlNet enables structural conditioning without retraining base models
+- [Vision Transformers (ViT) vs CNNs: The Paradigm Shift](https://towardsdatascience.com/are-you-ready-for-vision-transformer-vit-c9e11862c539) — Analysis of why attention-based architectures replaced convolutions at scale
+
+### Videos
+
+- [CLIP: Connecting Text and Images (Yannic Kilcher)](https://www.youtube.com/watch?v=T9XSU0pKX2E) — Detailed paper walkthrough of CLIP's training methodology and implications
+- [Stable Diffusion Explained (AI Coffee Break with Letitia)](https://www.youtube.com/watch?v=J87hffSMB60) — Accessible explanation of how latent diffusion models generate high-quality images
+- [Denoising Diffusion Models: A Generative Learning Big Bang (Two Minute Papers)](https://www.youtube.com/watch?v=344w5h24-h8) — Visual demonstration of diffusion models' impressive quality and stability
+- [ControlNet: Perfect Control for AI Art (Two Minute Papers)](https://www.youtube.com/watch?v=iFzpYY8bfJo) — Showcases ControlNet's ability to condition generation on edges, depth, and pose
+
+### Technical Papers (Foundational)
+
+- [CLIP: Learning Transferable Visual Models (Radford et al., 2021)](https://arxiv.org/abs/2103.00020) — The original paper that enabled zero-shot text-image alignment
+- [Denoising Diffusion Probabilistic Models (Ho et al., 2020)](https://arxiv.org/abs/2006.11239) — DDPM, the mathematical foundation for modern diffusion models
+- [High-Resolution Image Synthesis with Latent Diffusion (Rombach et al., 2022)](https://arxiv.org/abs/2112.10752) — Stable Diffusion architecture paper
+- [Adding Conditional Control to Text-to-Image Diffusion (Zhang et al., 2023)](https://arxiv.org/abs/2302.05543) — ControlNet paper introducing zero-initialized residual connections
+
+---
+
 ## See Also
 
 - [notes/05-multimodal_ai/README.md](README.md) — Track overview and reading paths

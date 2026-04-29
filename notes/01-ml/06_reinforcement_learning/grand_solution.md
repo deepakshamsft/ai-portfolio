@@ -429,3 +429,19 @@ The algorithms you've learned — DQN, PPO, SAC — are not academic curiosities
 - ✅ Debugging intuition — when to check state coverage, policy entropy, value function accuracy, reward shaping
 
 **Next milestone:** Multi-Agent AI — where multiple agents learn together, competing or cooperating, leading to emergent communication, strategic reasoning, and the foundation for human-AI collaboration systems.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Deep Reinforcement Learning Doesn't Work Yet](https://www.alexirpan.com/2018/02/14/rl-hard.html) — Comprehensive analysis of practical challenges in production RL systems
+- [Lessons Learned Reproducing a Deep Reinforcement Learning Paper](http://amid.fish/reproducing-deep-rl) — Real-world insights on hyperparameter sensitivity and reproducibility in DQN
+- [Policy Gradient Algorithms](https://lilianweng.github.io/posts/2018-04-08-policy-gradient/) — Mathematical deep-dive into REINFORCE, actor-critic, and PPO by Lilian Weng
+- [OpenAI Spinning Up: Key Papers in Deep RL](https://spinningup.openai.com/en/latest/spinningup/keypapers.html) — Curated list of seminal papers from DQN to SAC with implementation notes
+
+### Videos
+- [David Silver's RL Course (DeepMind)](https://www.youtube.com/playlist?list=PLqYmG7hTraZDM-OYHWgPebj2MfCFzFObQ) — Definitive 10-lecture series covering MDPs through policy gradients
+- [Proximal Policy Optimization Explained](https://www.youtube.com/watch?v=5P7I-xPq8u8) — Clear visual explanation of PPO's clipping mechanism and trust regions
+- [Lex Fridman Podcast: Pieter Abbeel on Deep RL](https://www.youtube.com/watch?v=l-mYLq6eZPY) — Industry perspectives on robotics applications and sim-to-real transfer
+- [AlphaGo Documentary (DeepMind)](https://www.youtube.com/watch?v=WXuK6gekU1Y) — How policy gradients and MCTS combined to achieve superhuman Go performance

@@ -529,3 +529,20 @@ Recommender systems are not single models — they are **pipelines of specialize
 - ✅ The conceptual foundation for sequence models (Track 10), multi-task learning (Track 12), and causal inference (Track 14)
 
 **Next milestone:** Apply these principles to other domains — product recommendations (e-commerce), playlist generation (music), video suggestions (streaming), job postings (LinkedIn), ad targeting (Google Ads). The architecture is identical: candidate generation → ranking → re-ranking → exploration, with domain-specific features and constraints. The patterns from FlixAI transfer directly.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Introduction to Recommender Systems — Collaborative Filtering](https://towardsdatascience.com/introduction-to-recommender-systems-6c66cf15ada) — Comprehensive overview of user-based and item-based collaborative filtering with Python examples
+- [Matrix Factorization Techniques for Recommender Systems](https://datajobs.com/data-science-repo/recommender-systems-[Netflix].pdf) — Classic paper from Netflix Prize winners explaining SVD and ALS approaches
+- [Building a Production Recommendation Engine with PyTorch](https://medium.com/nvidia-merlin/building-recommender-systems-with-pytorch-2-0-f11e6b4e3ad6) — End-to-end guide covering neural collaborative filtering and hybrid models in production
+- [The Netflix Recommender System: Algorithms, Business Value, and Innovation](https://dl.acm.org/doi/10.1145/2843948) — ACM case study on Netflix's evolution from ratings prediction to session-based recommendations
+- [Deep Learning for Recommender Systems](https://towardsdatascience.com/deep-learning-based-recommender-systems-3d120201db7e) — Survey of neural approaches including NCF, autoencoders, and attention mechanisms
+
+### Videos
+- [Machine Learning — Recommender Systems (Stanford CS229)](https://www.youtube.com/watch?v=giIXNoiqO_U) — Andrew Ng's lecture covering collaborative filtering, matrix factorization, and content-based approaches
+- [Collaborative Filtering Simply Explained](https://www.youtube.com/watch?v=h9gpufJFF-0) — StatQuest breakdown of user-based and item-based CF with visual intuition
+- [Building Recommender Systems with Deep Learning (PyTorch)](https://www.youtube.com/watch?v=V2h3IOBDvrA) — Practical tutorial implementing neural collaborative filtering from scratch
+- [How YouTube Recommends Videos](https://www.youtube.com/watch?v=BspXGY98e5M) — Google research talk on candidate generation, ranking, and exploration strategies at scale

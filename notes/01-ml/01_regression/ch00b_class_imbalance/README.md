@@ -2,38 +2,38 @@
 
 > **The story.** In **2002**, Nitesh Chawla, Kevin Bowyer, Lawrence Hall, and W. Philip Kegelmeyer published "SMOTE: Synthetic Minority Over-sampling Technique" in the *Journal of Artificial Intelligence Research* — one of the most cited papers in applied machine learning. The problem they solved had haunted classifiers for a decade: when training data is dominated by one class, models learn to ignore the minority and still achieve high accuracy. Chawla's insight was counterintuitive — rather than *removing* majority samples (undersampling, which wastes data) or simply *duplicating* minority samples (which causes memorisation), *synthesize entirely new minority samples by interpolating between existing ones*. The technique was motivated by medical diagnosis and fraud detection, where the rare event — cancer, fraud — is exactly the event that matters. Meanwhile, the ROC (Receiver Operating Characteristic) curve — the proper evaluation tool for imbalanced classifiers — had roots in World War II radar signal detection, formalised by David Green and John Swets in *Signal Detection Theory and Psychophysics* (1966). When both tools meet — SMOTE to rebalance training, ROC/F₁ to measure results — the **accuracy paradox** is finally broken.
 >
-> **Where you are in the RealtyML story.** Sarah Chen cleaned the training data in Ch.1: 127 impossible outliers removed, KNN imputation applied. Portland MAE is still 174k. Today she opens the class distribution and immediately sees the problem: her training data has 15,480 median-value districts and only 5,160 high-value ones — a 75/25 split. The model learned one lesson — *predict median-value properties* — and achieves 75% accuracy. In Portland, 40% of the high-value tier (the segment that drives revenue) is being mispredicted. The high-value MAE alone is 287k. This chapter shows her exactly what to do.
+> **Where you are in the SmartVal AI story.** You've cleaned the training data in Ch.00: removed outliers, applied KNN imputation. Now you examine the class distribution and discover: your training data has 15,480 median-value districts and only 5,160 high-value ones — a 75/25 split. If you train naively, the model predicts "median-value" for everything, achieving 75% accuracy while missing the high-value segment entirely. For a production system where high-value predictions drive revenue, this is unacceptable. This chapter teaches you to detect and fix class imbalance BEFORE training any models.
 >
 > **Notation in this chapter.** $n$ — total training samples; $n_j$ — samples in class $j$; $C$ — number of classes; $w_j$ — class weight for class $j$; $\text{TP}, \text{FP}, \text{TN}, \text{FN}$ — confusion matrix cells; $\text{Precision} = \text{TP}/(\text{TP}+\text{FP})$; $\text{Recall} = \text{TP}/(\text{TP}+\text{FN})$; $F_1 = 2 \cdot \text{Precision} \cdot \text{Recall} / (\text{Precision}+\text{Recall})$; $k$ — SMOTE nearest-neighbour count; $\lambda$ — interpolation coefficient, $\lambda \sim \text{Uniform}(0,1)$; $\tau$ — decision threshold (default 0.50).
 
 ---
 
-## 0 · The Challenge — Where Sarah Is
+## 0 · The Challenge — Where You Are
 
-> 🎯 **The mission**: Fix **RealtyML**'s production model — reduce Portland MAE from **174k → <95k** satisfying 5 constraints:
-> 1. ⚡ **ACCURACY**: MAE < $95k on Portland high-value districts — *partial unlock this chapter*
-> 2. ⚡ **GENERALIZATION**: CA-trained model must work in Portland (40% high-value) — *partial unlock*
-> 3. ⚡ **DATA QUALITY**: Training distribution must match production reality — **← THIS CHAPTER**
-> 4. ⚡ **AUDITABILITY**: Every sampling decision must be documented and reproducible
-> 5. ⚡ **PRODUCTION-READY**: Rebalancing pipeline must run without data leakage
+> 🎯 **The mission**: Build **SmartVal AI** — a production home valuation system achieving <$40k MAE by satisfying 5 constraints:
+> 1. ⚡ **ACCURACY**: <$40k MAE on median house values — *foundational work this chapter*
+> 2. ⚡ **GENERALIZATION**: Work on unseen districts (nationwide expansion) — *partial unlock*
+> 3. ⚡ **DATA QUALITY**: Training distribution must support all market segments — **← THIS CHAPTER**
+> 4. ⚡ **INTERPRETABILITY**: Explainable predictions for underwriters
+> 5. ⚡ **PRODUCTION**: <100ms inference, handle outliers, version control
 
-**What Sarah knows so far:**
-- ✅ Ch.1: Removed 127 impossible outliers (`HouseAge > 52`)
-- ✅ Ch.1: KNN imputation reduced feature MAE vs mean imputation
-- ✅ Ch.1: Portland MAE baseline is 174k — the number to beat
-- ❌ **But the training distribution doesn't match production!**
+**What you know so far:**
+- ✅ Ch.00: Removed outliers (`HouseAge > 52`, aggregation artifacts)
+- ✅ Ch.00: KNN imputation reduced MAE vs mean/median imputation
+- ✅ Target: <$40k MAE for production deployment
+- ❌ **But haven't checked training class distribution yet!**
 
-**What's blocking Sarah:**
-Sarah trained on California Housing where 75% of districts fall below the 75th-percentile price (~$265k). The model learned one lesson: *predict median-value properties*. But Portland's luxury tier represents 40% of revenue-generating transactions, and those are exactly the homes the model gets catastrophically wrong. The **high-value MAE is 287k** — lethal for appraisal partnerships.
+**What's blocking SmartVal AI:**
+The California Housing dataset has 75% median-value districts (<$265k) and only 25% high-value districts (≥$265k). If you train naively, the model learns to predict "median" for everything, achieving 75% accuracy. But high-value homes are where appraisal precision matters most — undervaluing a $500k property by $100k loses the customer's trust. The **high-value segment drives revenue and requires special attention**.
 
 **What this chapter unlocks:**
-- **Constraint #3 DATA QUALITY** (primary): Addresses training distribution mismatch
-- **Constraint #1 ACCURACY** (partial): Fixing imbalance directly reduces high-value MAE 287k → ~144k
+- **Constraint #3 DATA QUALITY** (continued): Addresses training distribution balance
+- **Constraint #1 ACCURACY** (foundational): Balanced training prevents majority-class bias
 - Stratified train/test splits that preserve class proportions
 - Class weights and SMOTE synthetic oversampling
-- Precision and recall as the correct evaluation metrics for imbalanced problems
+- Precision and recall as evaluation metrics for imbalanced problems
 
-✅ **After this chapter:** High-value recall improves from ~20% to ~71%; overall Portland MAE drops toward the 95k target.
+✅ **After this chapter:** You have a balanced training dataset ready for modeling (Ch.01-07), ensuring the model learns patterns from all market segments, not just the most common one.
 
 ---
 
@@ -55,9 +55,9 @@ Sarah trained on California Housing where 75% of districts fall below the 75th-p
 
 ---
 
-## 2 · Running Example: What Sarah Discovers
+## 2 · Running Example: What You Discover
 
-Sarah loads the California Housing data and creates a binary classification label: districts in the **top quartile** (≥ 75th percentile of `MedHouseVal`) become class 1 ("high-value"); all others are class 0 ("median").
+You load the California Housing data and create a binary classification label: districts in the **top quartile** (≥ 75th percentile of `MedHouseVal`) become class 1 ("high-value"); all others are class 0 ("median").
 
 ```python
 import pandas as pd
@@ -97,10 +97,10 @@ High   (1)  ████████████                           5,160
             0      3k     6k     9k    12k    15k
 ```
 
-**What this means for Portland:**
-In training, every 3 median homes teach the model 1 high-value home. But Portland's luxury market is booming: 40% of production traffic is high-value. The model never learned those patterns deeply enough to serve Portland.
+**What this means for production:**
+In training, every 3 median homes teach the model 1 high-value home (75/25 split). But if your production traffic has a different distribution — say, more high-value queries — the model hasn't learned those patterns deeply enough. This is why balanced training matters.
 
-> ⚠️ **The luxury tier gap**: Using a higher "luxury" absolute threshold (the top ~8% by California standards — roughly equivalent to homes >$450k today), the imbalance becomes even more extreme: ~18,989 median vs ~1,651 luxury in California training, but Portland's production sees 40% luxury traffic. These are the most expensive mispredictions because luxury homes have the largest absolute price differences.
+> ⚠️ **The luxury tier gap**: Using a higher "luxury" absolute threshold (the top ~8% by California standards — roughly equivalent to homes >$450k today), the imbalance becomes even more extreme: ~18,989 median vs ~1,651 luxury in the training set. If production queries skew toward luxury homes, these become the most expensive mispredictions because luxury homes have the largest absolute price differences.
 
 ---
 
@@ -227,13 +227,13 @@ $$\text{Precision} = \frac{TP}{TP + FP} = \frac{206}{206 + 83} = \frac{206}{289}
 
 $$\text{Recall} = \frac{TP}{TP + FN} = \frac{206}{206 + 826} = \frac{206}{1{,}032} = \mathbf{0.200}$$
 
-**The real story:** The model finds the high-value homes it does predict with 71% precision — but it *misses* 80% of them entirely (recall = 0.20). In Portland terms: 4 out of 5 luxury properties are classified as median, and those are the expensive mispredictions.
+**The real story:** The model finds the high-value homes it does predict with 71% precision — but it *misses* 80% of them entirely (recall = 0.20). In production terms: 4 out of 5 luxury properties are classified as median, leading to undervaluations.
 
 **F₁ score** — harmonic mean of precision and recall:
 
 $$F_1 = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}} = 2 \times \frac{0.713 \times 0.200}{0.713 + 0.200} = 2 \times \frac{0.143}{0.913} = \mathbf{0.313}$$
 
-An F₁ of 0.31 is barely above random on the minority class. The baseline model is effectively failing every second luxury property in Portland.
+An F₁ of 0.31 is barely above random on the minority class. The baseline model is effectively failing every second luxury property.
 
 ---
 
@@ -290,7 +290,7 @@ The new synthetic district has `MedInc = 8.78` and `HouseAge = 12.80` — a plau
 
 ## 5 · Discovery Arc — Four Acts
 
-> The accuracy paradox unravels in stages. Follow the same four acts Sarah did.
+> The accuracy paradox unravels in stages. Follow these four acts to see how class imbalance affects model performance.
 
 ### Act 1 — The Accuracy Paradox
 
@@ -396,7 +396,7 @@ High-Value        0.66      0.71      0.68      1032
 macro avg         0.78      0.80      0.79      4128
 ```
 
-**Final result:** High-value recall = 71%, F₁ = 0.68. The model now *finds* luxury properties — which directly translates to a 49% reduction in high-value MAE (287k → ~144k) in the Portland pipeline.
+**Final result:** High-value recall = 71%, F₁ = 0.68. The model now *finds* luxury properties effectively, ensuring balanced performance across all market segments when you build regression models in Ch.01-07.
 
 ---
 
@@ -653,7 +653,7 @@ This chapter's techniques and metrics are the foundation for at least four later
 
 **→ Anomaly Detection (05-AnomalyDetection track):** Fraud detection is an extreme imbalance problem: 0.1% fraudulent transactions vs 99.9% legitimate. The SMOTE → threshold tuning pipeline from §5 is the baseline every anomaly detection system is compared against. ADASYN's adaptive sampling (§3) becomes particularly important at such extreme imbalance ratios.
 
-**→ Production Monitoring (06-AI_Infrastructure track):** Class distribution monitoring is a production-critical feature. When Portland's luxury tier grows from 40% to 55%, the production model experiences **label shift** — the class weights and decision thresholds calibrated on 25% high-value training data are no longer optimal. Monitoring and retraining triggers are the direct sequel to today's lesson.
+**→ Production Monitoring (06-AI_Infrastructure track):** Class distribution monitoring is a production-critical feature. When your production traffic shifts — say from 25% high-value to 40% high-value — the model experiences **label shift**. The class weights and decision thresholds calibrated on 25% high-value training data are no longer optimal. Monitoring and retraining triggers are the direct sequel to today's lesson.
 
 > ➡️ **Every model that outputs probabilities uses threshold logic.** Neural networks, gradient-boosted trees, and retrieval models all produce scores that require calibration. The precision-recall trade-off you learned here is universal — threshold tuning is not specific to logistic regression.
 
@@ -663,15 +663,15 @@ This chapter's techniques and metrics are the foundation for at least four later
 
 ![Progress check](img/ch02-class-imbalance-progress-check.png)
 
-### Constraint Status After Ch.2
+### Constraint Status After Ch.00b
 
 | # | Constraint | Target | Status | Achievement |
 |---|---|---|---|---|
-| **#1** | ACCURACY | MAE < $95k | 🟡 Partial | High-value MAE 287k → ~144k (49% ↓) |
-| **#2** | GENERALIZATION | CA → Portland | 🟡 Partial | Better minority coverage narrows Portland gap |
-| **#3** | DATA QUALITY | Match production dist. | ✅ **Unlocked** | SMOTE balances 75/25 → 50/50; stratified splits throughout |
-| **#4** | AUDITABILITY | Reproducible pipeline | 🟡 Partial | seed=42 and stratify=y documented at every step |
-| **#5** | PRODUCTION-READY | No data leakage | 🟡 Partial | SMOTE-after-split pattern established |
+| **#1** | ACCURACY | <$40k MAE | 🔴 Not Started | Foundation laid; ready for modeling (Ch.01-07) |
+| **#2** | GENERALIZATION | Unseen districts | 🟡 Partial | Balanced training improves generalization |
+| **#3** | DATA QUALITY | Clean + balanced | ✅ **Unlocked** | SMOTE balances 75/25 → 50/50; stratified splits throughout |
+| **#4** | INTERPRETABILITY | Explainable | 🟡 Partial | Precision/recall provide class-level insights |
+| **#5** | PRODUCTION | Inference + monitoring | 🔴 Not Started | Pipeline established; full monitoring in Ch.08 |
 
 **✅ Unlocked capabilities:**
 - Compute balanced class weights from $w_j = n/(C \times n_j)$ and verify by hand
@@ -680,17 +680,17 @@ This chapter's techniques and metrics are the foundation for at least four later
 - Tune decision threshold $\tau$ to maximise minority-class F₁
 - **Constraint #3 DATA QUALITY fully achieved**
 
-**❌ Still can't solve:**
-- ❌ Portland distribution shift: CA median income ≠ Portland median income (covariate shift, not class imbalance) → **Ch.3 Data Drift**
-- ❌ Feature engineering for geographic and temporal patterns in Portland's market
-- ❌ Production monitoring of class ratios to retrigger rebalancing when the distribution shifts in live data
+**❌ Still need to build:**
+- ❌ **ACCURACY** target — haven't built regression models yet. That's Ch.01-07
+- ❌ **Feature drift detection** — class balance is fixed, but feature distributions may shift in production. That's Ch.08
+- ❌ **Production monitoring** — need automated alerts when class distribution shifts in live data
 
-**Real-world status:** "We can now train models that are fair to the minority class and find 71% of high-value properties. But we still cannot close the full 174k → 95k MAE gap — the feature distribution shift from California to Portland remains unaddressed."
+**Current status:** Clean, balanced dataset ready for modeling. SmartVal AI now has data quality + class balance foundations. Ch.01 will build the first regression model on this solid data.
 
 ---
 
 ## 12 · Bridge to the Next Chapter
 
-This chapter established that **training distribution must match production distribution** — we fixed the class balance, but we haven't addressed the *feature* distribution shift from California to Portland. In Ch.3 (Data Drift), Sarah discovers that Portland's median income, density, and house-age distributions all differ from California, even within the same class label. Fixing class balance was necessary but not sufficient. Ch.3 introduces **covariate shift detection** (Kolmogorov-Smirnov test, Population Stability Index) and domain-adaptation strategies that complete Constraint #2 GENERALIZATION.
+This chapter fixed class imbalance — the training set now has balanced representation of median-value and high-value homes. You've learned SMOTE, class weights, stratified sampling, and proper evaluation metrics (precision, recall, F₁). The data is clean (Ch.00) and balanced (Ch.00b).
 
-> ➡️ **Next up:** Ch.3 — Data Drift: answering the question "are my features right for Portland?" — and what to do when the answer is no.
+Next: **Ch.01 — Linear Regression**. Now we finally build the first model. With clean, balanced data as our foundation, we can train with confidence that we're not learning from garbage or biased distributions. Ch.01 establishes the baseline: can we predict house values from a single feature? What's the simplest model that works? From there, Ch.02-07 progressively improve toward the <$40k MAE target.

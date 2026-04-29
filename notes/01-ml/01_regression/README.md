@@ -22,6 +22,8 @@ This is not a Kaggle competition. Every chapter builds toward a single productio
 
 | Ch | Title | What Unlocks | MAE | Constraints | Status |
 |----|-------|--------------|-----|-------------|--------|
+| **00** | [Data Preparation](ch00_data_prep/README.md) | Outlier detection, missing value imputation, EDA | Baseline | #3 Data Quality | ✅ Complete |
+| **00b** | [Class Imbalance](ch00b_class_imbalance/README.md) | SMOTE, class weights, imbalanced learning | Baseline | #3 Data Quality | ✅ Complete |
 | **1** | [Linear Regression](ch01_linear_regression/README.md) | Single-feature baseline (MedInc → MedHouseVal) | ~$70k | #1 Partial | ✅ Complete |
 | **2** | [Multiple Regression](ch02_multiple_regression/README.md) | All 8 features, vectorization | ~$55k | #1 Improved | ✅ Complete |
 | **3** | [Feature Scaling, Importance & Multicollinearity](ch03_feature_importance/README.md) | Univariate R², VIF, permutation importance, collinearity detection | ~$55k | #4 ✅ Interpretability | ✅ Complete |
@@ -29,10 +31,24 @@ This is not a Kaggle competition. Every chapter builds toward a single productio
 | **5** | [Regularization](ch05_regularization/README.md) | Ridge/Lasso/Elastic Net prevents overfitting | **$38k** | **#1 ✅ #2 ✅** | ✅ Complete |
 | **6** | [Evaluation Metrics](ch06_metrics/README.md) | Cross-validation, residual analysis, learning curves | $38k | Validation | ✅ Complete |
 | **7** | [Hyperparameter Tuning](ch07_hyperparameter_tuning/README.md) | Grid/Random/Bayesian search + XGBoost | **$32k** | **#1 ✅ #2 ✅** | ✅ Complete |
+| **8** | [Data Validation & Drift Detection](ch08_data_validation/README.md) | PSI, KS tests, Great Expectations, production monitoring | **$32k** | **#5 ✅ Production** | ✅ Complete |
 
 ---
 
 ## Narrative Arc: From $70k Baseline to $32k Production Model
+
+### 🧹 Act 0: Data Preparation (Ch.00-00b)
+**Clean the data BEFORE building models**
+
+- **Ch.00**: Outlier detection, missing value analysis, imputation strategies
+  - *"We can't train a model on garbage data. Let's find and fix every quality issue first." — Sarah Chen, Lead ML Engineer*
+  
+- **Ch.00b**: Class imbalance handling with SMOTE and class weights
+  - *"Our training data is 92% median-value homes, but Portland's market is 40% luxury. That's why the model failed." — Sarah*
+
+**Status**: ✅ Data Quality foundation established. Ready for modeling.
+
+---
 
 ### 💡 Act 1: Foundations (Ch.1-2)
 **Build simple models, understand their limits**
@@ -81,6 +97,17 @@ This is not a Kaggle competition. Every chapter builds toward a single productio
   - *"Now THIS is production-grade! $32k MAE, SHAP explains every prediction, and underwriters love it." — Head of Compliance*
 
 **Status**: #1 ✅ ACCURACY · #2 ✅ GENERALIZATION · #4 ✅ INTERPRETABILITY | #3 ❌ (classification is a separate track) · #5 ⚠️ pipeline established
+
+---
+
+### 🛡️ Act 5: Production Monitoring (Ch.8)
+**Catch data drift before it breaks the model in production**
+
+- **Ch.8**: Data validation & drift detection → PSI, KS tests, Great Expectations
+  - *"The model works today, but will it work next quarter when the market shifts? We need automated guardrails." — VP Engineering*
+  - *"Every production batch now has a PSI check. If it's > 0.2, the model refuses to predict until we retrain." — Sarah*
+
+**Status**: #1 ✅ ACCURACY · #2 ✅ GENERALIZATION · #4 ✅ INTERPRETABILITY · #5 ✅ PRODUCTION | #3 ❌ (classification is a separate track)
 
 ---
 

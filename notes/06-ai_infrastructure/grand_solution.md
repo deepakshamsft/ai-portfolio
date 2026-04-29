@@ -740,3 +740,21 @@ schedule.every(5).minutes.do(check_and_rollback)
 **The bottom line:** $872k/year savings with 8-week implementation. Infrastructure knowledge = competitive advantage.
 
 **Continue your infrastructure journey:** Master this track, then scale to Llama-3-70B, 1M req/day, and multi-region deployments. The patterns here apply to any AI system at any scale.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Understanding GPU Memory Management for LLMs](https://towardsdatascience.com/understanding-gpu-memory-1-the-basics-of-gpu-memory-allocation-854c9f19d8c6) — Deep dive into VRAM allocation, KV cache, and memory optimization strategies
+- [The Economics of Large Language Model Serving](https://www.anyscale.com/blog/llm-serving-at-scale-deploying-llms-in-production) — Cost analysis and architecture patterns for production LLM deployment at scale
+- [vLLM: Easy, Fast, and Cheap LLM Serving](https://blog.vllm.ai/2023/06/20/vllm.html) — Official introduction to vLLM's PagedAttention and continuous batching techniques
+- [Quantization in Practice: INT4 and INT8 for Production](https://huggingface.co/blog/merve/quantization) — Practical guide to GPTQ, AWQ, and choosing quantization strategies
+- [MLOps for LLMs: From Training to Production Monitoring](https://neptune.ai/blog/mlops-for-llms) — End-to-end MLOps workflows including experiment tracking, deployment, and drift detection
+
+### Videos
+- [vLLM: High-Throughput LLM Serving](https://www.youtube.com/watch?v=80bIUggRJf4) — vLLM creator explaining PagedAttention architecture (UC Berkeley)
+- [Ray Summit: Scaling LLM Applications in Production](https://www.youtube.com/watch?v=4FYZNZy4hgM) — Production patterns for distributed LLM serving with Ray and vLLM
+- [CUDA Programming Masterclass](https://www.youtube.com/watch?v=86FAWCzIe_4) — Understanding GPU architecture fundamentals for ML engineers
+- [MLOps Community: Production Model Monitoring](https://www.youtube.com/watch?v=NR5qWZxQzPY) — Drift detection, A/B testing, and automated rollback strategies
+- [NVLink and Multi-GPU Communication](https://www.youtube.com/watch?v=rV0hH_aMfs4) — NVIDIA technical deep dive on GPU interconnects for AI workloads

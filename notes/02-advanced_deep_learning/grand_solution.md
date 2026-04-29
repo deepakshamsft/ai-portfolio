@@ -669,6 +669,25 @@ Current system processes frames independently. Next: temporal modeling:
 
 ---
 
+## Further Reading & Resources
+
+### Articles
+- [Understanding Deep Residual Networks](https://towardsdatascience.com/understanding-and-visualizing-resnets-442284831be8) — Visual walkthrough of ResNet architecture and why skip connections solve vanishing gradients
+- [The Illustrated Transformer](http://jalammar.github.io/illustrated-transformer/) — Step-by-step visualization of attention mechanisms and transformer architecture fundamentals
+- [A Comprehensive Guide to Convolutional Neural Networks](https://towardsdatascience.com/a-comprehensive-guide-to-convolutional-neural-networks-the-eli5-way-3bd2b1164a53) — From basic convolutions to advanced architectures like ResNet and EfficientNet
+- [Object Detection in 2024: A Guide](https://towardsdatascience.com/r-cnn-fast-r-cnn-faster-r-cnn-yolo-object-detection-algorithms-36d53571365e) — Evolution from R-CNN to YOLO, comparing two-stage vs one-stage detectors
+- [Knowledge Distillation Explained](https://towardsdatascience.com/knowledge-distillation-simplified-dd4973dbc764) — Practical guide to compressing large models for edge deployment
+
+### Videos
+- [ResNet Paper Walkthrough - Yannic Kilcher](https://www.youtube.com/watch?v=GWt6Fu05voI) — Deep dive into the Deep Residual Learning paper with mathematical intuition
+- [Neural Networks from Scratch - Andrej Karpathy](https://www.youtube.com/watch?v=VMj-3S1tku0) — Building understanding of backpropagation and gradient flow (Karpathy's "Zero to Hero" series)
+- [YOLO Object Detection Explained - Aladdin Persson](https://www.youtube.com/watch?v=ag3DLKsl2vk) — Clear explanation of YOLO architecture and training process
+- [Attention Mechanisms Visual Guide - DeepLearningAI](https://www.youtube.com/watch?v=fjJOgb-E41w) — Visual explanation of attention in computer vision (from Andrew Ng's team)
+- [Self-Supervised Learning in Vision - Two Minute Papers](https://www.youtube.com/watch?v=8L10w1KoOU8) — Overview of contrastive learning (SimCLR, MoCo) with visual demonstrations
+- [Model Compression Techniques - StatQuest](https://www.youtube.com/watch?v=FWzzTZKHl2w) — Accessible explanation of pruning, quantization, and distillation
+
+---
+
 **Document version:** 1.0 (April 2026)  
 **Last updated:** Ch.10 completion  
 **Status:** ✅ All 5 ProductionCV constraints achieved, ready for edge deployment

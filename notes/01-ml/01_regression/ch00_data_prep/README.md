@@ -2,40 +2,39 @@
 
 > **The story.** In **1977**, statistician **John Wilder Tukey** published *Exploratory Data Analysis* — a slim, iconoclastic book that changed how scientists thought about their job. Until then, statistics was a confirmation machine: you stated a hypothesis, ran a test, accepted or rejected. Tukey argued this workflow had it backwards. "The greatest value of a picture," he wrote, "is when it forces us to notice what we never expected to see." He invented the box plot, the stem-and-leaf plot, the five-number summary — not as decoration, but as *investigation tools*. EDA is forensic work. You're looking for evidence that your data can be trusted before you ask it to teach a model anything. By the time you write the first line of sklearn, Tukey's 1977 workflow has already run.
 >
-> **Where you are in the RealtyML story.** Sarah Chen is a senior ML engineer who has just inherited a broken production system from a departed contractor. The model was trained on California Housing data, tested at 82k MAE in California, then deployed in Portland — where it immediately achieved **174k MAE**. Two times worse. The CEO is furious. Sarah hasn't touched the training data yet. This chapter is her first two hours with the data. It teaches you what she discovers, and how to find it yourself.
+> **Where you are in the SmartVal AI story.** You're the Lead ML Engineer building SmartVal AI, a production home valuation system. Before building models, you must audit the data quality. The California Housing dataset has 20,640 districts — but does it have outliers? Missing values? Distribution issues? A previous contractor's prototype achieved 82k MAE but failed basic data quality checks. Your job: systematically clean the data BEFORE any modeling. This chapter is your first two hours with the training data — the forensic investigation that prevents production disasters.
 >
-> **Notation in this chapter.** $\mu$ — population mean; $\sigma$ — population standard deviation; $\bar{x}$ — sample mean; $s$ — sample standard deviation; $Z$ — Z-score: $(x - \bar{x}) / s$; $Q_1$ — 25th percentile; $Q_3$ — 75th percentile; $\text{IQR} = Q_3 - Q_1$ — interquartile range; $r_{xy}$ — Pearson correlation coefficient; `MAE` — mean absolute error (target: <95k); `NaN` — Not a Number (missing value marker).
+> **Notation in this chapter.** $\mu$ — population mean; $\sigma$ — population standard deviation; $\bar{x}$ — sample mean; $s$ — sample standard deviation; $Z$ — Z-score: $(x - \bar{x}) / s$; $Q_1$ — 25th percentile; $Q_3$ — 75th percentile; $\text{IQR} = Q_3 - Q_1$ — interquartile range; $r_{xy}$ — Pearson correlation coefficient; `MAE` — mean absolute error (target: <$40k); `NaN` — Not a Number (missing value marker).
 
 ---
 
-## 0 · The Challenge — Where Sarah Is
+## 0 · The Challenge — Where You Are
 
-> ⚡ **The mission**: Fix **RealtyML** — reduce Portland MAE from **174k → <95k** by satisfying all 5 constraints:
-> 1. **ACCURACY**: <95k MAE on Portland housing predictions
-> 2. **GENERALIZATION**: Model trained in CA must generalize CA → Portland → nationwide
-> 3. **DATA QUALITY**: Find and fix every corruption before any model training
-> 4. **AUDITABILITY**: Document every fix with before/after metrics (regulatory requirement)
-> 5. **PRODUCTION-READY**: <100ms inference, handles missing values, no manual preprocessing
+> ⚡ **The mission**: Build **SmartVal AI** — a production home valuation system achieving <$40k MAE by satisfying 5 core constraints:
+> 1. **ACCURACY**: <$40k MAE on median house values (appraisal regulations require ±20% accuracy)
+> 2. **GENERALIZATION**: Work on unseen districts (CA → nationwide expansion)
+> 3. **DATA QUALITY**: Clean data BEFORE training (no garbage in)
+> 4. **INTERPRETABILITY**: Explainable predictions for underwriters
+> 5. **PRODUCTION**: <100ms inference, handle outliers, version control
 
-**What Sarah knows so far:**
-- ✅ Model achieved 82k MAE in California hold-out testing
-- ✅ Same model deployed in Portland: 174k MAE (2.1× degradation)
+**What you know so far:**
+- ✅ Target: <$40k MAE for production deployment
 - ✅ Dataset: California Housing, 20,640 districts, 8 features
-- ❌ **She hasn't opened the training data yet**
-- ❌ No documentation from the departed contractor
+- ❌ **Haven't audited data quality yet**
+- ❌ Don't know if outliers, missing values, or distribution issues exist
 
-**What's blocking Sarah:**
-The 174k MAE gap is a symptom. The cause is unknown. Before touching the model architecture, feature engineering, or hyperparameters, Sarah must open the training data and **audit it systematically**. The contractor's silence is itself a red flag.
+**What's blocking SmartVal AI:**
+Before building any models, you must ensure data quality. A previous contractor's baseline achieved 82k MAE but used zero-filled missing values and kept impossible outliers (HouseAge = 200 years!). Those data quality issues alone cost ~15-20k MAE. Your job: find and fix every data quality issue BEFORE touching model architecture.
 
-Three plausible root causes, in order of ease to check:
-1. **Garbage in** — outliers and bad imputation that taught the model wrong patterns
-2. **Distribution mismatch** — the training data doesn't represent Portland's market
-3. **Systematic feature bias** — a feature that correlates with CA geography but not Portland prices
+Three plausible data quality issues to check:
+1. **Garbage in** — outliers and bad imputation that teach the model wrong patterns
+2. **Distribution skew** — the training data may not represent all market segments equally
+3. **Systematic feature bias** — features that correlate with geography but not fundamentally with prices
 
 **What this chapter unlocks:**
-- Finds and fixes **Constraint #3 DATA QUALITY** (partial): all outliers, missing-value patterns, and imputation errors
-- Establishes the forensic audit trail required for **Constraint #4 AUDITABILITY**
-- Reduces MAE from 174k → estimated ~140k (corruption removal alone — more to come in later chapters)
+- Satisfies **Constraint #3 DATA QUALITY**: detect and remove outliers, analyze missing patterns, choose optimal imputation
+- Establishes forensic audit trail for **Constraint #4 INTERPRETABILITY**
+- Provides clean training data foundation for modeling chapters (Ch.01-07)
 
 ![Chapter animation](img/ch01-pandas-eda-needle.gif)
 
@@ -47,9 +46,9 @@ Three plausible root causes, in order of ease to check:
 
 ---
 
-## 2 · Running Example: What Sarah Discovers
+## 2 · Running Example: What You Discover
 
-Sarah loads the California Housing data and runs `df.describe()`. Line four of the output stops her cold:
+You load the California Housing data and run `df.describe()`. Line four of the output reveals immediate problems:
 
 ```python
 import pandas as pd
@@ -74,9 +73,9 @@ MedHouseVal   2.07    0.15     5.00
 
 Three numbers jump out: `AveRooms` max = 141.91, `AveBedrms` max = 34.07, and `AveOccup` max = 1243.33. None of these are physically plausible for an *average* district. They are aggregation artifacts from tiny-population districts where one unusual property skews the mean.
 
-> 💡 **What the contractor did.** The departed contractor filled missing `AveBedrms` values with `0`. The model learned: *"districts with 0 average bedrooms have high house values"* — a phantom CA correlation that broke in Portland. This alone explains a substantial fraction of the 174k → 82k gap.
+> 💡 **What the previous contractor did.** They filled missing `AveBedrms` values with `0`. The model learned: *"districts with 0 average bedrooms have high house values"* — a phantom correlation that would break in production. This alone costs ~8-10k MAE.
 
-The next two hours reveal the full picture. By the time Sarah writes a single line of training code, she has identified:
+The next two hours reveal the full picture. By the time you write a single line of training code, you'll have identified:
 - 1,066 rows with aggregation-artifact outliers in `AveRooms` (IQR upper fence = 8.47)
 - 1,211 rows with implausible `AveBedrms` values including all zero-fills
 - Strong positive correlation between `MedInc` and `MedHouseVal` (r = 0.69) — the dominant predictor
@@ -304,7 +303,7 @@ She runs `df.isnull().sum()`. Zero missing values. *That's the first lie*, she t
 df.fillna(0, inplace=True)  # Fix missing values
 ```
 
-> ⚠️ **The silent corruption.** `fillna(0)` doesn't raise an error, doesn't cause a NaN warning, and silently teaches your model that missing data means "zero bedrooms." In a house price model, "zero bedrooms" happened to correlate with certain California coastal districts that also had high prices. The model learned a phantom relationship that doesn't generalise to Portland.
+> ⚠️ **The silent corruption.** `fillna(0)` doesn't raise an error, doesn't cause a NaN warning, and silently teaches your model that missing data means "zero bedrooms." In a house price model, "zero bedrooms" can spuriously correlate with certain districts that also happen to have high prices, creating a phantom relationship that won't generalize.
 
 ### Act 2 — The IQR Sweep: Outliers Exposed
 
@@ -373,7 +372,7 @@ Key observations:
 - `AveOccup`: Extremely right-skewed — 99th percentile capping needed
 - `MedHouseVal`: **Capped at 5.0001** (= $500,100) for 965 rows — hard ceiling artifact
 
-> ⚠️ **The target ceiling.** `MedHouseVal` capped at $500,100 for 4.7% of rows. A model trained on this systematically underestimates high-value properties — exactly Portland's market (40% high-value vs California's 8%). This is the second root cause of 174k MAE. It cannot be fixed without source data, but must be in the audit log.
+> ⚠️ **The target ceiling.** `MedHouseVal` capped at $500,100 for 4.7% of rows. A model trained on this will systematically underestimate high-value properties — a limitation that must be documented in the audit log.
 
 ### Resolution — Sarah's Cleaning Plan (11:30am)
 
@@ -384,7 +383,7 @@ Key observations:
 | Target ceiling $500,100 | 965 rows | Document (can't fix without source) | N/A |
 | Right-skewed `Population` | All rows | Log-transform as feature engineering | −$5k est. |
 
-**Estimated post-cleaning MAE: ~$140k** (down from $174k). Full fix to <$95k requires distribution alignment (Ch.2) and model improvements (Regression track).
+Data is now clean and ready for modeling. Ch.01-07 will build models on this solid foundation to achieve the <$40k MAE target.
 
 ---
 
@@ -667,15 +666,15 @@ imputer = KNNImputer(n_neighbors=k)  # ← k is the dial
 
 ## 9 · What Can Go Wrong
 
-> Anti-patterns that broke the RealtyML model and will break yours.
+> Anti-patterns that would break SmartVal AI if not caught early.
 
-- ❌ **Zero-fill as missing value proxy.** `fillna(0)` is fast to write and catastrophic to model. Zero is a meaningful value for most numerical features. Always restore zeros to `NaN` and impute properly. The contractor's `fillna(0)` on `AveBedrms` alone is responsible for an estimated $12k of the Portland MAE degradation.
+- ❌ **Zero-fill as missing value proxy.** `fillna(0)` is fast to write and catastrophic to model. Zero is a meaningful value for most numerical features. Always restore zeros to `NaN` and impute properly. Using `fillna(0)` on `AveBedrms` alone can cost ~8-12k MAE in production.
 
 - ❌ **Imputing before train/test split.** Computing imputation statistics on the full dataset leaks test-set information into training. The model appears to perform better offline than it does in deployment. Always: split first, `imputer.fit(X_train)`, then `imputer.transform(X_test)`.
 
 - ❌ **Treating all outliers as errors.** A `MedInc` of 15.0 is an extreme statistical outlier but represents real California luxury districts. Removing it means your model has never seen high-income patterns. Use domain knowledge to distinguish physically-impossible artifacts from rare-but-real signal.
 
-- ❌ **Ignoring target ceiling artifacts.** `MedHouseVal` capped at $500,100 for 4.7% of rows. A model trained on this systematically underestimates high-value properties — Portland's dominant segment. Document this limitation explicitly in the audit log.
+- ❌ **Ignoring target ceiling artifacts.** `MedHouseVal` capped at $500,100 for 4.7% of rows. A model trained on this will systematically underestimate high-value properties. Document this limitation explicitly in the audit log.
 
 - ❌ **Skipping the correlation matrix.** The r = 0.85 between `AveRooms` and `AveBedrms` creates multicollinearity that inflates linear coefficients. A two-minute correlation check in EDA prevents a days-long debugging session in the regression track.
 
@@ -687,7 +686,7 @@ EDA findings cascade through every subsequent step:
 
 | Later Chapter | How This Chapter Enables It |
 |---------------|----------------------------|
-| [Ch.2 — Class Imbalance](../ch02_class_imbalance) | Distribution analysis reveals 92% training = median homes; Ch.2 fixes the CA/Portland representation gap |
+| [Ch.00b — Class Imbalance](../ch00b_class_imbalance) | Distribution analysis reveals 75% training = median-value homes; Ch.00b addresses class balance before modeling |
 | [Ch.3 — Data Validation](../ch03_data_validation) | The audit trail started here becomes the formal validation schema: expected ranges, outlier alert thresholds, missing value rules |
 | [Regression → Linear Regression](../../01_regression/ch01_linear_regression) | r = 0.69 MedInc correlation explains why single-feature regression works at all; cleaned data from this chapter is what that baseline trains on |
 | [Regression → Multiple Regression](../../01_regression/ch02_multiple_regression) | VIF analysis (detecting multicollinearity) is the formal follow-up to the r = 0.85 pair flagged here |
@@ -705,29 +704,30 @@ EDA findings cascade through every subsequent step:
 
 | # | Constraint | Target | Status | Evidence |
 |---|------------|--------|--------|---------|
-| **#1** | ACCURACY | <95k MAE | 🟡 **Partial** | Cleaning: 174k → ~140k. Gap remains. |
-| **#2** | GENERALIZATION | CA → Portland | 🟡 **Partial** | Distribution mismatch found. Root cause documented. |
-| **#3** | DATA QUALITY | Fix all corruption | ✅ **Unlocked** | Zero-fill reversed. IQR outliers flagged. KNN imputation selected. |
-| **#4** | AUDITABILITY | Document every fix | ✅ **Unlocked** | Before/after MAE table. Every change paired with metric. |
-| **#5** | PRODUCTION-READY | <100ms inference | 🔴 **Blocked** | No inference pipeline yet. Addressed in Ch.3 and Regression track. |
+| **#1** | ACCURACY | <$40k MAE | 🔴 **Not Started** | Data cleaned, ready for modeling (Ch.01-07) |
+| **#2** | GENERALIZATION | Unseen districts | 🔴 **Not Started** | Clean foundation established for later chapters |
+| **#3** | DATA QUALITY | Clean data BEFORE training | ✅ **Unlocked** | Zero-fill reversed. IQR outliers flagged. KNN imputation selected. |
+| **#4** | INTERPRETABILITY | Explainable predictions | 🟡 **Partial** | Correlation analysis identifies key features (MedInc r=0.69) |
+| **#5** | PRODUCTION | <100ms inference, monitoring | 🔴 **Not Started** | Foundation laid; addressed in Ch.08 |
 
 **✅ Unlocked capabilities:**
 - IQR outlier detection (masking-resistant) and Z-score (for Gaussian data)
 - Missing value pattern analysis (random vs. systematic) and imputation strategy selection via MAE comparison
-- Correlation analysis to identify dominant features and multicollinearity risks
-- Documented audit trail: every cleaning step paired with a before/after MAE measurement
+- Correlation analysis to identify dominant features (MedInc r=0.69) and multicollinearity risks (AveRooms/AveBedrms r=0.85)
+- Documented audit trail: every cleaning step with clear rationale
 
-**❌ Still can't solve:**
-- ❌ **ACCURACY** at 95k — cleaning alone: 174k → ~140k. The remaining gap needs proper feature use (Multiple Regression) and distribution alignment (Class Imbalance)
-- ❌ **GENERALIZATION** fully — the CA/Portland training distribution gap (92% median vs 40% high-value) is identified but not fixed. That's ch02_class_imbalance
-- ❌ **PRODUCTION-READY** — we have a clean DataFrame but no serialized pipeline, validation schema, or monitoring. That's ch03_data_validation and the Regression track
+**❌ Still need to build:**
+- ❌ **ACCURACY** target — haven't built any models yet. That's Ch.01-07 (Linear Regression → XGBoost)
+- ❌ **GENERALIZATION** assurance — need cross-validation and regularization. That's Ch.05-06
+- ❌ **CLASS BALANCE** check — haven't examined training distribution. That's Ch.00b
+- ❌ **PRODUCTION MONITORING** — need validation schemas and drift detection. That's Ch.08
 
-**Real-world status:** Sarah Chen has diagnosed all root causes of the 174k Portland failure. Estimated cleaning improvement: $34k reduction (174k → ~140k). Remaining gap requires model improvements across subsequent chapters.
+**Current status:** Clean dataset ready for modeling. SmartVal AI has a solid data quality foundation — now we can build models with confidence that we're not training on garbage data.
 
 ---
 
 ## 12 · Bridge to the Next Chapter
 
-This chapter found the corruption — missing values, outliers, and distribution artifacts. The next chapter, **Ch.2 — Class Imbalance**, confronts the second root cause: the training data is 92% median-priced homes but Portland's market is 40% high-value. A perfectly clean dataset trained on a skewed distribution still produces a skewed model. Ch.2 gives Sarah the tools — SMOTE, class weighting, stratified sampling — to teach the model what it hasn't seen enough of.
+This chapter cleaned the raw data — removed outliers, analyzed missing patterns, selected optimal imputation strategies. The next chapter, **Ch.00b — Class Imbalance**, examines the training distribution: the California Housing dataset has 75% median-value homes and only 25% high-value ones. A perfectly clean dataset with skewed class distribution still produces a biased model. Ch.00b teaches you SMOTE, class weighting, and stratified sampling to ensure all market segments are properly represented before building any models.
 
 > ➡️ **[Ch.2 — Class Imbalance →](../ch02_class_imbalance)** — When the data is clean but the distribution is wrong.

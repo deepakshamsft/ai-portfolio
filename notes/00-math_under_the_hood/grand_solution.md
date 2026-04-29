@@ -516,4 +516,21 @@ MSE = MLE:      Gaussian noise → minimize Σ(yᵢ - ŷᵢ)²
 
 ---
 
+## Further Reading & Resources
+
+### Articles
+- [The Matrix Calculus You Need For Deep Learning](https://explained.ai/matrix-calculus/) — Comprehensive guide to derivatives, gradients, and Jacobians in the context of neural networks
+- [Understanding the Mathematics behind Gradient Descent](https://towardsdatascience.com/understanding-the-mathematics-behind-gradient-descent-dde5dc9be06e) — Deep dive into optimization fundamentals and convergence properties
+- [Linear Algebra for Machine Learning: The Intuition Behind Matrix Operations](https://towardsdatascience.com/linear-algebra-for-machine-learning-the-intuition-behind-matrix-operations-db4e8c4e5ae5) — Visual explanations of matrix multiplication, transpose, and their ML applications
+- [A Gentle Introduction to Maximum Likelihood Estimation](https://towardsdatascience.com/a-gentle-introduction-to-maximum-likelihood-estimation-9fbff27ea12f) — How MLE connects probability theory to loss function design
+
+### Videos
+- [3Blue1Brown: Essence of Linear Algebra (series)](https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab) — 16-video series with stunning geometric visualizations of vectors, matrices, and transformations
+- [3Blue1Brown: Essence of Calculus (series)](https://www.youtube.com/playlist?list=PLZHQObOWTQDMsr9K-rj53DwVRMYO3t5Yr) — Visual introduction to derivatives, integrals, and the chain rule
+- [StatQuest: Gradient Descent](https://www.youtube.com/watch?v=sDv4f4s2SB8) — Clear, intuitive explanation of how gradient descent finds minima step by step
+- [StatQuest: Probability vs Likelihood](https://www.youtube.com/watch?v=pYxNSUDSFH4) — Clarifies the crucial distinction between probability distributions and likelihood functions
+- [Computerphile: Backpropagation Explained](https://www.youtube.com/watch?v=Ilg3gGewQ5U) — Whiteboard walkthrough of how the chain rule enables neural network training
+
+---
+
 **Next:** Open [`notes/01-ml/01_regression/ch01_linear_regression/`](../01-ml/01_regression/ch01_linear_regression/README.md) and watch these seven tools come alive in production ML systems.

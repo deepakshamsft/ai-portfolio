@@ -354,3 +354,19 @@ if silhouette > 0.5 and stability > 0.9:
 - The mental model for "no labels, no problem" — discovering structure from data geometry alone
 
 **Next milestone:** Build ensemble clustering systems that combine multiple algorithms for robust segmentation. See you in the Ensemble Methods track.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Understanding K-means Clustering in Machine Learning](https://towardsdatascience.com/understanding-k-means-clustering-in-machine-learning-6a6e67336aa1) — Comprehensive guide to K-means algorithm, initialization strategies, and practical considerations
+- [A One-Stop Shop for Principal Component Analysis](https://towardsdatascience.com/a-one-stop-shop-for-principal-component-analysis-5582fb7e0a9c) — Visual explanation of PCA mathematics, variance interpretation, and when to use dimensionality reduction
+- [How to Use t-SNE Effectively](https://distill.pub/2016/misread-tsne/) — Essential guide by Martin Wattenberg on t-SNE perplexity, interpretation pitfalls, and why distances lie
+- [The Curse of Dimensionality in Classification](https://www.visiondummy.com/2014/04/curse-dimensionality-affect-classification/) — Explains why high-dimensional clustering fails and how PCA helps
+
+### Videos
+- [StatQuest: K-means Clustering](https://www.youtube.com/watch?v=4b5d3muPQmA) — Josh Starmer's clear explanation of K-means algorithm, centroids, and convergence (9 min)
+- [StatQuest: Principal Component Analysis (PCA)](https://www.youtube.com/watch?v=FgakZw6K1QQ) — Visual walkthrough of PCA math, eigenvectors, and variance interpretation (20 min)
+- [StatQuest: t-SNE, Clearly Explained](https://www.youtube.com/watch?v=NEaUSP4YerM) — How t-SNE preserves local structure and why it's ideal for visualization (11 min)
+- [Andrew Ng: Clustering | Machine Learning Course](https://www.youtube.com/watch?v=hDmNF9JG3lo) — Stanford lecture on unsupervised learning fundamentals and K-means applications (16 min)

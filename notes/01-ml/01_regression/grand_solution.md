@@ -372,3 +372,20 @@ Master regression, and you've mastered 80% of ML. The rest is architecture.
 - The vocabulary to read any ML paper (loss, gradient, hyperparameter, cross-validation)
 
 **Next milestone:** Build a production classifier that predicts market segments with >90% accuracy. See you in the Classification track.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Linear Regression: A Comprehensive Guide](https://towardsdatascience.com/linear-regression-detailed-view-ea73175f6e86) — Deep dive into the mathematics and intuition behind linear regression
+- [Understanding the Bias-Variance Tradeoff](https://towardsdatascience.com/understanding-the-bias-variance-tradeoff-165e6942b229) — Essential concept for understanding regularization and model complexity
+- [Ridge vs Lasso Regression: A Complete Guide](https://towardsdatascience.com/ridge-and-lasso-regression-a-complete-guide-with-python-scikit-learn-e20e34bcbf0b) — Practical comparison of L1 and L2 regularization with code examples
+- [Feature Engineering for Machine Learning](https://towardsdatascience.com/feature-engineering-for-machine-learning-3a5e293a5114) — Comprehensive guide to creating and selecting features
+
+### Videos
+- [StatQuest: Linear Regression, Clearly Explained!!!](https://www.youtube.com/watch?v=nk2CQITm_eo) — Josh Starmer's intuitive explanation of linear regression fundamentals
+- [StatQuest: Gradient Descent, Step-by-Step](https://www.youtube.com/watch?v=sDv4f4s2SB8) — Visual walkthrough of how gradient descent optimization works
+- [StatQuest: Ridge Regression Clearly Explained](https://www.youtube.com/watch?v=Q81RR3yKn30) — Understanding L2 regularization with clear visualizations
+- [StatQuest: Lasso Regression Clearly Explained](https://www.youtube.com/watch?v=NGf0voTMlcs) — How L1 regularization performs automatic feature selection
+- [Andrew Ng: Gradient Descent For Linear Regression](https://www.youtube.com/watch?v=F6GSRDoB4Cg) — Classic explanation from Stanford's ML course

@@ -356,3 +356,20 @@ The critical insight: **accuracy is a liar for imbalanced data**. The journey fr
 - A hyperparameter tuning pipeline (Grid/Random/Bayesian search with nested CV)
 
 **Next milestone:** Replace manual feature engineering (HOG descriptors) with learned representations (convolutional neural networks). See you in the Neural Networks track.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Understanding Logistic Regression](https://towardsdatascience.com/understanding-logistic-regression-9b02c2aec102) — Clear explanation of sigmoid activation, cross-entropy loss, and decision boundaries with visual examples
+- [Support Vector Machines: A Simple Explanation](https://towardsdatascience.com/support-vector-machines-a-simple-explanation-8fd5d6b8896) — Intuitive walkthrough of maximum-margin classification and the kernel trick
+- [Beyond Accuracy: Precision, Recall, and F1 Score](https://towardsdatascience.com/beyond-accuracy-precision-and-recall-3da06bea9f6c) — Why accuracy fails for imbalanced datasets and how to choose the right metric
+- [Hyperparameter Tuning with Grid Search and Random Search](https://towardsdatascience.com/hyperparameter-tuning-c5619e7e6624) — Practical guide to systematic hyperparameter optimization with scikit-learn
+
+### Videos
+- [StatQuest: Logistic Regression](https://www.youtube.com/watch?v=yIYKR4sgzI8) — Josh Starmer's legendary clear explanation of logistic regression fundamentals (StatQuest)
+- [StatQuest: ROC and AUC Clearly Explained](https://www.youtube.com/watch?v=4jRBRDbJemM) — Visual intuition for ROC curves and area under the curve with practical examples (StatQuest)
+- [Andrew Ng: Classification and Logistic Regression](https://www.youtube.com/watch?v=-la3q9d7AKQ) — Classic Stanford CS229 lecture on classification foundations (Andrew Ng)
+- [StatQuest: Support Vector Machines (SVM) Clearly Explained](https://www.youtube.com/watch?v=efR1C6CvhmE) — Maximum-margin intuition and kernel trick demystified (StatQuest)
+- [StatQuest: Cross Validation](https://www.youtube.com/watch?v=fSytzGwwBVw) — Why and how to properly evaluate model generalization with k-fold CV (StatQuest)

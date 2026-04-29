@@ -240,9 +240,9 @@ def render_metric_story(out_dir, slug, title, metric_name, stages, better="lower
     ax_gauge = fig.add_subplot(grid[0, 1])
     ax_hist = fig.add_subplot(grid[1, :])
 
+    # Create caption text without bbox to avoid transform issues
     caption_box = fig.text(
-        0.5, 0.02, "", ha="center", va="center", fontsize=11, color=DARK,
-        bbox=dict(boxstyle="round,pad=0.45", fc=LIGHT, ec=GREY)
+        0.5, 0.02, "", ha="center", va="center", fontsize=11, color=DARK
     )
 
     draw_map = {

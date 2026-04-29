@@ -638,3 +638,20 @@ Neural networks are not magic — they are **stacked linear transformations sepa
 - ✅ **Deep understanding** of why the same architecture solves regression AND classification
 
 **Next milestone:** **[03-ai](../../03-ai)** — Apply transformers to LLMs, RAG, embeddings, agents. Everything in modern AI builds on Ch.10's transformer architecture — you're now ready to understand GPT-4, BERT, Claude, and the entire generative AI stack.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Understanding Neural Networks Through Deep Visualization](https://yosinski.com/deepvis) — Interactive exploration of what neural networks learn at each layer, with visualizations of activation patterns and learned features
+- [The Matrix Calculus You Need For Deep Learning](https://explained.ai/matrix-calculus/) — Comprehensive guide to the calculus behind backpropagation, covering gradients, Jacobians, and the chain rule in neural networks
+- [A Gentle Introduction to Convolutional Neural Networks](https://towardsdatascience.com/a-comprehensive-guide-to-convolutional-neural-networks-the-eli5-way-3bd2b1164a53) — Visual walkthrough of convolution operations, pooling, and how CNNs learn hierarchical image features
+- [Understanding LSTM Networks](https://colah.github.io/posts/2015-08-Understanding-LSTMs/) — Christopher Olah's classic explanation of LSTM cell mechanics, gates, and how they solve the vanishing gradient problem
+
+### Videos
+- [Neural Networks (3Blue1Brown Series)](https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi) — Four-part visual series covering neurons, gradient descent, backpropagation, and the intuition behind deep learning (3Blue1Brown)
+- [CS231n: Convolutional Neural Networks for Visual Recognition](https://www.youtube.com/playlist?list=PL3FW7Lu3i5JvHM8ljYj-zLfQRF3EO8sYv) — Stanford's legendary course covering CNNs, backprop, optimization, and modern architectures (Fei-Fei Li, Andrej Karpathy, Justin Johnson)
+- [Neural Networks: Zero to Hero](https://www.youtube.com/playlist?list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ) — Build neural networks from scratch in code, covering backprop, transformers, and GPT-style models (Andrej Karpathy)
+- [Deep Learning Specialization](https://www.coursera.org/specializations/deep-learning) — Five-course series on neural networks, CNNs, RNNs, and practical tips for training deep networks (Andrew Ng, Coursera)
+- [Attention Is All You Need (Paper Explained)](https://www.youtube.com/watch?v=iDulhoQ2pro) — Detailed walkthrough of the original Transformer paper, covering self-attention, positional encoding, and multi-head attention (Yannic Kilcher)

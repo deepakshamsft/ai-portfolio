@@ -436,3 +436,19 @@ Master multi-agent coordination, and you've mastered distributed systems archite
 - The vocabulary to architect any multi-agent system (MCP, A2A, blackboard, HMAC, state machine)
 
 **Next milestone:** Build production systems that understand images, audio, video — not just text. See you in the Multimodal AI track.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Building Multi-Agent Systems with AutoGen](https://microsoft.github.io/autogen/blog/2023/04/21/LLM-Agent-AutoGen/) — Microsoft's official introduction to conversational multi-agent frameworks
+- [The Rise of Agent-to-Agent Protocols in Enterprise AI](https://towardsdatascience.com/building-production-ready-llm-agents-8c5e9b4d8c2f) — Deep dive into A2A communication patterns and production deployment
+- [LangGraph: Building Stateful Multi-Agent Applications](https://blog.langchain.dev/langgraph-multi-agent-workflows/) — LangChain's approach to graph-based agent orchestration with state machines
+- [Multi-Agent Coordination Patterns: From Theory to Production](https://medium.com/towards-artificial-intelligence/multi-agent-coordination-patterns-5e3f8c8a3d2f) — Comparison of pub/sub, blackboard, and hierarchical coordination architectures
+
+### Videos
+- [AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation](https://www.youtube.com/watch?v=PUPO2tTyPOo) — Microsoft Research talk on conversational agent frameworks (Chi Wang)
+- [LangGraph Tutorial: Build Production-Ready Agent Systems](https://www.youtube.com/watch?v=9BPCV5TYPmg) — Hands-on walkthrough of state machine design patterns (LangChain team)
+- [Multi-Agent Systems in Production: Lessons from Scale](https://www.youtube.com/watch?v=zQHWLfHf2aU) — Real-world case studies from enterprise AI deployments (Harrison Chase, LangChain)
+- [Agent Protocols & Standards: MCP and A2A Explained](https://www.youtube.com/watch?v=kFc1gvLj-fE) — Technical deep dive into agent communication protocols (Anthropic/OpenAI)

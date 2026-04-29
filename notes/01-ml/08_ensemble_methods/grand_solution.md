@@ -489,4 +489,20 @@ Use this checklist before deploying any ensemble to production:
 
 ---
 
+## Further Reading & Resources
+
+### Articles
+- [Understanding Random Forests: From Theory to Practice](https://towardsdatascience.com/understanding-random-forest-58381e0602d2) — Comprehensive deep-dive into bagging, variance reduction, and feature importance in Random Forests
+- [XGBoost: A Scalable Tree Boosting System](https://arxiv.org/abs/1603.02754) — Original XGBoost paper explaining second-order Taylor expansion and regularization techniques
+- [Gradient Boosting from Scratch](https://towardsdatascience.com/gradient-boosting-from-scratch-1e317ae4587d) — Step-by-step implementation showing how sequential error correction works under the hood
+- [A Kaggler's Guide to Model Stacking in Practice](https://mlwave.com/kaggle-ensembling-guide/) — Production-tested stacking strategies from Kaggle competitions, including out-of-fold prediction patterns
+
+### Videos
+- [StatQuest: Random Forests Part 1 - Building, Using and Evaluating](https://www.youtube.com/watch?v=J4Wdy0Wc_xQ) — Josh Starmer's clear explanation of how Random Forests reduce variance through decorrelation (StatQuest)
+- [StatQuest: Gradient Boost Part 1 (of 4): Regression Main Ideas](https://www.youtube.com/watch?v=3CC4N4z3GJc) — Visual walkthrough of how boosting fits residuals sequentially (StatQuest)
+- [StatQuest: XGBoost Part 1 (of 4): Regression](https://www.youtube.com/watch?v=OtD8wVaFm6E) — Explains regularization and why XGBoost dominates tabular ML competitions (StatQuest)
+- [Ensemble Learning to Improve Machine Learning Results](https://www.youtube.com/watch?v=Un9zObFjBH0) — Tech talk covering bagging, boosting, and stacking with production case studies (Tech With Tim)
+
+---
+
 grand_solution.md created successfully

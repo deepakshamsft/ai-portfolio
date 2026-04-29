@@ -10,7 +10,7 @@
 
 ## 0 · The Challenge — Where We Are
 
-> 💡 **The mission**: Deploy **SmartVal API** — a production Flask service satisfying 5 constraints:
+> 💡 **The mission**: Deploy **ProductionStack** — a production Flask service satisfying 5 constraints:
 > 1. **HIGH AVAILABILITY**: Auto-restart on crashes
 > 2. **HORIZONTAL SCALING**: 3+ replicas for load distribution
 > 3. **ZERO-DOWNTIME UPDATES**: Rolling deployments
@@ -66,7 +66,7 @@ Key differences from Docker Compose:
 
 ## 2 · Running Example: Deploy Flask API with 3 Replicas
 
-You're deploying **SmartVal API** — a Flask app that predicts house values. Instead of running it on a single container (fragile), you'll deploy 3 replicas behind a load-balanced service. If one pod crashes, K8s auto-restarts it. If traffic spikes, you can scale to 10 replicas declaratively.
+You're deploying **ProductionStack** — a Flask app that predicts house values. Instead of running it on a single container (fragile), you'll deploy 3 replicas behind a load-balanced service. If one pod crashes, K8s auto-restarts it. If traffic spikes, you can scale to 10 replicas declaratively.
 
 **The 4-step workflow:**
 1. **Create a local Kubernetes cluster** (Kind = Kubernetes in Docker)
@@ -109,11 +109,11 @@ Example: A Deployment that runs 3 Flask pods (v1.0), then performs a rolling upd
 - Provides a stable DNS name (pods can restart with new IPs, but the Service name stays constant)
 - Types: **ClusterIP** (internal), **NodePort** (external via node IP), **LoadBalancer** (cloud provider integration)
 
-Example: A Service named `smartval-api` that routes `http://smartval-api:5000` to any of the 3 Flask pods.
+Example: A Service named `productionstack-api` that routes `http://productionstack-api:5000` to any of the 3 Flask pods.
 
 **The flow:**
 ```
-Client → Service (smartval-api:5000)
+Client → Service (productionstack-api:5000)
            ↓
    [Load balances across 3 pods]
            ↓
@@ -137,7 +137,7 @@ Kubernetes debugging follows a simple pattern: **check status → inspect detail
 ```bash
 kubectl describe pod <pod-name>  # Check "Events" section for error message
 # Common issues:
-# - Image name typo (e.g., `smartval-api:v1` instead of `your-username/smartval-api:v1`)
+# - Image name typo (e.g., `productionstack-api:v1` instead of `your-username/productionstack-api:v1`)
 # - Image not pushed to Docker Hub
 # - Private registry without imagePullSecrets
 ```
@@ -195,18 +195,18 @@ kubectl exec -it <pod-name> -- sh  # SSH into running pod to inspect filesystem/
 **Step 1:** Check pod status
 ```bash
 kubectl get pods
-# Output shows: smartval-api-abc123  0/1  CrashLoopBackOff  5  2m
+# Output shows: productionstack-api-abc123  0/1  CrashLoopBackOff  5  2m
 ```
 
 **Step 2:** Inspect pod details
 ```bash
-kubectl describe pod smartval-api-abc123
+kubectl describe pod productionstack-api-abc123
 # Look for: Exit Code (e.g., 137 = killed, 1 = error), Restart Count, Recent Events
 ```
 
 **Step 3:** Read application logs
 ```bash
-kubectl logs smartval-api-abc123
+kubectl logs productionstack-api-abc123
 # Common crash causes:
 # - ImportError: No module named 'flask'
 # - FileNotFoundError: [Errno 2] No such file or directory: '/models/model.pkl'
@@ -217,7 +217,7 @@ kubectl logs smartval-api-abc123
 
 Answer:
 ```bash
-kubectl logs smartval-api-abc123 --previous  # Read logs from the last crashed container
+kubectl logs productionstack-api-abc123 --previous  # Read logs from the last crashed container
 ```
 
 ---

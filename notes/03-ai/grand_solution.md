@@ -619,3 +619,21 @@ All 6 constraints satisfied in 6 months. CEO approves franchise expansion.
 5. **Brand differentiation**: Ch.10 fine-tuning added warmth → converted price-sensitive customers
 
 This is the blueprint for every production AI system: foundation → grounding → orchestration → hardening → optimization → mastery.
+
+---
+
+## Further Reading & Resources
+
+### Articles
+- [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401) — The original RAG paper by Lewis et al. that introduced grounding LLMs with retrieved documents
+- [Prompt Engineering Guide by DAIR.AI](https://github.com/dair-ai/Prompt-Engineering-Guide) — Comprehensive guide covering techniques from zero-shot to chain-of-thought and ReAct patterns
+- [Building Production-Ready RAG Applications](https://towardsdatascience.com/building-production-ready-rag-applications-5e6b5c5e7c3f) — Practical patterns for scaling RAG from prototype to production systems
+- [LangChain: Building Applications with LLMs Through Composability](https://blog.langchain.dev/langchain-v0-1-0/) — Deep dive into agent orchestration frameworks and tool-calling patterns
+- [Fine-Tuning vs RAG: When to Use Each](https://www.pinecone.io/learn/fine-tuning-vs-rag/) — Decision framework for choosing between retrieval and fine-tuning approaches
+
+### Videos
+- [Intro to Large Language Models - Andrej Karpathy](https://www.youtube.com/watch?v=zjkBMFhNj_g) — 1-hour introduction covering tokenization, training, and capabilities (Stanford CS25)
+- [Building RAG Agents with LLMs - OpenAI DevDay 2023](https://www.youtube.com/watch?v=ahnGLM-RC1Y) — OpenAI's production patterns for retrieval-augmented agents
+- [ReAct: Synergizing Reasoning and Acting in Language Models Explained](https://www.youtube.com/watch?v=Eug2clsLtFs) — AI Explained breakdown of the ReAct framework and agent loops
+- [Advanced Prompt Engineering Techniques](https://www.youtube.com/watch?v=ahnGLM-RC1Y) — OpenAI developer relations covering chain-of-thought, few-shot, and structured outputs
+- [Vector Databases and Embeddings - Pinecone](https://www.youtube.com/watch?v=klTvEwg3oJ4) — Technical overview of HNSW indexing and semantic search infrastructure

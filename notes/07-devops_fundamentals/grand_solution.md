@@ -124,7 +124,7 @@ Ch.8: Secrets management          → Security complete (no leaked credentials)
 **What it unlocked:**
 - **Self-healing:** Crashed pods auto-restart within seconds — no manual intervention
 - **Horizontal scaling:** Declarative replicas (`replicas: 3`) distributes load across instances
-- **Service discovery:** Stable DNS names (`http://smartval-api:5000`) route to healthy pods automatically
+- **Service discovery:** Stable DNS names (`http://productionstack-api:5000`) route to healthy pods automatically
 - **Rolling updates:** Deploy new versions without downtime (gradual pod replacement)
 
 **Production value:**
@@ -743,7 +743,19 @@ These patterns power production systems at every scale:
 
 ---
 
-## Further Reading
+## Further Reading & Resources
+
+### Articles
+- [Docker Best Practices for Production](https://medium.com/@BeNitinAgarwal/dockerfile-best-practices-for-production-ready-images-8f5e3a6f3f9e) — Production-ready Dockerfile patterns including multi-stage builds, security hardening, and image optimization
+- [Building a Complete CI/CD Pipeline](https://medium.com/@devfire/how-to-become-a-devops-engineer-in-six-months-or-less-part-3-version-76dfa4a4567f) — End-to-end guide to modern CI/CD with GitHub Actions, testing strategies, and deployment automation
+- [Kubernetes in Production: Best Practices](https://medium.com/@copyconstruct/best-practices-for-kubernetes-production-deployments-a14e4e2c5f8e) — Production deployment patterns covering resource limits, health checks, rolling updates, and failure recovery
+- [Monitoring Microservices with Prometheus and Grafana](https://medium.com/@abdullah.eid.2604/monitoring-microservices-with-prometheus-and-grafana-a-comprehensive-guide-7b8d9f5e3c91) — Comprehensive observability guide with metric instrumentation, dashboard design, and alerting strategies
+
+### Videos
+- [Docker Tutorial for Beginners - TechWorld with Nana](https://www.youtube.com/watch?v=3c-iBn73dDE) — Complete Docker fundamentals covering containerization, Dockerfile creation, and Docker Compose (3 hours, TechWorld with Nana)
+- [Kubernetes Tutorial for Beginners - TechWorld with Nana](https://www.youtube.com/watch?v=X48VuDVv0do) — Full Kubernetes course from basics to production deployments with hands-on demos (4 hours, TechWorld with Nana)
+- [CI/CD Pipeline Using Jenkins, Docker, and Kubernetes](https://www.youtube.com/watch?v=m0a2CzgLNsc) — End-to-end CI/CD pipeline implementation with real-world examples (DevOps Journey)
+- [Prometheus Monitoring for Kubernetes](https://www.youtube.com/watch?v=QoDqxm7ybLc) — Production monitoring setup with Prometheus and Grafana in Kubernetes clusters (DevOps Toolkit)
 
 ### Books
 - **The Phoenix Project** (Gene Kim) — DevOps principles through narrative

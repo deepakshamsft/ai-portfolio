@@ -17,6 +17,7 @@ Starting from function stubs and inline TODOs, you'll build a complete regressio
 
 | File | What You Implement | TODOs | Time |
 |------|-------------------|-------|------|
+| `src/data_prep.py` | Outlier detection, imputation, SMOTE, PSI/KS tests | 12 functions | 3-4h |
 | `src/models.py` | Ridge, Lasso, XGBoost training with CV | 3 classes | 2h |
 | `src/models.py` | ExperimentRunner with leaderboard | 2 methods | 30min |
 | `src/features.py` | Polynomial features + VIF filtering | 3 stages | 1h |
@@ -28,7 +29,7 @@ Starting from function stubs and inline TODOs, you'll build a complete regressio
 - ✅ Rich console output with colors and tables
 - ✅ Experiment with 9 models in one run
 
-**Total:** 5-6 hours of focused coding
+**Total:** 8-10 hours of focused coding (data prep + modeling)
 
 ---
 

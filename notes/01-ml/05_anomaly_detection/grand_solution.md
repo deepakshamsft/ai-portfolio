@@ -413,4 +413,21 @@ Anomaly detection on extreme class imbalance (0.17% fraud) requires a fundamenta
 
 ---
 
+## Further Reading & Resources
+
+### Articles
+- [Isolation Forest — A Comprehensive Guide](https://towardsdatascience.com/isolation-forest-a-comprehensive-guide-8b93c26f9e9d) — Deep dive into path-length scoring and the geometric intuition behind isolation forests
+- [Autoencoders for Anomaly Detection — A Practical Guide](https://towardsdatascience.com/anomaly-detection-with-autoencoders-made-easy-9f2b53d4e6e2) — Explains reconstruction error, bottleneck design, and tuning strategies for novelty detection
+- [Handling Extreme Class Imbalance in Machine Learning](https://towardsdatascience.com/handling-imbalanced-datasets-in-machine-learning-7a0e84220f28) — Covers SMOTE, cost-sensitive learning, and when to use one-class methods vs. resampling
+- [One-Class SVM Explained with Examples](https://medium.com/@rohantalks/one-class-svm-explained-7c8f18c87b56) — Intuitive explanation of kernel tricks, ν parameter, and boundary-based anomaly detection
+- [Building Production ML Systems That Don't Degrade](https://towardsdatascience.com/concept-drift-and-model-decay-in-machine-learning-a98a809ea8d4) — Real-world strategies for drift detection, monitoring, and adaptive retraining
+
+### Videos
+- [StatQuest: Isolation Forest Clearly Explained](https://www.youtube.com/watch?v=5p8B2Ikcw-k) — Josh Starmer's visual walkthrough of path lengths and anomaly scoring (StatQuest)
+- [Autoencoders Explained — A Visual Guide](https://www.youtube.com/watch?v=9zKuYvjFFS8) — Covers encoder-decoder architecture, bottleneck principle, and reconstruction loss (Serrano.Academy)
+- [Fraud Detection in Practice — Lessons from Industry](https://www.youtube.com/watch?v=gSJQW3hqTCY) — Real-world fraud detection architectures, ensemble strategies, and explainability requirements (MLOps Community)
+- [Anomaly Detection Methods Overview](https://www.youtube.com/watch?v=12Xq9OLdQwQ) — Comparative overview of statistical, distance-based, and density-based methods (ritvikmath)
+
+---
+
 **FraudShield Status: PRODUCTION READY** 🚀
