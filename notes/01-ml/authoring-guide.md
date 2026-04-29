@@ -233,6 +233,386 @@ Every chapter README now follows this **extended structure** (adds §0 Challenge
 
 ---
 
+## Workflow-Based Chapter Pattern (Procedural Chapters)
+
+> **When to use:** Chapters covering procedures practitioners follow (feature engineering, data validation, model diagnostics, hyperparameter tuning) should use workflow-based structure instead of concept-based structure.
+
+### Identifying Procedural Chapters
+
+A chapter is workflow-based if:
+- ✅ It teaches a **sequence of decisions** more than a single concept
+- ✅ Practitioner asks "what should I do next?" after each section
+- ✅ Multiple tools/techniques are chosen based on data characteristics
+- ✅ The chapter reads like a troubleshooting guide, not a concept introduction
+
+**Examples:**
+- **Workflow-based:** Feature Engineering (inspect → decide scaler → check VIF → transform)
+- **Concept-based:** Linear Regression (concept → math → training → evaluation)
+
+### Modified Template for Workflow Chapters
+
+```
+# Ch.N — [Topic Name]
+
+[Same header: story, curriculum context, notation]
+
+---
+
+## 0 · The Challenge — Where We Are
+[Same as concept-based template]
+
+## 1 · Core Idea
+[Brief overview of the workflow purpose]
+
+## 1.5 · The Practitioner Workflow — Your N-Phase Diagnostic
+
+**Before diving into theory, understand the workflow you'll follow with every dataset:**
+
+> 📊 **What you'll build by the end:** [Description of final deliverable/dashboard]
+
+```
+Phase 1: [ACTION]           Phase 2: [ACTION]           Phase 3: [ACTION]
+──────────────────────────────────────────────────────────────────────────
+[What you do]               [What you do]               [What you do]
+
+→ DECISION:                 → DECISION:                 → DECISION:
+  [Choice criteria]           [Choice criteria]           [Choice criteria]
+```
+
+**The workflow maps to this chapter:**
+- **Phase 1 ([ACTION])** → §X Section Name
+- **Phase 2 ([ACTION])** → §Y Section Name  
+- **Phase 3 ([ACTION])** → §Z Section Name
+
+> 💡 **Usage note:** [Brief note on phase dependencies and execution order]
+
+---
+
+## 2 · Running Example
+[Same as concept-based template]
+
+## 3 · Math
+[Theory sections organized by phase]
+
+### 3.X · [Phase Name] **[Phase N: ACTION]**
+[Section content with phase marker in header]
+
+[Code snippet showing phase implementation]
+
+```python
+# Phase N: [Brief description]
+for item in dataset:
+    metric = compute_metric(item)
+    
+    # DECISION LOGIC (inline annotation)
+    if metric > threshold:
+        action = "choice_A"
+    else:
+        action = "choice_B"
+    
+    print(f"{item}: {metric:.2f} → {action}")
+```
+
+> 💡 **Industry Standard:** `library.module.Function`
+> ```python
+> from sklearn.preprocessing import StandardScaler
+> result = StandardScaler().fit_transform(data)  # Production one-liner
+> ```
+> **When to use:** Always in production. Manual implementation for learning only.
+> **Common alternatives:** [List alternatives]
+
+### 3.X.1 DECISION CHECKPOINT — Phase N Complete
+
+**What you just saw:**
+- [Observation 1 with specific numbers from code output]
+- [Observation 2 with specific numbers]
+
+**What it means:**
+- [Interpretation of observations]
+- [Why this matters for the model/workflow]
+
+**What to do next:**
+→ **[Action 1]:** [Specific, executable step]
+→ **[Action 2]:** [Alternative or next validation]
+→ For [scenario]: **Choose [option]** [reasoning]
+
+---
+
+[Repeat pattern for all phases]
+
+## N-1 · Putting It Together — The Complete Decision Flow
+
+[Mermaid flowchart showing all phases integrated with decision branches]
+
+## N · Progress Check — What We Can Solve Now
+[Same as concept-based template]
+
+## N+1 · Bridge to the Next Chapter
+[Same as concept-based template]
+```
+
+### Key Differences from Concept-Based Template
+
+| Element | Concept-Based | Workflow-Based |
+|---------|---------------|----------------|
+| **§1 content** | Core Idea (2-3 sentences) | Core Idea + §1.5 Workflow overview |
+| **Section headers** | Nouns (The Math, The Hyperparameter Dial) | Action verbs + phase markers |
+| **Decision points** | End (What Can Go Wrong) | After each phase (Decision Checkpoint) |
+| **Code placement** | Primarily in notebook | Inline snippets + notebook |
+| **Progress tracking** | Final section only | Phase-level + final |
+| **Industry tools** | Optional callouts | Required for each major technique |
+
+### Code Snippet Guidelines for Workflow Chapters
+
+**Rule 1: Each phase ends with executable code showing that phase's workflow**
+
+```python
+# ✅ Good: Phase 1 code snippet (inspection loop)
+for col in numeric_cols:
+    skew = df[col].skew()
+    iqr = df[col].quantile(0.75) - df[col].quantile(0.25)
+    
+    # DECISION LOGIC
+    if abs(skew) > 1.0:
+        print(f"{col}: Skew={skew:.2f} → Apply log1p + StandardScaler")
+    elif iqr / df[col].std() > 2.5:
+        print(f"{col}: Heavy outliers (IQR/std={iqr/std:.2f}) → RobustScaler")
+    else:
+        print(f"{col}: Symmetric → StandardScaler")
+```
+
+**Rule 2: Decision logic appears in code comments, not just prose**
+
+```python
+# ✅ Good: Inline decision annotation
+if vif > 10:
+    verdict = "❌ SEVERE - Drop one of the pair"
+elif vif > 5:
+    verdict = "⚠️ HIGH - Monitor or regularize (Ch.5)"
+else:
+    verdict = "✅ SAFE"
+```
+
+**Rule 3: Code should be copy-paste executable**
+- Include all necessary imports at the top of snippet
+- Use real dataset (California Housing for Regression track)
+- Print expected output in comments after code block
+- No placeholder variables like `your_data_here`
+
+**Rule 4: Show progressive building, not isolated snippets**
+
+```python
+# ✅ Good: References earlier setup
+# Using X and y from the Phase 1 inspection above...
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+```
+
+### Decision Checkpoint Format
+
+Every checkpoint follows this **exact 3-part structure:**
+
+```markdown
+### N.M DECISION CHECKPOINT — Phase K Complete
+
+**What you just saw:**
+- [Observation 1: specific metric with number from code output]
+- [Observation 2: specific pattern observed]
+- [Observation 3: what data showed]
+
+**What it means:**
+- [Interpretation: translate observations into practitioner insight]
+- [Impact: why this matters for model quality/compliance/performance]
+
+**What to do next:**
+→ **Option 1 ([Name]):** [Specific action with parameters]
+→ **Option 2 ([Name]):** [Alternative action]
+→ **For [our scenario]:** Choose [option] because [reasoning]
+```
+
+**Checkpoint placement:**
+- After completing each workflow phase
+- Before moving to next phase
+- After final phase showing integrated workflow
+
+### Industry Standard Tools Integration
+
+**Core principle:** Show manual implementation first (build intuition), then show industry-standard one-liner.
+
+**Required callout box pattern:**
+
+```markdown
+> 💡 **Industry Standard:** `library.module.Function`
+> 
+> ```python
+> from sklearn.preprocessing import StandardScaler
+> scaler = StandardScaler()
+> X_scaled = scaler.fit_transform(X_train)  # Fit on train only!
+> X_test_scaled = scaler.transform(X_test)
+> ```
+> 
+> **When to use:** Always in production. Manual implementation shown above for learning only.
+> **Common alternatives:** `RobustScaler` (outlier-resistant), `MinMaxScaler` (bounded [0,1]), `PowerTransformer` (Box-Cox/Yeo-Johnson)
+> **See also:** [sklearn preprocessing docs](https://scikit-learn.org/stable/modules/preprocessing.html)
+```
+
+**Required callout boxes per chapter type:**
+
+| Chapter Type | Industry Tools to Show |
+|--------------|------------------------|
+| Feature Engineering | `StandardScaler`, `RobustScaler`, `ColumnTransformer`, `variance_inflation_factor`, `permutation_importance` |
+| Data Validation | `pandas_profiling`, `great_expectations`, `pandera` |
+| Hyperparameter Tuning | `GridSearchCV`, `RandomizedSearchCV`, `Optuna` |
+| Model Diagnostics | `sklearn.metrics`, `classification_report`, `confusion_matrix` |
+
+### When NOT to Use Workflow Structure
+
+**Stick with concept-based structure for:**
+- Chapters introducing single algorithms (CNNs, Transformers, SVMs, Decision Trees)
+- Chapters where the "workflow" is just "train → evaluate" (no branching decisions)
+- Mathematical foundations (MLE, backprop derivation, loss functions)
+- Chapters with single hyperparameter dial (learning rate tuning without grid search)
+
+**Use workflow structure for:**
+- Multi-tool selection processes (feature selection, scaler choice, regularization strategy)
+- Diagnostic procedures (data quality audit, model debugging, feature importance analysis)
+- Tuning strategies with decision trees (hyperparameter search paths)
+- Chapters answering "what should I check first?" questions
+
+### Procedural Chapters in ML Track
+
+| Chapter | Current Structure | Should Use Workflow? | Priority |
+|---------|------------------|---------------------|----------|
+| Ch.3 Feature Importance | Concept-based → **Workflow** | ✅ YES | **COMPLETE** (4-phase: Inspect → Audit → Transform → Validate) |
+| Ch.0 Data Prep | Concept-based | ✅ YES | HIGH (7-phase EDA workflow) |
+| Ch.7 Hyperparameter Tuning | Concept-based | ⚠️ CONSIDER | MEDIUM (has decision tree) |
+| Ch.8 Data Validation | Concept-based | ✅ YES | MEDIUM (validation workflow) |
+| Ch.1 Linear Regression | Concept-based | ❌ NO | - (single algorithm) |
+| Ch.2 Multiple Regression | Concept-based | ❌ NO | - (extension of Ch.1) |
+
+---
+
+## Notebook Exercise Pattern (Companion to Workflow Chapters)
+
+> **Context:** Exercise notebooks should guide learners to implement both manual (learning) and industry-standard (production) approaches. This section documents patterns extracted from Ch.3 Feature Importance exercise notebook implementation.
+
+### Exercise Notebook Enhancement Pattern
+
+**Structure:**
+- Solution notebook: Fully implemented code with outputs
+- Exercise notebook: Markdown prompts + placeholder code cells (`# TODO: Implement...`)
+
+**Required enhancements for workflow-based chapters:**
+
+#### 1. Industry Standard Callout Boxes
+
+Add to markdown cells after each major concept explanation:
+
+```markdown
+> 💡 **Industry Standard Pattern:** After implementing manually, use:
+> ```python
+> from sklearn.preprocessing import StandardScaler
+> scaler = StandardScaler()
+> X_scaled = scaler.fit_transform(X_train)  # One-liner production approach
+> ```
+> **When to use:** Always in production. Manual implementation shown for learning only.
+> **Common alternatives:** [List alternatives if applicable]
+```
+
+**Pattern frequency:** Add 1 callout per major technique (typically 3-5 per notebook)
+
+**Where to place:**
+- After data preprocessing sections (scalers, encoders, transformers)
+- After statistical tests (correlation, VIF, permutation importance)
+- After model evaluation sections (metrics, cross-validation)
+
+#### 2. Decision Logic Templates
+
+Add to markdown cells before code cells requiring conditional branching:
+
+```markdown
+**Decision Logic Template:**
+
+When you implement [technique], include threshold-based branching:
+
+\```python
+for item in data:
+    metric = compute_metric(item)
+    
+    # DECISION LOGIC (add this pattern)
+    if metric > threshold_high:
+        action = "❌ SEVERE - [specific action]"
+    elif metric > threshold_medium:
+        action = "⚠️ HIGH - [specific action]"
+    else:
+        action = "✅ SAFE"
+    
+    print(f"{item:12s}  Metric={metric:.2f}  {action}")
+\```
+
+**Thresholds:**
+- [Threshold 1] → [Interpretation]
+- [Threshold 2] → [Interpretation]
+```
+
+**Pattern frequency:** Add for any workflow step requiring decision-making (typically 2-4 per notebook)
+
+**Where to place:**
+- Feature inspection (skewness thresholds, outlier detection)
+- Multicollinearity diagnostics (VIF thresholds)
+- Feature selection (importance score thresholds)
+- Hyperparameter selection (validation metric thresholds)
+
+#### 3. Visual Indicators
+
+Use consistent emoji/symbols for severity levels:
+
+| Indicator | Meaning | Use Case |
+|-----------|---------|----------|
+| ✅ | Safe/Good/Keep | Metric within acceptable range |
+| ⚠️ | Warning/Monitor | Metric concerning but acceptable |
+| ⚡ | Moderate/Caution | Metric requires attention |
+| ❌ | Severe/Bad/Drop | Metric requires immediate action |
+| 💡 | Industry standard | Production-ready pattern |
+| 🔍 | Investigation needed | Further analysis required |
+
+### Implementation Checklist for Exercise Notebooks
+
+When creating/updating exercise notebooks for workflow-based chapters:
+
+- [ ] **Industry callouts added** (3-5 locations showing manual → sklearn pattern)
+- [ ] **Decision logic templates added** (2-4 locations with specific thresholds)
+- [ ] **Visual indicators consistent** (✅ ❌ ⚠️ ⚡ 💡 used appropriately)
+- [ ] **Thresholds documented** (specific numbers, not vague like "high" without defining it)
+- [ ] **Code cells remain placeholder** (`# TODO: Implement...` preserved)
+- [ ] **Markdown cells expanded** (guidance added, not replaced)
+- [ ] **Cell count increased modestly** (typically +3-5 markdown cells for templates)
+
+### Anti-Patterns to Avoid
+
+❌ **Don't:**
+- Add industry callouts to every single concept (3-5 is sufficient)
+- Include solution code in exercise notebook markdown
+- Remove existing content to add templates (always additive)
+- Use vague thresholds ("if value is high") without specific numbers
+- Mix multiple decision templates in one markdown cell
+
+✅ **Do:**
+- Focus callouts on most commonly used production tools
+- Show both the pattern AND when to use it
+- Preserve all original exercise prompts
+- Include specific threshold values from domain knowledge
+- Keep each template focused on one decision type
+
+### Example: Ch.3 Feature Importance Exercise Notebook
+
+**Enhancements applied:**
+- 5 industry standard callouts (StandardScaler, correlation heatmap, permutation_importance, VIF, mutual_info)
+- 3 decision logic templates (skewness-based scaler selection, VIF severity, permutation drop candidates)
+- Specific thresholds: |skew| > 1.0, VIF > 10/5/3, permutation < 0.005
+- Result: 43 → 46 cells (3 new markdown template cells)
+
+---
+
 ## Track Grand Solution Template
 
 > **New pattern (2026):** Each major track (Regression, Classification, Neural Networks, etc.) now includes a `grand_solution.md` that synthesizes all chapters into a single revision document. This is for readers who need the big picture quickly or want a concise reference after completing all chapters.

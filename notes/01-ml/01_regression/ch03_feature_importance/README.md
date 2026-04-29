@@ -59,7 +59,13 @@ Each method can give a completely different ranking for the same dataset. Unders
 
 ## 1.5 · The Practitioner Workflow — Your 4-Phase Diagnostic
 
-**Before diving into theory, understand the workflow you'll follow with every dataset:**
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§3 sequentially to understand the concepts, then use this workflow as your reference
+> - **Workflow-first (practitioners with existing knowledge):** Use this diagram as a jump-to guide when working with real data
+>
+> **Note:** Section numbers don't follow phase order because the chapter teaches concepts pedagogically (theory before application). The workflow below shows how to APPLY those concepts.
+
+**What you'll build by the end:** A 3-view diagnostic dashboard ranking all features by Univariate R², Standardized Weights, and Permutation Importance — with VIF scores flagging collinear pairs. This is the table from §3.11 that answers "which features matter, which overlap, and which should be dropped."
 
 ```
 Phase 1: INSPECT           Phase 2: AUDIT              Phase 3: TRANSFORM        Phase 4: VALIDATE
@@ -78,13 +84,13 @@ Look at distributions:     Check redundancy:           Build pipeline:          
   • Symmetric: Standard
 ```
 
-**The workflow maps to this chapter:**
-- **Phase 1 (Inspect)** → § 3A Feature Scaling, §3A.1 Understanding Skew
-- **Phase 2 (Audit)** → § 3.8 Multicollinearity, § 3.9 VIF
-- **Phase 3 (Transform)** → § 3A.2 Log Transform, StandardScaler pipeline
-- **Phase 4 (Validate)** → § 3.2 Method 1, § 3.3 Method 2, § 3.5 Method 3, § 3.6 Three-Method Convergence
+**The workflow maps to these sections:**
+- **Phase 1 (Inspect)** → §3A Feature Scaling, §3A.1 Understanding Skew, §3A.2 Log Transform
+- **Phase 2 (Audit)** → §3.8 Multicollinearity, §3.9 VIF
+- **Phase 3 (Transform)** → §3.6 ColumnTransformer pipeline
+- **Phase 4 (Validate)** → §3.2 Method 1, §3.3 Method 2, §3.5 Method 3
 
-The rest of this chapter provides the **why** behind each decision. Work through the theory, then return to this workflow as your reference checklist.
+> 💡 **How to use this workflow:** Complete Phase 1→2→3 in order on your data, then run all three Phase 4 methods (M1, M2, M3) on the transformed data to build the final dashboard. The sections above teach WHY each phase works; refer back here for WHAT to do.
 
 ---
 
@@ -385,11 +391,11 @@ For California Housing: run both. Where they agree, the ranking is reliable. Whe
 
 ---
 
-### 3.2 Method 1 — Univariate R²
+### 3.2 Method 1 — Univariate R² **[Phase 4: VALIDATE]**
 
 > **How ŷ is determined here:** A **separate, single-feature model** is fitted from scratch for each feature — 8 features means 8 independent mini-models, each with only one predictor. The ŷ from a MedInc model has never seen Latitude; the ŷ from a Latitude model has never seen MedInc. This is what makes the R² "univariate" — every score is measured in pure isolation.
 
-As we established in **§ 3.1 Filter Methods** above, Pearson ρ² equals Univariate R² for single-feature linear regression. This is not a coincidence — they measure the same thing through different lenses.
+As we established in **§3.1 Filter Methods** above, Pearson ρ² equals Univariate R² for single-feature linear regression. This is not a coincidence — they measure the same thing through different lenses.
 
 Fit each feature against the target in isolation:
 
@@ -453,14 +459,14 @@ univariate_r2_sorted = univariate_r2.sort_values(ascending=False)
 
 print("Univariate R² (Method 1):")
 for feat, r2 in univariate_r2_sorted.items():
-    bar = '█' * int(r2 * 100)
+    bar = '█' * max(1, int(r2 * 200))  # Scale to 200 for visibility, min 1 char
     print(f"{feat:12s}  {r2:.3f}  {bar}")
 
 # Output:
-# MedInc        0.473  ████████████████████████████████████████████████
-# AveRooms      0.023  ██
-# Latitude      0.021  ██
-# HouseAge      0.001  
+# MedInc        0.473  ██████████████████████████████████████████████████████████████████████████████████████████████
+# AveRooms      0.023  ████
+# Latitude      0.021  ████
+# HouseAge      0.001  █  
 # ...
 ```
 
@@ -475,7 +481,7 @@ for feat, r2 in univariate_r2_sorted.items():
 
 ---
 
-## 3A · Prerequisite: Feature Scaling
+## 3A · Prerequisite: Feature Scaling **[Phase 1: INSPECT]**
 
 > ⚠️ **This is NOT a feature importance method** — it's a data preparation step required before comparing feature weights. Methods 1 and 3 don't need scaling; Method 2 (Standardised Weights) requires it. This section explains why and how.
 
@@ -585,23 +591,23 @@ for col in X.columns:
     iqr = q75 - q25
     std = X[col].std()
     
-    # Plot raw vs log-transformed
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4), facecolor='#1a1a2e')
-    axes[0].hist(X[col], bins=50, edgecolor='white', color='steelblue')
-    axes[0].set_title(f"{col} (raw)", color='white')
-    axes[1].hist(np.log1p(X[col]), bins=50, edgecolor='white', color='green')
-    axes[1].set_title(f"{col} (log-transformed)", color='white')
-    plt.tight_layout()
-    plt.savefig(f'img/inspect_{col}.png', facecolor='#1a1a2e', dpi=100)
-    plt.close()
-    
-    # DECISION LOGIC
+    # DECISION LOGIC (print recommendations)
     if abs(skew) > 1.0:
-        print(f"{col}: Skew={skew:.2f} → Apply log1p + StandardScaler")
+        print(f"{col:12s}  Skew={skew:5.2f}  → Apply log1p + StandardScaler")
     elif iqr / std > 2.5:
-        print(f"{col}: Heavy outliers (IQR/std={iqr/std:.2f}) → RobustScaler")
+        print(f"{col:12s}  IQR/std={iqr/std:.2f}  → RobustScaler (outlier-resistant)")
     else:
-        print(f"{col}: Symmetric distribution → StandardScaler")
+        print(f"{col:12s}  Skew={skew:5.2f}  → StandardScaler (symmetric)")
+
+# Output:
+# MedInc        Skew= 1.08  → Apply log1p + StandardScaler
+# HouseAge      Skew= 0.06  → StandardScaler (symmetric)
+# AveRooms      Skew= 5.21  → Apply log1p + StandardScaler
+# AveBedrms     Skew= 5.90  → Apply log1p + StandardScaler
+# Population    Skew= 4.45  → Apply log1p + StandardScaler
+# AveOccup      Skew=21.05  → Apply log1p + StandardScaler
+# Latitude      Skew=-0.08  → StandardScaler (symmetric)
+# Longitude     Skew=-0.11  → StandardScaler (symmetric)
 ```
 
 > 💡 **Industry Standard:** `sklearn.preprocessing.StandardScaler`
@@ -633,7 +639,7 @@ for col in X.columns:
 
 ---
 
-### 3.3 Method 2 — Standardised Weights (Partial Contribution)
+### 3.3 Method 2 — Standardised Weights (Partial Contribution) **[Phase 4: VALIDATE]**
 
 > **How ŷ is determined here:** There is **one model containing all features simultaneously** — the same Ch.2 model. No features are removed. ŷ = $w_1 x_1 + w_2 x_2 + \cdots + w_p x_p + b$. The standardised weight $|w_j^{\text{std}}|$ measures the **marginal (partial) effect** of feature $j$: how much ŷ shifts for a 1-σ change in $x_j$ while all other features are held fixed at their current values. This is why rankings can flip versus Method 1 — a feature that was absorbing shared signal alone now only gets credit for what it adds *above and beyond* all other features.
 
@@ -722,7 +728,7 @@ M1 and M2 together already reveal a lot, but they share a blind spot: both rely 
 
 ---
 
-### 3.5 Method 3 — Permutation Importance
+### 3.5 Method 3 — Permutation Importance **[Phase 4: VALIDATE]**
 
 > **How ŷ is determined here:** The **original full model is used unchanged — it is never retrained**. ŷ still equals $w_1 x_1 + w_2 x_2 + \cdots + w_p x_p + b$ with the same fitted weights from training. What changes is the **input**: for feature $j$, its column is randomly shuffled across all test rows, destroying its correlation with $y$ while keeping its marginal distribution intact. The model then makes predictions with the same weights but scrambled signal for that one feature. The rise in MAE reveals how badly those fixed weights are handicapped — i.e., how much the model was genuinely relying on that feature's ordering. **Critically, this is not the same as removing the feature and retraining.** Retraining would allow correlated features to compensate; permutation does not — it tests the trained model's reliance, not the feature's replaceability.
 
@@ -844,12 +850,12 @@ for _, row in perm_importance.iterrows():
 **What to do next:**
 → Flag Population as drop candidate (permutation ≈ 0)
 → Check VIF for AveRooms/AveBedrms pair (Phase 2 audit)
-→ Compare all three methods (M1, M2, M3) in convergence table (§ 3.6)
-→ Run joint permutation for Lat/Lon to measure interaction uplift (§ 3.10)
+→ Compare all three methods (M1, M2, M3) in convergence table (§3.6)
+→ Run joint permutation for Lat/Lon to measure interaction uplift (§3.10)
 
 ---
 
-### 3.6 Three-Method Convergence — Reading the Full Picture
+### 3.6 Three-Method Convergence — Reading the Full Picture **[Phase 3: TRANSFORM]**
 
 ![Three-method reveal animation](img/three-method-reveal.gif)
 
@@ -961,7 +967,7 @@ print(f"  X_test shape: {X_test_transformed.shape}")
 **What to do next:**
 → Fit model on transformed data: `model = LinearRegression().fit(X_train_transformed, y_train)`
 → Compute all three importance methods (M1, M2, M3) — Phase 4 validation
-→ Build three-view dashboard table (§ 3.11) to reconcile rankings
+→ Build three-view dashboard table (§3.11) to reconcile rankings
 → Make final keep/drop decisions per feature
 
 ![Univariate R² and permutation importance side-by-side bar chart for top-6 features](img/ch03-importance-comparison.png)
@@ -983,7 +989,7 @@ The side-by-side bar chart makes the ranking reversal concrete:
 
 ### 3.7 Variance Threshold — Dropping Near-Constant Features
 
-**Why this comes after Methods 1-3:** Unlike Pearson/MI (§ 3.1, which measure feature→target relationships), Variance Threshold is a **quality filter** — it checks whether a feature varies at all, independent of the target. You group it with multicollinearity diagnostics because both address feature quality and redundancy rather than predictive signal.
+**Why this comes after Methods 1-3:** Unlike Pearson/MI (§3.1, which measure feature→target relationships), Variance Threshold is a **quality filter** — it checks whether a feature varies at all, independent of the target. You group it with multicollinearity diagnostics because both address feature quality and redundancy rather than predictive signal.
 
 A feature that barely changes gives the model nothing to latch onto — it's like trying to predict house prices using a column that says "2.00" for every district. Before testing for multicollinearity, you drop features with near-zero variance. A constant column makes **X**ᵀ**X** rank-deficient — the normal equations have no unique solution.
 
@@ -1009,7 +1015,7 @@ For California Housing: none of the 8 base features hits this threshold, but eng
 
 ---
 
-### 3.8 Multicollinearity — When Features Compete for the Same Signal
+### 3.8 Multicollinearity — When Features Compete for the Same Signal **[Phase 2: AUDIT]**
 
 Multicollinearity is the condition where two or more features are strongly correlated with each other. When this happens:
 
@@ -1207,7 +1213,7 @@ For SmartVal AI, we'll keep both for now and let Ridge handle it in Ch.5 — but
 
 VIF catches the *competition* case: two features measure the same thing, weights blow up, one should be dropped or merged.
 
-But the opposite case exists too. Two features can encode **complementary dimensions** of the same concept — individually weak, jointly irreplaceable. Neither Latitude nor Longitude alone can tell you whether a district is in San Francisco or Los Angeles, but together they place every district precisely on the California map. This is the **cooperation case**, and none of the three methods from § 3.2-3.5 directly measures it.
+But the opposite case exists too. Two features can encode **complementary dimensions** of the same concept — individually weak, jointly irreplaceable. Neither Latitude nor Longitude alone can tell you whether a district is in San Francisco or Los Angeles, but together they place every district precisely on the California map. This is the **cooperation case**, and none of the three methods from §3.2-§3.5 directly measures it.
 
 #### 3.10.1 The Diagnostic — Joint Permutation Importance
 
