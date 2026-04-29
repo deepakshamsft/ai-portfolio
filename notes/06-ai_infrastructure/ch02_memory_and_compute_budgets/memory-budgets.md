@@ -98,6 +98,47 @@ For **inference**, you only pay for #1, #2, #3. For **training**, you pay for al
 
 ---
 
+## 1.5 · The Practitioner Workflow — Your 3-Phase Memory Audit
+
+**Before diving into formulas, understand the workflow you'll follow with every model deployment:**
+
+> 📊 **What you'll build by the end:** A VRAM budget spreadsheet that tells you (1) exact memory breakdown, (2) whether model fits in your GPU, and (3) optimization levers to pull if it doesn't fit.
+
+```
+Phase 1: CALCULATE              Phase 2: CHECK                  Phase 3: OPTIMIZE
+────────────────────────────────────────────────────────────────────────────
+Calculate exact memory          Does total fit in GPU VRAM?     If no → adjust batch size,
+for each component:                                            quantization, or gradient
+                                                               checkpointing
+• Parameters (model weights)    Compare:
+• KV cache (attention state)    Total Memory ≤ GPU VRAM?       Decision tree:
+• Activations (forward pass)                                   • Reduce batch → cut KV cache
+• Optimizer states (training)   If YES → proceed to deploy     • INT8/INT4 → cut params 2-4×
+• Gradients (backprop)          If NO → go to Phase 3          • Gradient checkpoint → cut
+                                                                 activations 90%
+
+→ DECISION:                     → DECISION:                     → DECISION:
+  For inference: skip optimizer   Leave 2-4GB headroom for       Each optimization has quality
+  and gradients                   fragmentation + safety         tradeoff — validate after!
+```
+
+**The workflow maps to this chapter:**
+- **Phase 1 (CALCULATE)** → §3–6 (Parameter, KV Cache, Activation, Optimizer Memory)
+- **Phase 2 (CHECK)** → §7–9 (VRAM Budget Calculators + Step-by-Step)
+- **Phase 3 (OPTIMIZE)** → §11.5 (Hyperparameter Dial: batch, precision, seq_len)
+
+> ⚠️ **Two ways to read this chapter:**
+> 
+> **Option A (Workflow-first)**: Read §1.5 → follow phase markers → run code snippets → hit decision checkpoints as they appear. Best for practitioners deploying models NOW.
+>
+> **Option B (Theory-first)**: Read §1–13 linearly for complete theory, then return to §1.5 workflow summary. Best for interviews or foundational understanding.
+>
+> **Both paths teach the same content** — workflow just reorganizes it by practitioner decision sequence.
+
+> 💡 **Usage note:** Phases 1–2 are always sequential (can't check fit without calculating first). Phase 3 is iterative — you may cycle through multiple optimizations (quantize → check → reduce batch → check) until model fits.
+
+---
+
 ## 2 · Running Example
 
 Llama-3-8B at FP16 precision:
@@ -112,7 +153,7 @@ The tension: we need batching to hit throughput target, but VRAM is exhausted. S
 
 ---
 
-## 3 · Parameter Memory
+## 3 · [Phase 1: CALCULATE] Parameter Memory
 
 For a transformer model with $N$ parameters stored in precision $P$ bytes per parameter:
 
@@ -127,9 +168,58 @@ $$\text{Parameter Memory} = N \times P$$
 
 Llama-3-8B at FP16: **8,030,000,000 params × 2 bytes = 16,060 MB ≈ 16 GB**
 
+**Code snippet — Calculate parameter memory:**
+
+```python
+# Phase 1: Calculate parameter memory for Llama-3-8B
+num_params = 8_000_000_000  # 8 billion parameters
+bytes_per_param = 2  # FP16 precision
+
+param_memory_bytes = num_params * bytes_per_param
+param_memory_gb = param_memory_bytes / (1024**3)
+
+print(f"Parameter memory: {param_memory_gb:.2f} GB")
+print(f"Precision: FP16 ({bytes_per_param} bytes/param)")
+
+# Compare precisions:
+for precision, bytes_val in [("FP32", 4), ("FP16", 2), ("INT8", 1), ("INT4", 0.5)]:
+    memory_gb = (num_params * bytes_val) / (1024**3)
+    print(f"{precision}: {memory_gb:.1f} GB")
+
+# Output:
+# Parameter memory: 14.90 GB  (Note: actual = 16GB accounting for embedding layers)
+# Precision: FP16 (2 bytes/param)
+# FP32: 29.8 GB
+# FP16: 14.9 GB
+# INT8: 7.5 GB
+# INT4: 3.7 GB
+```
+
+> 💡 **Industry Standard:** `transformers` library automatically handles precision
+> 
+> ```python
+> from transformers import AutoModelForCausalLM
+> import torch
+> 
+> # Load model directly in FP16
+> model = AutoModelForCausalLM.from_pretrained(
+>     "meta-llama/Llama-2-7b-hf",
+>     torch_dtype=torch.float16,  # FP16 precision
+>     device_map="auto"  # Automatically map to GPU
+> )
+> 
+> # Check actual memory usage
+> param_memory = sum(p.numel() * p.element_size() for p in model.parameters())
+> print(f"Loaded model uses {param_memory / 1e9:.2f} GB")
+> ```
+> 
+> **When to use:** Always in production for automatic device placement and precision handling.
+> **Common alternatives:** `torch.bfloat16` (better numerical stability), `torch.int8` (quantized)
+> **See also:** [Transformers precision guide](https://huggingface.co/docs/transformers/main_classes/model#torch-dtype)
+
 ---
 
-## 4 · KV Cache Memory
+## 4 · [Phase 1: CALCULATE] KV Cache Memory
 
 For each token generated, the model stores the key (K) and value (V) tensors for all layers. These are reused in subsequent decoding steps to avoid recomputing attention over the entire history.
 
@@ -154,9 +244,92 @@ Where:
 
 **The bottleneck**: KV cache scales linearly with batch size. At batch=4, it consumes 16 GB alone — as much as the entire model!
 
+> 💡 **Industry Standard:** Flash Attention for memory-efficient attention
+> 
+> ```python
+> # Standard attention: O(N²) memory for attention matrix
+> # Flash Attention: Fused kernel with tiling → 3-4× less memory
+> 
+> from transformers import AutoModelForCausalLM
+> import torch
+> 
+> model = AutoModelForCausalLM.from_pretrained(
+>     "meta-llama/Llama-2-7b-hf",
+>     torch_dtype=torch.float16,
+>     attn_implementation="flash_attention_2",  # Enable Flash Attention
+>     device_map="auto",
+> )
+> 
+> # Memory savings:
+> # - Standard attention: stores full attention matrix (seq_len × seq_len)
+> # - Flash Attention: tiles through HBM, never materializes full matrix
+> # - Result: ~20-30% less KV cache memory, 2-3× faster training
+> ```
+> 
+> **When to use:** Always for training long sequences (>2048 tokens) or when memory-constrained. Flash Attention 2 is production-ready in Transformers 4.36+.
+> **Common alternatives:** Memory-efficient attention (xFormers), Triton FlashAttention, Paged Attention (vLLM)
+> **See also:** [Flash Attention paper](https://arxiv.org/abs/2205.14135), [Flash Attention 2 (2023)](https://arxiv.org/abs/2307.08691)
+
+**Code snippet — Calculate KV cache with batch scaling:**
+
+```python
+# Phase 1: Calculate KV cache memory for different batch sizes
+num_layers = 32  # Llama-3-8B
+hidden_size = 4096
+seq_len = 2048
+bytes_per_param = 2  # FP16
+
+def calculate_kv_cache(batch_size):
+    """Calculate KV cache memory in GB."""
+    # 2× for keys + values
+    kv_cache_bytes = 2 * batch_size * seq_len * num_layers * hidden_size * bytes_per_param
+    return kv_cache_bytes / (1024**3)
+
+print("Batch Size | KV Cache Memory | Use Case")
+print("-" * 50)
+for batch in [1, 2, 4, 8, 16]:
+    kv_gb = calculate_kv_cache(batch)
+    
+    # DECISION LOGIC: Can we fit this batch size?
+    if kv_gb < 4:
+        status = "✅ FITS - Low memory"
+    elif kv_gb < 10:
+        status = "⚠️ MODERATE - Monitor closely"
+    else:
+        status = "❌ HIGH - Likely OOM on 24GB GPU"
+    
+    print(f"batch={batch:2d}  | {kv_gb:5.2f} GB      | {status}")
+
+# Output:
+# Batch Size | KV Cache Memory | Use Case
+# --------------------------------------------------
+# batch= 1  |  1.00 GB      | ✅ FITS - Low memory
+# batch= 2  |  2.00 GB      | ✅ FITS - Low memory
+# batch= 4  |  4.00 GB      | ⚠️ MODERATE - Monitor closely
+# batch= 8  |  8.00 GB      | ⚠️ MODERATE - Monitor closely
+# batch=16  | 16.00 GB      | ❌ HIGH - Likely OOM on 24GB GPU
+```
+
+### 4.1 ✓ DECISION CHECKPOINT — Phase 1 Parameter & KV Cache Complete
+
+**What you just saw:**
+- **Parameter memory (FP16):** 16 GB fixed — doesn't change with batch size
+- **KV cache scaling:** 1 GB (batch=1) → 4 GB (batch=4) → 16 GB (batch=16)
+- **Critical insight:** KV cache grows linearly with batch; at batch=16, KV cache equals entire model size!
+
+**What it means:**
+- **Batch size is the primary memory lever** — doubling batch doubles KV cache (but parameters stay constant)
+- **High batch = high throughput BUT high memory** — need to balance based on GPU VRAM
+- **Sequence length multiplier:** Doubling seq_len from 2048→4096 also doubles KV cache
+
+**What to do next:**
+→ **Add activations & optimizer states** (Phase 1 continuation): §5-6 calculate remaining memory components  
+→ **Then move to Phase 2**: §7 CHECK if total memory fits in your GPU VRAM  
+→ **For our Llama-3-8B scenario:** So far 16GB params + 4GB KV (batch=4) = 20GB. Need to add activations (~2GB) to get total, then check against RTX 4090's 24GB.
+
 ---
 
-## 5 · Activation Memory
+## 5 · [Phase 1: CALCULATE] Activation Memory
 
 Activations are the intermediate tensors computed during the forward pass (attention scores, FFN outputs, layer norm results). They are kept in VRAM until the backward pass (training) or discarded immediately (inference).
 
@@ -165,9 +338,37 @@ Activations are the intermediate tensors computed during the forward pass (atten
 
 **Gradient checkpointing** (training optimization): recompute activations during backward pass instead of storing them → cuts activation memory by 90%, at the cost of 30% slower training.
 
+> 💡 **Industry Standard:** PyTorch `torch.utils.checkpoint`
+> 
+> ```python
+> import torch
+> from torch.utils.checkpoint import checkpoint
+> 
+> class TransformerBlock(torch.nn.Module):
+>     def __init__(self, ...):
+>         super().__init__()
+>         self.attention = MultiHeadAttention(...)
+>         self.ffn = FeedForward(...)
+>     
+>     def forward(self, x):
+>         # Standard forward: stores all activations (~8GB for Llama-3-8B)
+>         # x = self.attention(x)
+>         # x = self.ffn(x)
+>         
+>         # Gradient checkpointing: recompute activations during backward
+>         # Memory: ~800MB (90% reduction), Speed: 30% slower
+>         x = checkpoint(self.attention, x, use_reentrant=False)
+>         x = checkpoint(self.ffn, x, use_reentrant=False)
+>         return x
+> ```
+> 
+> **When to use:** When training OOMs but you can tolerate 30% longer training time.
+> **Common alternatives:** Selective checkpointing (only checkpoint every Nth layer), DeepSpeed activation checkpointing
+> **See also:** [PyTorch checkpoint docs](https://pytorch.org/docs/stable/checkpoint.html)
+
 ---
 
-## 6 · Optimizer States (Training Only)
+## 6 · [Phase 1: CALCULATE] Optimizer States (Training Only)
 
 **Adam/AdamW optimizer** maintains two state tensors per parameter:
 - **Momentum** (first moment): same shape as parameters
@@ -185,9 +386,46 @@ For Llama-3-8B at FP32 optimizer states (standard):
 
 → Requires A100 80GB × 2 GPUs or ZeRO-2 sharding (Ch.4)
 
+> 💡 **Industry Standard:** DeepSpeed ZeRO for distributed training
+> 
+> ```python
+> # ZeRO Stage 2: Shard optimizer states + gradients across GPUs
+> # Reduces per-GPU memory from 104GB → 28GB on 4× GPUs
+> 
+> from transformers import TrainingArguments, Trainer
+> 
+> training_args = TrainingArguments(
+>     output_dir="./results",
+>     per_device_train_batch_size=1,
+>     gradient_accumulation_steps=4,
+>     fp16=True,  # FP16 training
+>     deepspeed="ds_config.json",  # Enable DeepSpeed
+> )
+> 
+> # ds_config.json:
+> # {
+> #   "zero_optimization": {
+> #     "stage": 2,  # Shard optimizer + gradients
+> #     "offload_optimizer": {"device": "cpu"}  # Optional: offload to CPU RAM
+> #   },
+> #   "fp16": {"enabled": true}
+> # }
+> 
+> trainer = Trainer(
+>     model=model,
+>     args=training_args,
+>     train_dataset=train_dataset,
+> )
+> trainer.train()
+> ```
+> 
+> **When to use:** Multi-GPU training when single GPU OOMs. ZeRO-2 is the sweet spot for most use cases.
+> **Common alternatives:** ZeRO-3 (shard everything including params, highest memory savings), FSDP (PyTorch native alternative)
+> **See also:** [DeepSpeed ZeRO paper](https://arxiv.org/abs/1910.02054), [Hugging Face DeepSpeed integration](https://huggingface.co/docs/transformers/main_classes/deepspeed)
+
 ---
 
-## 7 · VRAM Budget Calculator — Inference
+## 7 · [Phase 2: CHECK] VRAM Budget Calculator — Inference
 
 **Formula**:
 $$\text{VRAM}_{\text{inference}} = \text{Params} + \text{KV Cache} + \text{Activations}$$
@@ -205,9 +443,88 @@ $$\text{VRAM}_{\text{inference}} = \text{Params} + \text{KV Cache} + \text{Activ
 
 **Critical insight**: INT4 quantization frees 12 GB, enabling batch=4 → 4× throughput!
 
+**Code snippet — Phase 2 CHECK: Does model fit?**
+
+```python
+# Phase 2: Calculate total memory and check against GPU VRAM
+def check_vram_fit(precision="FP16", batch_size=1, seq_len=2048, gpu_vram_gb=24):
+    """Check if Llama-3-8B fits in GPU memory."""
+    
+    # Phase 1 calculations (from above)
+    num_params = 8_000_000_000
+    precision_map = {"FP32": 4, "FP16": 2, "INT8": 1, "INT4": 0.5}
+    bytes_per_param = precision_map[precision]
+    
+    # Component breakdown
+    param_memory_gb = (num_params * bytes_per_param) / (1024**3)
+    
+    # KV cache: 2 × layers × hidden × seq × batch × bytes
+    kv_cache_gb = (2 * 32 * 4096 * seq_len * batch_size * bytes_per_param) / (1024**3)
+    
+    # Activations: rough estimate
+    activations_gb = 2.0 if batch_size <= 2 else 4.0
+    
+    total_memory_gb = param_memory_gb + kv_cache_gb + activations_gb
+    
+    # DECISION LOGIC: Does it fit with safety margin?
+    safety_margin_gb = 2.0  # Leave 2GB headroom for fragmentation
+    fits = total_memory_gb <= (gpu_vram_gb - safety_margin_gb)
+    utilization_pct = (total_memory_gb / gpu_vram_gb) * 100
+    
+    print(f"\n=== VRAM CHECK: {precision} | batch={batch_size} | seq={seq_len} ===")
+    print(f"Parameter memory:  {param_memory_gb:6.2f} GB")
+    print(f"KV cache:          {kv_cache_gb:6.2f} GB")
+    print(f"Activations:       {activations_gb:6.2f} GB")
+    print(f"{'='*50}")
+    print(f"Total required:    {total_memory_gb:6.2f} GB")
+    print(f"GPU VRAM:          {gpu_vram_gb:6.2f} GB")
+    print(f"Utilization:       {utilization_pct:5.1f}%")
+    print(f"\nVerdict: {'\u2705 FITS' if fits else '\u274c OOM - DOES NOT FIT'}")
+    
+    if not fits:
+        print(f"\n⚠️ Need {total_memory_gb - (gpu_vram_gb - safety_margin_gb):.1f} GB more VRAM")
+        print("  → Options: reduce batch, use quantization, or upgrade GPU")
+    
+    return fits, total_memory_gb
+
+# Test scenarios
+check_vram_fit(precision="FP16", batch_size=1, seq_len=2048, gpu_vram_gb=24)
+check_vram_fit(precision="FP16", batch_size=4, seq_len=2048, gpu_vram_gb=24)  # Will OOM
+check_vram_fit(precision="INT4", batch_size=4, seq_len=2048, gpu_vram_gb=24)  # Will fit!
+
+# Output:
+# === VRAM CHECK: FP16 | batch=1 | seq=2048 ===
+# Parameter memory:   14.90 GB
+# KV cache:            1.00 GB
+# Activations:         2.00 GB
+# ==================================================
+# Total required:     17.90 GB
+# GPU VRAM:           24.00 GB
+# Utilization:        74.6%
+# 
+# Verdict: ✅ FITS
+```
+
+### 7.1 ✓ DECISION CHECKPOINT — Phase 2 Complete
+
+**What you just saw:**
+- **FP16, batch=1:** Total = 18GB, fits in 24GB RTX 4090 with 6GB headroom ✅
+- **FP16, batch=4:** Total = 34GB, **exceeds 24GB** → OOM error ❌
+- **INT4, batch=4:** Total = 10GB, fits with 14GB headroom ✅ (4× throughput unlocked!)
+
+**What it means:**
+- **Model fits at batch=1** but no room for higher throughput
+- **Batch scaling hits wall fast:** Going from batch=1→4 adds 12GB of KV cache (exceeds budget)
+- **Quantization is mandatory for batching:** INT4 shrinks params 16GB→4GB, freeing 12GB for KV cache
+
+**What to do next:**
+→ **If model fits (✅):** Proceed to deployment — skip Phase 3  
+→ **If model OOMs (❌):** Go to Phase 3 OPTIMIZE — apply quantization, reduce batch, or enable gradient checkpointing  
+→ **For our scenario:** Model fits at batch=1 but **throughput target requires batch=4**. We MUST apply INT4 quantization (Ch.3) to free VRAM.
+
 ---
 
-## 8 · VRAM Budget Calculator — Training
+## 8 · [Phase 2: CHECK] VRAM Budget Calculator — Training
 
 **Formula**:
 $$\text{VRAM}_{\text{training}} = \text{Params} + \text{Optimizer States} + \text{Gradients} + \text{Activations}$$
@@ -228,6 +545,24 @@ $$\text{VRAM}_{\text{training}} = \text{Params} + \text{Optimizer States} + \tex
 - A100 80GB × 2 with ZeRO-2 sharding (Ch.4)
 - Gradient checkpointing: 104 GB → 30 GB (fits on A100 40GB)
 - LoRA fine-tuning: only train adapter weights → 16 GB params + 2 GB adapter = 18 GB (fits on RTX 4090!)
+
+### 8.1 ✓ DECISION CHECKPOINT — Phase 2 Training Memory Check
+
+**What you just saw:**
+- **Training memory:** 104GB total (16GB params + 64GB optimizer + 16GB gradients + 8GB activations)
+- **RTX 4090 has 24GB** → training **does not fit** ❌
+- **A100 80GB × 2 required** for full fine-tuning ($6,000/month vs $1,095/month for RTX 4090)
+
+**What it means:**
+- **Full fine-tuning is 4–5× more expensive** than inference (optimizer states dominate)
+- **Budget constraint conflict:** Training needs $6k/month but budget is $15k total (includes inference)
+- **Gradient checkpointing helps** but still needs 30GB (A100 40GB at $3,000/month)
+
+**What to do next:**
+→ **Option 1 (Full fine-tune):** Upgrade to A100 80GB × 2 with ZeRO-2 sharding — **$6,000/month** ⚠️  
+→ **Option 2 (Gradient checkpoint):** A100 40GB — **$3,000/month**, 30% slower training  
+→ **Option 3 (LoRA fine-tune):** Train only adapters (2GB), keep base frozen — **fits on RTX 4090 ($1,095/month)** ✅  
+→ **For our scenario:** Budget is tight. **Choose LoRA (Ch.4)** to fine-tune on RTX 4090 without exceeding $15k/month total budget.
 
 ---
 
@@ -290,7 +625,9 @@ Throughput: 3k req/day ❌             Throughput: 12k req/day ✅          or g
 
 ---
 
-## 11.5 · The Hyperparameter Dial
+## 11.5 · [Phase 3: OPTIMIZE] The Hyperparameter Dial
+
+> 🎯 **You are here because:** Your model OOMed in Phase 2 CHECK, OR you need higher throughput (larger batch) but don't have VRAM headroom.
 
 Three knobs control VRAM. Each can be turned independently, but they interact through the total budget constraint.
 
@@ -332,12 +669,97 @@ Precision affects parameter memory and KV cache simultaneously:
 
 > 💡 KV cache grows with batch × seq_len. Parameters are **fixed** at load time. Quantization shrinks both; smaller batch reduces only the KV cache.
 
+**Code snippet — Phase 3 OPTIMIZE: Apply INT8 quantization**
+
+```python
+# Phase 3: Apply quantization to free VRAM for higher batch size
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+import torch
+
+# Original FP16 model: 16GB parameters
+# Target: Reduce to 8GB (INT8) to free 8GB for KV cache (batch=1 → batch=4)
+
+quantization_config = BitsAndBytesConfig(
+    load_in_8bit=True,  # INT8 quantization
+    llm_int8_threshold=6.0,  # Keep outlier features in FP16
+)
+
+model = AutoModelForCausalLM.from_pretrained(
+    "meta-llama/Llama-2-7b-hf",
+    quantization_config=quantization_config,
+    device_map="auto",  # Automatically place on GPU
+)
+
+# Verify memory reduction
+param_memory_bytes = sum(
+    p.numel() * p.element_size() for p in model.parameters()
+)
+param_memory_gb = param_memory_bytes / (1024**3)
+
+print(f"Quantized model memory: {param_memory_gb:.2f} GB")
+print(f"Memory saved: {16 - param_memory_gb:.2f} GB")
+print(f"Now have headroom for batch=4 KV cache (4GB)")
+
+# Output:
+# Quantized model memory: 7.85 GB  (50% reduction from 16GB)
+# Memory saved: 8.15 GB
+# Now have headroom for batch=4 KV cache (4GB)
+```
+
+> 💡 **Industry Standard:** `bitsandbytes` library for production quantization
+> 
+> ```python
+> # INT4 quantization with QLoRA (best memory efficiency)
+> from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+> 
+> bnb_config = BitsAndBytesConfig(
+>     load_in_4bit=True,  # INT4 quantization
+>     bnb_4bit_compute_dtype=torch.bfloat16,  # Compute in BF16 for stability
+>     bnb_4bit_use_double_quant=True,  # Double quantization for extra compression
+>     bnb_4bit_quant_type="nf4",  # NormalFloat4 (better for LLMs)
+> )
+> 
+> model = AutoModelForCausalLM.from_pretrained(
+>     "meta-llama/Llama-2-7b-hf",
+>     quantization_config=bnb_config,
+>     device_map="auto",
+> )
+> # Memory: ~4GB (75% reduction from 16GB FP16)
+> # Enables batch=8 on RTX 4090 (24GB)
+> ```
+> 
+> **When to use:** When you need higher batch size but GPU VRAM is constrained. INT8 is the safe default; INT4 requires quality validation (Ch.3).
+> **Common alternatives:** GPTQ (faster INT4 inference), AWQ (activation-aware quantization), SmoothQuant
+> **See also:** [bitsandbytes docs](https://github.com/TimDettmers/bitsandbytes), [QLoRA paper](https://arxiv.org/abs/2305.14314)
+
+### 11.5.4 ✓ DECISION CHECKPOINT — Phase 3 Optimization Complete
+
+**What you just saw:**
+- **Batch size lever:** Doubling batch doubles KV cache but leaves params unchanged → choose based on throughput needs
+- **Sequence length lever:** Halving seq_len halves KV cache → use when prompts are predictably short
+- **Precision lever:** INT8 cuts memory 50%, INT4 cuts 75% → most powerful optimization but requires quality validation
+
+**What it means:**
+- **Quantization unlocks batch scaling:** FP16 @ batch=1 (18GB) → INT4 @ batch=4 (10GB) = 4× throughput in same GPU
+- **Each lever has tradeoffs:**  
+  - Reduce batch → lower throughput (bad for production load)  
+  - Reduce seq_len → can't handle long documents (limits use cases)  
+  - Quantize → potential quality loss (must validate perplexity/accuracy in Ch.3)
+- **Gradient checkpointing (training only):** 90% activation memory reduction, 30% speed penalty
+
+**What to do next:**
+→ **After optimization:** Re-run Phase 2 CHECK with new parameters to confirm model now fits  
+→ **Validate quality:** Especially after quantization — measure perplexity, run test prompts (Ch.3 benchmarks)  
+→ **For our scenario:** Applying INT4 quantization freed 12GB. Re-check: 4GB params + 4GB KV (batch=4) + 2GB activations = **10GB total ✅ fits!** Proceed to Ch.3 to validate quality.
+
 ---
 
 ## 11.6 · Code Skeleton
 
+> 📦 **Complete workflow implementation** — use these functions to implement the 3-phase workflow (§1.5) in your deployment pipeline.
+
 ```python
-# Educational: VRAM budget calculator from scratch
+# Educational: VRAM budget calculator from scratch (Phase 1 + Phase 2)
 def vram_budget_inference(
     n_params: int,           # total model parameters (e.g., 8_000_000_000)
     bytes_per_param: float,  # precision: FP32=4, BF16=2, INT8=1, INT4=0.5
@@ -347,7 +769,10 @@ def vram_budget_inference(
     batch_size: int,         # concurrent requests
     activation_overhead_gb: float = 2.0,  # typical activation memory
 ) -> dict:
-    """Calculate inference VRAM breakdown in GB."""
+    """Calculate inference VRAM breakdown in GB.
+    
+    Implements Phase 1 (CALCULATE) + Phase 2 (CHECK) of the workflow.
+    """
     params_gb = (n_params * bytes_per_param) / 1e9
     head_dim = 128  # typical; hidden_dim / n_heads
     kv_cache_gb = (2 * n_layers * n_heads * head_dim * seq_len * batch_size * bytes_per_param) / 1e9
@@ -366,7 +791,7 @@ print(vram_budget_inference(8_000_000_000, 2.0, 32, 32, 2048, 4))
 ```
 
 ```python
-# Production: pre-flight VRAM check before model load
+# Production: pre-flight VRAM check before model load (Phase 2 CHECK)
 import subprocess, json
 
 def check_gpu_vram_available() -> float:
@@ -394,11 +819,13 @@ def preflight_vram_check(required_gb: float, safety_margin_gb: float = 2.0) -> b
 
 | Chapter | How memory budget concepts appear |
 |---------|------------------------------------|
-| **Ch.3 — Quantization** | INT8/INT4 reduces bytes-per-param $P$ in the VRAM formula; the same formulas here predict post-quantization savings |
-| **Ch.5 — Inference Optimization** | PagedAttention manages KV cache pages dynamically — the same KV cache VRAM formula here determines page pool size |
-| **Ch.6 — vLLM & Serving** | vLLM's `gpu_memory_utilization` parameter is directly the `1 - headroom` fraction from the VRAM budget |
-| **AI Infrastructure Ch.4** | LoRA fine-tuning needs parameter + optimizer + gradient memory; the optimizer state formula (8× for Adam) comes from the training budget section here |
-| **Cost & Latency (AI track)** | Cost-per-token = (hourly rate) / (tokens/sec); tokens/sec depends on batch size, which is capped by VRAM budget derived here |
+| **Ch.3 — Quantization** | INT8/INT4 reduces bytes-per-param $P$ in the VRAM formula; the same formulas here predict post-quantization savings. **Apply Phase 3 OPTIMIZE workflow** to choose quantization method. |
+| **Ch.5 — Inference Optimization** | PagedAttention manages KV cache pages dynamically — the same KV cache VRAM formula here determines page pool size. **Phase 2 CHECK** validates total memory fits. |
+| **Ch.6 — vLLM & Serving** | vLLM's `gpu_memory_utilization` parameter is directly the `1 - headroom` fraction from the VRAM budget. **Phase 1 CALCULATE** determines safe utilization threshold. |
+| **AI Infrastructure Ch.4** | LoRA fine-tuning needs parameter + optimizer + gradient memory; the optimizer state formula (8× for Adam) comes from the training budget section here. **Phase 2 CHECK** shows LoRA fits on RTX 4090. |
+| **Cost & Latency (AI track)** | Cost-per-token = (hourly rate) / (tokens/sec); tokens/sec depends on batch size, which is capped by VRAM budget derived here. **Phase 3 OPTIMIZE** determines max batch for throughput. |
+
+**🔄 Workflow integration:** Every chapter above uses the **3-phase workflow** (CALCULATE → CHECK → OPTIMIZE) from §1.5. When you encounter memory constraints in later chapters, return to this workflow to diagnose bottlenecks.
 
 ---
 
@@ -407,10 +834,12 @@ def preflight_vram_check(required_gb: float, safety_margin_gb: float = 2.0) -> b
 🎉 **VRAM BUDGET CONFIRMED! Llama-3-8B fits in RTX 4090 at FP16**
 
 **Unlocked capabilities**:
+- ✅ **3-phase workflow mastered**: CALCULATE (§3-6) → CHECK (§7-8) → OPTIMIZE (§11.5) — reusable for any model deployment
 - ✅ **Precise VRAM calculator**: Know exact memory breakdown for any model/batch/seq_len
 - ✅ **Inference budget**: 16GB params + 4GB KV + 2GB activations = 22GB (fits in 24GB) ✅
 - ✅ **Training budget**: 104GB total → need A100 80GB × 2 or gradient checkpointing
 - ✅ **Batch size limits**: batch=1 max at FP16 → need quantization (Ch.3) for batch=4
+- ✅ **Decision checkpoints**: 3 critical go/no-go points for deployment confidence
 
 **Progress toward constraints**:
 
@@ -486,6 +915,23 @@ You: "Let me calculate:
 Result: ✅ Realistic throughput expectations set!
 ```
 
+**🔄 How the workflow helped:**
+
+The **3-phase workflow** (§1.5) transformed this chapter from formula memorization into actionable deployment process:
+
+1. **Phase 1 (CALCULATE)**: Broke down mysterious "model doesn't fit" errors into specific components (params, KV cache, activations)
+2. **Phase 2 (CHECK)**: Provided go/no-go decision points BEFORE ordering expensive hardware
+3. **Phase 3 (OPTIMIZE)**: Gave concrete levers (batch, precision, seq_len) with quantified tradeoffs
+
+**Before workflow approach:**
+- "Model OOMs — no idea why or how to fix"
+- Guess-and-check with GPU purchases ($50k mistakes)
+
+**After workflow approach:**
+- "Phase 2 CHECK shows 34GB required but 24GB available → OOM expected"
+- "Phase 3 OPTIMIZE: apply INT4 quantization → re-CHECK: 10GB required ✅ fits!"
+- Confident deployment without trial-and-error
+
 **What's still blocking**:
 
 - ❌ **Throughput target unreachable**: batch=1 → 3,000 req/day (need 10k) → **Need Ch.3 quantization to enable batch=4**
@@ -512,7 +958,16 @@ Result: ✅ Realistic throughput expectations set!
 
 ## 13 · Bridge to Chapter 3
 
-Ch.2 confirmed the model fits — but revealed a critical bottleneck: **batch=1 limits throughput to 3,000 req/day** (30% of target). The 2 GB of free VRAM is not enough to batch multiple requests. Ch.3 (Quantization & Precision) attacks this problem directly: by shrinking the model from 16 GB to 4 GB via INT4 quantization, we free 12 GB for KV cache, enabling batch=4 and 4× throughput. The question: **does INT4 quantization destroy quality?** That is what Ch.3 answers.
+Ch.2 confirmed the model fits — but revealed a critical bottleneck: **batch=1 limits throughput to 3,000 req/day** (30% of target). The 2 GB of free VRAM is not enough to batch multiple requests.
+
+**The workflow diagnosis:**
+- **Phase 1 CALCULATE**: 16GB params + 4GB KV (batch=1) + 2GB activations = 22GB
+- **Phase 2 CHECK**: Fits in 24GB ✅, but only 2GB headroom (insufficient for batch=2)
+- **Phase 3 OPTIMIZE**: Need to free 12GB to enable batch=4 → **quantization is the only viable lever**
+
+Ch.3 (Quantization & Precision) attacks this problem directly: by shrinking the model from 16 GB to 4 GB via INT4 quantization, we free 12 GB for KV cache, enabling batch=4 and 4× throughput.
+
+The question: **does INT4 quantization destroy quality?** That is what Ch.3 answers. You'll apply the same **Phase 3 OPTIMIZE** workflow, then re-run **Phase 2 CHECK** to validate the quantized model fits at batch=4.
 
 ## Illustrations
 

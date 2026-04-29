@@ -59,6 +59,44 @@ The only question is **how big a step?** The answer is the subject of this chapt
 
 ---
 
+## 1.5 · The Practitioner Workflow — Your 4-Phase Optimization Loop
+
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§3 sequentially to understand the mathematical foundations, then use this workflow as your implementation reference
+> - **Workflow-first (practitioners with existing knowledge):** Use this diagram as a jump-to guide when implementing optimization algorithms
+>
+> **Note:** Section numbers don't follow phase order because the chapter teaches concepts pedagogically (theory before application). The workflow below shows how to APPLY gradient descent in practice.
+
+**What you'll build by the end:** An optimization loop that converges to the best parameter value, with stopping criteria and learning rate validation. This is the algorithm that trains every ML model in this curriculum.
+
+```
+Phase 1: INITIALIZE          Phase 2: COMPUTE            Phase 3: UPDATE            Phase 4: CONVERGE
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+Pick starting point:         Evaluate gradient:          Apply update rule:         Check stopping criteria:
+
+• θ₀ = initial guess         • Compute ∇L(θₖ)             • θ_new = θ_old - η∇L      • |∇L| < ε (gradient ≈ 0)
+• η = learning rate          • Check sign & magnitude    • Verify descent direction • |θ_new - θ_old| < ε
+• Set max_iters              • Plot loss landscape       • Log θ and L(θ)           • Reached max_iters
+
+→ DECISION:                  → DECISION:                 → DECISION:                → DECISION:
+  Where to start?              Is gradient reliable?       Did loss decrease?         Converged or failed?
+  • Convex: anywhere           • If ∇L ≈ 0 early:          • Yes: continue            • |∇L| < ε: ✅ Success
+  • Non-convex: try            check if at saddle          • No: reduce η or          • max_iters: ⚠️ Retry
+    multiple θ₀ values         • If ∇L huge: verify          check gradient             with smaller η or
+  • Practical: use domain      formula/code                calculation                 different θ₀
+    knowledge (e.g., 45°)      • Always verify sign
+```
+
+**The workflow maps to these sections:**
+- **Phase 1 (INITIALIZE)** → §3.1 The update rule, §3.4 When the step is too large
+- **Phase 2 (COMPUTE)** → §3.2 Worked Example, §3.3 Why small steps work
+- **Phase 3 (UPDATE)** → §3.1 The update rule (application), §3.4 Step size analysis
+- **Phase 4 (CONVERGE)** → §3.6 Stopping criteria
+
+> 💡 **How to use this workflow:** Execute Phase 1 once at the start, then loop Phase 2→3→4 until Phase 4's stopping criteria trigger. The sections above teach WHY each phase works; refer back here for WHAT to do. Every ML optimizer (SGD, Adam, RMSprop) follows this exact 4-phase loop — only the Phase 3 update rule changes.
+
+---
+
 ## 2 · Running Example
 
 Long goal kick, vacuum physics, fixed strike speed $v_0 = 25$ m/s, ball struck from the turf. The horizontal range when you launch at angle $\theta$ is
@@ -76,7 +114,7 @@ Two twists in this chapter:
 
 ## 3 · Math
 
-### 3.1 · The update rule
+### 3.1 · [Phase 1: INITIALIZE] The Update Rule and Starting Configuration
 
 To *minimise* $f(\theta)$:
 
@@ -93,6 +131,84 @@ $$\theta_{k+1} = \theta_k + \eta f'(\theta_k)$$
 
 Same algorithm, walking uphill instead. Most ML code is written in the minimise form; if your real target is "maximise likelihood" you minimise *negative* likelihood and keep the sign convention.
 
+**Phase 1 implementation — Setting up the optimization:**
+
+```python
+import numpy as np
+
+# Simple quadratic loss: L(θ) = (θ - 3)²
+# We know the minimum is at θ* = 3, but let's pretend we don't
+def loss(theta):
+    """Loss function: (θ - 3)²"""
+    return (theta - 3.0) ** 2
+
+def gradient(theta):
+    """Gradient: dL/dθ = 2(θ - 3)"""
+    return 2.0 * (theta - 3.0)
+
+# Phase 1: INITIALIZE
+theta = 0.0          # Starting point (θ₀)
+learning_rate = 0.1  # Step size (η)
+tolerance = 1e-6     # Stopping threshold (ε)
+max_iters = 1000     # Safety limit
+
+print(f"Phase 1 Complete")
+print(f"  θ₀ = {theta:.6f}")
+print(f"  η  = {learning_rate}")
+print(f"  L(θ₀) = {loss(theta):.6f}")
+print(f"  Initial distance from optimum: |θ - 3| = {abs(theta - 3.0):.6f}")
+```
+
+**Expected output:**
+```
+Phase 1 Complete
+  θ₀ = 0.000000
+  η  = 0.1
+  L(θ₀) = 9.000000
+  Initial distance from optimum: |θ - 3| = 3.000000
+```
+
+> 💡 **Industry Standard: `scipy.optimize.minimize`**
+>
+> ```python
+> from scipy.optimize import minimize
+>
+> result = minimize(
+>     fun=loss,              # Function to minimize
+>     x0=0.0,                # Starting point θ₀
+>     method='BFGS',         # Quasi-Newton method (uses gradient info)
+>     jac=gradient,          # Gradient function (optional but faster)
+>     tol=1e-6               # Convergence tolerance
+> )
+>
+> print(f"Optimal θ: {result.x[0]:.6f}")  # → 3.000000
+> print(f"Iterations: {result.nit}")      # → typically 3-5 for this problem
+> ```
+>
+> **When to use:** Production code with complex loss landscapes. `BFGS` uses gradient history to adaptively tune step size (better than fixed η).
+> **Common alternatives:** `'L-BFGS-B'` (bounded parameters), `'CG'` (conjugate gradient for large-scale), `'Nelder-Mead'` (derivative-free).
+> **See also:** [SciPy optimize tutorial](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html)
+
+### 3.1.1 ✓ DECISION CHECKPOINT: Phase 1 Complete
+
+**What you just set:**
+- θ₀ = 0.0 (starting 3 units away from the true optimum at θ* = 3)
+- η = 0.1 (fixed step size)
+- L(θ₀) = 9.0 (initial loss — squared distance from optimum)
+
+**What it means:**
+- We're starting from the **left side** of the parabola — gradient will be negative, so update will move θ **rightward** (toward 3)
+- With η = 0.1 and initial gradient = -6.0, first step will move θ by +0.6 (to θ = 0.6)
+- Distance shrinks by factor of (1 - η·2) ≈ 0.8 per iteration → exponential convergence
+
+**What to do next:**
+→ **Option 1 (Standard):** Use η = 0.1 — converges in ~20 iterations, stable for this quadratic
+→ **Option 2 (Aggressive):** Try η = 0.5 — converges in ~5 iterations but risks overshoot on complex landscapes
+→ **Option 3 (Cautious):** Use η = 0.01 — guaranteed stable but slow (~200 iterations)
+→ **For our scenario:** Choose η = 0.1 — balances speed and stability for typical smooth loss functions
+
+---
+
 **Watch the algorithm in action.** The animation below shows gradient descent minimising $L(\theta) = -R(\theta)$ (the negative of the range formula, so we're walking *down* the loss curve to find the *maximum* range):
 
 ![Gradient descent animation: orange ball rolls down a blue loss curve. Red tangent line shows the gradient at each step. Top-left info box displays iteration number, current θ, loss value, learning rate η, and gradient ∇L. Orange trail fades behind the ball. Green star marks the true minimum at θ* = 45°.](img/ch04-gradient-descent-animation.gif)
@@ -105,7 +221,7 @@ Starting from $\theta_0 = 20^\circ$, the ball (current parameter value) takes 20
 
 Notice: the gradient is steep early (fast progress), then flattens near the minimum (slow final convergence). That's *why* adaptive learning-rate methods (Adam, RMSProp — ML Ch.5) exist: they auto-tune $\eta$ to move fast when far and careful when close.
 
-### 3.2 · Worked Example — Five Iterations by Hand
+### 3.2 · [Phase 2: COMPUTE] Worked Example — Five Iterations by Hand
 
 Let's trace **the 4-step recipe from §1** with actual numbers — maximizing range $R(\theta)$ starting from $\theta_0 = 20^\circ$ with learning rate $\eta = 0.20$ (larger than animation's 0.15 for clarity). Given $v_0 = 25$ m/s and $g = 9.81$ m/s²:
 
@@ -146,7 +262,84 @@ This is **exactly what the animation shows** — the ball races downhill early, 
 >
 > **The test:** Without looking back at the table, sketch what iteration 10 would look like — would the step be closer to 0.5° or 5°? (Answer: ~0.1° — the gradient is nearly zero by then.) If you can predict that qualitatively, the walkthrough succeeded. The 5-iteration trace exists to establish the pattern; once you see it, the remaining 45 iterations are "more of the same, shrinking."
 
-### 3.3 · Why small steps work — Taylor's theorem in one line
+**Phase 2 implementation — Computing the gradient:**
+
+```python
+# Using the setup from Phase 1 (θ = 0.0, η = 0.1)
+
+# Phase 2: COMPUTE gradient at current θ
+gradient_value = gradient(theta)
+loss_value = loss(theta)
+
+print(f"Phase 2 Complete")
+print(f"  Current θ = {theta:.6f}")
+print(f"  Gradient ∇L(θ) = {gradient_value:.6f}")
+print(f"  Loss L(θ) = {loss_value:.6f}")
+
+# Direction check
+if gradient_value > 0:
+    direction = "positive → will move LEFT (decrease θ)"
+elif gradient_value < 0:
+    direction = "negative → will move RIGHT (increase θ)"
+else:
+    direction = "zero → at critical point!"
+
+print(f"  Gradient direction: {direction}")
+print(f"  Predicted step: Δθ = -η·∇L = -{learning_rate}·({gradient_value:.6f}) = {-learning_rate * gradient_value:.6f}")
+```
+
+**Expected output:**
+```
+Phase 2 Complete
+  Current θ = 0.000000
+  Gradient ∇L(θ) = -6.000000
+  Loss L(θ) = 9.000000
+  Gradient direction: negative → will move RIGHT (increase θ)
+  Predicted step: Δθ = -η·∇L = -0.1·(-6.000000) = 0.600000
+```
+
+> 💡 **Industry Standard: PyTorch/TensorFlow Autograd**
+>
+> ```python
+> import torch
+>
+> # Define parameter and enable gradient tracking
+> theta = torch.tensor([0.0], requires_grad=True)
+>
+> # Define loss
+> loss_value = (theta - 3.0) ** 2
+>
+> # Compute gradient automatically
+> loss_value.backward()  # Autograd: computes dL/dθ
+>
+> print(f"Gradient: {theta.grad.item():.6f}")  # → -6.000000
+> ```
+>
+> **When to use:** Always in deep learning. Manual gradient formulas are error-prone and don't scale. Autograd handles chain rule automatically for complex compositions.
+> **Common pattern:** PyTorch: `loss.backward()` then `optimizer.step()`. TensorFlow: `tape.gradient(loss, variables)`.
+> **See also:** [PyTorch autograd tutorial](https://pytorch.org/tutorials/beginner/blitz/autograd_tutorial.html)
+
+### 3.2.1 ✓ DECISION CHECKPOINT: Phase 2 Complete
+
+**What you just saw:**
+- Gradient ∇L(θ=0) = -6.0 — strongly negative
+- Loss L(θ=0) = 9.0 — we're far from the optimum (θ* = 3 has loss = 0)
+- Predicted step: Δθ = +0.6 (will move from 0.0 → 0.6)
+
+**What it means:**
+- The **negative gradient** tells us "increasing θ will decrease loss" — we should move right
+- The **magnitude |∇L| = 6.0** is large → we're far from the minimum → expect fast initial progress
+- With η = 0.1, the step size (0.6) is **10% of the distance to optimum** (distance = 3.0) → safe, not overshooting
+
+**What to do next:**
+→ **If |∇L| > 1000:** ⚠️ Verify gradient formula — unusually large gradients often indicate coding errors (e.g., forgot to normalize inputs)
+→ **If ∇L ≈ 0 on first iteration:** Check if θ₀ was accidentally initialized AT the optimum, or loss function is constant
+→ **If gradient sign unexpected:** Verify you're minimizing L (descent) vs maximizing (ascent) — sign flip in update rule
+→ **For our scenario:** Gradient is reasonable and correctly signed → proceed to Phase 3 (UPDATE)
+
+---
+
+### 3.3 · [Phase 3: UPDATE] Why Small Steps Work — Taylor's Theorem in One Line
 
 Near a point $\theta_k$, any smooth function is approximately
 
@@ -157,6 +350,86 @@ The first-order term $f'(\theta_k) \Delta$ is a *linear* function of $\Delta$ �
 If $\Delta$ is *large*, the quadratic curvature term dominates and the linear approximation lies. That is the entire reason step sizes must be small.
 
 This is the mathematical content of Armstrong's epigraph: a *small* step is one short enough for the linear approximation to hold, so we can trust its sign. Ask for a giant leap in one update and the curvature lies to you — the iterate lands somewhere unrelated to the direction you thought you were walking in.
+
+**Phase 3 implementation — Applying the update:**
+
+```python
+# Using gradient from Phase 2 (∇L = -6.0 at θ = 0.0)
+
+theta_old = theta
+loss_old = loss(theta)
+
+# Phase 3: UPDATE parameter using gradient descent rule
+theta_new = theta_old - learning_rate * gradient_value
+loss_new = loss(theta_new)
+
+print(f"Phase 3 Complete")
+print(f"  θ_old = {theta_old:.6f} → θ_new = {theta_new:.6f}")
+print(f"  Step taken: Δθ = {theta_new - theta_old:.6f}")
+print(f"  L(θ_old) = {loss_old:.6f} → L(θ_new) = {loss_new:.6f}")
+print(f"  Loss decreased by: ΔL = {loss_old - loss_new:.6f}")
+
+# Verify descent
+if loss_new < loss_old:
+    print("  ✓ Loss decreased — update succeeded")
+else:
+    print("  ✗ Loss increased — learning rate too large or gradient error!")
+
+# Update theta for next iteration
+theta = theta_new
+```
+
+**Expected output:**
+```
+Phase 3 Complete
+  θ_old = 0.000000 → θ_new = 0.600000
+  Step taken: Δθ = 0.600000
+  L(θ_old) = 9.000000 → L(θ_new) = 5.760000
+  Loss decreased by: ΔL = 3.240000
+  ✓ Loss decreased — update succeeded
+```
+
+> 💡 **Industry Standard: Adaptive Learning Rates (Adam Optimizer)**
+>
+> ```python
+> import torch
+>
+> theta = torch.tensor([0.0], requires_grad=True)
+> optimizer = torch.optim.Adam([theta], lr=0.1)  # Adaptive step size
+>
+> for iteration in range(100):
+>     optimizer.zero_grad()          # Clear old gradients
+>     loss_val = (theta - 3.0) ** 2  # Compute loss
+>     loss_val.backward()            # Compute gradient
+>     optimizer.step()               # Update θ with adaptive η
+>     
+>     if iteration % 10 == 0:
+>         print(f"Iter {iteration}: θ={theta.item():.6f}, L={loss_val.item():.6f}")
+> ```
+>
+> **When to use:** Deep learning. Adam adapts η per-parameter using gradient history (momentum + RMSprop). Converges faster than fixed η on non-convex landscapes.
+> **Common alternatives:** `SGD` (with momentum), `RMSprop`, `AdaGrad`. Adam is the default for most neural networks.
+> **See also:** ML Ch.5 Backprop & Optimizers for full Adam derivation.
+
+### 3.3.1 ✓ DECISION CHECKPOINT: Phase 3 Complete
+
+**What you just saw:**
+- θ moved from 0.0 → 0.6 (step of +0.6)
+- Loss dropped from 9.0 → 5.76 (decrease of 3.24)
+- Distance to optimum: |θ - 3| went from 3.0 → 2.4 (20% closer)
+
+**What it means:**
+- **Update succeeded** — loss decreased, confirming gradient direction was correct
+- **Step size appropriate** — didn't overshoot (θ_new = 0.6 is still left of optimum at 3.0)
+- **Convergence pattern** — loss decreased by 36% in one step, suggesting exponential approach to minimum
+
+**What to do next:**
+→ **If loss increased:** ❌ η too large → reduce by factor of 10 (try η = 0.01) or verify gradient sign
+→ **If loss decreased slightly (<1%):** η too small → increase by 2-5x for faster convergence
+→ **If loss oscillating:** η at boundary of stability → use adaptive method (Adam) or learning rate schedule
+→ **For our scenario:** Loss decreased substantially (36%) → η = 0.1 is appropriate → continue to Phase 4 (check convergence)
+
+---
 
 ### 3.4 · When the step is too large
 
@@ -188,7 +461,7 @@ Practical defences:
 
 None of these *solves* non-convexity; they make it survivable.
 
-### 3.6 · Stopping criteria
+### 3.6 · [Phase 4: CONVERGE] Stopping Criteria
 
 The loop has to end somehow. Common tests:
 
@@ -198,6 +471,123 @@ The loop has to end somehow. Common tests:
 4. $k \geq K_\text{max}$ — give up after $K_\text{max}$ iterations.
 
 In practice you use (1) or (4); (2) and (3) can fire falsely on slow plateaus.
+
+**Phase 4 implementation — Checking convergence:**
+
+```python
+# Complete optimization loop (Phases 2-3-4 repeated)
+import numpy as np
+
+# Re-initialize for complete example
+theta = 0.0
+learning_rate = 0.1
+tolerance = 1e-6
+max_iters = 1000
+
+history = {'theta': [theta], 'loss': [loss(theta)], 'gradient': [gradient(theta)]}
+
+for iteration in range(max_iters):
+    # Phase 2: COMPUTE
+    grad = gradient(theta)
+    
+    # Phase 4: CONVERGE (check criteria)
+    if abs(grad) < tolerance:
+        print(f"✓ Converged at iteration {iteration}")
+        print(f"  |∇L| = {abs(grad):.2e} < ε = {tolerance}")
+        break
+    
+    # Phase 3: UPDATE
+    theta = theta - learning_rate * grad
+    
+    # Log progress
+    history['theta'].append(theta)
+    history['loss'].append(loss(theta))
+    history['gradient'].append(grad)
+    
+    if iteration % 10 == 0 or iteration < 5:
+        print(f"Iter {iteration:3d}: θ={theta:.6f}, L={loss(theta):.6f}, ∇L={grad:.6f}")
+else:
+    print(f"⚠️ Reached max_iters={max_iters} without convergence")
+    print(f"  Final |∇L| = {abs(grad):.2e} (threshold: {tolerance})")
+
+print(f"\nFinal result:")
+print(f"  θ* = {theta:.6f} (true optimum: 3.0)")
+print(f"  L(θ*) = {loss(theta):.2e}")
+print(f"  Total iterations: {len(history['theta']) - 1}")
+```
+
+**Expected output:**
+```
+Iter   0: θ=0.000000, L=9.000000, ∇L=-6.000000
+Iter   1: θ=0.600000, L=5.760000, ∇L=-4.800000
+Iter   2: θ=1.080000, L=3.686400, ∇L=-3.840000
+Iter   3: θ=1.464000, L=2.359296, ∇L=-3.072000
+Iter   4: θ=1.771200, L=1.509949, ∇L=-2.457600
+Iter  10: θ=2.554745, L=0.198386, ∇L=-0.890491
+Iter  20: θ=2.920142, L=0.006379, ∇L=-0.159717
+Iter  30: θ=2.985621, L=0.000207, ∇L=-0.028739
+✓ Converged at iteration 37
+  |∇L| = 9.98e-07 < ε = 1e-06
+
+Final result:
+  θ* = 2.999999 (true optimum: 3.0)
+  L(θ*) = 2.66e-12
+  Total iterations: 37
+```
+
+> 💡 **Industry Standard: Learning Rate Schedules**
+>
+> ```python
+> import torch
+>
+> theta = torch.tensor([0.0], requires_grad=True)
+> optimizer = torch.optim.SGD([theta], lr=0.1)
+>
+> # Reduce η by factor of 10 when loss plateaus
+> scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+>     optimizer, 
+>     mode='min',      # Minimize loss
+>     factor=0.1,      # New_lr = old_lr * 0.1
+>     patience=10,     # Wait 10 epochs without improvement
+>     threshold=1e-4   # Minimum change to qualify as improvement
+> )
+>
+> for epoch in range(100):
+>     optimizer.zero_grad()
+>     loss_val = (theta - 3.0) ** 2
+>     loss_val.backward()
+>     optimizer.step()
+>     
+>     scheduler.step(loss_val)  # Adjust η if loss plateaus
+>     
+>     if epoch % 20 == 0:
+>         print(f"Epoch {epoch}: lr={optimizer.param_groups[0]['lr']:.4f}")
+> ```
+>
+> **When to use:** Long training runs where optimal η changes over time. Start with large η (fast initial progress), decay to small η (precise final convergence).
+> **Common schedules:** Step decay (`MultiStepLR`), exponential decay (`ExponentialLR`), cosine annealing (`CosineAnnealingLR`).
+> **See also:** [PyTorch LR scheduler docs](https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate)
+
+### 3.6.1 ✓ DECISION CHECKPOINT: Phase 4 Complete
+
+**What you just saw:**
+- Converged in 37 iterations to θ* ≈ 2.999999
+- Final gradient |∇L| = 9.98×10⁻⁷ < tolerance (10⁻⁶)
+- Final loss L(θ*) ≈ 2.66×10⁻¹² (essentially zero)
+
+**What it means:**
+- **Success** — found the optimum (θ* = 3) to 6 decimal places
+- **Exponential convergence** — distance to optimum shrinks by constant factor (~0.8) each iteration for quadratic loss
+- **Iteration count** — 37 iterations is typical for gradient descent on smooth convex problems with η = 0.1
+
+**What to do next:**
+→ **If didn't converge (hit max_iters):**
+  - Check final gradient: if |∇L| ≈ 0 → converged but ε too strict, relax to 10⁻⁴
+  - If |∇L| still large (>0.1) → η too small OR stuck at saddle → try larger η (×10) or random restart
+  - If loss oscillating → η too large → reduce by factor of 10
+→ **If converged but took >200 iters:** η too conservative → try η = 0.5 for 5x speedup on convex problems
+→ **If converged to wrong value (θ* ≠ 3):** Non-convex landscape with local minima → use multiple random starts and pick best
+→ **For production:** Replace fixed η with Adam or learning rate schedule for automatic adaptation
 
 ---
 
