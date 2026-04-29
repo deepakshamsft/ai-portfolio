@@ -10,7 +10,7 @@
 
 1. **📄 Conceptual (this document):** Read this grand_solution.md for the complete narrative — concepts, architecture patterns, and production considerations without running code.
 
-2. **💻 Hands-on ([grand_solution.ipynb](grand_solution.ipynb)):** Run the Jupyter notebook to execute the complete FraudShield pipeline from scratch — trains all 6 detectors, builds the ensemble, and demonstrates production inference. **Run top-to-bottom to reproduce 83% recall.**
+2. **💻 Hands-on ([grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb)):** Run the Jupyter notebook to execute the complete FraudShield pipeline from scratch — trains all 6 detectors, builds the ensemble, and demonstrates production inference. **Run top-to-bottom to reproduce 83% recall.**
 
 **Sequential chapter reading:**
 ```
@@ -30,7 +30,7 @@ Ch.6: Production & Real-Time Inference (deployment)
 
 **Recommended workflow:**
 1. Read this grand_solution.md (20 min) — understand the big picture
-2. Run [grand_solution.ipynb](grand_solution.ipynb) (15 min) — see it work end-to-end
+2. Run [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb) (15 min) — see it work end-to-end
 3. Study individual chapters (1-2 hours each) — deep dive into techniques
 4. Return to production patterns section — apply to your domain
 

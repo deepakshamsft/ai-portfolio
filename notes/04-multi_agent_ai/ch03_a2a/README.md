@@ -460,7 +460,7 @@ Ch.3 gave us cross-service agent delegation with lifecycle tracking and SSE stre
 ---
 
 ## Notebook
-`notebook.ipynb` implements:
+`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) implements:
 1. A minimal A2A-compliant server (FastAPI) exposing one skill with the full task lifecycle
 2. An A2A client that reads the Agent Card, delegates a task, and streams progress via SSE
 3. The OrderFlow scenario: orchestrator delegates a 10-second mock negotiation to the A2A server and handles the `completed` and `failed` states

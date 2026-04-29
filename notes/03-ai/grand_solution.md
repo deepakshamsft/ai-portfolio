@@ -16,7 +16,7 @@ This document provides the **conceptual overview** of the entire AI track. For h
 3. See how each concept unlocks business value
 
 **💻 Hands-on learners:**
-1. Open [grand_solution.ipynb](grand_solution.ipynb) — executable Jupyter notebook
+1. Open [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb) — executable Jupyter notebook
 2. Run code cells sequentially to see the complete integration
 3. Experiment with parameters and test cases
 
@@ -33,7 +33,7 @@ This document provides the **conceptual overview** of the entire AI track. For h
 
 ### Companion Resources
 
-- **[grand_solution.ipynb](grand_solution.ipynb)** — Complete end-to-end code in one executable notebook
+- **[grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb)** — Complete end-to-end code in one executable notebook
 - **[authoring-guide.md](authoring-guide.md)** — Track structure, conventions, pedagogical patterns
 - **Individual chapter folders** — Deep dives with theory, code examples, and exercises
 

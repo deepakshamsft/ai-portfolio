@@ -467,7 +467,7 @@ Always in the `user` role, never the `system` role. The `system` prompt defines 
 
 ## Notebook
 
-`notebook.ipynb` implements:
+`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) implements:
 1. A prompt injection demonstration: external content in system prompt vs user prompt — observable difference in agent behaviour
 2. Pydantic schema validation as an injection barrier
 3. HMAC message signing and verification pipeline

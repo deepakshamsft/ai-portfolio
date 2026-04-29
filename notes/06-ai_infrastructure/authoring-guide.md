@@ -1153,7 +1153,7 @@ Every `grand_solution.md` follows this **7-section template**:
 
 ### Grand Solution Notebook Companion (NEW: 2026)
 
-**Pattern:** Each `grand_solution.md` may have an accompanying `grand_solution.ipynb` Jupyter notebook that consolidates all executable code examples from the track into a single, runnable end-to-end solution.
+**Pattern:** Each `grand_solution.md` may have an accompanying `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) Jupyter notebook that consolidates all executable code examples from the track into a single, runnable end-to-end solution.
 
 **When to create:**
 - Track has significant code implementation (ML, Deep Learning, AI Infrastructure)
@@ -1219,7 +1219,7 @@ Every `grand_solution.md` follows this **7-section template**:
 
 **Cross-references:**
 - Update `grand_solution.md` to reference the notebook in "How to Use This Guide" section
-- Update track README to list both `grand_solution.md` and `grand_solution.ipynb`
+- Update track README to list both `grand_solution.md` and `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice)
 - Link from notebook back to individual chapter READMEs for deep dives
 
 **Example tracks with notebooks:**

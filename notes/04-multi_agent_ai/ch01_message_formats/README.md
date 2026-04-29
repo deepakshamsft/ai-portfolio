@@ -466,7 +466,7 @@ Token cost compounds multiplicatively: a 4-agent chain where each agent accumula
 
 ## Notebook
 
-`notebook.ipynb` implements:
+`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) implements:
 1. A minimal two-agent pipeline using raw OpenAI message lists (no framework)
 2. Token counting and trimming for each strategy
 3. A side-by-side comparison of the three handoff strategies on an OrderFlow scenario: total tokens sent, reconstruction fidelity, time to implement

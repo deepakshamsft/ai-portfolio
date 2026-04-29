@@ -479,7 +479,7 @@ Before any algorithm: ignore error formulas for a moment. You have the scatter p
 
 > You just did gradient descent. Very slowly. And by feel.
 
-The animation below shows a line at several "guessed" positions with the MSE updating per frame — ending at the optimal fit. The [interactive widget in the notebook](notebook.ipynb) lets you actually move slope and intercept sliders.
+The animation below shows a line at several "guessed" positions with the MSE updating per frame — ending at the optimal fit. The [interactive widget in the notebook (solution)](notebook.ipynb_solution.ipynb) | [interactive widget in the notebook (exercise)](notebook.ipynb_exercise.ipynb) lets you actually move slope and intercept sliders.
 
 ![Eyeball explorer animation — manually fitting a line, MSE updating each frame](img/eyeball_explorer.gif)
 

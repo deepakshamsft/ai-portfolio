@@ -9,7 +9,7 @@
 ### 📚 Reading Paths
 
 **Sequential Learning (Recommended for first-time readers):**
-1. Start with [grand_solution.ipynb](grand_solution.ipynb) — Executable notebook with all code examples
+1. Start with [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb) — Executable notebook with all code examples
 2. Read this document for the complete narrative and business context
 3. Dive into individual chapters (Ch.1–Ch.10) for deep technical details
 4. Return here to see how all concepts integrate
@@ -21,7 +21,7 @@
 
 ### 🔗 Companion Resources
 
-- **[grand_solution.ipynb](grand_solution.ipynb)** — Jupyter notebook with executable code examples from all 10 chapters. Run this to see the complete implementation end-to-end (hardware selection → deployment → monitoring).
+- **[grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb)** — Jupyter notebook with executable code examples from all 10 chapters. Run this to see the complete implementation end-to-end (hardware selection → deployment → monitoring).
   
 - **Individual Chapter READMEs** — Deep technical dives located in `ch01_gpu_architecture/`, `ch02_memory_and_compute_budgets/`, etc. Each chapter contains:
   - Hardware specifications and calculations

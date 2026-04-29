@@ -303,11 +303,11 @@ For this reason, the new [AudioGeneration](ch11_audio_generation/README.md) chap
 
 ## GPU-Only Supplement Notebooks
 
-Each MultimodalAI chapter now includes a dedicated GPU-only notebook named `notebook_supplement.ipynb`.
+Each MultimodalAI chapter now includes a dedicated GPU-only notebook named `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice).
 
 - Purpose: keep optional GPU-first experiments separate from the main chapter walkthrough.
-- Scope: one `notebook_supplement.ipynb` per chapter under `notes/MultimodalAI/<Chapter>/`.
-- Safety guard: every `notebook_supplement.ipynb` checks for GPU availability in the first code cell and exits early with a clear message if no compatible GPU is detected.
+- Scope: one `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice) per chapter under `notes/MultimodalAI/<Chapter>/`.
+- Safety guard: every `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice) checks for GPU availability in the first code cell and exits early with a clear message if no compatible GPU is detected.
 
 ### Requirements
 

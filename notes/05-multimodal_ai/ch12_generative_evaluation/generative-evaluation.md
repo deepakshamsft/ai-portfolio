@@ -397,7 +397,7 @@ print(f"Mean CLIP Score: {sum(clip_scores)/len(clip_scores):.3f} (target >0.25)"
 
 ## 11 · Notebook
 
-→ [`notebook.ipynb`](notebook.ipynb) — Compute FID, CLIP Score, and HPSv2 on a VisualForge campaign batch. Runs on laptop CPU (no GPU required for evaluation metrics).
+→ [`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) (solution)](notebook.ipynb_solution.ipynb) | [`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) (exercise)](notebook.ipynb_exercise.ipynb) — Compute FID, CLIP Score, and HPSv2 on a VisualForge campaign batch. Runs on laptop CPU (no GPU required for evaluation metrics).
 
 > **Time estimate:** 10-15 minutes for 500-image batch on laptop CPU.
 

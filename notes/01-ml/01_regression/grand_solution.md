@@ -6,7 +6,7 @@
 
 **Three ways to learn from this content:**
 
-1. **📓 Executable Code First** → Run [grand_solution.ipynb](grand_solution.ipynb)
+1. **📓 Executable Code First** → Run [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb)
    - Complete end-to-end implementation in a single notebook
    - Execute cells top-to-bottom to see the full progression
    - Perfect for hands-on learners who want to experiment immediately
@@ -27,9 +27,9 @@
    - Each chapter has detailed math, diagrams, and implementation notes
 
 **Recommended Path:**
-- **Beginners:** Start with [grand_solution.ipynb](grand_solution.ipynb), then read individual chapters for concepts you want to understand deeply
+- **Beginners:** Start with [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb), then read individual chapters for concepts you want to understand deeply
 - **Experienced:** Read this document (grand_solution.md) for the synthesis, then jump to specific chapters for implementation details
-- **Reviewers:** Run [grand_solution.ipynb](grand_solution.ipynb) to verify the complete workflow, then check individual chapters for pedagogical patterns
+- **Reviewers:** Run [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb) to verify the complete workflow, then check individual chapters for pedagogical patterns
 
 ---
 

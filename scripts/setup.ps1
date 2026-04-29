@@ -562,6 +562,28 @@ Write-Step "Setting default kernel on every notebook under notes/"
 & python (Join-Path $PSScriptRoot "set_default_kernel.py")
 if ($LASTEXITCODE -ne 0) { Write-Warn "set_default_kernel.py exited with code $LASTEXITCODE" }
 
+Write-Step "Setting notebook permissions (read-only for solutions, writable for exercises)"
+try {
+    # Read-only for solution notebooks
+    $solutionCount = 0
+    Get-ChildItem -Path (Join-Path $RepoRoot "notes") -Filter "*_solution.ipynb" -Recurse | ForEach-Object {
+        Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $true -ErrorAction SilentlyContinue
+        $solutionCount++
+    }
+    
+    # Writable for exercise notebooks (ensure not read-only)
+    $exerciseCount = 0
+    Get-ChildItem -Path (Join-Path $RepoRoot "notes") -Filter "*_exercise.ipynb" -Recurse | ForEach-Object {
+        Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue
+        $exerciseCount++
+    }
+    
+    Write-Ok "Permissions set: $solutionCount solution notebooks (read-only), $exerciseCount exercise notebooks (writable)"
+} catch {
+    Write-Warn "Failed to set some notebook permissions: $_"
+    Write-Warn "Notebooks will still work, but file permissions may not be ideal"
+}
+
 # ─── STEP 2: Visual Studio Code ─────────────────────────────────────────────
 
 Write-Host ""

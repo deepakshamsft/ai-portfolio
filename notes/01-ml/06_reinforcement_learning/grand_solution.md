@@ -8,7 +8,7 @@
 
 1. **Read this document** (grand_solution.md) — narrative synthesis explaining how all 6 chapters connect, production patterns, and architectural decisions
 2. **Work through individual chapters** (ch01-ch06) — deep dive into each concept with detailed explanations, math derivations, and exercises
-3. **Run the notebook** ([grand_solution.ipynb](grand_solution.ipynb)) — executable code consolidating all examples end-to-end, from MDP formalism through PPO training
+3. **Run the notebook** ([grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb)) — executable code consolidating all examples end-to-end, from MDP formalism through PPO training
 
 **Recommended learning sequence:** Skim this document (10 min) → understand the big picture → work through chapters → return here for integration patterns → run the notebook for hands-on experience.
 

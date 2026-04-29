@@ -382,7 +382,7 @@ Every chapter follows this section sequence. Sections may be combined or have su
 ## N+1 · Bridge to Next Chapter     ← one clause what this established + one clause what next adds
 ```
 
-Supplement documents (e.g., `notebook_supplement.ipynb`) skip § 0, § Animation, and Progress Check. They are deep technical dives for advanced readers.
+Supplement documents (e.g., `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice)) skip § 0, § Animation, and Progress Check. They are deep technical dives for advanced readers.
 
 ---
 

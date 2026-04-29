@@ -403,7 +403,7 @@ Every `grand_solution.md` follows this **7-section template**:
 
 ## Grand Solution Companion Notebook (grand_solution.ipynb)
 
-> **New pattern (2026):** Each `grand_solution.md` now has a companion `grand_solution.ipynb` that consolidates all code examples into a single executable notebook. This is the "run the entire track in one go" experience.
+> **New pattern (2026):** Each `grand_solution.md` now has a companion `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) that consolidates all code examples into a single executable notebook. This is the "run the entire track in one go" experience.
 
 ### Purpose & Audience
 
@@ -417,7 +417,7 @@ Every `grand_solution.md` follows this **7-section template**:
 
 ### Structure & Content
 
-Every `grand_solution.ipynb` follows this structure:
+Every `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) follows this structure:
 
 ```
 1. Header cell: Purpose, prerequisites, what you'll build
@@ -501,11 +501,11 @@ Every `grand_solution.ipynb` follows this structure:
    
    1. **Big picture first (recommended for time-constrained readers):**
       - Read this `grand_solution.md` → understand narrative
-      - Run [grand_solution.ipynb](grand_solution.ipynb) → see code consolidated
+      - Run [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb) → see code consolidated
       - Dive into individual chapters for depth
    
    2. **Hands-on exploration:**
-      - Run [grand_solution.ipynb](grand_solution.ipynb) directly
+      - Run [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb) directly
       - Code consolidates: setup → each chapter → integration
       - Each cell includes markdown explaining what problem it solves
    
@@ -654,13 +654,13 @@ notes/01-ml/
 ```
 
 **File locations:**
-- Both `grand_solution.md` and `grand_solution.ipynb` live at track root
+- Both `grand_solution.md` and `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) live at track root
 - Individual chapter folders remain unchanged
 - Both reference each other clearly
 
 ### Testing Checklist
 
-Before publishing a `grand_solution.ipynb`:
+Before publishing a `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice):
 
 - [ ] **Runs top-to-bottom:** All cells execute without errors
 - [ ] **Clear outputs:** Key metrics printed, no verbose logs

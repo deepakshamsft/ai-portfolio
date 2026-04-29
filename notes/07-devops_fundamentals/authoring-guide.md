@@ -655,7 +655,7 @@ Before publishing any chapter:
 
 **Optional cloud sections:**
 - Labeled clearly: "Optional: Azure Deployment"
-- In supplemental notebooks: `notebook_supplement.ipynb`
+- In supplemental notebooks: `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice)
 - Never required for core learning outcomes
 
 ---
@@ -793,9 +793,9 @@ Every `grand_solution.md` follows this **7-section template**:
 
 ---
 
-### Grand Solution Notebook Pattern (`grand_solution.ipynb`)
+### Grand Solution Notebook Pattern (`grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice))
 
-> **New pattern (2026):** Alongside `grand_solution.md`, each major track now includes an executable `grand_solution.ipynb` notebook that consolidates all code examples into a single runnable demonstration.
+> **New pattern (2026):** Alongside `grand_solution.md`, each major track now includes an executable `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) notebook that consolidates all code examples into a single runnable demonstration.
 
 **Purpose:**
 - Provide an end-to-end executable walkthrough of the entire track

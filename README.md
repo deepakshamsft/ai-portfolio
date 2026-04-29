@@ -258,8 +258,8 @@ The setup scripts start both servers on **fixed ports** so you can bookmark the 
 
 | Purpose | URL | What it serves |
 |---|---|---|
-| **Hands-on coding** | http://localhost:8888 | Jupyter Lab — run and edit every `notebook.ipynb` under `notes/` |
-| **Reading the material** | http://localhost:8000 | MkDocs Material — browse every `README.md`, `.md`, **and `notebook.ipynb`** under `notes/` in a web browser (rendered, read-only), with search, dark mode, Mermaid diagrams, and math rendering |
+| **Hands-on coding** | http://localhost:8888 | Jupyter Lab — run and edit every `notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) under `notes/` |
+| **Reading the material** | http://localhost:8000 | MkDocs Material — browse every `README.md`, `.md`, **and `notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice)** under `notes/` in a web browser (rendered, read-only), with search, dark mode, Mermaid diagrams, and math rendering |
 
 ### Launching the servers manually
 

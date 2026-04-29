@@ -14,7 +14,7 @@
 - Understand the business impact and technical breakthroughs
 
 **Path 2: Hands-On Learning (3-4 hours)**
-- Open [`grand_solution.ipynb`](grand_solution.ipynb) — an executable Jupyter notebook
+- Open [`grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) (reference)](grand_solution_reference.ipynb) | [`grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) (exercise)](grand_solution_exercise.ipynb) — an executable Jupyter notebook
 - Run each cell sequentially to see the concepts in action
 - Experiment with prompts, guidance scales, and schedulers
 - Generate your first image with the complete pipeline
@@ -35,7 +35,7 @@
 | If you are... | Start with... | Why |
 |---------------|---------------|-----|
 | **Product manager / Executive** | This document (30 min) | Get business impact and ROI story |
-| **ML practitioner / Engineer** | `grand_solution.ipynb` (3-4 hours) | See working code, experiment with parameters |
+| **ML practitioner / Engineer** | `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) (3-4 hours) | See working code, experiment with parameters |
 | **Student / Researcher** | [Ch.1 README](ch01_multimodal_foundations/README.md) (2-3 weeks) | Build foundation from first principles |
 | **Solving specific problem** | Jump to relevant chapter | Direct path to solution |
 

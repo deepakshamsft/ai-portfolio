@@ -502,7 +502,7 @@ Every `grand_solution.md` follows this **7-section template**:
 
 ### Grand Solution Companion: Jupyter Notebook
 
-> **New pattern (2026):** Each track's `grand_solution.md` is now accompanied by a `grand_solution.ipynb` — an executable Jupyter notebook that consolidates all code examples into a single end-to-end demonstration.
+> **New pattern (2026):** Each track's `grand_solution.md` is now accompanied by a `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) — an executable Jupyter notebook that consolidates all code examples into a single end-to-end demonstration.
 
 **Purpose:** Bridge conceptual understanding (markdown) with hands-on experimentation (notebook).
 

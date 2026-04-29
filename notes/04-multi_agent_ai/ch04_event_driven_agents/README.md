@@ -462,7 +462,7 @@ Use an aggregator pattern: each parallel agent publishes its result to a shared 
 
 ## Notebook
 
-`notebook.ipynb` implements:
+`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) implements:
 1. A minimal producer-consumer pair using Redis Streams
 2. Idempotency via `message_id` deduplication in Redis
 3. The OrderFlow fan-out: one `order.received` event triggers three parallel agents; an aggregator collects and publishes `prechecks.completed`

@@ -417,7 +417,7 @@ Ch.5 gave your OrderFlow agents a shared blackboard — cross-agent visibility, 
 
 ## 15 · Notebook
 
-`notebook.ipynb` implements:
+`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) implements:
 1. An in-process blackboard (Python dict) for a 4-agent pipeline — baseline reference
 2. A Redis-backed blackboard with agent-scoped hash fields and publish/subscribe events
 3. Optimistic locking with `WATCH` for concurrent writers

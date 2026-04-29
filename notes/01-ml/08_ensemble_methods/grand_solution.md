@@ -7,7 +7,7 @@
 **Three ways to explore Ensemble Methods:**
 
 1. **📓 Interactive Notebook (Recommended for hands-on learners):**  
-   Open [`grand_solution.ipynb`](grand_solution.ipynb) — run all code cells from top to bottom to see the complete progression:
+   Open [`grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) (reference)](grand_solution_reference.ipynb) | [`grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) (exercise)](grand_solution_exercise.ipynb) — run all code cells from top to bottom to see the complete progression:
    - Load California Housing data
    - Ch.1: Random Forest (>10% RMSE improvement)
    - Ch.2: Gradient Boosting (bias reduction)

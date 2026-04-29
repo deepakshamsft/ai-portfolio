@@ -452,6 +452,6 @@ The mental models you learned here (services, networks, volumes) translate direc
 
 ## What's Next
 
-- **Local**: Run `notebook.ipynb` to build a Flask + Postgres + Redis stack from scratch
-- **Azure** (optional): Run `notebook_supplement.ipynb` to deploy multi-container groups to Azure Container Instances (ACI)
+- **Local**: Run `notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) to build a Flask + Postgres + Redis stack from scratch
+- **Azure** (optional): Run `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice) to deploy multi-container groups to Azure Container Instances (ACI)
 - **Ch.3**: Learn Kubernetes fundamentals with Kind (no cloud account required)

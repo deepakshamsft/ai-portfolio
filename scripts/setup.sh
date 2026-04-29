@@ -595,6 +595,26 @@ fi
 step "Setting default kernel on every notebook under notes/"
 python "$SCRIPT_DIR/set_default_kernel.py" || warn "set_default_kernel.py exited non-zero"
 
+step "Setting notebook permissions (read-only for solutions, writable for exercises)"
+
+# Read-only for solution notebooks (chmod 444)
+solution_count=$(find "$REPO_ROOT/notes" -name "*_solution.ipynb" 2>/dev/null | wc -l)
+if [ "$solution_count" -gt 0 ]; then
+    find "$REPO_ROOT/notes" -name "*_solution.ipynb" -exec chmod 444 {} \; 2>/dev/null || true
+fi
+
+# Writable for exercise notebooks (chmod 644)
+exercise_count=$(find "$REPO_ROOT/notes" -name "*_exercise.ipynb" 2>/dev/null | wc -l)
+if [ "$exercise_count" -gt 0 ]; then
+    find "$REPO_ROOT/notes" -name "*_exercise.ipynb" -exec chmod 644 {} \; 2>/dev/null || true
+fi
+
+if [ "$solution_count" -gt 0 ] || [ "$exercise_count" -gt 0 ]; then
+    ok "Permissions set: $solution_count solution notebooks (read-only), $exercise_count exercise notebooks (writable)"
+else
+    warn "No exercise/solution notebooks found — skipping permission setup"
+fi
+
 # ─── Done ─────────────────────────────────────────────────────────────────────
 
 # ─── STEP 2: Visual Studio Code ─────────────────────────────────────────────

@@ -452,7 +452,7 @@ For reference, here are leading audio models across different use cases:
 
 ## 11 · Notebook
 
-**File**: `notebook.ipynb`
+**File**: `notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice)
 
 **What you'll build**: A minimal TTS pipeline that generates narrated audio from text in under 10 lines of code.
 

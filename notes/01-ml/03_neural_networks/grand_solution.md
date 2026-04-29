@@ -10,11 +10,11 @@
 
 1. **Big picture first (recommended for time-constrained readers):**
    - Read this `grand_solution.md` document → understand the complete narrative arc
-   - Run [grand_solution.ipynb](grand_solution.ipynb) → see all code consolidated end-to-end
+   - Run [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb) → see all code consolidated end-to-end
    - Dive into individual chapters for depth on specific concepts
 
 2. **Hands-on exploration:**
-   - Run [grand_solution.ipynb](grand_solution.ipynb) directly → executable demonstration of all 10 chapters
+   - Run [grand_solution.ipynb (reference)](grand_solution_reference.ipynb) | [grand_solution.ipynb (exercise)](grand_solution_exercise.ipynb) directly → executable demonstration of all 10 chapters
    - Code consolidates: setup → imports → each chapter's solution → final integration
    - Each cell includes concise markdown explaining what problem it solves
 

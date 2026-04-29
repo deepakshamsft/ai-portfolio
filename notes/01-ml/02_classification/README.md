@@ -113,7 +113,7 @@ Every chapter uses the same dataset: [CelebA](https://mmlab.ie.cuhk.edu.hk/proje
 
 ## How to Run
 
-Each chapter has a `notebook.ipynb` that uses a subset of CelebA (5,000 images for speed). Notebooks auto-download the dataset on first run via `torchvision.datasets.CelebA` or fall back to a synthetic proxy if download fails.
+Each chapter has a `notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) that uses a subset of CelebA (5,000 images for speed). Notebooks auto-download the dataset on first run via `torchvision.datasets.CelebA` or fall back to a synthetic proxy if download fails.
 
 ```bash
 cd notes/01-ml/02_classification/ch01_logistic_regression

@@ -87,7 +87,7 @@ If you edit a generator script:
 If a change affects chapter structure, visual assets, or generated notebooks, check whether the chapter already has:
 
 - a `README.md` that explains the chapter arc
-- a `notebook.ipynb` or `notebook_supplement.ipynb`
+- a `notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) or `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice)
 - a `gen_scripts/` folder that owns the visuals
 - links from the parent track README
 

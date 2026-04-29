@@ -485,7 +485,7 @@ No. MCP exposes data as Resources that an agent can address by URI — it handle
 
 ## Notebook
 
-`notebook.ipynb` implements:
+`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) implements:
 1. A minimal MCP server exposing one Resource, one Tool, and one Prompt (using the `mcp` Python SDK)
 2. An MCP client that discovers and calls them
 3. The OrderFlow scenario: three MCP servers (ERP mock, pricing mock, email mock) called by a single orchestrator agent

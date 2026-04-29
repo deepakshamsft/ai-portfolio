@@ -15,7 +15,7 @@
 
 2. **⚡ Quick overview (this document)**: Read the synthesis below to understand the complete ProductionCV progression from 97 MB ResNet-50 to 6.8 MB production model, then jump to specific chapters for architectural details
 
-3. **💻 Hands-on code walkthrough**: Open [`grand_solution.ipynb`](./grand_solution.ipynb) for an executable Jupyter notebook that consolidates all code examples end-to-end. Run it top-to-bottom to see the complete training pipeline: self-supervised pretraining → supervised fine-tuning → knowledge distillation → pruning.
+3. **💻 Hands-on code walkthrough**: Open [`grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice)](./grand_solution.ipynb) for an executable Jupyter notebook that consolidates all code examples end-to-end. Run it top-to-bottom to see the complete training pipeline: self-supervised pretraining → supervised fine-tuning → knowledge distillation → pruning.
 
 **Chapter roadmap:**
 - [Ch.1: Residual Networks](./ch01_residual_networks/README.md) — Skip connections unlock deep learning

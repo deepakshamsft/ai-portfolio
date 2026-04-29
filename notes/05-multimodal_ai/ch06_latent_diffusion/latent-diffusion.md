@@ -346,10 +346,10 @@ Trend: Larger latent channels (4→16), larger U-Net or Diffusion Transformer (D
 ## 11 · Notebook
 
 **Educational notebook** (runs on CPU, demonstrates VAE compression):  
-[`notebook.ipynb`](notebook.ipynb) — Load SD 1.5, encode an image to latent space, visualize compression, decode back to pixels
+[`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) (solution)](notebook.ipynb_solution.ipynb) | [`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) (exercise)](notebook.ipynb_exercise.ipynb) — Load SD 1.5, encode an image to latent space, visualize compression, decode back to pixels
 
 **GPU-intensive notebook** (requires CUDA GPU for full generation):  
-[`notebook_supplement.ipynb`](notebook_supplement.ipynb) — Generate VisualForge lifestyle scenes using SDXL-Turbo, measure generation time, compare CFG scales
+[`notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice) (solution)](notebook_supplement.ipynb_solution.ipynb) | [`notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice) (exercise)](notebook_supplement.ipynb_exercise.ipynb) — Generate VisualForge lifestyle scenes using SDXL-Turbo, measure generation time, compare CFG scales
 
 > ⚠️ The supplement notebook requires a CUDA GPU (8GB+ VRAM). It includes a GPU presence guard at cell 1 and will exit gracefully if no GPU is detected.
 

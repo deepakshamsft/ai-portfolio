@@ -756,7 +756,7 @@ In all three, MCP tools appear as callables that the agent framework can invoke.
 
 ## Notebook
 
-`notebook.ipynb` implements:
+`notebook.ipynb_solution.ipynb` (reference) or `notebook.ipynb_exercise.ipynb` (practice) implements:
 1. AutoGen two-agent debate: `PricingProposer` + `PricingCritic` for OrderFlow pricing approval
 2. LangGraph PO pipeline: 5-node graph (inventory → negotiate → approve → draft → end) with conditional edge on inventory failure
 3. Semantic Kernel `AgentGroupChat` with `ApprovalReachedTermination` and a mock filter hook that logs every agent invocation to stdout

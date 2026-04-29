@@ -1779,7 +1779,7 @@ When adding a new chapter to a track:
 
 ## Grand Solution Jupyter Notebook
 
-> **New pattern (2026):** In addition to `grand_solution.md`, each track now includes a `grand_solution.ipynb` Jupyter notebook that consolidates all code examples into a single executable demonstration.
+> **New pattern (2026):** In addition to `grand_solution.md`, each track now includes a `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) Jupyter notebook that consolidates all code examples into a single executable demonstration.
 
 ### Purpose & Audience
 
@@ -1793,7 +1793,7 @@ When adding a new chapter to a track:
 
 ### Structure & Content
 
-The `grand_solution.ipynb` notebook follows this pattern:
+The `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) notebook follows this pattern:
 
 **1. Title Cell (Markdown)**
 ```markdown
@@ -1973,13 +1973,13 @@ The notebook and markdown document serve **different learning styles**:
 
 **Cross-referencing:**
 - `grand_solution.md` should link to the notebook in the opening section
-- `grand_solution.ipynb` title cell should mention the markdown exists for narrative context
+- `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) title cell should mention the markdown exists for narrative context
 - Both should be discoverable from the track README.md
 
 ### Update Triggers
 
 When adding a new chapter to a track:
-1. Add new chapter section to `grand_solution.ipynb` (markdown + code cells)
+1. Add new chapter section to `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) (markdown + code cells)
 2. Update the "Complete System Integration" cell with new component
 3. Update the final validation/metrics cell with new constraint status
 4. Update the summary cell's "N Concepts Integration" list

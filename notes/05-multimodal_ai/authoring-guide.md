@@ -600,7 +600,7 @@ image = pipe(prompt, num_inference_steps=20, guidance_scale=7.5).images[0]
 
 ### GPU Supplement Notebook Conventions
 
-Chapters with GPU-intensive code must include a `notebook_supplement.ipynb` with:
+Chapters with GPU-intensive code must include a `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice) with:
 
 1. **GPU presence guard at cell 1** — always:
 ```python
@@ -679,7 +679,7 @@ Cell structure per notebook:
 ```
 
 **GPU supplement notebooks** (for GPU-intensive chapters like diffusion, ControlNet, video generation):
-- Place in `notebook_supplement.ipynb`
+- Place in `notebook_supplement.ipynb_solution.ipynb` (reference) or `notebook_supplement.ipynb_exercise.ipynb` (practice)
 - **Cell 1 must always be GPU presence guard** (see GPU Supplement Notebook Conventions above)
 - All generation cells include runtime estimates: `# ~8s on RTX 4090 / ~45s on Colab T4`
 - Memory cleanup before heavy operations: `torch.cuda.empty_cache()`
@@ -1245,7 +1245,7 @@ Before publishing any chapter, verify each item:
 
 > **New pattern (2026):** Each major track (Regression, Classification, Neural Networks, etc.) now includes a `grand_solution.md` that synthesizes all chapters into a single revision document. This is for readers who need the big picture quickly or want a concise reference after completing all chapters.
 >
-> **Updated (2026):** Tracks now also include a `grand_solution.ipynb` Jupyter notebook that consolidates all code examples into a single executable workflow, allowing hands-on experimentation with the complete pipeline.
+> **Updated (2026):** Tracks now also include a `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) Jupyter notebook that consolidates all code examples into a single executable workflow, allowing hands-on experimentation with the complete pipeline.
 
 ### Purpose & Audience
 
@@ -1265,7 +1265,7 @@ Before publishing any chapter, verify each item:
 - Decision frameworks and troubleshooting guides
 - Links to individual chapters for deep dives
 
-**2. `grand_solution.ipynb` (Executable Code)**
+**2. `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice) (Executable Code)**
 - Consolidates all code examples from the track into a single notebook
 - Can be run top-to-bottom to demonstrate the complete solution
 - Includes brief markdown explanations of each section
@@ -1390,7 +1390,7 @@ Every `grand_solution.md` follows this **7-section template**:
 **Next milestone:** [Preview of next track's goal]
 ```
 
-### Grand Solution Notebook Structure (`grand_solution.ipynb`)
+### Grand Solution Notebook Structure (`grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice))
 
 The Jupyter notebook complements the markdown document by providing executable code. Follow this structure:
 
@@ -1514,7 +1514,7 @@ result = production_pipeline(example_input)
 
 **File Naming:**
 - Markdown: `grand_solution.md`
-- Notebook: `grand_solution.ipynb`
+- Notebook: `grand_solution_reference.ipynb` (reference) or `grand_solution_exercise.ipynb` (practice)
 - Both live in track root (e.g., `notes/05-multimodal_ai/`)
 
 ---
