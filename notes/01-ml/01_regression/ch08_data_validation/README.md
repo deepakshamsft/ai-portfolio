@@ -47,7 +47,67 @@ A **data contract** declares what your input data must look like — types, valu
 > 💡 **Why this chapter follows Ch.1 and Ch.2.** Those chapters cleaned *historical* data by hand. This chapter automates that discipline forward in time: every future batch receives the same scrutiny the training data received, without Sarah’s manual intervention.
 
 ---
+## 1.5 · The Practitioner Workflow — Your 4-Phase Validation System
 
+**Before diving into theory, understand the workflow you'll follow with every production model:**
+
+> 📊 **What you'll build by the end:** An automated validation pipeline that declares schema contracts at training time, validates every production batch, computes drift scores (PSI/KS), and routes decisions (DEPLOY/WARN/BLOCK) without human intervention — saving SmartVal AI from the Portland deployment disaster.
+
+```
+Phase 1: DEFINE              Phase 2: MONITOR            Phase 3: DETECT             Phase 4: RESPOND
+────────────────────────────────────────────────────────────────────────────────────────────────────
+At training time:            Per batch validation:       Threshold evaluation:       Automated action:
+
+• Declare schema             • Validate schema           • Compute PSI score         • PSI < 0.10: DEPLOY
+  - Types (float64)            - Types, nulls, ranges      - Compute KS statistic      • 0.10 ≤ PSI < 0.25: WARN
+  - Ranges (min, max, 99th)    - Mean ± tolerance          - Evaluate p-value          • PSI ≥ 0.25: BLOCK
+  - Nulls allowed?             - Std ± tolerance         • Compare vs thresholds       - Log audit event
+• Capture distribution       • Log validation results    • Route by severity           - Trigger retraining
+  - Mean, std                • Generate audit record     • Alert on failures           - Reject batch
+  - Percentiles (25/50/75/99)
+• Save as GE suite JSON
+
+→ DECISION:                  → DECISION:                 → DECISION:                 → DECISION:
+  Which checks to enforce?     Schema pass?                Alert threshold hit?        Route decision:
+  • Schema: MANDATORY          • No: REJECT immediately    • p < 0.05: BLOCK           • DEPLOY: serve predictions
+  • Distribution: per-feature  • Yes: proceed to drift     • PSI ≥ 0.25: BLOCK         • WARN: serve + monitor
+  • Set tolerance bands        • Compare vs reference      • PSI ≥ 0.10: WARN          • BLOCK: retrain required
+    (mean ±15%, std ±20%)                                 • PSI < 0.10: DEPLOY         • REJECT: data invalid
+```
+
+**The workflow maps to this chapter:**
+- **Phase 1 (DEFINE)** → §4.1 Schema Validation, §5 Act 2 (GE suite creation), §6 PSI Setup
+- **Phase 2 (MONITOR)** → §4.2 Distribution Drift (KL/KS/PSI), §5 Act 3 (drift scoring)
+- **Phase 3 (DETECT)** → §4.3 PSI thresholds, §7.2 Alert Decision Tree, §8 Hyperparameter Dial
+- **Phase 4 (RESPOND)** → §5 Act 4 (automated routing), §7.1 Pipeline Architecture
+
+> 💡 **Usage note:** Execute phases sequentially on first model deployment (DEFINE once at training time, then MONITOR→DETECT→RESPOND runs continuously). After retraining, rebuild Phase 1 contracts to keep reference distributions current. Version the GE suite JSON alongside the model artifact.
+
+**The 4-phase diagnostic in practice:**
+
+When Sarah deployed SmartVal AI to Portland without this workflow, she missed a 37% income distribution shift that caused 174k MAE. With the workflow:
+
+1. **Phase 1 (DEFINE)** — California training data produced this contract:
+   - `MedInc` mean: 3.87 ± 15% → acceptable range [3.29, 4.45]
+   - `MedInc` 99th percentile: 10.68 (not the absolute max 15.00)
+   - Schema: `float64`, no nulls, range [0.5, 10.68]
+
+2. **Phase 2 (MONITOR)** — Portland batch validation detected:
+   - Mean: 5.30 (outside [3.29, 4.45]) → **GE expectation failed**
+   - Std: 2.60 vs expected [1.52, 2.28] → **GE expectation failed**
+
+3. **Phase 3 (DETECT)** — Drift scoring revealed severity:
+   - PSI = 0.339 (≥ 0.25 threshold) → **SEVERE DRIFT**
+   - KS statistic D = 0.385, p = 2.3e-41 (< 0.05) → **shape changed**
+
+4. **Phase 4 (RESPOND)** — Automated routing decision:
+   - Action: **BLOCK** deployment
+   - Reason: "PSI=0.339 ≥ 0.25: retrain required"
+   - Outcome: Retrained on CA + PDX combined → MAE fell 128k → **89k ✅**
+
+This chapter teaches you to build each phase. The sections below provide the theory and implementation details — return to this workflow diagram when integrating the pieces.
+
+---
 ## 2 · Running Example: What Sarah Finally Measures
 
 Sarah runs the comparison she should have run before the Portland deployment:
@@ -96,7 +156,7 @@ The five training-distribution facts that will define the validation contract:
 
 ---
 
-## 3 · The Validation Pipeline at a Glance
+## 3 · [Phase 1: DEFINE] The Validation Pipeline at a Glance
 
 Before the math, here is the full four-stage pipeline Sarah will build. Each numbered step has a deep-dive in the sections that follow — treat this as your map.
 
@@ -105,14 +165,14 @@ Before the math, here is the full four-stage pipeline Sarah will build. Each num
              schema (types, nulls, ranges) + distribution stats (mean, std, percentiles)
              Saved as a versioned JSON suite; one suite per model version.
 
-2. VALIDATE  At each production batch, run contracts against incoming data:
+2. MONITOR   At each production batch, run contracts against incoming data:
              schema pass → distribution check → drift score computation (PSI / KS)
 
-3. ALERT     When a check fails, emit a structured event:
+3. DETECT    When a check fails, emit a structured event:
              severity (WARN / BLOCK), feature name, observed vs expected value,
              batch timestamp, expectation type. Goes to alerting system + audit log.
 
-4. REMEDIATE Automated response by severity level:
+4. RESPOND   Automated response by severity level:
              schema error             → reject batch immediately
              moderate drift           → deploy with flag, schedule review
              severe drift (PSI≥0.25) → block deployment, trigger retrain pipeline
@@ -127,11 +187,52 @@ Before the math, here is the full four-stage pipeline Sarah will build. Each num
 | **Distribution drift** | Full CDF shape changed (even when mean is stable) | KS test | Every batch |
 | **Data contracts** | All of the above, versioned, signed, and auditable | GE Expectation Suite JSON | Deploy gate |
 
+> � **Industry Standard:** `great_expectations.from_pandas(df).expect_*`
+>
+> ```python
+> import great_expectations as ge
+> # Create expectation suite from training data
+> df_ge = ge.from_pandas(df_train)
+> df_ge.expect_column_values_to_be_of_type('MedInc', 'float64')
+> df_ge.expect_column_values_to_not_be_null('MedInc')
+> df_ge.expect_column_values_to_be_between(
+>     'MedInc', min_value=0.5, max_value=df_train['MedInc'].quantile(0.99))
+> df_ge.expect_column_mean_to_be_between(
+>     'MedInc', min_value=mean*0.85, max_value=mean*1.15)
+> # Save suite as versioned JSON
+> suite = df_ge.get_expectation_suite()
+> # Validate production batch
+> results = ge.from_pandas(df_prod).validate(expectation_suite=suite)
+> ```
+>
+> **When to use:** Always in production. Stores suites as JSON, integrates with Airflow/dbt, auto-generates HTML data-docs for auditors.
+> **Common alternatives:** `pandera` (Pydantic-style schema classes), `pydantic` (API validation), raw `assert` (notebook-only)
+> **See also:** [Great Expectations docs](https://docs.greatexpectations.io/)
+
 > 📖 **Great Expectations vs Pandera vs raw asserts.** GE stores suites as JSON, integrates with Airflow/dbt, and auto-generates HTML data-docs for auditors. Pandera offers Pydantic-style schema classes that feel more Pythonic. Raw `assert` statements are fine for notebooks but break silently the moment a check is removed or skipped. For production, prefer GE or Pandera — the *audit trail* is the whole point, not just the check.
+
+### 3.1 DECISION CHECKPOINT — Phase 1 Complete
+
+**What you just built:**
+- Schema contract: `MedInc` must be `float64`, non-null, within [0.5, 10.68] (99th percentile)
+- Distribution contract: mean 3.87 ±15% → [3.29, 4.45], std 1.90 ±20% → [1.52, 2.28]
+- Versioned JSON suite saved alongside model artifact (e.g., `v1.2.3-california-housing.json`)
+- Four validation layers: schema → statistical → KS test → PSI score
+
+**What it means:**
+- Every future batch now has a machine-checkable promise to satisfy
+- Contract violations become structured audit events (feature · timestamp · observed vs expected)
+- The Portland deployment's 37% income shift would have **failed** the mean check immediately
+
+**What to do next:**
+→ **Deploy the contract:** Integrate GE validation into inference pipeline (run before `model.predict()`)
+→ **Version the suite:** Store in model registry alongside model weights (same version tag)
+→ **Set tolerance bands:** Stricter for regulated features (±10%), looser for auxiliary features (±25%)
+→ **For SmartVal AI:** Use ±15% mean tolerance for all financial features (income, value, occupancy)
 
 ---
 
-## 4 · The Math — Three Drift Metrics, Three Complementary Views
+## 4 · [Phase 2: MONITOR] The Math — Three Drift Metrics, Three Complementary Views
 
 Three mathematically distinct tools each catch a different facet of drift. Use all three; they are not redundant.
 
@@ -223,6 +324,194 @@ where $E_b\%$ is the expected (training) fraction in bin $b$ and $A_b\%$ is the 
 | PSI ≥ 0.25 | **Severe drift** | Block deployment; retrain required |
 
 > ⚡ **PSI practical rule.** Set bins using the *training data percentiles* (equal-frequency binning), not equal-width bins. Equal-frequency binning ensures the reference histogram is uniform (each bin holds ~20% if using 5 bins), making PSI numerically stable and comparable across features with different scales.
+
+> 💡 **Industry Standard:** `pydantic.BaseModel` for runtime schema validation
+>
+> ```python
+> from pydantic import BaseModel, Field, confloat
+> from typing import List
+> 
+> class HousingBatch(BaseModel):
+>     """Schema contract for California Housing production batches."""
+>     MedInc: List[confloat(ge=0.5, le=15.0)]  # Median income [0.5, 15.0]
+>     HouseAge: List[confloat(ge=1.0, le=52.0)]  # House age [1, 52]
+>     AveRooms: List[confloat(ge=0.0)]           # Average rooms >= 0
+>     # ... define all 8 features
+> 
+>     def check_distribution_drift(self, reference_stats: dict) -> dict:
+>         """Compute PSI for each feature against reference."""
+>         drift_scores = {}
+>         for feature in ['MedInc', 'HouseAge', 'AveRooms']:
+>             psi = compute_psi(
+>                 reference_stats[feature], getattr(self, feature))
+>             drift_scores[feature] = psi
+>         return drift_scores
+> 
+> # Usage at inference time
+> try:
+>     batch = HousingBatch(**production_data)  # Schema check
+>     drift = batch.check_distribution_drift(ca_reference)  # Drift check
+>     if any(score >= 0.25 for score in drift.values()):
+>         raise ValueError(f"Severe drift: {drift}")
+> except ValidationError as e:
+>     log_error("Schema validation failed", e)
+>     return "REJECT"
+> ```
+>
+> **When to use:** API endpoints receiving inference requests. Pydantic validates JSON payloads at parse time.
+> **Common alternatives:** `marshmallow` (serialization), `cerberus` (dict validation), `attrs` + `cattrs` (dataclasses)
+> **See also:** [Pydantic docs](https://docs.pydantic.dev/)
+
+### 4.4 DECISION CHECKPOINT — Phase 2 Complete
+
+**What you just computed:**
+- KL divergence: D_KL(CA || PDX) = 0.275 for `MedInc` (> 0.20 threshold → investigate zone)
+- KS statistic: D = 0.385, p = 2.3e-41 (< 0.05 → distributions are significantly different)
+- PSI score: 0.339 for `MedInc` (≥ 0.25 → severe drift, retrain required)
+- All three metrics agree: Portland income distribution has shifted drastically from California
+
+**What it means:**
+- Drift is not marginal — it is **severe** across all three metrics
+- The mean shifted +37% (5.30 vs 3.87), but that’s just one symptom
+- The **entire shape** changed: low-income bins lost mass, high-income bins gained mass
+- Model trained on "3.9-unit income → $X" is now extrapolating to 5.3-unit districts it never saw
+
+**What to do next:**
+→ **Log drift scores:** Record PSI + KS + D_KL per feature, per batch, with timestamp
+→ **Set alert thresholds:** Use PSI ≥ 0.25 for BLOCK, 0.10 ≤ PSI < 0.25 for WARN, < 0.10 for DEPLOY
+→ **Track over time:** Plot PSI weekly → detects gradual drift before it crosses block threshold
+→ **For Portland:** PSI = 0.339 triggers immediate **BLOCK** + retrain pipeline (Phase 4)
+
+---
+
+## 4.5 · [Phase 3: DETECT] Threshold Configuration and Alert Routing
+
+**The routing decision:** Now that you can compute PSI, KS, and KL divergence for any batch, you need rules that convert those scores into actions. This is where statistical monitoring becomes an operational system.
+
+The industry-standard PSI thresholds (from credit risk, now universal in ML monitoring):
+
+```python
+# Phase 3: Alert threshold logic with graduated responses
+def route_by_psi(psi_score: float, feature: str, batch_id: str) -> str:
+    """Convert PSI score to routing decision with structured logging."""
+    
+    # DECISION LOGIC (threshold evaluation)
+    if psi_score < 0.10:
+        severity = "INFO"
+        action = "DEPLOY"
+        reason = f"No significant drift (PSI={psi_score:.3f})"
+    elif 0.10 <= psi_score < 0.25:
+        severity = "WARNING"
+        action = "WARN"
+        reason = f"Moderate drift (PSI={psi_score:.3f}) - monitor closely"
+    else:  # psi_score >= 0.25
+        severity = "CRITICAL"
+        action = "BLOCK"
+        reason = f"Severe drift (PSI={psi_score:.3f}) - retrain required"
+    
+    # Structured audit event (logged to monitoring system)
+    alert = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "batch_id": batch_id,
+        "feature": feature,
+        "metric": "PSI",
+        "score": psi_score,
+        "severity": severity,
+        "action": action,
+        "reason": reason
+    }
+    log_to_monitoring_system(alert)  # → Datadog / Prometheus / CloudWatch
+    
+    return action
+
+# Usage on Portland batch
+action = route_by_psi(psi_score=0.339, feature="MedInc", batch_id="pdx-2024-01-15")
+# Output: "BLOCK"
+# Alert logged: {"severity": "CRITICAL", "action": "BLOCK", 
+#                "reason": "Severe drift (PSI=0.339) - retrain required"}
+```
+
+**Graduated response strategy:**
+
+| PSI Range | Action | Alert Severity | What Happens |
+|-----------|--------|---------------|--------------|
+| **< 0.10** | DEPLOY | INFO | Serve predictions normally; log audit record |
+| **0.10 – 0.25** | WARN | WARNING | Deploy with drift flag; increase monitoring cadence; schedule 1-week review |
+| **≥ 0.25** | BLOCK | CRITICAL | Reject batch; trigger retraining pipeline; page on-call ML engineer |
+
+**Combining multiple metrics for robust detection:**
+
+```python
+def validate_batch_robust(df_prod, df_train, feature='MedInc'):
+    """Multi-metric validation: PSI + KS test + GE suite (defense in depth)."""
+    from scipy.stats import ks_2samp
+    
+    # Metric 1: PSI (population shift detector)
+    psi = compute_psi(df_train[feature].values, df_prod[feature].values)
+    
+    # Metric 2: KS test (distribution shape detector)
+    ks_stat, ks_p = ks_2samp(df_train[feature], df_prod[feature])
+    
+    # Metric 3: GE mean/std bounds (moment detector)
+    mean_ok = df_train[feature].mean() * 0.85 <= df_prod[feature].mean() <= df_train[feature].mean() * 1.15
+    
+    # DECISION LOGIC (consensus voting)
+    if psi >= 0.25 or ks_p < 0.01 or not mean_ok:
+        return "BLOCK", f"PSI={psi:.3f}, KS_p={ks_p:.2e}, mean_ok={mean_ok}"
+    elif psi >= 0.10 or ks_p < 0.05:
+        return "WARN", f"Moderate drift detected"
+    else:
+        return "DEPLOY", "All metrics passed"
+
+action, reason = validate_batch_robust(df_pdx, df_ca, feature='MedInc')
+# Output: ("BLOCK", "PSI=0.339, KS_p=2.30e-41, mean_ok=False")
+```
+
+> 💡 **Industry Standard:** `evidently` for drift monitoring dashboards
+>
+> ```python
+> from evidently.report import Report
+> from evidently.metric_preset import DataDriftPreset, DataQualityPreset
+> 
+> # Generate drift report comparing reference vs current data
+> report = Report(metrics=[
+>     DataDriftPreset(),        # PSI + KS for all features
+>     DataQualityPreset(),      # Missing values, duplicates, correlations
+> ])
+> report.run(reference_data=df_ca, current_data=df_pdx)
+> report.save_html("drift_report_portland_2024-01-15.html")
+> 
+> # Programmatic access to drift scores
+> drift_scores = report.as_dict()['metrics'][0]['result']['drift_by_columns']
+> for feature, stats in drift_scores.items():
+>     psi = stats['drift_score']
+>     if psi >= 0.25:
+>         print(f"ALERT: {feature} PSI={psi:.3f}")
+> ```
+>
+> **When to use:** Production monitoring dashboards. Evidently generates interactive HTML reports with per-feature drift scores, histograms, and KS test results. Integrates with MLflow, Prefect, Airflow.
+> **Common alternatives:** `whylabs` (enterprise SaaS), `arize` (observability platform), `fiddler` (explainability + monitoring)
+> **See also:** [Evidently AI docs](https://docs.evidentlyai.com/)
+
+### 4.5.1 DECISION CHECKPOINT — Phase 3 Complete
+
+**What you just configured:**
+- PSI threshold ladder: < 0.10 (DEPLOY) | 0.10–0.25 (WARN) | ≥ 0.25 (BLOCK)
+- Multi-metric consensus: PSI **and** KS test **and** GE suite must all pass for clean DEPLOY
+- Structured logging: every validation emits JSON audit event with timestamp, feature, score, action
+- Escalation path: INFO → logs only | WARNING → Slack alert + 1-week review | CRITICAL → PagerDuty + block deployment
+
+**What it means:**
+- No batch reaches production without passing three independent drift detectors
+- Moderate drift (0.10 ≤ PSI < 0.25) deploys with monitoring, doesn't block business
+- Severe drift (PSI ≥ 0.25) automatically triggers retraining — no human needed
+- Audit trail satisfies regulatory requirements: "show us why you accepted/rejected batch X"
+
+**What to do next:**
+→ **Calibrate thresholds:** Run validation on holdout set (same population as training) → PSI should be ~0.02
+→ **Test graduated responses:** Simulate 10% shift (mild) and 37% shift (Portland) → verify WARN vs BLOCK
+→ **Integrate with CI/CD:** Validation runs as pre-deployment gate in model serving pipeline
+→ **For Portland:** PSI = 0.339 triggers Phase 4 (automated retraining + re-validation)
 
 ---
 
@@ -335,7 +624,7 @@ $D_{KL} = 0.281$. Drift is not marginal — it is severe. The score is logged al
 
 ---
 
-### Act 4 · Automated Alerting — “The Pipeline Decides”
+### Act 4 · [Phase 4: RESPOND] Automated Alerting — "The Pipeline Decides"
 
 The final act removes Sarah from the critical path entirely. The pipeline issues a routing decision automatically:
 
@@ -376,6 +665,120 @@ action, reason = validate_and_route(df_pdx, suite, df_ca)
 ```
 
 Portland is **blocked automatically**. No human needed to catch it. The audit trail records: batch ID, timestamp, feature, score, decision.
+
+**Automated retraining trigger integration:**
+
+```python
+def retrain_on_drift(action: str, batch_metadata: dict, model_config: dict):
+    """Phase 4: Automated response to drift detection (orchestrated via MLflow)."""
+    if action == "BLOCK":
+        # Step 1: Collect production labels (2-week manual review for Portland)
+        prod_labels = collect_labels_for_batch(batch_metadata['batch_id'])
+        
+        # Step 2: Merge with training data (CA + Portland combined)
+        df_combined = pd.concat([df_train, prod_labels])
+        
+        # Step 3: Trigger retraining pipeline
+        retrain_job = mlflow.projects.run(
+            uri=".",
+            entry_point="train",
+            parameters={
+                "data_path": save_to_storage(df_combined),
+                "model_version": f"{model_config['version']}_drift_corrected",
+                "parent_run_id": model_config['run_id']
+            }
+        )
+        
+        # Step 4: Re-validate on Portland holdout
+        new_model = mlflow.sklearn.load_model(f"runs:/{retrain_job.run_id}/model")
+        portland_mae = evaluate_mae(new_model, df_pdx_holdout)
+        
+        # Step 5: Log drift-correction outcome
+        mlflow.log_metric("portland_mae_before_retrain", 128_000)
+        mlflow.log_metric("portland_mae_after_retrain", portland_mae)
+        mlflow.log_param("retrain_trigger", f"PSI={psi:.3f}_KS_p={ks_p:.2e}")
+        
+        return portland_mae  # → 89k (below 95k target ✅)
+    
+    elif action == "WARN":
+        # Schedule review, increase monitoring frequency
+        schedule_model_review(days=7)
+        increase_validation_cadence(from_daily_to_hourly=True)
+    
+    # DEPLOY: no action needed, audit logged automatically
+
+# Execute on Portland drift event
+final_mae = retrain_on_drift(
+    action="BLOCK",
+    batch_metadata={"batch_id": "pdx-2024-01-15", "n_samples": 1000},
+    model_config={"version": "v1.2.3", "run_id": "abc123"}
+)
+# Output: 89_000 (MAE fell 128k → 89k after drift-corrected retrain)
+```
+
+> 💡 **Industry Standard:** `mlflow.evaluate()` with drift thresholds for model registry gates
+>
+> ```python
+> import mlflow
+> from mlflow.models import make_metric
+> 
+> # Define custom drift metric for model validation
+> def psi_metric(eval_df, builtin_metrics):
+>     reference_data = mlflow.artifacts.load_table("reference_distribution")
+>     psi_scores = {}
+>     for col in ['MedInc', 'HouseAge', 'AveRooms']:
+>         psi = compute_psi(reference_data[col], eval_df[col])
+>         psi_scores[f"drift_psi_{col}"] = psi
+>     return psi_scores
+> 
+> # Register model with drift validation gate
+> with mlflow.start_run() as run:
+>     mlflow.sklearn.log_model(model, "model")
+>     
+>     # Evaluate on production data with drift checks
+>     results = mlflow.evaluate(
+>         model=f"runs:/{run.info.run_id}/model",
+>         data=df_prod,
+>         targets="MedHouseVal",
+>         model_type="regressor",
+>         evaluators=["default"],
+>         extra_metrics=[make_metric(eval_fn=psi_metric)]
+>     )
+>     
+>     # Conditional model promotion based on drift + accuracy
+>     if results.metrics["mae"] < 95_000 and all(
+>         results.metrics[k] < 0.25 for k in results.metrics if k.startswith("drift_psi_")
+>     ):
+>         mlflow.register_model(f"runs:/{run.info.run_id}/model", "SmartValAI")
+>     else:
+>         print(f"BLOCKED: MAE={results.metrics['mae']}, drift={results.metrics}")
+> ```
+>
+> **When to use:** CI/CD pipelines deploying models to production. MLflow model registry gates prevent drift-affected models from reaching staging/prod environments.
+> **Common alternatives:** `kubeflow` (Kubernetes-native ML), `sagemaker pipelines` (AWS-native), `vertex ai` (GCP-native)
+> **See also:** [MLflow Model Registry docs](https://mlflow.org/docs/latest/model-registry.html)
+
+### 5.4.1 DECISION CHECKPOINT — Phase 4 Complete
+
+**What you just automated:**
+- **REJECT** path: Schema/null violations → batch rejected in <1s, logged, on-call paged
+- **BLOCK** path: PSI ≥ 0.25 → deployment blocked, retraining triggered, CA + Portland merged → new model trained → Portland MAE: 128k → **89k ✅**
+- **WARN** path: 0.10 ≤ PSI < 0.25 → deployed with flag, monitoring cadence increased (daily → hourly), 1-week review scheduled
+- **DEPLOY** path: PSI < 0.10 → predictions served, audit logged, no alerts
+
+**What it means:**
+- The Portland disaster (174k → 128k → stuck) is now **impossible**
+  - PSI = 0.339 would have blocked deployment on day 1
+  - Automated retrain on CA + PDX combined closes the gap: **89k < 95k target ✅**
+- No human in the loop for routine drift → engineering team focuses on edge cases only
+- Audit trail satisfies SOX/GDPR: every batch has timestamp, features checked, scores, routing decision
+- Drift-corrected retraining happens automatically — drift detection and model updates are coupled
+
+**What to do next:**
+→ **Monitor retrain outcomes:** Track "drift-triggered retrains" vs "scheduled retrains" → optimize retrain cadence
+→ **Version control:** Store GE suite JSON + model weights + PSI thresholds in same registry (MLflow / W&B)
+→ **Expand to streaming:** Batch validation here; streaming validation (Kafka + Flink) in AI Infrastructure track
+→ **For SmartVal AI:** System now production-ready with automated quality gates — Constraint #5 (PRODUCTION-READY) ✅
 
 ---
 

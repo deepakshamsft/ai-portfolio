@@ -58,6 +58,62 @@ Four principles govern production ensemble deployment:
 
 ---
 
+## 1.5 · The Practitioner Workflow — Your 4-Phase Deployment
+
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§4 sequentially to understand the concepts, then use this workflow as your reference
+> - **Workflow-first (practitioners with existing knowledge):** Use this diagram as a jump-to guide when deploying production ensembles
+
+**What you'll build by the end:** A production ensemble serving API with parallel inference (<50ms SLA), real-time SHAP explanations, PSI-based drift monitoring, and blue-green deployment with shadow mode validation.
+
+```
+Phase 1: DEPLOY             Phase 2: MONITOR            Phase 3: VALIDATE           Phase 4: CUTOVER
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Parallel serving setup:     Track performance:          Shadow mode testing:        Production release:
+
+• Base models async         • P50/P99 latency           • Run new + old in parallel • Blue-green switch
+• Meta-learner sequential   • Per-model timing          • Compare MAE on live       • Rollback strategy
+• SHAP per request          • Feature PSI daily         • A/B test (n≥3,300)        • Version tracking
+• Response <50ms SLA        • Accuracy degradation      • Validate explanations     • Incident response
+
+→ DECISION:                 → DECISION:                 → DECISION:                 → DECISION:
+  Architecture passes         PSI threshold breached      Shadow beats incumbent      Cutover or rollback
+  latency benchmark?          (>0.20)?                    by ≥3% MAE?                 based on shadow MAE
+  
+  YES: Proceed to monitor     YES: Trigger retrain        YES: Enter cutover          SUCCESS: Promote new
+  NO: Optimize parallel       NO: Continue monitoring     NO: Keep incumbent          FAIL: Rollback + debug
+```
+
+**The workflow maps to these sections:**
+- **Phase 1 (DEPLOY)** → §3 Parallel Serving Architecture, §4.1 Latency Budget
+- **Phase 2 (MONITOR)** → §4.3 PSI Drift Detection, §6 Production Timeline  
+- **Phase 3 (VALIDATE)** → §4.2 A/B Testing, §5 Act 3 Shadow Mode
+- **Phase 4 (CUTOVER)** → §5 Act 4 Blue-Green Deployment, §4.5 Model Versioning
+
+> 💡 **Usage note:** Phases 1–2 run continuously for the incumbent model. Phase 3 activates when Phase 2 detects drift (PSI > 0.20). Phase 4 executes only after Phase 3 shadow mode validates the new model. This is not a linear pipeline — it's a continuous monitoring loop with conditional retraining.
+
+**How long each phase takes in the wild:**
+
+| Phase | Wall-Clock Time | Frequency | Blocking? |
+|-------|----------------|-----------|-----------|
+| Phase 1 — DEPLOY | 2–5 days (engineering + load test) | Once per major version | Yes — blocks production launch |
+| Phase 2 — MONITOR | Continuous (PSI computed daily) | 24/7 for life of model | No — runs in background |
+| Phase 3 — VALIDATE | 1 week shadow + 2 week A/B | Triggered by PSI > 0.20 | No — incumbent keeps serving |
+| Phase 4 — CUTOVER | 15 minutes (blue-green switch) | After Phase 3 success | Yes — 15-min maintenance window |
+
+**Example timeline for a drift-triggered retrain:**
+
+```
+Day 0:   Phase 2 detects PSI = 0.22 on MedInc feature
+Day 1:   Alert fires → ML engineer kicks off retrain (45 min)
+Day 1:   New model ready → enters Phase 3 shadow mode
+Day 8:   Shadow results: New MAE $20.1k vs Incumbent $24.8k → passes 3% threshold
+Day 9:   Phase 4 cutover scheduled (off-peak hours)
+Day 9:   Blue-green switch → new model promoted → Phase 2 monitoring resumes
+```
+
+---
+
 ## 2 · Running Example — Zillow-Style Real-Time Pricing
 
 **Scenario**: You're the ML Platform Lead at a major real-estate platform. The product: a **real-time home valuation API** serving agents, lenders, and buyers.
@@ -96,7 +152,7 @@ Four principles govern production ensemble deployment:
 
 ---
 
-## 3 · Production Pipeline at a Glance
+## 3 · **[Phase 1: DEPLOY]** Ensemble Serving Architecture
 
 The full request lifecycle from HTTP call to response with explanation:
 
@@ -155,6 +211,102 @@ HTTP Response: { price: 340500, top_features: [...], latency_ms: 33 }
 
 **Total wall-clock**: 5ms (features) + 20ms (parallel inference) + 5ms (meta) + 3ms (SHAP) = **33ms** + ~2ms overhead = **35ms < 50ms SLA** ✅
 
+**Code snippet — Phase 1: Parallel inference with asyncio:**
+
+```python
+import asyncio
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+
+# Phase 1: DEPLOY — Parallel base model inference
+async def predict_ensemble_async(feature_vector):
+    """
+    Parallel inference for 3-model stack.
+    Returns: (price_estimate, latency_ms, shap_top3)
+    """
+    import time
+    start = time.perf_counter()
+    
+    # Step 1: Feature store lookup (5ms)
+    X = await fetch_features(feature_vector)  # async I/O call
+    
+    # Step 2: Launch all 3 base models in parallel (wall-clock = max latency)
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        loop = asyncio.get_event_loop()
+        lr_pred  = loop.run_in_executor(executor, lr_model.predict, X)
+        rf_pred  = loop.run_in_executor(executor, rf_model.predict, X)
+        xgb_pred = loop.run_in_executor(executor, xgb_model.predict, X)
+        
+        # Wait for all 3 to finish (blocking = max of the three)
+        base_preds = await asyncio.gather(lr_pred, rf_pred, xgb_pred)
+    
+    # Step 3: Meta-learner (sequential — needs all base predictions)
+    meta_input = np.array(base_preds).reshape(1, -1)
+    final_price = meta_model.predict(meta_input)[0]
+    
+    # Step 4: SHAP explanation (XGBoost only, 3ms)
+    shap_values = xgb_explainer.shap_values(X)
+    top3_features = get_top3_features(shap_values, X)
+    
+    # Step 5: Async logging (non-blocking — returns immediately)
+    asyncio.create_task(log_prediction(X, final_price, base_preds))
+    
+    latency_ms = (time.perf_counter() - start) * 1000
+    return {
+        "price_estimate": int(final_price * 100000),  # Convert to dollars
+        "shap_top3": top3_features,
+        "latency_ms": round(latency_ms, 1)
+    }
+
+# Example call:
+# response = await predict_ensemble_async({"MedInc": 3.5, "Latitude": 37.8, ...})
+# → {"price_estimate": 340500, "shap_top3": [...], "latency_ms": 33.2}
+```
+
+> 💡 **Industry Standard:** `Ray Serve` for production ML serving
+> 
+> ```python
+> from ray import serve
+> 
+> @serve.deployment(num_replicas=4, max_concurrent_queries=100)
+> class EnsembleModel:
+>     def __init__(self):
+>         self.lr = load_model("lr_model.pkl")
+>         self.rf = load_model("rf_model.pkl")
+>         self.xgb = load_model("xgb_model.pkl")
+>         self.meta = load_model("meta_ridge.pkl")
+>     
+>     async def __call__(self, request):
+>         # Ray automatically handles parallelism across replicas
+>         return await predict_ensemble_async(request)
+> 
+> serve.run(EnsembleModel.bind())
+> ```
+> 
+> **When to use:** Production deployments at scale (>100 req/s). Ray Serve handles load balancing, auto-scaling, and GPU orchestration.
+> **Common alternatives:** TensorFlow Serving (GPU-optimized), Triton Inference Server (NVIDIA, multi-framework), BentoML (model packaging)
+> **See also:** [Ray Serve docs](https://docs.ray.io/en/latest/serve/index.html)
+
+---
+
+### 3.1 DECISION CHECKPOINT — Phase 1 Complete
+
+**What you just saw:**
+- Parallel inference reduced total latency from 56ms → 35ms (37.5% improvement)
+- P50 latency = 33ms, P99 = 38ms — both under 50ms SLA with 15ms headroom
+- SHAP explanations add only 3ms per request (TreeSHAP on XGBoost alone)
+- Async logging does not block the response path
+
+**What it means:**
+- The ensemble architecture meets the real-time serving constraint (<50ms)
+- The 15ms SLA headroom buffers against network jitter and cold starts
+- The model is ready for production traffic load testing (1,000 req/s target)
+
+**What to do next:**
+→ **Load test:** Run Apache Bench or Locust at 1,000 req/s for 10 minutes → validate P99 stays <45ms
+→ **Canary deploy:** Route 5% of traffic to the new stack for 24 hours → confirm no error spikes
+→ **For our scenario:** Latency passes → proceed to Phase 2 (continuous monitoring setup)
+
 ---
 
 ## 4 · The Math — All Arithmetic Shown
@@ -187,7 +339,7 @@ $$L_{\text{parallel,total}} = 25 + 5 + 5 = 35\text{ms} < 50\text{ms SLA} \quad �
 
 ---
 
-### 4.2 A/B Test: Is the Ensemble Significantly Better Than XGBoost Alone?
+### 4.2 **[Phase 3: VALIDATE]** A/B Test — Is the Ensemble Significantly Better?
 
 We've deployed the ensemble (treatment B) to 50% of traffic, XGBoost alone (control A) to the other 50%. After collecting n = 1,000 predictions each:
 
@@ -222,9 +374,117 @@ $$n \approx \frac{2 \times (1.96 + 0.84)^2 \times 1{,}150^2}{2{,}000^2} = \frac{
 
 > 💡 **Business context**: With 1,000 requests/second, 6,600 requests takes under 7 seconds of traffic. But "requests" here means unique properties priced, and you want 1–2 week exposure to capture weekly seasonality in the housing market. Set minimum run time: **2 weeks**, minimum n: **3,300 per arm**.
 
+**Code snippet — Phase 3: A/B test traffic splitting with feature flags:**
+
+```python
+import random
+from dataclasses import dataclass
+
+# Phase 3: VALIDATE — A/B test with LaunchDarkly feature flags
+@dataclass
+class ABTestConfig:
+    test_id: str = "ensemble_vs_xgboost_v2"
+    treatment_pct: float = 0.50  # 50% get ensemble
+    min_samples: int = 3300       # per arm
+    runtime_days: int = 14
+
+ab_test = ABTestConfig()
+ab_results = {"control": [], "treatment": []}
+
+def route_request(user_id, feature_vector):
+    """
+    Route incoming request to control (XGBoost) or treatment (Ensemble).
+    Uses consistent hashing on user_id for stable assignment.
+    """
+    # Deterministic assignment (same user always gets same variant)
+    hash_val = hash(f"{ab_test.test_id}:{user_id}") % 100
+    
+    if hash_val < ab_test.treatment_pct * 100:
+        # Treatment: Full ensemble
+        variant = "treatment"
+        prediction = predict_ensemble(feature_vector)
+    else:
+        # Control: XGBoost only
+        variant = "control"
+        prediction = predict_xgboost_only(feature_vector)
+    
+    # Log result for analysis
+    ab_results[variant].append({
+        "user_id": user_id,
+        "predicted": prediction,
+        "actual": None,  # filled in later when ground truth available
+        "timestamp": time.time()
+    })
+    
+    return prediction, variant
+
+# Analysis after 2 weeks:
+# from scipy.stats import ttest_ind
+# 
+# control_errors = [abs(r["predicted"] - r["actual"]) for r in ab_results["control"] if r["actual"]]
+# treatment_errors = [abs(r["predicted"] - r["actual"]) for r in ab_results["treatment"] if r["actual"]]
+# 
+# t_stat, p_val = ttest_ind(control_errors, treatment_errors)
+# 
+# print(f"Control MAE:   ${np.mean(control_errors):.0f}")
+# print(f"Treatment MAE: ${np.mean(treatment_errors):.0f}")
+# print(f"t-statistic:   {t_stat:.2f}")
+# print(f"p-value:       {p_val:.4f}")
+# 
+# if p_val < 0.05 and np.mean(treatment_errors) < np.mean(control_errors):
+#     print("✅ Treatment significantly better → proceed to cutover")
+# else:
+#     print("❌ Not significant → keep control")
+```
+
+> 💡 **Industry Standard:** `LaunchDarkly` or `Unleash` for feature flags and A/B testing
+> 
+> ```python
+> from ldclient import LDClient, Config
+> 
+> ld_client = LDClient(config=Config(sdk_key="your-sdk-key"))
+> 
+> def route_with_launchdarkly(user_id, feature_vector):
+>     user = {"key": user_id}
+>     
+>     # LaunchDarkly handles traffic splitting, rollout %, and targeting rules
+>     variant = ld_client.variation("ensemble-rollout", user, default="control")
+>     
+>     if variant == "treatment":
+>         return predict_ensemble(feature_vector)
+>     else:
+>         return predict_xgboost_only(feature_vector)
+> ```
+> 
+> **When to use:** Production A/B testing at scale. LaunchDarkly provides instant rollback, gradual rollout (5% → 25% → 50% → 100%), and user targeting.
+> **Common alternatives:** Optimizely (full experimentation platform), Statsig (ML-focused A/B testing), Split.io (developer-first feature flags)
+> **See also:** [LaunchDarkly A/B testing guide](https://launchdarkly.com/ab-testing/)
+
 ---
 
-### 4.3 PSI — Detecting Feature Drift
+### 4.2.1 DECISION CHECKPOINT — Phase 3 Complete
+
+**What you just saw:**
+- A/B test ran for 14 days with n = 3,300 per arm (statistical power achieved)
+- Control (XGBoost): MAE = $22,000 ± $1,200
+- Treatment (Ensemble): MAE = $20,000 ± $1,100
+- t-statistic = 6.18, p-value = 0.0001 → statistically significant at α = 0.05
+- Treatment beats control by $2,000 MAE (9.1% improvement)
+
+**What it means:**
+- The ensemble's 41% offline improvement (Ch.5) translates to 9% improvement in production
+- The gap shrunk because production has distribution shift not seen in validation
+- But 9% is still meaningful — $2,000 per prediction × 1M predictions/year = $2B aggregate error reduction
+- Statistical significance confirmed → not random chance
+
+**What to do next:**
+→ **Shadow mode validation:** Deploy new model alongside incumbent for 1 week → compare MAE, latency, error distribution
+→ **Edge case audit:** Review predictions where ensemble differed from XGBoost by >$50k → ensure no systematic bias
+→ **For our scenario:** A/B test passes → proceed to Phase 4 (blue-green cutover)
+
+---
+
+### 4.4 SHAP in Production — Per-Request Explanations
 
 **Population Stability Index** measures whether a feature's distribution has shifted between training time (reference, distribution $E$) and production (live, distribution $A$).
 
@@ -248,6 +508,112 @@ $$\text{PSI} = 0.095 + 0.011 + 0.009 + 0.054 = 0.169$$
 **Result**: PSI = 0.169 → in the **monitor zone** (0.1–0.2). After month 4 PSI exceeds 0.2 → retraining triggered.
 
 > ⚠️ **PSI pitfall**: The log term requires $A_b > 0$ and $E_b > 0$ in every bin. A new neighborhood type that didn't exist in training data will have $E_b = 0$ → PSI undefined. Fix: add a small floor (e.g., $\min(E_b, 0.001)$) or use an additional "new category" flag.
+
+**Code snippet — Phase 2: PSI monitoring with Prometheus metrics:**
+
+```python
+import numpy as np
+from prometheus_client import Gauge, Counter
+
+# Phase 2: MONITOR — PSI computation and alerting
+psi_gauge = Gauge('ensemble_psi', 'Population Stability Index', ['feature'])
+drift_alert_counter = Counter('ensemble_drift_alerts', 'Drift threshold breaches')
+
+def compute_psi(reference_dist, live_dist, feature_name, bins=10):
+    """
+    Compute PSI between reference (training) and live (production) distributions.
+    
+    Args:
+        reference_dist: np.array of feature values from training data
+        live_dist: np.array of feature values from last 24h production
+        feature_name: str, for logging/alerting
+        bins: int, number of bins for discretization
+    
+    Returns:
+        psi_score: float, PSI value (0=stable, >0.2=retrain)
+    """
+    # Step 1: Define bin edges from reference distribution quantiles
+    bin_edges = np.percentile(reference_dist, np.linspace(0, 100, bins+1))
+    
+    # Step 2: Compute frequency in each bin for both distributions
+    ref_counts, _ = np.histogram(reference_dist, bins=bin_edges)
+    live_counts, _ = np.histogram(live_dist, bins=bin_edges)
+    
+    # Step 3: Convert to percentages (add small epsilon to avoid log(0))
+    epsilon = 1e-5
+    ref_pct = (ref_counts + epsilon) / (ref_counts.sum() + epsilon * bins)
+    live_pct = (live_counts + epsilon) / (live_counts.sum() + epsilon * bins)
+    
+    # Step 4: PSI formula
+    psi = np.sum((live_pct - ref_pct) * np.log(live_pct / ref_pct))
+    
+    # Step 5: Log metric to Prometheus
+    psi_gauge.labels(feature=feature_name).set(psi)
+    
+    # Step 6: Alert if threshold breached
+    if psi > 0.20:
+        drift_alert_counter.inc()
+        send_alert(f"⚠️ PSI = {psi:.3f} on {feature_name} → Retrain triggered")
+    
+    return psi
+
+# Example daily job (runs via cron at 2 AM):
+# reference_data = load_training_features()  # cached from training time
+# live_data = query_production_log(last_24h=True)
+# 
+# for feature in ['MedInc', 'Latitude', 'Longitude', 'HouseAge']:
+#     psi = compute_psi(reference_data[feature], live_data[feature], feature)
+#     print(f"{feature}: PSI = {psi:.3f}")
+#
+# Output (month 4):
+# MedInc: PSI = 0.085  ← stable
+# Latitude: PSI = 0.012  ← stable
+# Longitude: PSI = 0.019  ← stable
+# HouseAge: PSI = 0.231  ← ⚠️ ALERT FIRED → retrain
+```
+
+> 💡 **Industry Standard:** `Prometheus + Grafana` for ML monitoring
+> 
+> ```python
+> # Grafana dashboard query (PromQL):
+> # Panel 1: PSI timeseries for all features
+> ensemble_psi{feature=~"MedInc|Latitude|Longitude|HouseAge"}
+> 
+> # Panel 2: Alert rule (fires PagerDuty when PSI > 0.20)
+> ALERT EnsembleDrift
+>   IF ensemble_psi > 0.20
+>   FOR 1h
+>   LABELS { severity="critical", team="ml-platform" }
+>   ANNOTATIONS {
+>     summary="Feature drift detected on {{ $labels.feature }}",
+>     description="PSI = {{ $value }} exceeded 0.20 threshold. Retraining required."
+>   }
+> ```
+> 
+> **When to use:** Always in production. Prometheus is the industry standard for time-series metrics; Grafana provides visualization and alerting.
+> **Common alternatives:** Datadog (SaaS, easier setup), New Relic (full APM), InfluxDB + Telegraf (open-source stack)
+> **See also:** [Prometheus docs](https://prometheus.io/docs/), [Evidently AI](https://evidentlyai.com/) for ML-specific drift detection
+
+---
+
+### 4.3.1 DECISION CHECKPOINT — Phase 2 Complete
+
+**What you just saw:**
+- PSI computed daily on 4 key features (MedInc, Latitude, Longitude, HouseAge)
+- Month 1–3: PSI < 0.10 on all features → stable, no action
+- Month 4: HouseAge PSI = 0.231 → exceeds 0.20 threshold → alert fired
+- Production MAE degraded from $21k → $24.8k over same period
+
+**What it means:**
+- Housing market dynamics shifted (new construction wave in certain districts)
+- The model's understanding of HouseAge → Price relationship is outdated
+- Accuracy degradation (17% MAE increase) correlates with PSI breach
+- Retraining on recent data will recalibrate the model to current market
+
+**What to do next:**
+→ **Trigger retrain:** Pull last 12 months of production logs → retrain all 3 base models + meta-learner
+→ **Validate new model:** Temporal hold-out (last 4 weeks) must show MAE < incumbent by ≥3%
+→ **For our scenario:** PSI = 0.231 on HouseAge → proceed to Phase 3 (shadow mode validation)
 
 ---
 
@@ -319,7 +685,7 @@ model_v1.2.0/
 
 ---
 
-## 5 · Production Arc — Four Acts
+## 5 · **[Phase 4: CUTOVER]** Production Release — Blue-Green Deployment
 
 ### Act 1: Offline Victory (Ch.5 Outcome)
 
@@ -414,6 +780,140 @@ After 6-month deployment cycle, all constraints validated in production:
 | #5 MONITORING | ✅ | PSI monitor → retraining triggered month 4 → MAE restored |
 
 **EnsembleAI: COMPLETE** 🎉
+
+**Code snippet — Phase 4: Blue-green deployment with Kubernetes:**
+
+```yaml
+# Phase 4: CUTOVER — Blue-green deployment manifest
+apiVersion: v1
+kind: Service
+metadata:
+  name: ensemble-api
+spec:
+  selector:
+    app: ensemble
+    version: blue  # ← Traffic routes here initially
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+
+---
+# Blue environment (current/incumbent)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ensemble-blue
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: ensemble
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: ensemble
+        version: blue
+    spec:
+      containers:
+      - name: ensemble
+        image: ensemble-api:v1.1.0  # ← Old model
+        env:
+        - name: MODEL_VERSION
+          value: "v1.1.0"
+
+---
+# Green environment (new/candidate)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ensemble-green
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: ensemble
+      version: green
+  template:
+    metadata:
+      labels:
+        app: ensemble
+        version: green
+    spec:
+      containers:
+      - name: ensemble
+        image: ensemble-api:v1.2.0  # ← New model (retrained on month 4 data)
+        env:
+        - name: MODEL_VERSION
+          value: "v1.2.0"
+
+# Cutover process:
+# 1. Deploy green (new model) → runs in parallel with blue
+# 2. Shadow mode: Green receives traffic copy but doesn't serve responses (1 week)
+# 3. Validate: Green MAE $20.1k < Blue MAE $23.8k
+# 4. Switch traffic: kubectl patch svc ensemble-api -p '{"spec":{"selector":{"version":"green"}}}'
+# 5. Monitor: Watch for 1 hour → no error spike → success
+# 6. Rollback if needed: kubectl patch svc ensemble-api -p '{"spec":{"selector":{"version":"blue"}}}'
+```
+
+> 💡 **Industry Standard:** `Kubernetes` for blue-green deployments
+> 
+> **Automated cutover with health checks:**
+> ```bash
+> # Deploy green environment
+> kubectl apply -f ensemble-green.yaml
+> 
+> # Wait for green to be ready
+> kubectl wait --for=condition=available --timeout=300s deployment/ensemble-green
+> 
+> # Run smoke tests against green
+> ./smoke_test.sh http://ensemble-green-service/predict
+> 
+> # Switch traffic (atomic operation)
+> kubectl patch service ensemble-api -p '{"spec":{"selector":{"version":"green"}}}'
+> 
+> # Monitor for 1 hour
+> ./monitor_errors.sh --duration=3600 --threshold=0.01
+> 
+> # If error rate > 1%, auto-rollback:
+> if [ $? -ne 0 ]; then
+>   kubectl patch service ensemble-api -p '{"spec":{"selector":{"version":"blue"}}}'
+>   echo "❌ Rollback executed — green had elevated errors"
+> else
+>   echo "✅ Cutover successful — green is now live"
+>   kubectl delete deployment ensemble-blue  # Clean up old version
+> fi
+> ```
+> 
+> **When to use:** Always for production ML deployments. Blue-green eliminates downtime and provides instant rollback.
+> **Common alternatives:** Canary deployment (gradual 5%→25%→50%→100%), Rolling update (pod-by-pod replacement), Istio traffic mirroring
+> **See also:** [Kubernetes deployment strategies](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [ArgoCD for GitOps](https://argo-cd.readthedocs.io/)
+
+---
+
+### 5.1 DECISION CHECKPOINT — Phase 4 Complete
+
+**What you just saw:**
+- Green environment deployed with v1.2.0 (retrained model) alongside blue v1.1.0
+- Shadow mode ran for 7 days → green MAE = $20.1k, blue MAE = $23.8k
+- Cutover executed: traffic switched from blue → green in <15 minutes
+- Post-cutover monitoring (1 hour) showed no error spike
+- Production MAE restored from $24.8k → $20.2k
+
+**What it means:**
+- Retraining successfully recalibrated the model to post-drift market conditions
+- Blue-green deployment allowed zero-downtime cutover with instant rollback capability
+- The full drift → retrain → validate → cutover cycle took 3 weeks (acceptable for quarterly drift)
+- EnsembleAI constraint #5 (MONITORING) fully validated in production
+
+**What to do next:**
+→ **Resume Phase 2:** Return to continuous PSI monitoring (daily checks)
+→ **Decommission blue:** After 48 hours with no issues, delete blue deployment to free resources
+→ **Document incident:** Write postmortem on drift episode → update runbooks for next retrain
+→ **For our scenario:** Cutover successful → all 5 EnsembleAI constraints satisfied ✅
+
+---
 
 ### Production vs Neural Networks — When Ensembles Win
 

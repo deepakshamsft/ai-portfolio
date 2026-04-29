@@ -91,6 +91,77 @@ One common point of confusion: **what is an agent, and what is an MCP server?**
 
 ---
 
+## § 1.5 · The Practitioner Workflow — Your 4-Phase MCP Integration
+
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§3 sequentially to understand MCP concepts, then use this workflow as your integration reference
+> - **Workflow-first (practitioners building production systems):** Use this diagram as a jump-to guide when integrating MCP into existing agent infrastructure
+>
+> **Note:** Section numbers don't follow phase order because the chapter teaches concepts pedagogically (protocol specification before implementation). The workflow below shows how to APPLY those concepts when building your MCP integration.
+
+**Before diving into protocol details, understand the workflow you'll follow when integrating any agent with any MCP server:**
+
+> 📊 **What you'll build by the end:** A production-grade MCP client that discovers tools at runtime, validates parameters against server-provided schemas, handles transport failures gracefully, and logs all tool calls for auditability.
+
+```
+Phase 1: INITIALIZE        Phase 2: DISCOVER          Phase 3: CALL             Phase 4: HANDLE
+──────────────────────────────────────────────────────────────────────────────────────────────────
+Connect to server:         List available tools:      Execute tool:             Handle failures:
+
+• Send initialize          • Send tools/list          • Send tools/call         • Detect error codes
+• Negotiate protocol       • Receive JSON Schemas     • Validate params         • Implement retry logic
+• Confirm capabilities     • Cache tool registry      • Parse result/error      • Log all interactions
+
+→ DECISION:                → DECISION:                → DECISION:               → DECISION:
+  Which transport?           Which tool to expose?      Validate before call?     Retry strategy?
+  • Local tool: stdio        • Agent needs: Tool        • Always validate         • -32603 (internal):
+  • Remote service:          • Read-only: Resource        against schema            exponential backoff
+    HTTP + SSE               • Template: Prompt         • Fail fast on bad        • -32601 (not found):
+  • Concurrent clients:      • List all on startup        input                     no retry, alert user
+    HTTP (stdio is 1:1)                                                           • Transport timeout:
+                                                                                    reconnect + replay
+```
+
+**The workflow maps to these sections:**
+- **Phase 1 (INITIALIZE)** → §3 Protocol Specification (Handshake), §6 Transport Options
+- **Phase 2 (DISCOVER)** → §3 The Three Primitives (Resources, Tools, Prompts)
+- **Phase 3 (CALL)** → §4 How It Works — Step by Step
+- **Phase 4 (HANDLE)** → §6 Production Considerations (Error handling, Retry logic)
+
+> 💡 **Usage note:** Phases 1-2 happen once per agent startup or server connection. Phase 3 executes on every tool call. Phase 4 is continuous monitoring — every phase can fail and must be handled.
+
+**Real-world integration timeline:**
+- **Day 1-2:** Implement Phase 1 (handshake) + Phase 2 (discovery) → agent can connect to server and list available tools
+- **Day 3-4:** Implement Phase 3 (tool invocation) → agent can call one tool successfully
+- **Day 5-7:** Implement Phase 4 (error handling, logging, retry logic) → production-ready integration
+- **Week 2+:** Add new servers (just implement server-side logic; client code unchanged)
+
+### Phase Dependencies and Execution Flow
+
+```mermaid
+stateDiagram-v2
+    [*] --> Phase1_Initialize
+    Phase1_Initialize --> Phase2_Discover: Handshake successful
+    Phase1_Initialize --> Phase4_Handle: Connection failed
+    Phase2_Discover --> Phase3_Call: Tools discovered
+    Phase2_Discover --> Phase4_Handle: Discovery failed
+    Phase3_Call --> Phase3_Call: Next tool call
+    Phase3_Call --> Phase4_Handle: Call failed
+    Phase4_Handle --> Phase1_Initialize: Reconnect
+    Phase4_Handle --> Phase3_Call: Retry succeeded
+    Phase4_Handle --> [*]: Unrecoverable error
+```
+
+**Critical invariants:**
+1. **Never skip Phase 1:** Always handshake before calling tools (protocol version mismatch causes silent failures)
+2. **Cache Phase 2 results:** Don't re-discover tools on every call (adds 10-50ms latency per call)
+3. **Validate in Phase 3:** Always validate tool arguments against schema before sending (server-side validation is last resort)
+4. **Log everything in Phase 4:** Every MCP interaction must be logged for compliance audits
+
+**Common pitfall:** Hardcoding tool schemas in agent code. **This defeats MCP's purpose.** The entire point is runtime discovery — your agent should work with any compliant server without code changes. If you find yourself writing `if tool_name == "get_supplier_quote":`, you're doing it wrong.
+
+---
+
 ## § 2 · Running Example: PO #2024-1847 Pricing Lookup
 
 Your Pricing agent needs to quote 10 standing desks from TechFurnish and OfficeDepot. Before MCP: you wrote `techfurnish_client.py` with hardcoded HTTP endpoints and response parsing. When TechFurnish changed their API schema, your agent crashed. When you added OfficeDepot, you wrote `officedepot_client.py` — same pattern, different bugs.
@@ -101,9 +172,15 @@ With MCP: you write `pricing-mcp-server` once, exposing `get_supplier_quote(supp
 
 ---
 
-## § 3 · The Protocol Specification
+## § 3 · The Protocol Specification **[Phase 1: INITIALIZE]**
 
 MCP is built on **JSON-RPC 2.0** — a lightweight remote procedure call protocol using JSON serialization. Every MCP interaction is a request-response pair over stdio (subprocess pipes) or HTTP+SSE (Server-Sent Events) transports.
+
+> 🏭 **Industry Standard — JSON-RPC 2.0 Foundation**
+>
+> MCP builds on JSON-RPC 2.0 (published 2010), the same protocol powering Ethereum clients (Geth, Nethermind), Language Server Protocol (VSCode, IntelliJ), and Jupyter kernels. **Why this matters for production:** Every major programming language has battle-tested JSON-RPC libraries (Python: `jsonrpcserver`, Node: `jayson`, Go: `gorilla/rpc`). You're not adopting a bleeding-edge protocol — you're leveraging 15 years of tooling maturity. Debugging tools like [JSON-RPC Tester](https://www.jsonrpc.org/specification) work out-of-the-box with MCP traffic.
+>
+> **Key decision point:** JSON-RPC 2.0 is **stateless** — every request includes full context. This means MCP servers can scale horizontally behind a load balancer without session affinity. The protocol-level cost is slightly larger payloads (~50 bytes overhead per request) compared to binary protocols like gRPC, but the operational simplicity (no connection pooling, no sticky sessions) makes this the right tradeoff for agent-tool communication.
 
 ### The N×M Integration Problem
 
@@ -124,7 +201,9 @@ Agent B → Pricing adapter                                          ──▶ E
 
 MCP is an open standard published by Anthropic (November 2024). It is built on **JSON-RPC 2.0** — a lightweight remote procedure call protocol that uses JSON as its serialisation format and requires no HTTP (though HTTP is supported).
 
-### Handshake
+### Handshake — Protocol Version Negotiation
+
+**Phase 1 in action:** Every MCP integration begins with the `initialize` handshake. This is where client and server agree on protocol version and declare their capabilities.
 
 ```json
 // Client → Server: initialise the connection and negotiate capabilities
@@ -134,7 +213,14 @@ MCP is an open standard published by Anthropic (November 2024). It is built on *
   "method": "initialize",
   "params": {
     "protocolVersion": "2024-11-05",
-    "capabilities": { "tools": {} }
+    "capabilities": {
+      "tools": {},           // Client can invoke tools
+      "sampling": {}         // Client supports LLM sampling (optional)
+    },
+    "clientInfo": {
+      "name": "OrderFlow-PricingAgent",
+      "version": "1.2.0"
+    }
   }
 }
 
@@ -144,18 +230,56 @@ MCP is an open standard published by Anthropic (November 2024). It is built on *
   "id": 1,
   "result": {
     "protocolVersion": "2024-11-05",
-    "capabilities": { "tools": { "listChanged": true } }
+    "capabilities": {
+      "tools": { 
+        "listChanged": true    // Server will notify on tool changes
+      },
+      "resources": {
+        "subscribe": true      // Server supports resource subscriptions
+      }
+    },
+    "serverInfo": {
+      "name": "pricing-mcp-server",
+      "version": "2.1.3"
+    }
   }
 }
 ```
+
+**Critical validation checkpoint:**
+
+```python
+# ✅ DECISION CHECKPOINT: Protocol version compatibility
+if server_version != client_version:
+    if is_backward_compatible(server_version, client_version):
+        log.warning(f"Protocol version mismatch: {client_version} → {server_version} (compatible)")
+    else:
+        raise ProtocolVersionError(
+            f"Incompatible protocol versions: client={client_version}, server={server_version}"
+        )
+```
+
+> ⚡ **Why this matters:** In production, your OrderFlow Pricing agent (client v1.2.0) might connect to an old ERP server (protocol 2024-09-15) and a new supplier API server (protocol 2024-11-05). The handshake is your compatibility firewall — reject incompatible servers before any tool call happens.
 
 The server is now self-described. The client does not need prior knowledge of what the server can do — it discovers it through the protocol.
 
 ---
 
-## The Three Primitives
+## The Three Primitives **[Phase 2: DISCOVER]**
 
 MCP defines exactly three types of thing a server can expose. Understanding the semantic difference between them is the most common interview test.
+
+**Phase 2 in action:** After successful handshake, the client calls `tools/list`, `resources/list`, and `prompts/list` to discover everything the server offers. This happens once per connection — the results are cached.
+
+> 🏭 **Industry Practice — MCP SDK Implementations**
+>
+> Don't build MCP clients from scratch. Use official SDKs: **Python** ([`mcp` package](https://pypi.org/project/mcp/)), **TypeScript** ([`@modelcontextprotocol/sdk`](https://www.npmjs.com/package/@modelcontextprotocol/sdk)), **Rust** ([`mcp-rs`](https://crates.io/crates/mcp)). These handle JSON-RPC serialization, transport abstraction (stdio/HTTP), capability negotiation, and tool schema validation.
+>
+> **Real-world integration times** (from production deployments):
+> - **Using SDK:** 2-3 days for full Phase 1-4 implementation (handshake → discovery → invocation → error handling)
+> - **From scratch:** 2-3 weeks + high bug surface (stdio buffer deadlocks, SSE reconnection logic, schema validation edge cases)
+>
+> The SDK also future-proofs you: when Anthropic adds new capabilities (e.g., bidirectional streaming in future MCP versions), you get them via `pip install --upgrade mcp`. Custom implementations require manual protocol updates.
 
 ### Resources — Read-only data the agent can inspect
 
@@ -189,20 +313,75 @@ def send_purchase_order(po_document: str, supplier_email: str) -> dict:
 
 The critical detail: the server's `tools/list` response includes the full JSON Schema for each tool's input parameters. The agent never has to guess or hardcode the schema — the server declares it.
 
+**Discovery request (Phase 2):**
+
 ```json
+// Client → Server: Discover available tools
 {
-  "name": "send_purchase_order",
-  "description": "Send a purchase order to a supplier via email.",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "po_document": {"type": "string"},
-      "supplier_email": {"type": "string", "format": "email"}
-    },
-    "required": ["po_document", "supplier_email"]
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list"
+}
+
+// Server → Client: Tool registry with full schemas
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "get_supplier_quote",
+        "description": "Fetch real-time pricing from supplier API",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "supplier_name": {"type": "string", "enum": ["TechFurnish", "OfficeDepot"]},
+            "item_id": {"type": "string", "pattern": "^[A-Z]+-[0-9]+$"},
+            "quantity": {"type": "integer", "minimum": 1, "maximum": 10000}
+          },
+          "required": ["supplier_name", "item_id", "quantity"]
+        }
+      },
+      {
+        "name": "send_purchase_order",
+        "description": "Send a purchase order to a supplier via email.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "po_document": {"type": "string"},
+            "supplier_email": {"type": "string", "format": "email"}
+          },
+          "required": ["po_document", "supplier_email"]
+        }
+      }
+    ]
   }
 }
 ```
+
+**Client-side caching (Phase 2 best practice):**
+
+```python
+# ✅ DECISION CHECKPOINT: Cache tool schemas on discovery
+class MCPClient:
+    def __init__(self):
+        self._tool_registry: dict[str, dict] = {}  # Cache schemas here
+    
+    async def discover_tools(self):
+        """Phase 2: Discover and cache all tools (call once per connection)"""
+        response = await self.call("tools/list")
+        for tool in response["result"]["tools"]:
+            self._tool_registry[tool["name"]] = tool["inputSchema"]
+        logger.info(f"Discovered {len(self._tool_registry)} tools: {list(self._tool_registry.keys())}")
+    
+    def get_tool_schema(self, tool_name: str) -> dict:
+        """Retrieve cached schema (no network call)"""
+        if tool_name not in self._tool_registry:
+            raise ToolNotFoundError(f"Tool '{tool_name}' not in registry. Did you call discover_tools()?")
+        return self._tool_registry[tool_name]
+```
+
+> ⚡ **Performance insight:** Discovery adds 10-50ms latency (1 round-trip). Cache the results. In the OrderFlow Pricing agent, we call `discover_tools()` once at startup, then handle 1,000 POs/day with zero re-discovery overhead.
 
 ### Prompts — Reusable, parameterised instruction templates
 
@@ -226,18 +405,43 @@ messages = await mcp_client.get_prompt("negotiate_price_prompt",
 
 ---
 
-## Transport Options
+## Transport Options — stdio vs HTTP+SSE
 
-| Transport | Mechanism | Typical use case |
-|-----------|-----------|-----------------|
-| `stdio` | stdin/stdout pipes to a subprocess | Local tools: the agent spawns the MCP server as a child process on the same machine |
-| `HTTP + SSE` | HTTP POST for requests, Server-Sent Events for streaming responses | Remote tools: the MCP server is a service reachable over a network |
+> 🏭 **Industry Standard — Transport Selection Matrix**
+>
+> MCP supports two transports, and the choice is **not arbitrary** — it's driven by deployment topology and concurrency requirements. Here's the decision matrix used in production:
 
-**Choosing transport:** Use `stdio` when the tool is a local process (e.g. a code executor, a local file system scanner). Use `HTTP + SSE` when the tool is deployed as a service, needs to scale independently, or must be accessed from multiple agents concurrently.
+| Transport | Mechanism | Latency | Concurrency | Typical use case | When NOT to use |
+|-----------|-----------|---------|-------------|------------------|------------------|
+| `stdio` | stdin/stdout pipes to a subprocess | <1ms | 1 client per server | Local tools: code executor, file system scanner, Git client | Multi-agent systems where N agents need the same tool (would spawn N server processes) |
+| `HTTP + SSE` | HTTP POST for requests, Server-Sent Events for streaming responses | ~10ms | Unlimited (stateless) | Remote services: ERP API, pricing API, email gateway | Local-only tools with no network access (e.g., Docker socket) |
+
+**Choosing transport — Decision tree:**
+
+```python
+# ✅ DECISION CHECKPOINT: Which transport?
+def choose_transport(tool_properties: dict) -> str:
+    if tool_properties["requires_local_filesystem"]:
+        return "stdio"  # e.g., code execution sandbox, Git operations
+    
+    if tool_properties["concurrent_agents"] > 1:
+        return "http+sse"  # e.g., shared ERP, pricing APIs
+    
+    if tool_properties["network_latency_acceptable"]:
+        return "http+sse"  # e.g., external APIs, microservices
+    
+    return "stdio"  # default for local, single-agent tools
+```
+
+**Real-world example (OrderFlow):**
+- **stdio transport:** Code execution tool (runs untrusted supplier scripts in sandbox), Git commit tool (local repository)
+- **HTTP+SSE transport:** ERP server (8 agents query concurrently), pricing server (shared supplier API wrapper), email gateway (stateless, scales horizontally)
+
+> ⚠️ **Common trap:** Using stdio for shared tools. If 8 agents each spawn their own stdio pricing-server subprocess, you have 8 redundant HTTP connection pools to TechFurnish API → rate limit violations. **Solution:** Deploy pricing-server as HTTP+SSE service once, all agents connect to `http://pricing-server:8080`.
 
 ---
 
-## § 4 · How It Works — Step by Step
+## § 4 · How It Works — Step by Step **[Phase 3: CALL]**
 
 **OrderFlow MCP interaction flow** (Pricing agent queries TechFurnish supplier):
 
@@ -259,12 +463,91 @@ PricingAgent (MCP Client)          pricing-mcp-server          TechFurnish API
 ```
 
 **Step-by-step**:
-1. **Handshake**: Agent sends `initialize` with protocol version, server confirms capabilities
-2. **Discovery**: Agent calls `tools/list`, server returns JSON Schema for each tool
-3. **Invocation**: Agent calls `tools/call` with tool name + arguments, server validates against schema and executes
-4. **Response**: Server returns result or error in standard JSON-RPC format
+1. **Handshake** (Phase 1): Agent sends `initialize` with protocol version, server confirms capabilities
+2. **Discovery** (Phase 2): Agent calls `tools/list`, server returns JSON Schema for each tool
+3. **Invocation** (Phase 3): Agent calls `tools/call` with tool name + arguments, server validates against schema and executes
+4. **Response** (Phase 3): Server returns result or error in standard JSON-RPC format
 
 💡 **Key insight**: The agent never hardcoded TechFurnish's API. The server wrapped it. When you add OfficeDepot tomorrow, the Pricing agent's code doesn't change — you just add OfficeDepot logic inside the MCP server.
+
+### Phase 3 Implementation — Tool Invocation with Validation
+
+```python
+# Phase 3: Tool invocation with client-side validation
+async def call_tool(client: MCPClient, tool_name: str, arguments: dict) -> dict:
+    """
+    Phase 3 implementation: Validate arguments against schema, invoke tool, handle response.
+    
+    Args:
+        client: MCP client with cached tool registry (from Phase 2)
+        tool_name: Name of the tool to call
+        arguments: Tool parameters (must match inputSchema)
+    
+    Returns:
+        Tool result dict
+    
+    Raises:
+        ValidationError: Arguments don't match schema
+        ToolExecutionError: Server returned error response
+    """
+    # ✅ DECISION CHECKPOINT: Always validate before sending
+    schema = client.get_tool_schema(tool_name)  # Cached from Phase 2
+    try:
+        jsonschema.validate(instance=arguments, schema=schema)
+    except jsonschema.ValidationError as e:
+        raise ValidationError(
+            f"Invalid arguments for tool '{tool_name}': {e.message}\n"
+            f"Expected schema: {json.dumps(schema, indent=2)}"
+        )
+    
+    # Send tools/call request
+    request = {
+        "jsonrpc": "2.0",
+        "id": client.next_request_id(),
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": arguments
+        }
+    }
+    
+    response = await client.send_request(request)
+    
+    # Handle response
+    if "result" in response:
+        return response["result"]
+    elif "error" in response:
+        # Phase 4 will handle retry logic for specific error codes
+        raise ToolExecutionError(
+            code=response["error"]["code"],
+            message=response["error"]["message"]
+        )
+```
+
+**Complete Phase 3 example (PO #2024-1847):**
+
+```python
+# Real tool call from OrderFlow Pricing agent
+try:
+    result = await call_tool(
+        client=pricing_mcp_client,
+        tool_name="get_supplier_quote",
+        arguments={
+            "supplier_name": "TechFurnish",
+            "item_id": "DESK-001",
+            "quantity": 10
+        }
+    )
+    print(f"✅ Quote received: ${result['price']} per unit, {result['delivery_days']} days")
+    # Output: ✅ Quote received: $789 per unit, 14 days
+except ValidationError as e:
+    print(f"❌ Invalid arguments: {e}")
+except ToolExecutionError as e:
+    print(f"❌ Tool execution failed: {e.code} - {e.message}")
+    # Phase 4 retry logic would trigger here
+```
+
+> ⚡ **Why client-side validation matters:** In OrderFlow, we caught 23% of tool call errors during local validation (wrong argument types, missing required fields) before sending the request. This saved 847ms × 0.23 = **195ms per call** (no round-trip to server).
 
 ---
 
@@ -274,16 +557,175 @@ PricingAgent (MCP Client)          pricing-mcp-server          TechFurnish API
 
 ---
 
-## § 6 · Production Considerations
+## § 6 · Production Considerations **[Phase 4: HANDLE]**
 
-| Concern | MCP Solution |
-|---------|-------------|
-| **Latency** | stdio transport: <1ms overhead for local tools; HTTP+SSE: ~10ms for remote servers |
-| **Error handling** | JSON-RPC 2.0 error codes: -32700 (parse error), -32600 (invalid request), -32601 (method not found) |
-| **Authentication** | OAuth 2.0 bearer tokens for HTTP transport; process-level trust for stdio |
-| **Rate limiting** | Server-side: implement token bucket or leaky bucket inside MCP server |
-| **Monitoring** | Every MCP call is a JSON-RPC request → standard middleware can intercept and log |
-| **Deployment** | stdio servers: ship as standalone binaries; HTTP servers: containerize and deploy behind load balancer |
+**Phase 4 in action:** Error handling, retry strategies, and observability. This phase is continuous — every request can fail and must be handled gracefully.
+
+> 🏭 **Industry Standard — JSON-RPC 2.0 Error Code Conventions**
+>
+> MCP inherits JSON-RPC 2.0's standardized error codes. **These are not arbitrary numbers** — they're from the JSON-RPC spec (2010), battle-tested across thousands of production systems:
+
+| Code | Meaning | Retry Strategy | Example |
+|------|---------|----------------|----------|
+| **-32700** | Parse error (malformed JSON) | ❌ **No retry** (client bug) | Sent `{"jsonrpc": "2.0", "method: "tools/call"}` (missing closing quote) |
+| **-32600** | Invalid request (missing required field) | ❌ **No retry** (client bug) | Sent `tools/call` without `params.name` |
+| **-32601** | Method not found | ❌ **No retry** (tool doesn't exist) | Called `get_supplier_price` (typo: should be `get_supplier_quote`) |
+| **-32602** | Invalid params (schema validation failed) | ❌ **No retry** (fix arguments first) | Sent `quantity: -5` (violates `minimum: 1`) |
+| **-32603** | Internal error (server-side crash) | ✅ **Retry with exponential backoff** | Supplier API timed out |
+| **-32000 to -32099** | Server-defined errors | ⚠️ **Depends on error message** | `-32050: Rate limit exceeded` (wait 60s, retry) |
+
+**Phase 4 implementation — Retry logic:**
+
+```python
+import asyncio
+from typing import Optional
+
+class MCPClient:
+    async def call_tool_with_retry(
+        self,
+        tool_name: str,
+        arguments: dict,
+        max_retries: int = 3,
+        base_delay: float = 1.0
+    ) -> dict:
+        """
+        Phase 4: Call tool with exponential backoff retry for transient errors.
+        
+        Retry logic:
+        - -32603 (internal error): Retry with exponential backoff
+        - -32700, -32600, -32601, -32602: No retry (client/schema errors)
+        - Transport timeout: Reconnect + retry
+        - All other errors: No retry, propagate to caller
+        """
+        last_error: Optional[Exception] = None
+        
+        for attempt in range(max_retries):
+            try:
+                # ✅ DECISION CHECKPOINT: Validate + call (Phase 3 logic)
+                result = await self.call_tool(tool_name, arguments)
+                
+                # Success: log and return
+                logger.info(
+                    f"Tool '{tool_name}' succeeded",
+                    extra={
+                        "attempt": attempt + 1,
+                        "tool_name": tool_name,
+                        "latency_ms": result.get("_latency_ms", 0)
+                    }
+                )
+                return result
+            
+            except ToolExecutionError as e:
+                # Check if error is retryable
+                if e.code == -32603:  # Internal error
+                    delay = base_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(
+                        f"Tool '{tool_name}' failed with -32603 (internal error), "
+                        f"retrying in {delay}s (attempt {attempt + 1}/{max_retries})",
+                        extra={"error_message": e.message}
+                    )
+                    await asyncio.sleep(delay)
+                    last_error = e
+                    continue
+                
+                elif e.code in {-32700, -32600, -32601, -32602}:
+                    # Client error: no retry, log and re-raise immediately
+                    logger.error(
+                        f"Tool '{tool_name}' failed with non-retryable error {e.code}",
+                        extra={
+                            "error_code": e.code,
+                            "error_message": e.message,
+                            "arguments": arguments
+                        }
+                    )
+                    raise
+                
+                else:
+                    # Unknown error: log and re-raise
+                    logger.error(
+                        f"Tool '{tool_name}' failed with unknown error {e.code}",
+                        extra={"error_message": e.message}
+                    )
+                    raise
+            
+            except TransportTimeout as e:
+                # Transport failure: reconnect and retry
+                logger.warning(
+                    f"Transport timeout on attempt {attempt + 1}/{max_retries}, reconnecting..."
+                )
+                await self.reconnect()  # Phase 1: re-handshake
+                await self.discover_tools()  # Phase 2: re-discover
+                last_error = e
+                continue
+        
+        # All retries exhausted
+        logger.error(
+            f"Tool '{tool_name}' failed after {max_retries} attempts",
+            extra={"last_error": str(last_error)}
+        )
+        raise ToolExecutionError(
+            code=-1,
+            message=f"Tool '{tool_name}' failed after {max_retries} retries: {last_error}"
+        )
+```
+
+**Observability — Logging every Phase:**
+
+```python
+# Production logging: every MCP interaction is an audit event
+import structlog
+
+logger = structlog.get_logger()
+
+# Phase 1: Handshake
+logger.info(
+    "mcp.handshake",
+    phase="initialize",
+    protocol_version="2024-11-05",
+    server_name="pricing-mcp-server",
+    client_name="OrderFlow-PricingAgent"
+)
+
+# Phase 2: Discovery
+logger.info(
+    "mcp.discovery",
+    phase="tools_list",
+    tools_discovered=["get_supplier_quote", "send_purchase_order"],
+    latency_ms=42
+)
+
+# Phase 3: Tool invocation
+logger.info(
+    "mcp.tool_call",
+    phase="call",
+    tool_name="get_supplier_quote",
+    arguments={"supplier_name": "TechFurnish", "item_id": "DESK-001", "quantity": 10},
+    correlation_id="PO-2024-1847",
+    latency_ms=847
+)
+
+# Phase 4: Error handling
+logger.error(
+    "mcp.tool_error",
+    phase="handle",
+    tool_name="get_supplier_quote",
+    error_code=-32603,
+    error_message="Supplier API timeout",
+    retry_attempt=1,
+    correlation_id="PO-2024-1847"
+)
+```
+
+> ⚡ **Why structured logging matters:** In OrderFlow, when CFO asked "Which agent queried TechFurnish for PO #2024-1847?", we ran: `grep 'correlation_id="PO-2024-1847"' logs/*.jsonl | grep tool_name="get_supplier_quote"` → found the full decision chain in 30 seconds. Before structured MCP logging, this forensics took 2+ hours.
+
+| Concern | MCP Solution | OrderFlow Implementation |
+|---------|-------------|-------------------------|
+| **Latency** | stdio: <1ms; HTTP+SSE: ~10ms | stdio for code exec (local), HTTP+SSE for ERP/pricing (remote) |
+| **Error handling** | JSON-RPC 2.0 error codes (see table above) | Retry -32603 with exponential backoff; fail fast on -32600/-32601/-32602 |
+| **Authentication** | OAuth 2.0 (HTTP); process-level (stdio) | OAuth 2.0 bearer tokens for all HTTP servers; stdio servers run in agent's security context |
+| **Rate limiting** | Server-side token bucket | pricing-server: 100 req/min per agent (prevents TechFurnish API ban) |
+| **Monitoring** | JSON-RPC requests → middleware logs | Every tool call logged to Elasticsearch with correlation_id |
+| **Deployment** | stdio: binaries; HTTP: containers | stdio servers: Docker images; HTTP servers: Kubernetes Deployment with HPA |
 
 ⚠️ **Common trap**: Exposing raw database access as MCP Resources. Instead, expose semantic operations as Tools (e.g., `get_inventory_level(item_id)` not `SELECT * FROM inventory`). This prevents agents from issuing arbitrary SQL.
 
