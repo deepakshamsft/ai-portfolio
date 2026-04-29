@@ -108,7 +108,10 @@ class RidgeRegressor(Regressor):
         self.alpha = alpha
     
     def train(self, X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> Dict[str, float]:
-        """TODO: Train Ridge regression with cross-validation and return metrics."""
+        """TODO: Train Ridge regression with cross-validation and return metrics.
+        
+        📖 **See:** notes/01-ml/01_regression/ch05_regularization/README.md § 2.2 for Ridge (L2) penalty math and cross-validation implementation
+        """
         raise NotImplementedError("TODO: Implement Ridge training with cross-validation")
     
     def predict(self, X: pd.DataFrame) -> np.ndarray:
@@ -135,7 +138,10 @@ class LassoRegressor(Regressor):
         self.alpha = alpha
     
     def train(self, X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> Dict[str, float]:
-        """TODO: Train Lasso regression with cross-validation and count non-zero features."""
+        """TODO: Train Lasso regression with cross-validation and count non-zero features.
+        
+        📖 **See:** notes/01-ml/01_regression/ch05_regularization/README.md § 2.3 for Lasso (L1) penalty and automatic feature selection
+        """
         raise NotImplementedError("TODO: Implement Lasso training with L1 regularization")
     
     def predict(self, X: pd.DataFrame) -> np.ndarray:
@@ -166,7 +172,10 @@ class XGBoostRegressor(Regressor):
         self.learning_rate = learning_rate
     
     def train(self, X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> Dict[str, float]:
-        """TODO: Train XGBoost gradient boosting regressor with cross-validation."""
+        """TODO: Train XGBoost gradient boosting regressor with cross-validation.
+        
+        📖 **See:** notes/01-ml/01_regression/ch07_hyperparameter_tuning/README.md § 1-2 for XGBoost gradient boosting fundamentals and cross-validation
+        """
         raise NotImplementedError("TODO: Implement XGBoost training with gradient boosting")
     
     def predict(self, X: pd.DataFrame) -> np.ndarray:
@@ -209,11 +218,17 @@ class ExperimentRunner:
         console.print(f"Registered: {name}", style="dim")
     
     def run_experiment(self, X: pd.DataFrame, y: pd.Series, config: ModelConfig):
-        """TODO: Train all registered models and store results for comparison."""
+        """TODO: Train all registered models and store results for comparison.
+        
+        📖 **See:** notes/01-ml/01_regression/ch06_metrics/README.md § 6 for cross-validation strategy and multiple model comparison framework
+        """
         raise NotImplementedError("TODO: Implement experiment runner loop")
     
     def print_leaderboard(self):
-        """TODO: Display sorted model comparison table with metrics."""
+        """TODO: Display sorted model comparison table with metrics.
+        
+        📖 **See:** notes/01-ml/01_regression/ch06_metrics/README.md § 2.1 for metrics journey table format and model comparison best practices
+        """
         raise NotImplementedError("TODO: Implement leaderboard display with Rich table")
     
     def get_best_model(self) -> Regressor:

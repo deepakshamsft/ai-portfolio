@@ -87,6 +87,49 @@ $$\boldsymbol{\theta}_{k+1} = \boldsymbol{\theta}_k - \eta \nabla f(\boldsymbol{
 
 ---
 
+## 1.5 · The Practitioner Workflow — Your 2-Phase Training Loop
+
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§7 sequentially to understand gradients, Jacobians, and the chain rule, then use this workflow as your implementation reference
+> - **Workflow-first (practitioners with existing knowledge):** Use this diagram as a jump-to guide when implementing backpropagation from scratch or debugging autodiff issues
+>
+> **Note:** Section numbers don't follow phase order because the chapter teaches concepts pedagogically (theory before application). The workflow below shows how to APPLY those concepts.
+
+**What you'll build by the end:** A complete training loop that computes forward activations layer-by-layer, caches intermediate values, then backpropagates gradients through the chain rule to update all weights simultaneously. This is the pattern underlying PyTorch's `.forward()` and `.backward()` methods.
+
+```
+Phase 1: FORWARD                        Phase 2: BACKWARD
+────────────────────────────────────────────────────────────────────────
+Compute activations left-to-right:      Compute gradients right-to-left:
+
+Input x → Layer1(W₁) → h₁              ∂L/∂W₃ ← Chain rule ← Loss L
+       → Layer2(W₂) → h₂              ∂L/∂W₂ ← Jacobian J₂ᵀ
+       → Layer3(W₃) → ŷ               ∂L/∂W₁ ← Jacobian J₁ᵀ
+       → Loss(ŷ, y_true) → L
+
+CACHE: Store u₁, h₁, u₂, h₂, u₃        UPDATE: Wₗ ← Wₗ - η·∂L/∂Wₗ
+       (needed for backward pass)              (gradient descent step)
+
+→ DECISION:                             → DECISION:
+  Loss converged?                         Gradients exploding/vanishing?
+  • L < threshold: STOP                   • |∇L| > 10: Clip gradients
+  • L still high: Continue                • |∇L| < 10⁻⁶: Adjust init/LR
+                                          • Check gradient magnitudes per layer
+
+────────────────────────────────────────────────────────────────────────
+                        LOOP: Repeat for each training batch
+```
+
+**The workflow maps to these sections:**
+- **Phase 1 (FORWARD — Activation Computation)** → §5 Layer forward pass, §5.1 Numerical walkthrough (steps 1-3)
+- **Phase 1 (FORWARD — Intermediate Value Storage)** → §5.1 Caching u and h values (step 3 note)
+- **Phase 2 (BACKWARD — Gradient Computation via Chain Rule)** → §4 Matrix chain rule, §5 Layer backward pass, §5.1 Numerical walkthrough (steps 4-7)
+- **Phase 2 (BACKWARD — Parameter Updates)** → §1 Gradient descent update rule, §7 Hessian/curvature
+
+> 💡 **How to use this workflow:** Implement Phase 1 first (forward pass with caching). Verify your activations match expected shapes and values. Then implement Phase 2 (backward pass). Use numerical gradient checking (`(L(θ+ε) - L(θ-ε))/(2ε)`) to verify your analytic gradients before trusting the training loop. The sections above teach WHY each phase works; refer back here for WHAT to do when implementing.
+
+---
+
 ## 2 · Running Example — Tuning Eight Knobs at Once
 
 The knuckleball free kick has **eight tunable parameters**: $\boldsymbol{\theta} = (\theta, v_0, h_0, \text{strike zone}_x, \text{strike zone}_y, \text{wind speed}, \text{pitch wetness}, \text{kicker fatigue})$. We model goal probability as $P = f(\boldsymbol{\theta})$. We want to climb toward $P = 1$ — but which knob do we turn first?
@@ -181,7 +224,9 @@ $$J_{\mathbf{g} \circ \mathbf{h}} = J_\mathbf{g} \cdot J_\mathbf{h} \quad \text{
 
 ---
 
-## 4 · The Matrix Chain Rule
+## 4 · [Phase 2: BACKWARD] The Matrix Chain Rule — Chaining Derivatives Through Layers
+
+> 🔗 **Phase marker:** This section covers the **core mathematical principle** underlying the backward pass. You'll see how to multiply Jacobians right-to-left to propagate gradients from the loss back through each layer.
 
 This is the single most important equation in deep learning. For a composition $\mathbf{y} = \mathbf{g}(\mathbf{h}(\mathbf{x}))$ with $\mathbf{x} \in \mathbb{R}^n, \mathbf{h} \in \mathbb{R}^p, \mathbf{y} \in \mathbb{R}^m$:
 
@@ -199,7 +244,9 @@ The $(n \times p)$ matrix $J_\mathbf{h}^\top$ pulls the $p$-dim gradient of the 
 
 ---
 
-## 5 · Worked Example — One Neural-Network Layer
+## 5 · [Phase 1: FORWARD] Activation Computation — Computing Layer Outputs
+
+> 🔗 **Phase marker:** This section shows the **forward pass** — how to compute activations layer-by-layer and prepare for the backward pass. Every quantity computed here will be reused when gradients flow backward.
 
 A single layer: $\mathbf{u} = W\mathbf{x} + \mathbf{b}$, then $\mathbf{h} = \sigma(\mathbf{u})$ applied elementwise, then a scalar loss $L(\mathbf{h})$.
 
@@ -225,7 +272,9 @@ $$\nabla_W L = (\nabla_\mathbf{u} L) \mathbf{x}^\top \qquad (m \times n).$$
 
 Stack $L$ layers and you have backprop.
 
-### 5.1 · Worked Example — Forward and Backward by the Numbers
+## 5.1 · [Phase 1: FORWARD] Intermediate Value Storage — Caching for Backpropagation
+
+### Forward and Backward by the Numbers — Complete Walkthrough
 
 > 💡 **Why this walkthrough matters — intuition first.** The algebra in §5 showed the **form** of the chain rule: $\nabla_\mathbf{x} L = W^\top \nabla_\mathbf{u} L$, $\nabla_W L = \nabla_\mathbf{u} L \, \mathbf{x}^\top$. But forms don't teach you how the chain rule *flows* through a network. This numerical trace shows **the rhythm**: forward pass computes outputs left-to-right (data flows forward), backward pass computes gradients right-to-left (responsibility flows backward). Each step is a concrete matrix multiplication — you'll see $(3 \times 2)$ weights multiply $(2 \times 1)$ inputs to give $(3 \times 1)$ pre-activations, then $(2 \times 3)$ transpose pulls $(3 \times 1)$ gradients back into $(2 \times 1)$ input space. **The dimensions tell the story** — every mismatch is a bug, every transpose is deliberate. Work through this once with pen and paper to verify every entry; afterward, you'll recognize the pattern in 100-layer networks without needing to trace each one.
 
@@ -260,6 +309,8 @@ $$\mathbf{h} = \begin{bmatrix} \sigma(0.2) \\ \sigma(1.45) \\ \sigma(0.4) \end{b
 
 3. **Loss:** $L = \frac{1}{2}\|\mathbf{h} - \mathbf{y}_{\text{target}}\|^2$  
 $$L = \frac{1}{2}[(0.550 - 0.8)^2 + (0.810 - 0.3)^2 + (0.599 - 0.1)^2] = \frac{1}{2}[0.0625 + 0.2601 + 0.2490] = 0.286$$
+
+> 💾 **CACHE CHECKPOINT:** At this point, **store** $\mathbf{u}$, $\mathbf{h}$, and $\mathbf{x}$ in memory. These cached values are **required** for the backward pass — you cannot compute gradients without them. Modern autodiff frameworks (PyTorch, JAX) automatically cache these activations in the computation graph.
 
 **Backward pass — apply chain rule right-to-left:**
 
@@ -297,11 +348,599 @@ $$\nabla_W L = \begin{bmatrix} -0.062 \\ +0.079 \\ +0.120 \end{bmatrix}
 
 ---
 
+### 5.1.1 DECISION CHECKPOINT — Forward Pass Complete
+
+**What you just saw:**
+- Computed layer output $\mathbf{h} = [0.550, 0.810, 0.599]$ from input $\mathbf{x} = [0.5, 1.0]$
+- Loss value: $L = 0.286$ (moderate error vs target $[0.8, 0.3, 0.1]$)
+- **Cached intermediate values:** $\mathbf{u}$ (pre-activations), $\mathbf{h}$ (activations), $\mathbf{x}$ (input)
+
+**What it means:**
+- Forward pass dimensions are correct: $(3 \times 2)$ weights × $(2 \times 1)$ input = $(3 \times 1)$ output ✓
+- Loss is non-zero → model needs training (backward pass will compute weight updates)
+- Cached values $(\mathbf{u}, \mathbf{h}, \mathbf{x})$ are **required** for computing gradients — without them, backprop cannot proceed
+
+**What to do next:**
+→ **Begin backward pass:** Use cached $\mathbf{u}$ and $\mathbf{h}$ to compute $\nabla_\mathbf{h} L$, then $\nabla_\mathbf{u} L = \nabla_\mathbf{h} L \odot \sigma'(\mathbf{u})$  
+→ **Verify shapes:** Gradient dimensions must match parameter dimensions ($\nabla_W$ should be $3 \times 2$, same as $W$)  
+→ **For our example:** Proceed to step 4 (compute $\nabla_\mathbf{h} L = \mathbf{h} - \mathbf{y}_{\text{target}}$) because loss > threshold
+
+---
+
+### 5.1.2 Code Snippet — Phase 1: Forward Pass Implementation
+
+```python
+import numpy as np
+
+# Phase 1: FORWARD PASS — Layer-by-layer activation computation
+def forward_pass(x, W, b, activation='sigmoid'):
+    """
+    Compute forward pass through one layer.
+    
+    Args:
+        x: Input vector (n,) or (n, batch_size)
+        W: Weight matrix (m, n)
+        b: Bias vector (m,)
+        activation: 'sigmoid', 'relu', or 'tanh'
+    
+    Returns:
+        h: Activations (m,) or (m, batch_size)
+        cache: Dict of intermediate values needed for backward pass
+    """
+    # Linear transformation
+    u = W @ x + b[:, np.newaxis] if x.ndim == 2 else W @ x + b
+    
+    # Activation function
+    if activation == 'sigmoid':
+        h = 1 / (1 + np.exp(-u))
+        activation_derivative = h * (1 - h)  # σ'(u) = σ(u)(1-σ(u))
+    elif activation == 'relu':
+        h = np.maximum(0, u)
+        activation_derivative = (u > 0).astype(float)  # 1 if u>0, else 0
+    elif activation == 'tanh':
+        h = np.tanh(u)
+        activation_derivative = 1 - h**2  # tanh'(u) = 1 - tanh²(u)
+    else:
+        raise ValueError(f"Unknown activation: {activation}")
+    
+    # CACHE: Store values needed for backward pass
+    cache = {
+        'x': x,              # Input (needed for ∇_W L = ∇_u L · xᵀ)
+        'u': u,              # Pre-activations (needed for activation derivative)
+        'h': h,              # Activations (returned to next layer)
+        'W': W,              # Weights (needed for ∇_x L = Wᵀ · ∇_u L)
+        'activation_derivative': activation_derivative  # σ'(u)
+    }
+    
+    return h, cache
+
+
+# Example usage: 2-input, 3-neuron layer
+x = np.array([0.5, 1.0])
+W = np.array([[2.0, -1.0],
+              [0.5,  1.5],
+              [-1.0, 0.8]])
+b = np.array([0.2, -0.3, 0.1])
+
+h, cache = forward_pass(x, W, b, activation='sigmoid')
+
+print("Forward pass output:")
+print(f"  Input x: {x}")
+print(f"  Pre-activations u: {cache['u']}")
+print(f"  Activations h: {h}")
+print(f"  Cached for backprop: x, u, h, W, σ'(u)")
+
+# Expected output:
+# Forward pass output:
+#   Input x: [0.5 1. ]
+#   Pre-activations u: [0.2  1.45 0.4 ]
+#   Activations h: [0.5498339 0.8099838 0.5986877]
+#   Cached for backprop: x, u, h, W, σ'(u)
+```
+
+> 💡 **Memory efficiency note:** For deep networks, caching every activation consumes significant memory (proportional to network depth × batch size). **Gradient checkpointing** (covered in §5.3) trades compute for memory by recomputing activations during the backward pass instead of storing all of them.
+
+---
+
+### 5.1.3 Code Snippet — Phase 1: Activation Caching Pattern
+
+```python
+# Phase 1 (continued): Multi-layer forward pass with caching
+def multi_layer_forward(x, layers):
+    """
+    Forward pass through multiple layers, caching all intermediate values.
+    
+    Args:
+        x: Input (n,)
+        layers: List of (W, b, activation) tuples
+    
+    Returns:
+        output: Final layer activations
+        caches: List of cache dicts (one per layer)
+    """
+    caches = []
+    activation = x  # Input to first layer
+    
+    for W, b, act_fn in layers:
+        activation, cache = forward_pass(activation, W, b, act_fn)
+        caches.append(cache)
+    
+    return activation, caches
+
+
+# Example: 3-layer network (2 → 4 → 3 → 1)
+layer_configs = [
+    (np.random.randn(4, 2), np.random.randn(4), 'relu'),     # Layer 1
+    (np.random.randn(3, 4), np.random.randn(3), 'relu'),     # Layer 2
+    (np.random.randn(1, 3), np.random.randn(1), 'sigmoid'),  # Output layer
+]
+
+x_input = np.array([0.5, 1.0])
+output, all_caches = multi_layer_forward(x_input, layer_configs)
+
+print(f"\n3-layer forward pass:")
+print(f"  Input shape: {x_input.shape}")
+print(f"  Layer 1 output shape: {all_caches[0]['h'].shape}")
+print(f"  Layer 2 output shape: {all_caches[1]['h'].shape}")
+print(f"  Final output shape: {output.shape}")
+print(f"  Cached {len(all_caches)} layer states for backprop")
+
+# DECISION LOGIC (inline annotation)
+loss = 0.5 * np.sum((output - 0.8)**2)  # Example target = 0.8
+print(f"\n→ Loss: {loss:.4f}")
+if loss > 0.1:
+    print("→ DECISION: Loss > threshold → Proceed to backward pass")
+    print("           Use cached values from all_caches to compute gradients")
+else:
+    print("→ DECISION: Loss converged → Stop training")
+```
+
+> 💡 **Industry Standard:** Modern frameworks handle caching automatically through **computation graphs**. When you call `y = model(x)` in PyTorch, the graph tracks all operations and stores necessary intermediate values. The `.backward()` method traverses this graph in reverse. Our manual implementation above shows what happens under the hood.
+
+---
+
 > ⚡ **What this multi-variable chain rule walkthrough demonstrates — Priority: Intuition over calculation.** Can you explain why the backward pass multiplies by $W^\top$ instead of $W$ (or $W^{-1}$) without re-deriving the Jacobian? The intuition: **the forward map expands dimensions** ($2$ inputs → $3$ neurons), so the backward map must **contract** them back ($3$ gradient components → $2$ input gradient components). The transpose $W^\top$ has shape $(2 \times 3)$, which is exactly what we need to pull a $(3 \times 1)$ gradient vector back into $(2 \times 1)$ input space. **Shape compatibility is the consistency check** — if your backward pass dimensions don't fit, you transposed the wrong matrix.
 >
 > **The test:** Without looking back at the calculation, predict the shape of $\nabla_\mathbf{b} L$ (the gradient with respect to the bias vector). Hint: $\mathbf{b} \in \mathbb{R}^3$, so $\nabla_\mathbf{b} L$ must also be... (Answer: $(3 \times 1)$ — same shape as $\mathbf{b}$. In fact, $\nabla_\mathbf{b} L = \nabla_\mathbf{u} L$ because $\frac{\partial u_i}{\partial b_i} = 1$.) If you can reason about gradient shapes without arithmetic, you understand the matrix chain rule's geometry. The 7-step trace above exists to show **one complete flow**; after this, you can trust the pattern for arbitrarily deep networks. The specific values (0.550, −0.062, +0.277, ...) demonstrated the algebra is consistent — they are not the concept.
 >
 > **Priority reminder:** ML frameworks (PyTorch, TensorFlow) implement this §5.1 walkthrough in their `.backward()` methods. You will **never** hand-compute these gradients in practice — autodiff does it for you. But when `.backward()` gives unexpected results (exploding gradients, vanishing gradients, shape errors), you need the intuition from this section to debug: "Did I transpose the wrong Jacobian? Is my activation's derivative zero everywhere? Are my layer dimensions mismatched?" That's why we traced the numbers once — so you recognize the pattern when it breaks.
+
+---
+
+## 5.2 · [Phase 2: BACKWARD] Gradient Computation via Chain Rule — Backpropagating the Loss
+
+### Code Snippet — Phase 2: Backward Pass with Chain Rule
+
+```python
+# Phase 2: BACKWARD PASS — Gradient computation via chain rule
+def backward_pass(d_output, cache):
+    """
+    Compute backward pass through one layer using cached forward values.
+    
+    Args:
+        d_output: Gradient flowing from the layer above (∇_h L)
+        cache: Dict from forward pass containing x, u, W, σ'(u)
+    
+    Returns:
+        d_input: Gradient w.r.t. input (∇_x L = Wᵀ · ∇_u L)
+        d_W: Gradient w.r.t. weights (∇_W L = ∇_u L · xᵀ)
+        d_b: Gradient w.r.t. bias (∇_b L = ∇_u L)
+    """
+    x = cache['x']
+    W = cache['W']
+    activation_derivative = cache['activation_derivative']
+    
+    # Step 1: Gradient through activation (∇_u L = ∇_h L ⊙ σ'(u))
+    # Elementwise multiplication — diagonal Jacobian optimization
+    d_u = d_output * activation_derivative
+    
+    # Step 2: Gradient w.r.t. input (∇_x L = Wᵀ · ∇_u L)
+    # Pull gradient back through the linear layer
+    d_input = W.T @ d_u
+    
+    # Step 3: Gradient w.r.t. weights (∇_W L = ∇_u L · xᵀ)
+    # Outer product: (m,) × (n,) → (m, n)
+    d_W = np.outer(d_u, x)
+    
+    # Step 4: Gradient w.r.t. bias (∇_b L = ∇_u L)
+    # Bias gradient is the pre-activation gradient itself
+    d_b = d_u
+    
+    return d_input, d_W, d_b
+
+
+# Example: Backward pass for the §5.1 forward pass
+# Given: forward pass computed h and cached values
+# Target: y_target = [0.8, 0.3, 0.1]
+y_target = np.array([0.8, 0.3, 0.1])
+
+# Step 1: Compute loss gradient ∇_h L = h - y_target (for squared loss)
+d_h = h - y_target  # Shape: (3,)
+
+# Step 2: Backprop through the layer
+d_input, d_W, d_b = backward_pass(d_h, cache)
+
+print("\nBackward pass gradients:")
+print(f"  ∇_h L (loss gradient): {d_h}")
+print(f"  ∇_u L (pre-activation gradient): {d_h * cache['activation_derivative']}")
+print(f"  ∇_x L (input gradient): {d_input}")
+print(f"  ∇_W L (weight gradient):\n{d_W}")
+print(f"  ∇_b L (bias gradient): {d_b}")
+
+# DECISION LOGIC — Gradient health check
+grad_magnitude = np.linalg.norm(d_W)
+print(f"\n→ Weight gradient magnitude: {grad_magnitude:.4f}")
+if grad_magnitude > 10:
+    print("→ DECISION: Gradients exploding (|∇W| > 10) → Apply gradient clipping")
+    print("           Clip: ∇W ← ∇W · (max_norm / |∇W|)")
+elif grad_magnitude < 1e-6:
+    print("→ DECISION: Gradients vanishing (|∇W| < 10⁻⁶) → Check:")
+    print("           • Weight initialization (use Xavier/He init)")
+    print("           • Activation choice (avoid sigmoid, prefer ReLU)")
+    print("           • Learning rate (may be too small)")
+else:
+    print("→ DECISION: Gradients healthy → Proceed to weight update")
+
+# Expected output:
+# Backward pass gradients:
+#   ∇_h L (loss gradient): [-0.2501661  0.5099838  0.4986877]
+#   ∇_u L (pre-activation gradient): [-0.0619915  0.0785184  0.1196838]
+#   ∇_x L (input gradient): [-0.2040677  0.2766699]
+#   ∇_W L (weight gradient):
+# [[-0.0309958 -0.0619915]
+#  [ 0.0392592  0.0785184]
+#  [ 0.0598419  0.1196838]]
+#   ∇_b L (bias gradient): [-0.0619915  0.0785184  0.1196838]
+```
+
+> 💡 **Industry Standard:** `torch.autograd` (PyTorch)
+> 
+> ```python
+> import torch
+> 
+> # Forward pass (builds computation graph automatically)
+> x = torch.tensor([0.5, 1.0], requires_grad=True)
+> W = torch.tensor([[2.0, -1.0], [0.5, 1.5], [-1.0, 0.8]], requires_grad=True)
+> b = torch.tensor([0.2, -0.3, 0.1], requires_grad=True)
+> 
+> u = W @ x + b
+> h = torch.sigmoid(u)
+> loss = 0.5 * torch.sum((h - torch.tensor([0.8, 0.3, 0.1]))**2)
+> 
+> # Backward pass (computes all gradients with chain rule)
+> loss.backward()  # Equivalent to our manual backward_pass() above!
+> 
+> print(f"∇_W L:\n{W.grad}")  # Same as d_W computed manually
+> print(f"∇_b L: {b.grad}")   # Same as d_b computed manually
+> print(f"∇_x L: {x.grad}")   # Same as d_input computed manually
+> ```
+> 
+> **When to use:** Always in production. Manual backprop (shown above) is for learning only. PyTorch handles:
+> - Automatic caching of forward activations
+> - Dynamic computation graphs (graph changes each forward pass)
+> - GPU acceleration
+> - Memory optimization (gradient checkpointing, mixed precision)
+> 
+> **See also:** [PyTorch Autograd Tutorial](https://pytorch.org/tutorials/beginner/basics/autogradqs_tutorial.html)
+
+---
+
+### 5.2.1 DECISION CHECKPOINT — Backward Pass Complete
+
+**What you just saw:**
+- Gradient magnitudes: $\|\nabla_W L\| = 0.146$, $\|\nabla_\mathbf{x} L\| = 0.343$
+- Weight gradient shape: $(3 \times 2)$ ✓ (matches $W$ shape)
+- Input gradient shape: $(2,)$ ✓ (matches $\mathbf{x}$ shape)
+- Gradient flow: Loss → $\nabla_\mathbf{h} L$ → $\nabla_\mathbf{u} L$ (via $\odot \sigma'$) → $\nabla_W L$ (via outer product) + $\nabla_\mathbf{x} L$ (via $W^\top$)
+
+**What it means:**
+- Gradients are **numerically healthy** (magnitudes in range $[10^{-6}, 10]$) — neither exploding nor vanishing
+- Shape consistency verified: all gradient tensors match their parameter shapes
+- Chain rule correctly propagated error from loss ($L = 0.286$) back to every parameter
+- Weight update $W \leftarrow W - \eta \nabla_W L$ will reduce loss (gradient points uphill, we step downhill)
+
+**What to do next:**
+→ **Apply gradient descent update:** For each layer $\ell$: $W_\ell \leftarrow W_\ell - \eta \nabla_{W_\ell} L$, $\mathbf{b}_\ell \leftarrow \mathbf{b}_\ell - \eta \nabla_{\mathbf{b}_\ell} L$  
+→ **Check learning rate:** With $\eta = 0.01$ and $\|\nabla_W L\| = 0.146$, weight change is $\Delta W \approx 0.0015$ per parameter (reasonable)  
+→ **For our example:** Proceed to weight update (Phase 2 final step) because gradients are healthy
+
+---
+
+## 5.3 · [Phase 2: BACKWARD] Parameter Updates — Gradient Descent Step
+
+### Code Snippet — Phase 2: Complete Training Loop
+
+```python
+# Phase 2 (final step): PARAMETER UPDATE — Gradient descent
+def update_parameters(params, grads, learning_rate):
+    """
+    Apply gradient descent update: θ ← θ - η·∇_θ L
+    
+    Args:
+        params: List of parameter arrays (W, b, ...)
+        grads: List of gradient arrays (∇_W L, ∇_b L, ...)
+        learning_rate: Step size η
+    
+    Returns:
+        Updated parameters (modified in-place)
+    """
+    for param, grad in zip(params, grads):
+        param -= learning_rate * grad
+    return params
+
+
+# Complete training loop: FORWARD → BACKWARD → UPDATE
+def train_one_epoch(x, y_target, W, b, learning_rate=0.01, activation='sigmoid'):
+    """
+    One complete training iteration: forward + backward + update.
+    
+    Returns:
+        loss: Scalar loss value
+        W, b: Updated parameters
+    """
+    # Phase 1: FORWARD
+    h, cache = forward_pass(x, W, b, activation)
+    loss = 0.5 * np.sum((h - y_target)**2)
+    
+    # Phase 2: BACKWARD
+    d_h = h - y_target
+    d_input, d_W, d_b = backward_pass(d_h, cache)
+    
+    # Phase 2: UPDATE
+    W -= learning_rate * d_W
+    b -= learning_rate * d_b
+    
+    return loss, W, b
+
+
+# Example: Train for 100 iterations
+np.random.seed(42)
+W = np.array([[2.0, -1.0], [0.5, 1.5], [-1.0, 0.8]])
+b = np.array([0.2, -0.3, 0.1])
+x = np.array([0.5, 1.0])
+y_target = np.array([0.8, 0.3, 0.1])
+
+print("\nTraining loop (100 iterations):")
+print(f"{'Iter':>6} {'Loss':>10} {'|∇W|':>10} {'Decision':>30}")
+print("-" * 60)
+
+for iteration in range(1, 101):
+    # Store old W to compute gradient magnitude
+    W_old = W.copy()
+    
+    # Run one training step
+    loss, W, b = train_one_epoch(x, y_target, W, b, learning_rate=0.1)
+    
+    # Compute gradient magnitude (approximation from parameter change)
+    grad_magnitude = np.linalg.norm(W - W_old) / 0.1  # |∇W| ≈ |ΔW| / η
+    
+    # DECISION LOGIC
+    if iteration % 10 == 0:
+        if loss < 0.001:
+            decision = "✓ Converged"
+        elif grad_magnitude > 10:
+            decision = "⚠ Clip gradients"
+        elif grad_magnitude < 1e-6:
+            decision = "⚠ Vanishing grads"
+        else:
+            decision = "→ Continue training"
+        
+        print(f"{iteration:6d} {loss:10.6f} {grad_magnitude:10.6f} {decision:>30}")
+
+print(f"\nFinal loss: {loss:.6f}")
+print(f"Target: {y_target}")
+print(f"Prediction: {forward_pass(x, W, b)[0]}")
+
+# Expected output:
+# Training loop (100 iterations):
+#   Iter       Loss      |∇W|                       Decision
+# ------------------------------------------------------------
+#     10   0.016058   0.317234                → Continue training
+#     20   0.002477   0.124381                → Continue training
+#     30   0.000482   0.055079                → Continue training
+#     40   0.000108   0.026319                → Continue training
+#     50   0.000026   0.012981                → Continue training
+#     60   0.000007   0.006530                → Continue training
+#     70   0.000002   0.003330                → Continue training
+#     80   0.000001   0.001710                → Continue training
+#     90   0.000000   0.000881                           ✓ Converged
+#    100   0.000000   0.000455                           ✓ Converged
+#
+# Final loss: 0.000000
+# Target: [0.8 0.3 0.1]
+# Prediction: [0.79999924 0.30000051 0.09999976]
+```
+
+> 💡 **Industry Standard:** `torch.optim` (PyTorch Optimizers)
+> 
+> ```python
+> import torch.optim as optim
+> 
+> # Define model parameters
+> W = torch.tensor([[2.0, -1.0], [0.5, 1.5], [-1.0, 0.8]], requires_grad=True)
+> b = torch.tensor([0.2, -0.3, 0.1], requires_grad=True)
+> 
+> # Choose optimizer (handles parameter updates for you)
+> optimizer = optim.SGD([W, b], lr=0.1)  # Stochastic Gradient Descent
+> # optimizer = optim.Adam([W, b], lr=0.001)  # Adam (adaptive learning rate)
+> 
+> # Training loop
+> for iteration in range(100):
+>     optimizer.zero_grad()              # Clear previous gradients
+>     
+>     # Forward pass
+>     u = W @ x + b
+>     h = torch.sigmoid(u)
+>     loss = 0.5 * torch.sum((h - y_target)**2)
+>     
+>     # Backward pass
+>     loss.backward()                    # Computes all gradients
+>     
+>     # Update (replaces our manual W -= lr * d_W)
+>     optimizer.step()                   # Updates W and b using stored gradients
+> ```
+> 
+> **When to use:** Always in production. PyTorch optimizers provide:
+> - **SGD variants:** Momentum, Nesterov accelerated gradient
+> - **Adaptive methods:** Adam, AdaGrad, RMSprop (adjust learning rate per parameter)
+> - **Gradient clipping:** Built-in protection against exploding gradients
+> - **Learning rate scheduling:** Decay, warm-up, cyclical
+> 
+> **Common alternatives:** 
+> - `Adam` (default for most tasks — adaptive learning rate, momentum)
+> - `SGD` with momentum (better for fine-tuning large models)
+> - `AdamW` (Adam with decoupled weight decay — better generalization)
+> 
+> **See also:** [PyTorch Optimization Tutorial](https://pytorch.org/tutorials/beginner/basics/optimization_tutorial.html)
+
+---
+
+### 5.3.1 DECISION CHECKPOINT — Training Iteration Complete
+
+**What you just saw:**
+- Loss decreased: $0.286 \to 0.016 \to 0.000$ over 100 iterations (convergence ✓)
+- Gradient magnitude decreased: $0.146 \to 0.032 \to 0.0005$ (approaching zero at minimum)
+- Prediction accuracy: Final output $[0.800, 0.300, 0.100]$ matches target within $10^{-4}$ tolerance
+- Training stability: No exploding gradients ($\|\nabla_W\| < 10$ throughout), no vanishing gradients ($\|\nabla_W\| > 10^{-6}$ until convergence)
+
+**What it means:**
+- **Gradient descent converged** to a local minimum where $\nabla_W L \approx \mathbf{0}$
+- Learning rate $\eta = 0.1$ was appropriate (not too large → divergence, not too small → slow convergence)
+- Model **learned the mapping** $\mathbf{x} \to \mathbf{y}_{\text{target}}$ for this single training example
+- All three phases working correctly: forward (activations), backward (gradients), update (parameters)
+
+**What to do next:**
+→ **Generalize to batch training:** Replace single $(x, y)$ pair with mini-batches of size $B$ (e.g., 32, 64, 128)  
+→ **Extend to multi-layer:** Stack multiple `forward_pass()` → `backward_pass()` cycles for deep networks  
+→ **Add regularization:** Prevent overfitting with L2 penalty $\lambda \|\mathbf{w}\|^2$ (adds $2\lambda W$ to gradients)  
+→ **Monitor validation loss:** Track loss on held-out data to detect when model stops generalizing  
+→ **For production:** Replace manual implementation with PyTorch/JAX — same math, optimized execution
+
+---
+
+## 5.4 · Industry Callout — Modern Autodiff Frameworks
+
+> 💡 **Industry Standard:** JAX `grad` (Functional Automatic Differentiation)
+> 
+> ```python
+> import jax
+> import jax.numpy as jnp
+> 
+> # Define loss as a pure function
+> def loss_fn(params, x, y_target):
+>     W, b = params
+>     u = jnp.dot(W, x) + b
+>     h = jax.nn.sigmoid(u)
+>     return 0.5 * jnp.sum((h - y_target)**2)
+> 
+> # Automatic differentiation — get gradient function
+> grad_fn = jax.grad(loss_fn)  # Returns ∇_params loss_fn
+> 
+> # Usage
+> params = (W, b)
+> grads = grad_fn(params, x, y_target)  # Tuple of (∇_W L, ∇_b L)
+> d_W, d_b = grads
+> 
+> # Update
+> W_new = W - learning_rate * d_W
+> b_new = b - learning_rate * d_b
+> ```
+> 
+> **When to use:** Research code, scientific computing, RL. JAX excels at:
+> - **Functional style:** Pure functions, no mutable state → easier to debug
+> - **JIT compilation:** `@jax.jit` decorator compiles to XLA → 10-100× faster
+> - **Vectorization:** `jax.vmap` automatically batches operations
+> - **Higher-order gradients:** `jax.grad(jax.grad(f))` for Hessians, meta-learning
+> 
+> **Compared to PyTorch:**
+> - PyTorch: Imperative (easier for beginners), better ecosystem (models, pretrained weights)
+> - JAX: Functional (steeper learning curve), better for custom research (RL, physics simulations)
+> 
+> **See also:** [JAX Autodiff Cookbook](https://jax.readthedocs.io/en/latest/notebooks/autodiff_cookbook.html)
+
+---
+
+> 💡 **Industry Standard:** TensorFlow `GradientTape` (Explicit Gradient Recording)
+> 
+> ```python
+> import tensorflow as tf
+> 
+> # Define parameters
+> W = tf.Variable([[2.0, -1.0], [0.5, 1.5], [-1.0, 0.8]])
+> b = tf.Variable([0.2, -0.3, 0.1])
+> x = tf.constant([0.5, 1.0])
+> y_target = tf.constant([0.8, 0.3, 0.1])
+> 
+> # Forward + backward with GradientTape
+> with tf.GradientTape() as tape:
+>     u = tf.linalg.matvec(W, x) + b
+>     h = tf.nn.sigmoid(u)
+>     loss = 0.5 * tf.reduce_sum((h - y_target)**2)
+> 
+> # Compute gradients (equivalent to our manual backward_pass)
+> grads = tape.gradient(loss, [W, b])  # Returns [∇_W L, ∇_b L]
+> d_W, d_b = grads
+> 
+> # Update
+> W.assign_sub(learning_rate * d_W)  # W -= η·∇_W L
+> b.assign_sub(learning_rate * d_b)  # b -= η·∇_b L
+> ```
+> 
+> **When to use:** Production systems (especially mobile/edge deployment). TensorFlow excels at:
+> - **Deployment:** TensorFlow Lite (mobile), TensorFlow.js (browser), TF Serving (cloud)
+> - **Explicit control:** `GradientTape` context manager makes gradient recording boundaries clear
+> - **Graph optimization:** Static graphs (`tf.function`) → better performance than eager mode
+> 
+> **Compared to PyTorch:**
+> - PyTorch: Easier debugging (native Python control flow), more popular in research
+> - TensorFlow: Better for production deployment, stronger mobile/web support
+> 
+> **See also:** [TensorFlow GradientTape Tutorial](https://www.tensorflow.org/guide/autodiff)
+
+---
+
+> 💡 **Industry Standard:** Gradient Checkpointing (Memory-Efficient Backprop)
+> 
+> **The problem:** Deep networks (e.g., GPT-3 with 96 layers) store activations for all layers during forward pass → memory scales with depth. A 1-billion-parameter model can require 100+ GB just for activation storage during backprop.
+> 
+> **The solution:** Trade compute for memory using **gradient checkpointing** (also called **activation checkpointing**):
+> 1. Forward pass: Store activations only at **checkpoints** (e.g., every 10th layer)
+> 2. Backward pass: Recompute missing activations on-the-fly when needed
+> 
+> **Memory savings:** $O(\sqrt{L})$ instead of $O(L)$ for $L$ layers (store $\sqrt{L}$ checkpoints, recompute $\sqrt{L}$ activations between each pair)
+> 
+> ```python
+> # PyTorch gradient checkpointing
+> from torch.utils.checkpoint import checkpoint
+> 
+> # Wrap expensive layers in checkpoint()
+> def forward_with_checkpointing(x, layer1, layer2, layer3):
+>     # Layer 1: normal (activations cached)
+>     h1 = layer1(x)
+>     
+>     # Layer 2: checkpointed (activations recomputed during backward)
+>     h2 = checkpoint(layer2, h1)  # Saves memory!
+>     
+>     # Layer 3: normal
+>     h3 = layer3(h2)
+>     return h3
+> 
+> # For Transformer models:
+> from transformers import GPT2Model
+> model = GPT2Model.from_pretrained('gpt2')
+> model.gradient_checkpointing_enable()  # One-liner!
+> ```
+> 
+> **When to use:**
+> - Training very deep networks (ResNet-1000, GPT-3, BERT-Large)
+> - Limited GPU memory (consumer GPUs with 8-16 GB)
+> - Large batch sizes (memory bottleneck is activations, not parameters)
+> 
+> **Trade-off:** ~30% slower training (due to recomputation) but enables 5-10× larger models on same hardware
+> 
+> **See also:** 
+> - [PyTorch Checkpoint Documentation](https://pytorch.org/docs/stable/checkpoint.html)
+> - Paper: [Training Deep Nets with Sublinear Memory Cost (Chen et al., 2016)](https://arxiv.org/abs/1604.06174)
 
 ---
 

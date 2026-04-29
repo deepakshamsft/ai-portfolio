@@ -51,6 +51,386 @@ Text-to-image is the user-facing layer of latent diffusion. The core pipeline fr
 - **Inpainting** — diffuse only within a user-drawn mask
 - **ControlNet** — inject structural guidance (edges, depth, skeleton) as a spatial conditioning signal
 
+---
+
+## 1.5 · The Practitioner Workflow — Your 4-Phase Generation Pipeline
+
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§3 sequentially to understand the concepts, then use this workflow as your reference
+> - **Workflow-first (practitioners with existing knowledge):** Use this diagram as a jump-to guide when working with real briefs
+>
+> **Note:** Section numbers don't follow phase order because the chapter teaches concepts pedagogically (theory before application). The workflow below shows how to APPLY those concepts in production.
+
+**What you'll build by the end:** A reliable 4-phase pipeline that takes a client brief → final deliverable with 95%+ first-try success rate. This is the VisualForge production workflow that solved the composition-guarantee problem.
+
+```
+Phase 1: PROMPT             Phase 2: GENERATE           Phase 3: CONTROL           Phase 4: REFINE
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+Craft text description:     Configure diffusion:        Add spatial guidance:      Post-process output:
+
+• Subject + style           • Steps (15-50)             • ControlNet type          • Upscale (2x-4x)
+• Quality modifiers         • CFG scale (7-12)          • Conditioning scale       • Inpaint edits
+• Negative prompt           • Seed management           • Preprocessor settings    • Variation generation
+• Token budget (77)         • Scheduler choice          • Edge/depth/pose map      • Batch refinement
+
+→ DECISION:                 → DECISION:                 → DECISION:                → DECISION:
+  Prompt clear enough?        Speed vs quality?           Need composition           Resolution/quality
+  • Subject: specific         • 20 steps: fast              control?                   good enough?
+  • Style: art direction      • 50 steps: quality         • Yes → ControlNet       • Upscale if <1024px
+  • Quality: "8k, sharp"      • CFG 7.5: balanced         • No → skip to Phase 4   • Inpaint if local fix
+  • Negative: "blurry"        • Seed fixed: reproduce     • Scale 0.7-1.0:         • img2img if style
+                              • Seed random: explore        strict → loose             tweak needed
+```
+
+**The workflow maps to these sections:**
+- **Phase 1 (PROMPT)** → §3.1 Prompt Engineering, §3.2 Negative Prompts
+- **Phase 2 (GENERATE)** → §3.2 Negative Prompts (CFG extension), §5 Production Example
+- **Phase 3 (CONTROL)** → §3.5 ControlNet, §5 Production Example
+- **Phase 4 (REFINE)** → §3.3 img2img, §3.4 Inpainting
+
+> 💡 **Typical iteration pattern:** Most briefs need Phase 1→2 only (text-to-image). Add Phase 3 when composition must be guaranteed (product shots, character poses). Use Phase 4 for post-approval edits (client requests color change, higher resolution, style variation).
+
+---
+
+### Decision Checkpoint Examples — Real VisualForge Workflow
+
+**Scenario 1: Generic prompt → Style refinement**
+```
+Attempt 1 (Phase 1): "a cat"
+├─ Result: Generic stock photo
+├─ Decision: Add style + quality modifiers
+└─ Retry (Phase 1): "a cat, digital art, vibrant colors, trending on ArtStation, 8k"
+   └─ Result: Stylized but wrong pose (sitting, need standing)
+```
+
+**Scenario 2: Style good, pose wrong → Add ControlNet**
+```
+Attempt 2 (Phase 1+2): Text prompt from Scenario 1
+├─ Result: Cat is stylized but sitting (client needs standing three-quarter view)
+├─ Decision: Text alone can't guarantee pose → add Phase 3 (ControlNet)
+└─ Retry (Phase 1+2+3): Same text + ControlNet OpenPose with standing reference skeleton
+   └─ Result: Perfect composition — style + pose both match brief
+```
+
+**Scenario 3: Composition perfect but resolution low → Upscale**
+```
+Attempt 3 (All phases): Phase 1+2+3 output from Scenario 2
+├─ Result: 512×512 output, client needs 2048×2048 for print
+├─ Decision: Composition locked in → safe to upscale
+└─ Phase 4 (Refine): Real-ESRGAN 4× upscaler
+   └─ Result: 2048×2048 delivery-ready asset
+```
+
+**Scenario 4: Client revision request → Targeted inpaint**
+```
+Post-approval edit: Client loves image but wants background blue instead of white
+├─ Decision: 95% of image is approved → don't regenerate from scratch
+└─ Phase 4 (Inpaint): Mask background region, prompt "blue gradient background"
+   └─ Result: 8-second edit vs 18-second full regeneration
+```
+
+---
+
+### Code Snippets — One Per Phase
+
+#### Phase 1: Prompt Template Builder
+
+```python
+# Phase 1: PROMPT — Build positive + negative prompt template
+def build_prompt_template(subject, style=None, quality_mods=None, negative_base=None):
+    """
+    VisualForge production prompt builder.
+    
+    Args:
+        subject: Core subject description (e.g., "leather crossbody bag")
+        style: Art direction (e.g., "product photography, studio lighting")
+        quality_mods: List of quality terms (e.g., ["8k", "sharp", "professional"])
+        negative_base: List of unwanted concepts (e.g., ["blurry", "distorted"])
+    
+    Returns:
+        Tuple of (positive_prompt, negative_prompt)
+    """
+    # Build positive prompt
+    parts = [subject]
+    if style:
+        parts.append(style)
+    if quality_mods:
+        parts.extend(quality_mods)
+    positive = ", ".join(parts)
+    
+    # Build negative prompt (production defaults + user additions)
+    negative_defaults = ["lowres", "bad anatomy", "worst quality", "low quality"]
+    if negative_base:
+        negative_defaults.extend(negative_base)
+    negative = ", ".join(negative_defaults)
+    
+    # Truncation warning (CLIP has 77-token limit)
+    token_estimate = len(positive.split())
+    if token_estimate > 60:  # Conservative threshold
+        print(f"⚠️  Prompt may exceed 77-token limit (~{token_estimate} words). "
+              f"Put most important concepts first.")
+    
+    return positive, negative
+
+# VisualForge example: Product brief
+positive, negative = build_prompt_template(
+    subject="Mango leather crossbody bag, three-quarter view",
+    style="product photography, white background, studio lighting",
+    quality_mods=["8k", "sharp", "professional"],
+    negative_base=["shadow", "people", "text"]
+)
+print(f"Positive: {positive}")
+print(f"Negative: {negative}")
+```
+
+#### Phase 2: Generation Pipeline with Optimized Parameters
+
+```python
+# Phase 2: GENERATE — StableDiffusion pipeline with production settings
+from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
+import torch
+
+def create_production_pipeline(model_id="runwayml/stable-diffusion-v1-5"):
+    """
+    VisualForge production generation pipeline.
+    Optimized for 18-second generation time on consumer GPU.
+    """
+    pipe = StableDiffusionPipeline.from_pretrained(
+        model_id,
+        torch_dtype=torch.float16,  # Half precision for 2× speed
+        safety_checker=None  # Disable for commercial use (not needed for product shots)
+    ).to("cuda")
+    
+    # DPM-Solver: 20 steps = same quality as DDIM 50 steps
+    pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
+    
+    # Enable memory optimizations
+    pipe.enable_attention_slicing()  # Reduce VRAM usage
+    pipe.enable_vae_slicing()        # Process VAE in tiles (slower but stable)
+    
+    return pipe
+
+# VisualForge production call
+pipe = create_production_pipeline()
+
+image = pipe(
+    prompt=positive,
+    negative_prompt=negative,
+    num_inference_steps=20,     # Production: 20 steps (~18s on RTX 3060)
+    guidance_scale=7.5,          # Standard CFG weight (7-9 for product shots)
+    width=512, height=512,       # SD 1.5 native resolution
+    generator=torch.Generator("cuda").manual_seed(42)  # Fixed seed for reproducibility
+).images[0]
+
+image.save("vf_product_generation.png")
+```
+
+**Industry Callout — Generation Phase:**
+
+> 🏭 **Stable Diffusion Model Selection:**
+> - **SD 1.5** (runwayml/stable-diffusion-v1-5): Fastest, largest LoRA ecosystem, 512×512 native
+>   - Use when: Speed critical, community fine-tunes needed
+> - **SDXL** (stabilityai/stable-diffusion-xl-base-1.0): Higher quality, 1024×1024 native, dual text encoders
+>   - Use when: Print quality required, can afford 3× longer generation
+> - **SD 3** (stabilityai/stable-diffusion-3-medium): Latest open weights, improved text rendering
+>   - Use when: Text-in-image required (logos, signage), FLUX alternative
+> - **FLUX** (black-forest-labs/FLUX.1-schnell): 2024 SOTA, superior prompt adherence
+>   - Use when: Maximum quality, willing to pay API costs (open weights = dev only)
+>
+> **VisualForge choice:** SD 1.5 for batch work (50 variations in 15 min), SDXL for hero images
+
+#### Phase 3: ControlNet Integration (OpenPose Example)
+
+```python
+# Phase 3: CONTROL — ControlNet with OpenPose preprocessor
+from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
+from controlnet_aux import OpenposeDetector
+import torch
+from PIL import Image
+
+def create_controlnet_pipeline(control_type="openpose"):
+    """
+    VisualForge ControlNet pipeline for spatial conditioning.
+    
+    Args:
+        control_type: "openpose" (human pose), "canny" (edges), 
+                     "depth" (depth map), "hed" (soft edges)
+    """
+    # Load pretrained ControlNet weights
+    controlnet_models = {
+        "openpose": "lllyasviel/sd-controlnet-openpose",
+        "canny": "lllyasviel/sd-controlnet-canny",
+        "depth": "lllyasviel/sd-controlnet-depth",
+        "hed": "lllyasviel/sd-controlnet-hed"
+    }
+    
+    controlnet = ControlNetModel.from_pretrained(
+        controlnet_models[control_type],
+        torch_dtype=torch.float16
+    )
+    
+    pipe = StableDiffusionControlNetPipeline.from_pretrained(
+        "runwayml/stable-diffusion-v1-5",
+        controlnet=controlnet,
+        torch_dtype=torch.float16
+    ).to("cuda")
+    
+    pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
+    
+    return pipe
+
+# VisualForge example: Fashion model pose control
+pipe = create_controlnet_pipeline(control_type="openpose")
+detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
+
+# Extract pose skeleton from reference photo
+reference_image = Image.open("vf_reference_pose.jpg")
+pose_map = detector(reference_image)
+
+# Generate with pose constraint
+image = pipe(
+    prompt="fashion model wearing Mango spring collection, studio lighting, professional photography",
+    negative_prompt="distorted, bad anatomy, blurry, amateur",
+    image=pose_map,
+    controlnet_conditioning_scale=0.8,  # 0.8 = strict pose, allow style freedom
+    num_inference_steps=20,
+    guidance_scale=7.5
+).images[0]
+
+image.save("vf_controlled_generation.png")
+```
+
+**Industry Callout — ControlNet Phase:**
+
+> 🏭 **ControlNet Ecosystem Overview:**
+> - **ControlNet v1.0** (Zhang et al. 2023): 8 control types (Canny, depth, pose, etc.)
+>   - Pretrained on SD 1.5, widely adopted, Hugging Face `diffusers` support
+> - **ControlNet v1.1** (2023): Improved preprocessors, 14 control types
+>   - Added shuffle, tile, inpaint variants
+> - **T2I-Adapter** (Mou et al. 2023): Lightweight alternative, faster inference
+>   - Use when: Speed > strict control, 30% faster than ControlNet
+> - **IP-Adapter** (Ye et al. 2023): Image prompt conditioning (style transfer)
+>   - Use when: "Make it look like this reference image" briefs
+>
+> **VisualForge ControlNet usage:**
+> - **Canny edges** (60% of briefs): Product positioning, architectural layouts
+> - **OpenPose** (25%): Fashion/apparel with human models
+> - **Depth maps** (10%): 3D-consistent scenes
+> - **HED soft edges** (5%): When Canny is too rigid, artistic freedom needed
+
+#### Phase 4: Upscaling + Inpainting Refinement
+
+```python
+# Phase 4: REFINE — Upscaling with Real-ESRGAN + targeted inpainting
+from diffusers import StableDiffusionInpaintPipeline
+from PIL import Image, ImageDraw
+import torch
+import cv2
+import numpy as np
+
+# 4A: Upscaling with Real-ESRGAN
+def upscale_image(image_path, scale=4):
+    """
+    VisualForge upscaling pipeline.
+    Real-ESRGAN: 512×512 → 2048×2048 for print delivery.
+    """
+    # Note: Requires realesrgan package (pip install realesrgan)
+    from realesrgan import RealESRGANer
+    from basicsr.archs.rrdbnet_arch import RRDBNet
+    
+    model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, 
+                    num_block=23, num_grow_ch=32)
+    upsampler = RealESRGANer(
+        scale=scale,
+        model_path="RealESRGAN_x4plus.pth",
+        model=model,
+        tile=256,  # Process in tiles to avoid OOM
+        tile_pad=10,
+        pre_pad=0,
+        half=True  # FP16 for speed
+    )
+    
+    img = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    output, _ = upsampler.enhance(img, outscale=scale)
+    cv2.imwrite(image_path.replace(".png", "_upscaled.png"), output)
+    return output
+
+# 4B: Targeted inpainting (client revision example)
+def inpaint_region(image_path, mask_path, inpaint_prompt):
+    """
+    VisualForge inpainting for post-approval edits.
+    
+    Args:
+        image_path: Original approved image
+        mask_path: Binary mask (white = inpaint, black = keep)
+        inpaint_prompt: What to generate in masked region
+    """
+    pipe = StableDiffusionInpaintPipeline.from_pretrained(
+        "runwayml/stable-diffusion-inpainting",
+        torch_dtype=torch.float16
+    ).to("cuda")
+    
+    image = Image.open(image_path).convert("RGB")
+    mask = Image.open(mask_path).convert("L")
+    
+    result = pipe(
+        prompt=inpaint_prompt,
+        negative_prompt="blurry, distorted, seam, artifacts",
+        image=image,
+        mask_image=mask,
+        num_inference_steps=20,
+        guidance_scale=7.5
+    ).images[0]
+    
+    result.save(image_path.replace(".png", "_inpainted.png"))
+    return result
+
+# VisualForge example: Client wants background color changed
+# Step 1: Create mask (manual or SAM auto-segmentation)
+def create_background_mask(image_path):
+    """Simple background mask via color threshold (production uses SAM)."""
+    img = cv2.imread(image_path)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    
+    # Detect white background (hue-agnostic, high value)
+    lower = np.array([0, 0, 200])
+    upper = np.array([180, 30, 255])
+    mask = cv2.inRange(hsv, lower, upper)
+    
+    cv2.imwrite("background_mask.png", mask)
+    return mask
+
+# Step 2: Inpaint new background
+create_background_mask("vf_approved_product.png")
+inpaint_region(
+    image_path="vf_approved_product.png",
+    mask_path="background_mask.png",
+    inpaint_prompt="blue gradient background, professional studio"
+)
+```
+
+**Industry Callout — Refinement Phase:**
+
+> 🏭 **Post-Processing Tool Landscape:**
+> - **Upscaling:**
+>   - **Real-ESRGAN** (Tencent, 2021): Best general-purpose, 4× upscaling, handles diffusion artifacts well
+>   - **Ultimate SD Upscale** (AUTOMATIC1111): Tiled upscaling for massive images (8×, 16×)
+>   - **LDSR** (Latent Diffusion SR): Slow but highest quality, use for hero assets
+> - **Inpainting:**
+>   - **SD Inpainting model** (runwayml): Fine-tuned on inpaint task, better seam blending
+>   - **LaMa** (Samsung, 2021): Object removal specialist, no prompt needed
+>   - **Segment Anything (SAM)** (Meta, 2023): Auto mask generation, clicks → precise masks
+> - **Variation Generation:**
+>   - **img2img** with strength=0.3-0.5: Same composition, different style/details
+>   - **Prompt2Prompt**: Surgical text edits (change "red car" → "blue car" only)
+>
+> **VisualForge refinement stack:**
+> - Real-ESRGAN for all upscaling (2× default, 4× for print)
+> - SD Inpainting for client revisions (40% of projects)
+> - SAM for auto mask generation (replaced manual Photoshop masking, 5× faster)
+
+---
+
 ## 2 · Running Example
 
 **PixelSmith v5 — VisualForge ControlNet product-positioning brief.** The e-commerce team needs product shots at a specific angle (45°, three-quarter view) that current text-only generation can't reliably produce. ControlNet + edge maps solves the positioning problem.
@@ -67,7 +447,7 @@ Result: Generated image respects both the angle (from edge map) and the brand de
 
 ## 3 · The Math
 
-### Prompt Engineering: Weighted Token Embeddings
+### 3.1 · **[Phase 1: PROMPT]** Prompt Engineering — Weighted Token Embeddings
 
 CLIP text encoder output is an average over token positions. Each token occupies one position in the 77-length context. Practical implications:
 
@@ -81,7 +461,7 @@ $$\mathbf{e}_{\text{weighted}} = w \cdot \mathbf{e}_{\text{token}}$$
 
 This is just scalar multiplication of the embedding vector before the diffusion U-Net receives it via cross-attention.
 
-### Negative Prompts
+### 3.2 · **[Phase 2: GENERATE]** Negative Prompts & CFG Configuration
 
 Extend the CFG equation with a negative prompt $c^-$:
 
@@ -95,7 +475,18 @@ $$\hat{\epsilon} = \epsilon_\theta(x_t, c^-) + w \cdot (\epsilon_\theta(x_t, c^+
 
 Only **two** calls per step: one for positive, one for negative (negative acts as the new baseline).
 
-### img2img: Start from Partial Noise
+**Generation parameters reference:**
+
+| Parameter | Range | Effect | VisualForge Default |
+|-----------|-------|--------|---------------------|
+| `num_inference_steps` | 15-50 | More steps = higher quality but slower | 20 (18s generation) |
+| `guidance_scale` (CFG) | 1-20 | Higher = stricter prompt adherence, lower = more creative | 7.5 (balanced) |
+| `seed` | 0 to 2³² | Fixed seed = reproducible, random = exploration | Fixed for client approvals |
+| Scheduler | DDIM/DPM/Euler | DPM-Solver = fastest quality/step ratio | DPM-Solver (2.5× faster than DDIM) |
+
+> 💡 **VisualForge tuning:** CFG 7-9 for product shots (precise), CFG 5-7 for artistic briefs (creative freedom). Always use 20 steps minimum for client deliverables (15 steps shows artifacts under scrutiny).
+
+### 3.3 · **[Phase 4: REFINE]** img2img — Start from Partial Noise
 
 Unlike text-to-image which starts from $x_T \sim \mathcal{N}(0, I)$, img2img:
 
@@ -110,7 +501,18 @@ Unlike text-to-image which starts from $x_T \sim \mathcal{N}(0, I)$, img2img:
 
 $$t_\text{start} = \lfloor s \cdot T \rfloor$$
 
-### Inpainting: Mask-Constrained Generation
+**img2img strength guidelines:**
+
+| Strength | Effect | Use Case |
+|----------|--------|----------|
+| 0.1-0.3 | Minimal change, preserve structure | Quality enhancement, lighting adjustment |
+| 0.4-0.6 | Moderate transformation | Style transfer, day→night, seasonal changes |
+| 0.7-0.9 | Major reinterpretation | Sketch→photorealistic, significant composition changes |
+| 1.0 | Full regeneration | Equivalent to text-to-image (ignores input) |
+
+> ⚠️ **VisualForge lesson:** `strength > 0.7` often changes subject identity. For "same product, different style" briefs, use `strength=0.5` + strong style keywords in prompt.
+
+### 3.4 · **[Phase 4: REFINE]** Inpainting — Mask-Constrained Generation
 
 At every denoising step, the known pixels (outside the mask) are re-noised and composited back:
 
@@ -118,7 +520,18 @@ $$x_t^{\text{masked}} = \text{mask} \odot x_t + (1-\text{mask}) \odot \big(\sqrt
 
 This forces the unmasked region to remain consistent with the original while the masked region is freely generated by the model.
 
-### ControlNet: Spatial Conditioning
+**Inpainting best practices:**
+
+| Mask Strategy | When to Use | VisualForge Example |
+|---------------|-------------|---------------------|
+| **Feathered edges** (5-10px blur) | Always for seamless blending | Background color changes, object removal |
+| **Hard edges** | Sharp boundaries (replacing entire object) | Product substitution, text overlay removal |
+| **Dilated mask** (+10px expansion) | Avoid boundary artifacts | Ensures diffusion has context at edges |
+| **Multiple passes** (inpaint → upscale → inpaint) | Large regions | Hero image refinement (background + detail pass) |
+
+> 💡 **VisualForge metric:** Inpainting with feathered masks reduces revision requests by 60% (seam artifacts are the #1 client complaint for hard-edge masks).
+
+### 3.5 · **[Phase 3: CONTROL]** ControlNet — Spatial Conditioning
 
 ControlNet (Zhang et al. 2023) adds a control signal (Canny edges, depth map, skeleton, etc.) as an additional input to the U-Net. Architecture:
 
@@ -131,6 +544,28 @@ $$\text{skip}_l^{\text{ControlNet}} = \text{skip}_l^{\text{original}} + \text{re
 The main U-Net decoder then assembles the spatially-guided features into the output.
 
 Key property: ControlNet requires **no retraining of the main U-Net**. Only the cloned encoder's weights are trained on (image, control, prompt) triplets.
+
+**ControlNet control types & use cases:**
+
+| Control Type | Input Signal | Best For | VisualForge Use Frequency |
+|--------------|--------------|----------|---------------------------|
+| **Canny edges** | Hard edge detection | Product positioning, architectural layouts | 60% |
+| **HED (soft edges)** | Holistic edge detection | Artistic scenes, natural compositions | 5% |
+| **Depth map** | Depth estimation | 3D-consistent scenes, parallax effects | 10% |
+| **OpenPose** | Human skeleton | Fashion, character poses, action shots | 25% |
+| **Scribble** | Hand-drawn sketch | Quick concept exploration | Rare (prototyping only) |
+| **Segmentation** | Semantic mask | Region-based control (sky, ground, objects) | Rare (complex briefs) |
+
+**Conditioning scale tuning:**
+
+| Scale | Effect | When to Use |
+|-------|--------|-------------|
+| 0.3-0.5 | Subtle hint, artistic freedom | Inspiration reference, loose guidance |
+| 0.6-0.8 | Balanced control | **VisualForge default** — most briefs |
+| 0.9-1.0 | Strict enforcement | Product specs, architectural renders |
+| >1.0 | Over-constrained (often degrades quality) | Debug only — usually too rigid |
+
+> ⚠️ **VisualForge lesson learned:** `scale=1.0` with detailed Canny edges produces "photocopied" results (no lighting/texture variation). **Solution:** Use `scale=0.7-0.8` OR simplify the control map (fewer edges, broader strokes).
 
 ---
 

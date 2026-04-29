@@ -92,7 +92,73 @@ Still need Ch.6 (orchestration) for proactive upselling to hit >25% conversion a
 
 ***
 
-## 1. Embeddings Fundamentals: Transforming Data into Vectors
+## 1 · Core Idea
+
+**Retrieval-Augmented Generation (RAG) is a two-phase pipeline that grounds LLM responses in external knowledge.** Instead of relying solely on parametric memory (what the model learned during training), RAG fetches relevant documents at query time and includes them in the prompt context. This eliminates hallucination of facts that can be looked up.
+
+**For PizzaBot:** Without RAG, the bot invents menu prices and calorie counts. With RAG, every factual claim is grounded in retrieved chunks from the menu database — the model cannot fabricate what it reads directly from context.
+
+---
+
+## 1.5 · The Practitioner Workflow — Your 5-Phase RAG Pipeline
+
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§18 sequentially to understand the concepts, then use this workflow as your reference
+> - **Workflow-first (practitioners with existing knowledge):** Use this diagram as a jump-to guide when working with real data
+>
+> **Note:** Section numbers don't follow phase order because the chapter teaches concepts pedagogically (theory before application). The workflow below shows how to APPLY those concepts.
+
+**Before diving into embeddings and vector databases, understand the end-to-end workflow you'll follow with every RAG implementation:**
+
+> 📊 **What you'll build by the end:** A production RAG system with ingestion pipeline (chunk → embed → index) and query pipeline (embed query → retrieve → generate) achieving <5% error rate on factual queries.
+
+```
+Phase 1: CHUNK              Phase 2: EMBED              Phase 3: STORE              Phase 4: RETRIEVE           Phase 5: GENERATE
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Split documents:            Convert text to vectors:     Build searchable index:     Match query to docs:        LLM synthesizes answer:
+
+• Load raw docs (PDF,       • Load embedding model      • Initialize vector DB       • Embed user query          • Compose prompt with
+  HTML, JSON, CSV)           (OpenAI, sentence-trans)    (Chroma, Pinecone, FAISS)   (same model as Phase 2!)     retrieved chunks
+• Recursive splitting       • Batch embed all chunks    • Insert chunk vectors +     • ANN search (HNSW/IVF)     • Generate grounded
+  (400-512 tokens)          • L2-normalize vectors        metadata                   • Optional: Re-rank top-k     response
+• 10-20% overlap           • Store for indexing        • Build ANN index           • Return top-k chunks        • Cite sources
+
+→ DECISION:                → DECISION:                 → DECISION:                 → DECISION:                 → DECISION:
+  Which chunking strategy?   Which embedding model?      Which vector DB?            How many chunks (k)?        Include citations?
+  • Fixed: Fast baseline     • OpenAI ada-002:           • Chroma: Local, free       • k=5: Typical default      • Yes: Better trust
+  • Recursive: Respects        $0.10/1M tokens            prototyping                • k=10: More context         & debuggability
+    structure (80% use this)  • sentence-trans:          • Pinecone: Managed         • k=20: Broad coverage      • No: Faster inference
+  • Semantic: +2-3pp           Free, local, slower         cloud, $70/mo                but dilutes relevance
+    recall, slow ingestion    • BGE: SOTA open-source    • FAISS: In-memory,
+                                                           fastest for small scale
+```
+
+**The workflow maps to these sections:**
+- **Phase 1 (Chunk)** → §7 Why Chunking Is Required, §8 Chunking Strategies, §9 Chunk Size, §10 Chunk Overlap
+- **Phase 2 (Embed)** → §1 Embeddings Fundamentals (below), §2 Normalization, §3 Multimodal Embeddings
+- **Phase 3 (Store)** → §5 Ingestion-Time Pipeline, §5.4 Embedding and Indexing
+- **Phase 4 (Retrieve)** → §6 Query-Time Pipeline, §11 Advanced Retrieval (re-ranking, hybrid search)
+- **Phase 5 (Generate)** → §13 Putting It All Together, §6 Step 4 LLM Prompt Composition
+
+> 💡 **How to use this workflow:** Execute Phase 1→2→3 once during ingestion (offline, can take hours). Then Phase 4→5 run per query (online, must complete in <3s p95). The sections above teach WHY each phase works; refer back here for WHAT to do.
+
+---
+
+## 2 · Running Example: PizzaBot's Menu Knowledge Problem
+
+**Scenario:** Mamma Rosa's PizzaBot (Ch.3) can reason through multi-step queries but hallucinates menu facts. A customer asks "What's the calorie count for a large Margherita?" and the bot responds "approximately 880 calories" — but the real value is 920 calories from the nutrition database.
+
+**Why CoT reasoning alone isn't enough:** Chain-of-thought helps with logic ("if A < B and B < C, then A < C"), not facts ("what is the actual value of A?"). The bot has perfect reasoning but operates on invented data.
+
+**What this chapter unlocks:** RAG pipeline that grounds every factual claim in retrieved documents:
+1. **Ingestion time:** Chunk menu PDF (500+ items) → Embed with `text-embedding-3-small` → Index in Chroma vector DB
+2. **Query time:** Embed "calorie count large Margherita" → Retrieve top-5 chunks → LLM sees actual nutrition facts in context → Generate answer: "920 calories"
+
+**Expected improvement:** Error rate 10% → 5% (all menu fact hallucinations eliminated).
+
+---
+
+## 3 · Embeddings Fundamentals: Transforming Data into Vectors **[Phase 2: EMBED]**
 
 **You need embeddings to make "cheapest gluten-free pizza under 600 cal" work** — the menu says "gluten-free crust available," not "gluten free," and keyword search misses it. **Embeddings transform text into vectors where meaning becomes measurable** — similar concepts cluster together in high-dimensional space, so "gluten-free" and "gluten free crust" become neighbors even with different exact wording.
 
@@ -191,9 +257,68 @@ Some embedding models use **different prefixes** for queries versus documents to
 
 Using wrong prefixes degrades retrieval quality — always check model documentation.
 
+**Code Snippet — Phase 2: Batch embed documents with sentence-transformers:**
+
+```python
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+# Load embedding model (384-dim, fast, good quality)
+model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+
+# Document chunks from Phase 1 (chunking)
+chunks = [
+    "Margherita Pizza (Large): $14.99, 920 calories",
+    "Pepperoni Pizza (Large): $15.99, 1,040 calories",
+    "Veggie Garden Pizza (Large): $14.49, 780 calories"
+]
+
+# DECISION LOGIC: Batch processing for efficiency
+batch_size = 32  # Typical: 16-64 depending on GPU memory
+
+# Generate embeddings (returns numpy array: n_chunks × 384)
+embeddings = model.encode(
+    chunks,
+    batch_size=batch_size,
+    show_progress_bar=True,
+    normalize_embeddings=True  # L2-normalize for dot product retrieval
+)
+
+print(f"Embedded {len(chunks)} chunks")
+print(f"Embedding shape: {embeddings.shape}")  # → (3, 384)
+print(f"Vector magnitude (after normalization): {np.linalg.norm(embeddings[0]):.4f}")  # → 1.0000
+
+# Store embeddings for Phase 3 (indexing)
+np.save('menu_embeddings.npy', embeddings)
+```
+
+> 💡 **Industry Standard:** `sentence-transformers` library  
+> **When to use:** Always for local/free embeddings. SOTA models: `all-MiniLM-L6-v2` (fast, 384-dim), `all-mpnet-base-v2` (higher quality, 768-dim), or `BGE` models (multilingual, SOTA).  
+> **Common alternatives:** OpenAI `text-embedding-3-small` (API, $0.02/1M tokens), Cohere `embed-v3` (multilingual), `voyage-2` (high-quality retrieval).  
+> **Production pattern:** sentence-transformers for prototyping → OpenAI API for production if budget allows.
+
+### 3.1 DECISION CHECKPOINT — Phase 2: Embedding Complete
+
+**What you just saw:**
+- 500 menu items chunked → 1,500 chunks (Phase 1 output)
+- Each chunk embedded as 384-dim vector (Phase 2: sentence-transformers)
+- Vectors L2-normalized (magnitude = 1.0) for efficient dot product search
+- **Storage cost:** 1,500 vectors × 384 dims × 4 bytes = **2.3 MB** (negligible)
+
+**What it means:**
+- **Semantic search now possible:** Query "gluten-free options" will retrieve "GF crust available" even with different wording
+- **Dot product = cosine similarity:** Normalized vectors enable fastest retrieval (skip expensive square root)
+- **Embedding model is now fixed:** Must use same model at query time (Phase 4) — mixing models produces meaningless similarity scores
+
+**What to do next:**
+→ **For small corpora (<10k chunks):** Use FAISS IndexFlatIP (exact search, fast enough)  
+→ **For large corpora (>100k chunks):** Build HNSW or IVF index (approximate search, sub-ms retrieval)  
+→ **For PizzaBot (1.5k chunks):** Chroma with in-memory index — simple, fast, perfect for prototype  
+→ **Proceed to Phase 3:** Index these embeddings in vector database for fast retrieval
+
 ***
 
-## 2. Normalization: Why It Matters for Production Systems
+## 4 · Normalization: Why It Matters for Production Systems
 
 **You'll hit this in production when retrieval latency becomes a bottleneck.** For PizzaBot, with 1,500 embedded menu chunks, retrieval takes ~10ms. Scale to 1.5 million chunks (a national restaurant chain), and brute-force cosine similarity becomes a 10-second query — unacceptable.
 
@@ -300,7 +425,7 @@ The RAG pipeline connects the model to the information it needs at query time. W
 
 ***
 
-## 5. Ingestion-Time Pipeline: Preparing the Knowledge Base
+## 5 · Ingestion-Time Pipeline: Preparing the Knowledge Base **[Phase 3: STORE]**
 
 ### 5.1 Document Loading & Preprocessing
 
@@ -339,14 +464,85 @@ Each chunk should carry metadata such as topic, date, and source, so that retrie
 
 Each chunk is fed into an embedding model to produce a vector representation. The chunking process directly feeds into the embedding step, where each chunk is converted into vector representations that capture semantic meaning. Once embedded, vectors are inserted into a vector database with their associated metadata. ANN indexes (HNSW, IVF, DiskANN) then enable fast similarity search over these vectors.
 
+**Code Snippet — Phase 3: Index embeddings in Chroma vector database:**
+
+```python
+import chromadb
+from chromadb.utils import embedding_functions
+
+# Initialize Chroma client (local persistent storage)
+client = chromadb.PersistentClient(path="./chroma_db")
+
+# Use same embedding model as Phase 2 (CRITICAL!)
+embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
+
+# Create collection (like a table in SQL)
+collection = client.get_or_create_collection(
+    name="pizzabot_menu",
+    embedding_function=embedding_fn,
+    metadata={"description": "PizzaBot menu corpus"}
+)
+
+# Load chunks and metadata from Phase 1
+chunks = [
+    "Margherita Pizza (Large): $14.99, 920 calories",
+    "Pepperoni Pizza (Large): $15.99, 1,040 calories",
+    "Veggie Garden Pizza (Large): $14.49, 780 calories"
+]
+
+metadatas = [
+    {"source": "menu.json", "category": "pizza", "size": "large"},
+    {"source": "menu.json", "category": "pizza", "size": "large"},
+    {"source": "menu.json", "category": "pizza", "size": "large"}
+]
+
+# DECISION LOGIC: Batch insert for efficiency
+collection.add(
+    documents=chunks,      # Text chunks (will be auto-embedded)
+    metadatas=metadatas,   # Structured metadata for filtering
+    ids=[f"chunk_{i}" for i in range(len(chunks))]  # Unique IDs
+)
+
+print(f"✅ Indexed {collection.count()} chunks in vector DB")
+print(f"📊 Collection metadata: {collection.metadata}")
+```
+
+> 💡 **Industry Standard:** `chromadb` (local prototyping), `pinecone` (managed cloud), `weaviate` (hybrid search), `qdrant` (production-grade open-source)
+> **When to use Chroma:** Prototyping, <100k documents, local development, no infrastructure setup
+> **When to use Pinecone:** Production, >1M documents, managed scaling, $70/month+
+> **When to use FAISS:** Research, in-memory only, fastest for batch experiments
+> **See also:** [Ch.5 Vector DBs](../ch05_vector_dbs) for HNSW/IVF index details
+
 **Batch vs. Streaming Ingestion:**
 
 * **Pre-chunking** (batch) is the most common method. It processes documents asynchronously by breaking them into smaller pieces before embedding and storing them in the vector database. This enables fast retrieval at query time since all chunks are pre-computed.
 * **Post-chunking** (streaming) takes a different approach by embedding entire documents first, then performing chunking at query time only on the documents that are actually retrieved. The chunked results can be cached, so the system becomes faster over time.
 
+### 5.5 DECISION CHECKPOINT — Phase 3: Indexing Complete
+
+**What you just saw:**
+- 1,500 document chunks inserted into Chroma vector DB
+- Each chunk stored with embedding vector (384-dim) + metadata (source, category, size)
+- Collection created with persistent storage (`./chroma_db` directory)
+- **Index type:** Default (brute-force exact search, fast enough for <10k chunks)
+
+**What it means:**
+- **Ingestion pipeline complete:** All 3 offline phases done (Chunk → Embed → Store)
+- **Query-ready:** Can now search "gluten-free options" and retrieve semantically similar chunks
+- **Metadata filtering enabled:** Can restrict search to `category="pizza"` or `size="large"`
+- **No query latency yet:** This is offline work — query pipeline (Phase 4-5) happens per request
+
+**What to do next:**
+→ **For production scale (>100k chunks):** Enable HNSW index in Chroma for sub-ms retrieval  
+→ **For multi-tenant systems:** Create separate collection per user/tenant for data isolation  
+→ **For PizzaBot:** Current setup handles 1.5k chunks at <10ms query time — sufficient  
+→ **Proceed to Phase 4:** Build query-time retrieval pipeline (embed query → search → retrieve top-k)
+
 ***
 
-## 6. Query-Time Pipeline: From Question to Answer
+## 6 · Query-Time Pipeline: From Question to Answer **[Phase 4: RETRIEVE]**
 
 **This is where latency matters.** When a customer asks "gluten-free options under $15," they expect a response in 2-3 seconds. Your query pipeline must: embed the query (∼50ms), search the index (∼200ms for 1,500 chunks, ∼2s for 1.5M chunks without optimization), and generate an answer (∼1s). **Total budget: <3s p95** to avoid abandonment.
 
@@ -359,6 +555,56 @@ When a user asks a question, the query pipeline activates:
 * **Embeddings must be regenerated when:** source document changes, embedding model changes, chunking strategy changes, or model fine-tuning occurs
 
 **For PizzaBot:** Query embedding costs ~$0.000012 per query (12 tokens × $0.02 / 1M tokens with `text-embedding-3-small`). At 10,000 daily queries, that's **$0.12/day** — negligible. Latency is the real constraint: OpenAI's API typically returns embeddings in 30-50ms, well within your <3s p95 budget.
+
+**Code Snippet — Phase 4: Query-time retrieval with Chroma:**
+
+```python
+import chromadb
+from chromadb.utils import embedding_functions
+
+# Load same client and collection from Phase 3
+client = chromadb.PersistentClient(path="./chroma_db")
+embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"  # SAME model as ingestion!
+)
+collection = client.get_collection(
+    name="pizzabot_menu",
+    embedding_function=embedding_fn
+)
+
+# User query from chat interface
+user_query = "What gluten-free options are under 800 calories?"
+
+# DECISION LOGIC: Retrieve top-k with metadata filtering
+results = collection.query(
+    query_texts=[user_query],         # Embed query (auto, uses embedding_fn)
+    n_results=5,                      # Top-5 most similar chunks
+    where={"category": "pizza"},      # Filter: only pizza items
+    include=["documents", "metadatas", "distances"]
+)
+
+# Display retrieved chunks
+for i, (doc, meta, dist) in enumerate(zip(
+    results['documents'][0], 
+    results['metadatas'][0], 
+    results['distances'][0]
+)):
+    similarity = 1 - dist  # Convert L2 distance to similarity
+    print(f"\n[Rank {i+1}] Similarity: {similarity:.3f}")
+    print(f"Chunk: {doc}")
+    print(f"Metadata: {meta}")
+
+# Expected output:
+# [Rank 1] Similarity: 0.89
+# Chunk: Veggie Garden Pizza (Large): $14.49, 780 calories. Gluten-free crust available (+$3.00).
+# Metadata: {'source': 'menu.json', 'category': 'pizza', 'size': 'large'}
+```
+
+> 💡 **Industry Standard:** Hybrid retrieval with BM25 + dense embeddings
+> **Pattern:** Run both keyword search (BM25) and semantic search (dense vectors) in parallel, merge with Reciprocal Rank Fusion (RRF)
+> **When to use:** Always in production — catches both exact matches ("SKU-1234") and paraphrases ("gluten-free")
+> **Implementation:** `rank-bm25` library (Python) or Elasticsearch for keyword, vector DB for dense, merge with RRF formula
+> **See also:** [Cohere Rerank API](https://docs.cohere.com/docs/reranking) for cross-encoder re-ranking
 
 > ### ⚠️ Critical Constraint: Query and Document Embeddings Must Use the Exact Same Model
 >
@@ -389,9 +635,31 @@ When a user asks a question, the query pipeline activates:
 
 **Step 4 — LLM Prompt Composition:** The top relevant chunks are inserted into the LLM's prompt as reference context. The LLM then generates a grounded answer.
 
+### 6.1 DECISION CHECKPOINT — Phase 4: Retrieval Complete
+
+**What you just saw:**
+- User query "gluten-free options under 800 calories" embedded with same model (all-MiniLM-L6-v2)
+- Vector search retrieved top-5 most similar chunks from 1,500 indexed items
+- Metadata filter applied: only searched `category="pizza"` (ignored drinks, sides)
+- **Retrieval latency:** ~10ms for 1.5k chunks (brute-force exact search)
+- **Top result:** Veggie Garden Pizza (similarity: 0.89) — exact match for query intent
+
+**What it means:**
+- **Semantic search works:** Retrieved "GF crust available" even though query said "gluten-free"
+- **Metadata filtering saves cost:** Searched 800 pizza chunks instead of 1,500 total items
+- **Relevance ranking correct:** Veggie Garden (780 cal, gluten-free) ranked above Margherita (920 cal)
+- **Ready for LLM generation:** Top-5 chunks contain all information needed to answer query
+
+**What to do next:**
+→ **If retrieval quality is low (<80% recall):** Test hybrid search (BM25 + dense vectors with RRF)  
+→ **If latency is high (>100ms):** Enable HNSW index (approximate search, 10× faster)  
+→ **If re-ranking needed:** Add Cohere Rerank or cross-encoder to refine top-5 → top-3  
+→ **For PizzaBot:** Current setup achieves 91% recall at 10ms — sufficient  
+→ **Proceed to Phase 5:** Compose LLM prompt with retrieved chunks and generate grounded answer
+
 ***
 
-## 7. Why Chunking Is Required
+## 7 · Why Chunking Is Required **[Phase 1: CHUNK]**
 
 **You can't embed Mamma Rosa's entire 50-page menu PDF as one vector** — `text-embedding-ada-002` has an 8,191 token limit, and your menu is 15,000+ tokens. Even if it fit, a single vector averaging over "Margherita nutrition facts" + "delivery zones" + "allergen warnings" + "pricing tiers" would dilute every query.
 
@@ -439,6 +707,53 @@ In Chroma's research, **recursive splitting achieved 88 to 89% recall with 400-t
 
 **For PizzaBot:** Your menu JSON has natural boundaries (one item per object), your FAQ has section headers ("### Refund Policy"), and your allergen CSV has row boundaries. Recursive splitting respects all of these — fixed-size chunking doesn't.
 
+**Code Snippet — Phase 1: Recursive character splitting with LangChain:**
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.document_loaders import JSONLoader
+import json
+
+# Load raw menu document
+with open('menu.json', 'r') as f:
+    menu_data = json.load(f)
+
+# Extract text from JSON structure
+documents = []
+for item in menu_data['items']:
+    # Combine fields for rich context
+    text = f"{item['name']} ({item['size']}): ${item['price']}, {item['calories']} calories"
+    if 'allergens' in item:
+        text += f". Allergens: {', '.join(item['allergens'])}"
+    if 'gluten_free_available' in item and item['gluten_free_available']:
+        text += ". Gluten-free crust available (+$3.00)."
+    documents.append(text)
+
+# DECISION LOGIC: Configure splitter for menu data
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=400,              # Target: 400 tokens (good for factoid queries)
+    chunk_overlap=60,            # 15% overlap (60/400) prevents boundary issues
+    length_function=len,         # Count by characters (approximate tokens)
+    separators=["\n\n", "\n", ". ", " ", ""]  # Hierarchy: paragraph → sentence → word
+)
+
+# Split documents
+chunks = splitter.create_documents(documents)
+
+print(f"✅ Split {len(documents)} items into {len(chunks)} chunks")
+print(f"📊 Avg chunk length: {sum(len(c.page_content) for c in chunks) / len(chunks):.0f} chars")
+
+# Sample output
+for i, chunk in enumerate(chunks[:3]):
+    print(f"\n[Chunk {i+1}]")
+    print(chunk.page_content[:150] + "...")
+```
+
+> 💡 **Industry Standard:** `LangChain RecursiveCharacterTextSplitter` or `LlamaIndex SentenceSplitter`
+> **When to use:** First choice for 80% of RAG applications — respects structure, fast, predictable
+> **Common alternatives:** `SemanticChunker` (groups by meaning, 2-3pp better recall but slower), `NLTKTextSplitter` (sentence-aware), `MarkdownTextSplitter` (preserves headers)
+> **Production pattern:** Start with recursive splitting → measure recall → upgrade to semantic if needed
+
 ### Sentence-Based Chunking
 
 Each chunk contains complete sentences. No thought gets cut off mid-expression. This works well when queries align with sentence-level information, like customer support questions or conversational AI. The tradeoff: sentence lengths vary wildly, leading to inconsistent chunk sizes — a single sentence might be 10 tokens or 200 tokens.
@@ -462,9 +777,30 @@ This approach can improve recall by **2 to 3 percentage points** over recursive 
 
 The newest approach: let an LLM analyze each document and decide where to split it. The model can understand semantic meaning, identify topic transitions, and respect content structure like section headings and step-by-step instructions. It produces the highest-quality chunks but is also the **slowest and most expensive** method — you're making an LLM call for document segmentation before you even start the retrieval pipeline.
 
+### 8.1 DECISION CHECKPOINT — Phase 1: Chunking Complete
+
+**What you just saw:**
+- Raw menu document (500 items, 15,000 tokens) split using recursive character splitter
+- Strategy: 400 token chunks with 15% overlap (60 tokens)
+- Separators hierarchy: paragraph breaks → sentences → spaces (respects structure)
+- **Output:** 1,500 chunks averaging ~300 tokens each
+
+**What it means:**
+- **Item boundaries preserved:** "Margherita: $14.99, 920 cal" stays together (not split)
+- **Context maintained:** Overlap ensures allergen warnings adjacent to items aren't orphaned
+- **Retrieval granularity correct:** Each chunk contains 1-2 menu items (good for factoid queries)
+- **Ready for embedding:** Chunk sizes within model limits (all-MiniLM-L6-v2: 512 token max)
+
+**What to do next:**
+→ **If recall is poor (<85%):** Test semantic chunking (groups by meaning, +2-3pp recall)  
+→ **If items getting split:** Reduce chunk size to 256 tokens or switch to per-item chunking  
+→ **If context loss at boundaries:** Increase overlap to 20% (80 tokens)  
+→ **For PizzaBot:** Current 400-token recursive splitting achieves 91% recall — proceed to Phase 2  
+→ **Proceed to Phase 2:** Embed these 1,500 chunks with sentence-transformers
+
 ***
 
-## 9. Chunk Size Selection
+## 9 · Chunk Size Selection
 
 **Your error rate depends on getting chunk size right.** Too small (128 tokens), and "Margherita: Large, $14.99, 920 cal" gets split into 3 chunks — the calorie query retrieves the wrong one. Too large (2,048 tokens), and the embedding averages over 10 menu items — similarity scores become mushy, retrieval precision drops.
 
@@ -639,7 +975,8 @@ You picked recursive for production (fast, good enough), and documented semantic
 
 ***
 
-## 13. Putting It All Together: Full Pipeline Walkthrough
+## 13 · Putting It All Together: Full Pipeline Walkthrough **[Phase 5: GENERATE]**
+
 ### Pipeline in ASCII
 
 ```plaintext
@@ -665,52 +1002,101 @@ QUERY PATH (Runtime)
 
 ### Practical Example with Code
 
+**Code Snippet — Phase 5: Complete RAG pipeline with prompt template:**
+
 ```python
-from pymilvus.model.dense import OpenAIEmbeddingFunction
-from pymilvus import MilvusClient
+import chromadb
+from chromadb.utils import embedding_functions
+from openai import OpenAI
 
-# Initialize embedding function
-OPENAI_API_KEY = "your-openai-api-key"
-ef = OpenAIEmbeddingFunction("text-embedding-ada-002", api_key=OPENAI_API_KEY)
-
-# Documents to embed
-docs = [
- "Artificial intelligence was founded as an academic discipline in 1956.",
- "Alan Turing was the first person to conduct substantial research in AI.",
- "Born in Maida Vale, London, Turing was raised in southern England."
-]
-
-# Generate embeddings for documents (ingestion)
-docs_embeddings = ef(docs)
-
-# Generate embeddings for queries (runtime)
-queries = ["When was artificial intelligence founded",
- "Where was Alan Turing born?"]
-query_embeddings = ef(queries)
-
-# Connect to vector DB and create collection
-client = MilvusClient(uri=ZILLIZ_PUBLIC_ENDPOINT, token=ZILLIZ_API_KEY)
-COLLECTION = "documents"
-client.create_collection(
- collection_name=COLLECTION,
- dimension=ef.dim, # 1536 for ada-002
- auto_id=True
+# Phase 4: Retrieve relevant chunks (from earlier)
+client_chroma = chromadb.PersistentClient(path="./chroma_db")
+embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
+collection = client_chroma.get_collection(
+    name="pizzabot_menu",
+    embedding_function=embedding_fn
 )
 
-# Insert document embeddings
-for doc, embedding in zip(docs, docs_embeddings):
- client.insert(COLLECTION, {"text": doc, "vector": embedding})
+user_query = "What's the calorie count for a large Margherita pizza?"
 
-# Search with query embeddings
-results = client.search(
- collection_name=COLLECTION,
- data=query_embeddings,
- consistency_level="Strong",
- output_fields=["text"]
+# Retrieve top-3 chunks
+results = collection.query(
+    query_texts=[user_query],
+    n_results=3,
+    include=["documents", "metadatas"]
 )
+
+# Phase 5: Compose prompt with retrieved context
+retrieved_chunks = results['documents'][0]
+context = "\n\n".join([f"[Source {i+1}]\n{chunk}" 
+                       for i, chunk in enumerate(retrieved_chunks)])
+
+# DECISION LOGIC: Prompt template with citation requirement
+system_prompt = """You are PizzaBot, Mamma Rosa's ordering assistant.
+Answer questions using ONLY the provided menu context.
+Always cite the source number (e.g., "According to Source 1...").
+If the answer isn't in the context, say "I don't have that information in the menu."""
+
+user_prompt = f"""Context from menu database:
+{context}
+
+User question: {user_query}
+
+Answer:"""
+
+# Generate grounded response
+client_openai = OpenAI()
+response = client_openai.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ],
+    temperature=0.0  # Deterministic for factual queries
+)
+
+answer = response.choices[0].message.content
+print(f"PizzaBot: {answer}")
+
+# Expected output:
+# "According to Source 1, a large Margherita pizza is 920 calories."
 ```
 
+> 💡 **Industry Standard:** `LangChain RetrievalQA` chain or `LlamaIndex QueryEngine`
+> **When to use:** Always in production — handles prompt composition, citation tracking, error handling
+> **Common alternatives:** Custom prompt templates (shown above, more control), `Haystack` pipelines (European open-source ecosystem)
+> **Production pattern:** Start with custom templates → migrate to LangChain/LlamaIndex when complexity grows
+> **Advanced features:** Conversational memory (multi-turn dialogue), streaming responses, source attribution UI
 
+### 13.1 DECISION CHECKPOINT — Phase 5: Generation Complete
+
+**What you just saw:**
+- User query "calorie count large Margherita" retrieved 3 relevant chunks (Phase 4 output)
+- Chunks composed into prompt context with source labels ([Source 1], [Source 2], [Source 3])
+- System prompt enforces grounding: "Answer using ONLY the provided context"
+- LLM generated answer with citation: "According to Source 1, 920 calories"
+- **Total latency:** 10ms (retrieval) + 50ms (embedding) + 1.2s (LLM) = **1.26s** (well under 3s p95 target)
+
+**What it means:**
+- **Hallucination eliminated:** LLM cannot fabricate facts — every claim grounded in retrieved chunks
+- **Citation tracking works:** Source attribution enables debugging ("which chunk did the answer come from?")
+- **Latency acceptable:** 1.26s average, 2.8s p95 (below 3s target), no optimization needed yet
+- **RAG pipeline complete:** All 5 phases operational (Chunk → Embed → Store → Retrieve → Generate)
+
+**What to do next:**
+→ **If answers ignore context:** Add few-shot examples in system prompt or fine-tune for instruction-following  
+→ **If latency exceeds budget:** Enable HNSW index (Phase 3), reduce top-k (Phase 4), or use faster LLM  
+→ **If citation quality low:** Use structured output format (JSON schema) or post-process with regex  
+→ **For PizzaBot:** Current pipeline achieves <5% error rate, 1.26s avg latency — deploy to production  
+→ **Next optimization:** Add hybrid search (BM25 + dense vectors) for +2-3pp recall improvement
+
+**Pipeline quality metrics (PizzaBot production):**
+- **Retrieval recall@5:** 91% (target >85%)
+- **Answer accuracy:** 95% (target >95%) — all menu fact errors eliminated
+- **Latency p50:** 1.26s, **p95:** 2.8s (target <3s)
+- **Cost per query:** $0.008 ($0.000012 embedding + $0.008 LLM) — well under $0.08 budget
 
 ***
 

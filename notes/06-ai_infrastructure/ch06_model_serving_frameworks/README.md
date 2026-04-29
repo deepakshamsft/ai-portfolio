@@ -60,6 +60,145 @@ Training frameworks (PyTorch, TensorFlow) optimize for **fast iteration** — yo
 
 **The key insight:** Training frameworks treat every batch as independent (no state carried between batches). Inference frameworks are **stateful** — they track which requests are in-flight, which tokens have been generated, and how much KV cache each request owns.
 
+---
+
+## 1.5 · The Practitioner Workflow — Your 4-Phase Framework Selection
+
+**Before diving into benchmarks, understand the decision workflow you'll follow for every model deployment:**
+
+> 📊 **What you'll build by the end:** A performance comparison matrix (throughput, latency, memory) across 3 frameworks + a deployment architecture with monitoring — answering "which framework wins for my workload?"
+
+```
+Phase 1: REQUIREMENTS        Phase 2: BENCHMARK           Phase 3: COMPARE             Phase 4: DEPLOY
+────────────────────────────────────────────────────────────────────────────────────────────────────────
+Define success criteria:     Test frameworks:             Analyze metrics:             Production rollout:
+
+• Target latency (ms)        • vLLM (LLM-optimized)      • Throughput (req/s)         • FastAPI wrapper
+• Target throughput (req/s)  • ONNX Runtime (portable)   • Latency (P50/P95/P99)      • Load balancer + replicas
+• Hardware constraints       • TensorRT (NVIDIA-max)     • Memory usage (VRAM)        • Prometheus monitoring
+• Deployment platform        • Baseline (HF)             • Ease of integration        • Health checks + metrics
+
+→ DECISION:                  → DECISION:                 → DECISION:                  → DECISION:
+  What are we optimizing?      Run all 3 on sample load    Which framework wins?        Ready for production?
+  • Latency? Throughput?       • Same model (Llama-2-7B)   • vLLM: Best for LLMs       • Monitoring in place?
+  • GPU/CPU? Cloud/edge?       • Same workload (100 req)   • ONNX: Best cross-platform • Autoscaling configured?
+  • Budget? Scale?             • Measure all 3 metrics     • TensorRT: Max throughput  • Rollback plan ready?
+```
+
+**The workflow maps to this chapter:**
+- **Phase 1 (REQUIREMENTS)** → §1.5.1 Define Success Criteria (below)
+- **Phase 2 (BENCHMARK)** → §2 Running Example (Steps 1-4: HF, vLLM, ONNX, TensorRT benchmarks)
+- **Phase 3 (COMPARE)** → §6 Hyperparameter Dials (Framework Selection Matrix)
+- **Phase 4 (DEPLOY)** → §4 Step-by-Step (vLLM + FastAPI production deployment)
+
+> 💡 **Usage note:** Complete Phase 1 requirements gathering before benchmarking (avoids wasted work testing irrelevant frameworks). Run Phase 2 benchmarks in parallel (all frameworks tested with identical workload for fair comparison). Phase 3 decision is typically clear from metrics, but edge cases exist (see Decision Checkpoint 3).
+
+---
+
+### 1.5.1 Phase 1: REQUIREMENTS — Define Success Criteria **[Phase 1: REQUIREMENTS]**
+
+**Before touching any code, document your constraints.** Most framework selection mistakes come from optimizing the wrong metric (e.g., maximizing throughput when latency was the actual requirement).
+
+#### Requirements Specification Template
+
+Copy this table and fill in your values BEFORE benchmarking:
+
+```python
+# File: requirements.yaml (document before benchmarking)
+
+model:
+  name: "meta-llama/Llama-2-7b-chat-hf"
+  size_gb: 14.2  # FP16 model weights
+  architecture: "decoder-only"  # LLM vs encoder vs vision
+
+workload:
+  avg_prompt_length: 200  # tokens
+  avg_output_length: 50   # tokens
+  requests_per_second: 100  # peak load
+  concurrent_users: 1000    # max simultaneous
+
+constraints:
+  latency_p95_target_ms: 200   # 95th percentile latency requirement
+  throughput_target_rps: 100   # requests per second target
+  budget_gpu_count: 5          # max GPUs available (or budget in $/month)
+  budget_gpu_type: "A100-40GB" # available hardware
+  
+deployment:
+  platform: "self-hosted"  # vs "cloud API" vs "edge device"
+  os: "linux"              # vs "windows" vs "mobile"
+  gpu_vendor: "nvidia"     # vs "amd" vs "cpu-only"
+  
+priorities:  # Rank 1-5 (1 = most important)
+  latency: 1       # Time to first token
+  throughput: 2    # Requests per second per GPU
+  memory: 3        # VRAM efficiency (enables larger batch sizes)
+  ease_of_setup: 4 # Developer time to deploy
+  portability: 5   # Cross-platform compatibility
+```
+
+**Example: The InferenceBase scenario (from §0)**
+```yaml
+model:
+  name: "meta-llama/Llama-2-7b-chat-hf"
+  size_gb: 14.2
+  architecture: "decoder-only"
+
+workload:
+  avg_prompt_length: 180
+  avg_output_length: 50
+  requests_per_second: 100
+  concurrent_users: 1000
+
+constraints:
+  latency_p95_target_ms: 200
+  throughput_target_rps: 100
+  budget_gpu_count: 5
+  budget_gpu_type: "A100-40GB"
+  
+deployment:
+  platform: "self-hosted"
+  os: "linux"
+  gpu_vendor: "nvidia"
+  
+priorities:
+  latency: 1       # CEO requirement: <200ms
+  throughput: 2    # Need 100 req/s for launch
+  memory: 3        # Want to maximize batch size
+  ease_of_setup: 4 # Team has ML experience
+  portability: 5   # NVIDIA-only is fine
+```
+
+> 💡 **Industry Standard:** `requirements.yaml` or similar specifications
+> 
+> Real production teams document these constraints before any engineering work. This YAML becomes the **acceptance criteria** for framework selection — if a framework hits all targets, it wins regardless of hype.
+> 
+> **When to use:** Always. Even for "quick prototypes" — defining requirements takes 15 minutes and saves hours of false starts.
+> **Common mistake:** Skipping this step and defaulting to HuggingFace Transformers ("it's easy") without measuring if it meets performance targets.
+
+---
+
+#### 1.5.1.1 DECISION CHECKPOINT — Phase 1 Complete
+
+**What you just documented:**
+- Latency target: <200ms P95 (95% of requests must respond within 200ms)
+- Throughput target: 100 req/s (total across all GPUs)
+- Hardware: 5× A100 40GB GPUs (budget constraint)
+- Platform: Self-hosted Linux with NVIDIA GPUs (rules out edge/mobile/AMD)
+
+**What it means:**
+- **NVIDIA-only is acceptable** → TensorRT and vLLM are candidates (both NVIDIA-exclusive)
+- **Latency is Priority #1** → Rules out frameworks with >200ms P95 (e.g., CPU-only ONNX)
+- **Throughput target is 100 req/s** → With 5 GPUs, need 20 req/s per GPU minimum (any framework achieving 20+ req/s per GPU satisfies this)
+- **Self-hosted** → Rules out managed API services (OpenAI, Anthropic) — we control the stack
+
+**What to do next:**
+→ **Benchmark all NVIDIA-compatible frameworks** (vLLM, TensorRT, ONNX GPU, HuggingFace baseline)
+→ **Test with representative workload** (180-token prompts, 50-token outputs, 100 concurrent requests)
+→ **Measure all 3 metrics** (latency P50/P95/P99, throughput req/s, memory GB)
+→ **For InferenceBase:** Proceed to Phase 2 with vLLM (LLM-optimized) and TensorRT (max performance) as top candidates — ONNX is backup if cross-platform becomes required later
+
+---
+
 ### Why HuggingFace Transformers Is Slow for Production
 
 ```python
@@ -84,6 +223,31 @@ for request in incoming_requests:
 4. **No op fusion** — Every PyTorch op is a separate kernel launch
 
 **Result:** 10 req/s throughput, 300ms latency, 40GB memory usage for batch size 4.
+
+---
+
+> 💡 **Industry Standard:** **vLLM** — The LLM Serving Standard (UC Berkeley, 2023)
+> 
+> **Adoption:** Used by Anyscale, Together AI, Fireworks AI, Modal, Replicate, and dozens of self-hosted deployments serving billions of tokens daily. vLLM has become the **de facto standard** for production LLM serving.
+> 
+> **Key innovations:**
+> 1. **PagedAttention** — KV cache allocated in pages (4MB blocks) like OS virtual memory, eliminates fragmentation
+> 2. **Continuous batching** — starts inference on new requests immediately (don't wait for full batch), keeps GPU busy
+> 3. **Prefix caching** — shares KV cache for common prompt prefixes (e.g., system messages), saves memory
+> 4. **Automatic parallelism** — tensor parallelism across multiple GPUs with single config parameter
+> 
+> **Performance gains vs HuggingFace Transformers:**
+> - **10-20× throughput** (requests/second per GPU)
+> - **30-50% lower latency** (time to first token)
+> - **2-4× higher batch sizes** (more concurrent users per GPU)
+> 
+> **When to use:** Default choice for **any** LLM serving on NVIDIA GPUs (GPT, Llama, Mistral, Falcon, etc.). Only deviate if you have specific constraints (CPU-only, AMD GPUs, absolute minimum latency requiring TensorRT).
+> 
+> **Installation:** `pip install vllm` (requires CUDA 11.8+, works on A100/H100/L40S/RTX 4090)
+> 
+> **See also:** [vLLM paper](https://arxiv.org/abs/2309.06180), [vLLM docs](https://vllm.readthedocs.io/)
+
+---
 
 ### What vLLM Does Differently (Continuous Batching + PagedAttention)
 
@@ -110,9 +274,11 @@ outputs = llm.generate([req.text for req in incoming_requests], sampling_params)
 
 ---
 
-## 2 · Running Example — Deploy Llama-2-7B with Three Frameworks
+## 2 · Running Example — Deploy Llama-2-7B with Three Frameworks **[Phase 2: BENCHMARK]**
 
 You'll deploy the same model (**Llama-2-7B-chat-hf**) with three frameworks and measure the differences. The test workload: 100 concurrent requests, each generating 50 tokens.
+
+> 💡 **Benchmarking principle:** Use **identical** workload across all frameworks (same model, same prompts, same output length) for fair comparison. Any workload variation invalidates the comparison.
 
 ### Step 1: Baseline (HuggingFace Transformers)
 
@@ -302,6 +468,37 @@ print(f"Throughput: {throughput:.1f} req/s")
 - CPU inference (no GPU available)
 - Multi-vendor deployment (AMD Instinct, Intel ARC, Apple Silicon)
 
+---
+
+> 💡 **Industry Standard:** **ONNX Runtime** — Cross-Platform Inference (Microsoft, 2018)
+> 
+> **Adoption:** Powers Microsoft's production ML (Bing, Office 365, Azure Cognitive Services), used by Meta's PyTorch Mobile, runs in TensorFlow Lite alternative workflows. ONNX Runtime is the **only truly cross-platform** inference engine with production-grade performance.
+> 
+> **Key strengths:**
+> 1. **Universal format** — Export from PyTorch/TensorFlow/JAX → ONNX → deploy anywhere (CPU/GPU/mobile/edge)
+> 2. **Built-in quantization** — INT8/INT4 quantization with minimal accuracy loss (2-4× memory reduction)
+> 3. **Execution providers** — Same model code runs on NVIDIA GPU (CUDA), AMD GPU (ROCm), Intel (OpenVINO), ARM (CoreML), or CPU
+> 4. **Graph optimizations** — Operator fusion, constant folding, layout transformations (10-30% speedup without code changes)
+> 
+> **Performance profile:**
+> - **Throughput:** 2-3× faster than naive PyTorch (but 5-8× slower than vLLM for LLMs)
+> - **Latency:** 30-40% faster than PyTorch baseline
+> - **Memory:** INT8 quantization achieves 2× reduction (vs FP16)
+> 
+> **When to use:** 
+> - **Cross-platform requirement** — need same model on NVIDIA + AMD + CPU + mobile
+> - **Edge deployment** — limited hardware (Raspberry Pi, Jetson Nano, mobile devices)
+> - **Memory-constrained GPUs** — can't fit model in VRAM without quantization
+> - **Non-LLM models** — vision models (ResNet, YOLO), encoders (BERT), or custom architectures
+> 
+> **Installation:** `pip install onnxruntime-gpu` (CUDA) or `onnxruntime` (CPU-only)
+> 
+> **Trade-off:** Slower than vLLM/TensorRT for LLMs (lacks continuous batching) but works **everywhere**. Choose ONNX when portability > absolute speed.
+> 
+> **See also:** [ONNX Runtime docs](https://onnxruntime.ai/), [ONNX format spec](https://onnx.ai/)
+
+---
+
 ### Step 4: TensorRT (Maximum Throughput, NVIDIA-Only)
 
 **Use case:** Absolute maximum performance on NVIDIA GPUs. More complex setup than vLLM, but 20-30% faster for latency-critical applications.
@@ -366,6 +563,64 @@ print(f"Throughput: {throughput:.1f} req/s")
 - Latency-critical applications (<150ms requirement)
 - High-throughput serving (maximizing req/s per GPU)
 - Production deployment with static workload (batch size, seq length don't vary much)
+
+---
+
+> 💡 **Industry Standard:** **TensorRT** — NVIDIA's Maximum Performance Compiler (2016)
+> 
+> **Adoption:** Powers NVIDIA Triton Inference Server (used by AWS SageMaker, Azure ML, Google Vertex AI), runs in all major cloud GPU offerings. TensorRT is the **fastest** inference engine for NVIDIA hardware — period.
+> 
+> **Key optimizations:**
+> 1. **Kernel fusion** — Merges multiple ops into single CUDA kernels (e.g., LayerNorm + GELU + Dropout → 1 kernel instead of 3)
+> 2. **Auto-tuning** — Benchmarks all kernel implementations at build time, selects fastest variant for your GPU
+> 3. **Precision calibration** — INT8/FP16 quantization with automatic accuracy recovery (mixed precision)
+> 4. **Tensor Core utilization** — Maximizes usage of specialized matrix-multiply units (19.5 TFLOPS on A100)
+> 
+> **Performance profile:**
+> - **Throughput:** 20-30× faster than PyTorch baseline (19× in our Llama-2-7B benchmark)
+> - **Latency:** 40-55% faster than vLLM (142 ms vs 184 ms in benchmark)
+> - **Memory:** Similar to vLLM (31 GB vs 32.5 GB)
+> 
+> **When to use:**
+> - **Latency is top priority** — need absolute minimum time-to-first-token (<150ms)
+> - **Static workloads** — batch size, sequence length, input shapes are predictable
+> - **Maximum GPU utilization** — want every TFLOP the hardware can deliver
+> - **NVIDIA Triton deployment** — TensorRT is first-class citizen in Triton ecosystem
+> 
+> **When NOT to use:**
+> - **Dynamic workloads** — if batch size/seq length vary widely, rebuild overhead kills performance
+> - **Rapid iteration** — 10-15 min build time per model change (vs instant with vLLM)
+> - **Cross-platform** — NVIDIA-only, no AMD/CPU fallback
+> 
+> **Installation:** `pip install nvidia-tensorrt` (requires CUDA 11.8+, driver 525+)
+> 
+> **Trade-off:** Absolute maximum speed but highest complexity. Choose TensorRT when latency requirements are **so strict** that vLLM's 184 ms isn't good enough and you need 142 ms.
+> 
+> **See also:** [TensorRT docs](https://docs.nvidia.com/deeplearning/tensorrt/), [TensorRT-LLM GitHub](https://github.com/NVIDIA/TensorRT-LLM), [NVIDIA Triton](https://github.com/triton-inference-server/server)
+
+---
+
+### 2.1 DECISION CHECKPOINT — Phase 2 Complete (Benchmarks Measured)
+
+**What you just saw:**
+- **HuggingFace:** 10 req/s throughput, 312 ms latency, 22.7 GB memory — baseline is too slow
+- **vLLM:** 147 req/s (15× faster), 184 ms latency (41% faster), 32.5 GB memory — winner for LLMs
+- **ONNX Runtime:** 24 req/s (2.4× faster), 198 ms latency (36% faster), 12.0 GB memory — best memory efficiency
+- **TensorRT:** 189 req/s (19× faster), 142 ms latency (55% faster), 31.0 GB memory — absolute maximum performance
+
+**What it means:**
+- **vLLM wins for general LLM serving:** 15× throughput gain with continuous batching + PagedAttention, near-instant setup (pip install), production-ready (used by Anyscale, Together AI)
+- **TensorRT wins for latency-critical apps:** 142 ms vs vLLM's 184 ms (23% faster), but requires 10-15 min build time and complex static shape configuration
+- **ONNX wins for cross-platform:** 12 GB memory (2.7× less than vLLM) enables deployment on smaller GPUs (RTX 3090), works on AMD/CPU/mobile
+- **HuggingFace should never be used for production serving:** 10 req/s is 15× too slow — only acceptable for research prototypes
+
+**What to do next:**
+→ **For InferenceBase (our scenario):** Choose **vLLM** — it hits latency target (<200ms), exceeds throughput target (147 req/s per GPU = 735 req/s with 5 GPUs >> 100 req/s requirement), and setup is simple
+→ **If latency requirement was <150ms:** Choose **TensorRT** instead (only framework that achieves 142 ms)
+→ **If deploying to edge devices or AMD GPUs:** Choose **ONNX Runtime** (cross-platform portability)
+→ **Next:** Proceed to Phase 3 (framework comparison matrix) to validate the decision against other criteria
+
+> ⚠️ **Edge case — Multi-framework deployment:** Some teams deploy vLLM for cloud (NVIDIA A100s) and ONNX for edge (Raspberry Pi 5 with CPU) — same model, two frameworks. This adds operational complexity but may be justified if edge deployment is a hard requirement.
 
 ---
 
@@ -444,9 +699,11 @@ But vLLM reserves overhead (activation buffers, CUDA context), so practical limi
 
 ---
 
-## 4 · Step-by-Step — Deploy vLLM with Monitoring
+## 4 · Step-by-Step — Deploy vLLM with Monitoring **[Phase 4: DEPLOY]**
 
 Let's deploy vLLM as a production service with logging and metrics.
+
+> 💡 **Production deployment checklist:** (1) API wrapper (FastAPI), (2) Health checks (`/health` endpoint), (3) Metrics export (Prometheus `/metrics`), (4) Load testing (verify throughput target), (5) Monitoring dashboard (Grafana or similar). This section walks through all 5.
 
 ### Step 1: Install vLLM and Dependencies
 
@@ -603,6 +860,36 @@ docker run -p 9090:9090 \
 
 ---
 
+### 4.1 DECISION CHECKPOINT — Phase 4 Complete (Production Deployment)
+
+**What you just built:**
+- **FastAPI wrapper** with `/generate` endpoint (handles JSON requests/responses)
+- **Health checks** at `/health` (load balancer can detect failures)
+- **Prometheus metrics** at `/metrics` (request count, latency histogram, token count)
+- **Load test verification** with Locust (100 concurrent users → 147 req/s sustained)
+- **Monitoring dashboard** with Prometheus (query P50/P95/P99 latency in real-time)
+
+**What it means:**
+- **Production-ready:** The deployment now has all standard observability (health, metrics, logs) — can be integrated with any enterprise monitoring stack (Datadog, New Relic, Grafana)
+- **Performance validated:** Load test confirmed 147 req/s throughput (meets InferenceBase's 100 req/s requirement with headroom)
+- **Scalability path clear:** Single GPU serves 147 req/s; 5 GPUs behind NGINX load balancer serve 735 req/s (7× over requirement)
+- **Cost target achieved:** 5× A100 GPUs = $5,400/month (vs $80,000/month OpenAI API) — 93% cost reduction
+
+**What to do next:**
+→ **Horizontal scaling:** Add more vLLM replicas (one per GPU) behind an NGINX load balancer (see §5 Diagram 1 for architecture)
+→ **Autoscaling:** Configure Kubernetes HPA (Horizontal Pod Autoscaler) to add/remove replicas based on `vllm_requests_total` rate
+→ **Disaster recovery:** Set up health checks with automatic replica replacement if a GPU OOMs or crashes
+→ **A/B testing:** Deploy two vLLM versions (e.g., Llama-2-7B vs Llama-2-13B) and route 10% of traffic to the larger model for quality comparison
+
+> 💡 **Industry Standard:** Production LLM serving stacks (Anyscale Endpoints, Together AI, Fireworks AI)
+> 
+> All three major LLM API providers use this exact stack: vLLM inference engine + FastAPI wrapper + Prometheus metrics + Kubernetes orchestration. The architecture you just built is **production-grade** — the same patterns used to serve billions of tokens per day at scale.
+> 
+> **When to use:** Always for LLM production deployments. This is not a prototype pattern — this IS the production pattern.
+> **Next evolution:** Add request routing (based on model size), multi-region deployment (latency optimization), and continuous deployment (blue/green rollout for model updates).
+
+---
+
 ## 5 · Key Diagrams
 
 ### Diagram 1: Serving Architecture (Load Balancer → vLLM Replicas)
@@ -689,7 +976,7 @@ choice)  perf)
 
 ---
 
-## 6 · Hyperparameter Dials
+## 6 · Hyperparameter Dials **[Phase 3: COMPARE]**
 
 ### Framework Selection Matrix
 
@@ -703,6 +990,39 @@ choice)  perf)
 | **Ease of setup** | ✅ Pip install | ✅ Pip install | ⚠️ Complex build | ✅ Pip install |
 | **Dynamic batching** | ✅ Continuous | ❌ Manual | ✅ Static batch size | ❌ Manual |
 | **Production readiness** | ✅ Used by Anyscale, Together | ✅ Microsoft production | ✅ NVIDIA Triton | ⚠️ Research only |
+
+---
+
+### 6.1 DECISION CHECKPOINT — Phase 3 Complete (Framework Comparison)
+
+**What you just saw:**
+- **Matrix row "LLM inference":** vLLM and TensorRT both score ✅ Excellent, ONNX scores ⚠️ Works but slow, HuggingFace scores ❌ Too slow
+- **Matrix row "Cross-platform":** ONNX scores ✅ Excellent (CPU/ARM/AMD), vLLM and TensorRT score ❌ NVIDIA only
+- **Matrix row "Throughput":** TensorRT 20-30× (highest), vLLM 10-20× (second), ONNX 2-3× (third), HuggingFace 1× (baseline)
+- **Matrix row "Ease of setup":** vLLM and ONNX both ✅ Pip install, TensorRT ⚠️ Complex build (10-15 min compile)
+
+**What it means:**
+- **No single framework dominates all criteria** — each excels in different scenarios (vLLM for LLMs, ONNX for portability, TensorRT for max speed)
+- **Your priorities (from Phase 1) determine the winner** — if latency is Priority #1 and you're on NVIDIA hardware → TensorRT; if ease of setup and throughput matter → vLLM; if cross-platform is required → ONNX
+- **HuggingFace Transformers should never win this comparison** — it loses on all performance metrics, only acceptable for research prototypes or when framework compatibility is blocking (rare)
+
+**What to do next:**
+→ **Match your Phase 1 priorities to matrix rows:**
+  - Latency Priority #1 + NVIDIA hardware → **TensorRT** (142 ms P50, fastest)
+  - Throughput Priority #1 + LLM workload → **vLLM** or **TensorRT** (147-189 req/s)
+  - Cross-platform Priority #1 → **ONNX Runtime** (only option for AMD/CPU/mobile)
+  - Memory efficiency Priority #1 → **ONNX INT8** (12 GB vs 32 GB for vLLM FP16)
+  
+→ **For InferenceBase (our scenario):**
+  - Priorities: Latency #1 (200ms), Throughput #2 (100 req/s), Memory #3
+  - vLLM satisfies: Latency ✅ (184 ms < 200 ms target), Throughput ✅ (147 req/s >> 20 req/s per GPU needed)
+  - **Decision: vLLM wins** — meets all requirements, easiest setup (pip install), production-proven
+  
+→ **Next:** Proceed to Phase 4 (production deployment with FastAPI + monitoring)
+
+> 💡 **Industry Standard:** Framework selection matrices like this appear in every major AI lab's internal docs (OpenAI, Anthropic, Hugging Face all maintain similar tables). The key is **matching your row priorities to your Phase 1 requirements** — don't default to "most popular" without measuring.
+
+---
 
 ### vLLM Configuration Dials
 
@@ -726,6 +1046,45 @@ llm = LLM(
     max_model_len=2048             # Cap at 2048 tokens (system + user + response)
 )
 ```
+
+---
+
+> 💡 **Industry Standard:** **BentoML** for Model Deployment Orchestration
+> 
+> ```python
+> # File: service.py (BentoML wrapper for vLLM)
+> import bentoml
+> from vllm import LLM, SamplingParams
+> 
+> @bentoml.service(
+>     resources={"gpu": 1, "gpu_type": "nvidia-a100"},
+>     traffic={"timeout": 60}
+> )
+> class LlamaService:
+>     def __init__(self):
+>         self.llm = LLM(model="meta-llama/Llama-2-7b-chat-hf")
+>     
+>     @bentoml.api
+>     def generate(self, prompt: str, max_tokens: int = 100) -> str:
+>         outputs = self.llm.generate([prompt], SamplingParams(max_tokens=max_tokens))
+>         return outputs[0].outputs[0].text
+> 
+> # Deploy with: bentoml serve service:LlamaService
+> # Containerize with: bentoml containerize llamaservice:latest
+> ```
+> 
+> **What BentoML adds over raw vLLM:**
+> - **Automatic API generation** — decorators (`@bentoml.api`) generate REST/gRPC endpoints with OpenAPI docs
+> - **Containerization** — `bentoml containerize` builds optimized Docker images with all dependencies
+> - **Model versioning** — track model versions, A/B test different models, rollback on failures
+> - **Adaptive batching** — automatically batch concurrent requests (complements vLLM's continuous batching)
+> - **Multi-model serving** — serve multiple models (e.g., Llama-7B + Llama-13B) in one service
+> 
+> **When to use:** Teams deploying multiple models or needing standardized ML deployment patterns. BentoML is the "Docker for ML models" — handles packaging, versioning, and deployment. Wraps vLLM (or ONNX, TensorRT) as the inference engine.
+> 
+> **Trade-off:** Adds abstraction layer (slight latency overhead ~5-10ms) but massively simplifies DevOps (no manual Dockerfile writing, automatic health checks, built-in monitoring).
+> 
+> **See also:** [BentoML documentation](https://docs.bentoml.com/), [vLLM + BentoML guide](https://docs.bentoml.com/en/latest/use-cases/large-language-models/vllm.html)
 
 ---
 

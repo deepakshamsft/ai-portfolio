@@ -190,6 +190,10 @@ class CoordinatorAgent(Agent):
     def process_task(self, task: Dict[str, Any], config: AgentConfig) -> Dict[str, Any]:
         """
         TODO: Decompose task into subtasks, assign to workers round-robin, track assignments
+        
+        📖 See: notes/04-multi_agent_ai/ch03_a2a/ (task delegation & lifecycle)
+                notes/04-multi_agent_ai/ch04_event_driven_agents/ (orchestrator pattern)
+        ⚡ Advances constraint #4 SCALABILITY (10 agents/PO without coordinator bottleneck)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement coordinator task processing")
@@ -197,6 +201,10 @@ class CoordinatorAgent(Agent):
     def respond_to_message(self, message: Message) -> Optional[Message]:
         """
         TODO: Extract result from worker, update state, check completion, send acknowledgment
+        
+        📖 See: notes/04-multi_agent_ai/ch01_message_formats/ (message passing)
+                notes/04-multi_agent_ai/ch03_a2a/ (task status tracking)
+        ⚡ Advances constraint #4 SCALABILITY (coordinator aggregates results without blocking)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement coordinator message handling")
@@ -249,6 +257,9 @@ class WorkerAgent(Agent):
     def process_task(self, task: Dict[str, Any], config: AgentConfig) -> Dict[str, Any]:
         """
         TODO: Execute task using _execute_task, track timing, update metrics
+        
+        📖 See: notes/04-multi_agent_ai/ch03_a2a/ (worker role in A2A delegation)
+        ⚡ Advances constraint #1 THROUGHPUT (parallel worker execution enables 1,000 POs/day)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement worker task execution")
@@ -256,6 +267,10 @@ class WorkerAgent(Agent):
     def respond_to_message(self, message: Message) -> Optional[Message]:
         """
         TODO: Extract task from message, process it, send result back to coordinator
+        
+        📖 See: notes/04-multi_agent_ai/ch01_message_formats/ (message extraction)
+                notes/04-multi_agent_ai/ch03_a2a/ (task response protocol)
+        ⚡ Advances constraint #1 THROUGHPUT (workers process subtasks asynchronously)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement worker message handling")
@@ -300,6 +315,9 @@ class ResearchAgent(Agent):
     def process_task(self, task: Dict[str, Any], config: AgentConfig) -> Dict[str, Any]:
         """
         TODO: Check cache, conduct research using _conduct_research, cache results, update metrics
+        
+        📖 See: notes/04-multi_agent_ai/ch05_shared_memory/ (research caching in shared state)
+        ⚡ Advances constraint #1 THROUGHPUT (caching eliminates redundant research calls)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement research task processing")
@@ -381,6 +399,10 @@ class ExperimentRunner:
     def run_experiment(self, task: Dict[str, Any], config: AgentConfig):
         """
         TODO: Get coordinator, process task, route messages between agents, aggregate results
+        
+        📖 See: notes/04-multi_agent_ai/ch04_event_driven_agents/ (orchestration patterns)
+                notes/04-multi_agent_ai/ch07_agent_frameworks/ (AutoGen, LangGraph)
+        ⚡ Advances constraint #1 THROUGHPUT (multi-agent orchestration without blocking)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement experiment runner")
@@ -388,6 +410,9 @@ class ExperimentRunner:
     def print_metrics(self):
         """
         TODO: Create performance table with agent metrics, display totals and averages
+        
+        📖 See: notes/04-multi_agent_ai/ch07_agent_frameworks/ (distributed tracing & observability)
+        ⚡ Advances constraint #7 OBSERVABILITY (real-time monitoring of agent performance)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement metrics printing")

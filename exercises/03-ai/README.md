@@ -6,6 +6,103 @@
 
 ---
 
+## 0. Grand Challenge: Mamma Rosa's PizzaBot
+
+> 🎯 **The Mission**: Build **Mamma Rosa's PizzaBot** — a conversational AI ordering system that beats human phone staff on business metrics while maintaining safety and reliability.
+
+**What PizzaBot is:**  
+An AI ordering assistant that must outperform the existing phone staff. The CEO is skeptical that AI can deliver superior business value. This isn't a demo chatbot — you're proving AI can handle real production constraints: conversion rate, accuracy, latency, cost, safety, and uptime.
+
+**Phone baseline (what we're competing against):**
+- 22% conversion rate (orders per conversation)
+- $38.50 average order value
+- <2% error rate on menu facts (prices, ingredients, calories)
+- ~2s average response time
+- ~$0.08 per conversation cost (~$157k/year in labor)
+- 99.2% uptime
+
+---
+
+### Current Constraint Status
+
+| # | Constraint | Target | Current Status |
+|---|------------|--------|----------------|
+| **#1** | **BUSINESS VALUE** | >25% conversion + +$2.50 AOV | ❌ Not met (track unlocks 27% conv, +$2.80 AOV) |
+| **#2** | **ACCURACY** | <5% error rate | ❌ Not met (track achieves <5% with RAG) |
+| **#3** | **LATENCY** | <3s p95 response time | ❌ Not met (track achieves <2s p95) |
+| **#4** | **COST** | <$0.08 per conversation | ❌ Not met (track achieves $0.06/conv) |
+| **#5** | **SAFETY** | Zero successful attacks | ❌ Not met (track implements guardrails) |
+| **#6** | **RELIABILITY** | >99% uptime | ❌ Not met (track achieves >99% with monitoring) |
+
+---
+
+### What's Blocking Us
+
+**Without the techniques in this exercise track:**
+
+1. **No grounding → hallucinations**: Base LLM has 40% error rate on menu facts (prices, specials, ingredients). Customers receive wrong information → trust destroyed → 8% conversion (vs 22% phone baseline).
+
+2. **No domain adaptation → generic responses**: Without prompt engineering or fine-tuning, LLM doesn't understand pizza ordering patterns → sounds like a help desk, not an order-taker → low conversion.
+
+3. **No tool orchestration → can't process orders**: LLM can chat but can't execute actions (check inventory, calculate totals, apply coupons, confirm orders) → conversational dead-end.
+
+4. **No safety hardening → vulnerable to attacks**: Prompt injection can leak customer data, bypass business rules, or generate harmful content → PR disaster + regulatory risk.
+
+5. **No optimization → too slow and expensive**: Naive API calls cost $0.15/conv (87% over budget) and take 5-8s → customers hang up, economics don't work.
+
+6. **No monitoring → production blindness**: Can't measure reliability, detect regressions, or debug failures → can't ship to production with confidence.
+
+---
+
+### What This Exercise Unlocks
+
+This track teaches 11 chapters of AI techniques, progressively unlocking each constraint:
+
+| Chapters | What You'll Learn | Constraints Unlocked | Metrics Achieved |
+|----------|-------------------|----------------------|------------------|
+| **1-3** | LLM fundamentals, prompt engineering, chain-of-thought | Foundation knowledge | 15% conv, 10% errors |
+| **4-5** | RAG & embeddings, vector databases | **#2 Accuracy ✅** | 18% conv, **<5% errors** |
+| **6-7** | ReAct agents, safety & guardrails | **#1 Business Value ✅, #5 Safety ✅** | **27% conv, +$2.80 AOV**, zero attacks |
+| **8-10** | Evaluation, cost/latency optimization, fine-tuning | **#3 Latency ✅, #4 Cost ✅, #6 Reliability ✅** | **<2s p95, $0.06/conv, >99% uptime** |
+| **11** | Advanced agentic patterns | Edge case mastery | 0.7% edge case errors (11× improvement) |
+
+**After completing this exercise track:**
+- You'll understand **why RAG matters** (grounding prevents hallucination → trust → conversion)
+- You'll compare **three approaches** (fine-tuning vs RAG vs few-shot prompting) on real metrics (BLEU >0.3, perplexity <50, retrieval accuracy >70%)
+- You'll build **production-ready AI systems** that beat human baselines on business metrics
+- You'll know **when to use** each technique (RAG for facts, fine-tuning for style, agents for actions)
+
+**The CEO's verdict progression:**
+
+```
+Start:        8% conv, 40% errors → "This is embarrassing. Phone staff never give wrong info."
+After Ch.2:  12% conv, 15% errors → "Better, but still unreliable. Can't deploy this."
+After Ch.4:  18% conv,  5% errors → "Okay, we're approaching parity. What about upselling?"
+After Ch.6:  27% conv, +$2.80 AOV → "Wait... this is BETTER than phone staff?!"
+After Ch.9:  <2s p95, $0.06/conv → "And it's faster AND cheaper?! Let's deploy."
+After Ch.10: >99% uptime         → 🎉 "Best decision we made. Scaling to all locations."
+After Ch.11: 0.7% edge cases     → 🧠 "Handles complex scenarios that stump phone staff!"
+```
+
+---
+
+**What's blocking us:**
+1. **Knowledge grounding**: Without RAG, bot hallucinates menu prices (15% error rate) → customer trust breaks → 12% conversion
+2. **Domain adaptation**: Base LLM doesn't understand pizza ordering patterns → generic responses → low conversion
+3. **Prompt optimization**: No systematic approach to few-shot examples → inconsistent quality → unreliable performance
+
+**What this exercise unlocks:**
+- **Constraint #2 (Accuracy)**: RAG pipeline → <5% error rate (from current 15%)
+- **Foundation for Constraint #1 (Business Value)**: Fine-tuned model + RAG → 18% conversion (from 12%), approaching 22% baseline
+- **Technical capabilities**: Evaluation metrics (BLEU, perplexity, retrieval accuracy) to measure progress
+
+**After completing this exercise:**
+- You'll understand *why* RAG matters (grounding prevents hallucination → trust → conversion)
+- You'll compare *three approaches* (fine-tuning vs RAG vs few-shot prompting) on real metrics
+- You'll know *how to evaluate* AI systems (perplexity <50, BLEU >0.3, retrieval accuracy >70%)
+
+---
+
 ## Overview
 
 PizzaBot AI is an educational exercise teaching modern LLM techniques through hands-on implementation. You'll build three different AI approaches from scratch and compare them:

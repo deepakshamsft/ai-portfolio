@@ -152,7 +152,11 @@ class CLIPModel(MultimodalModel):
         image: Union[str, Image.Image, List],
         config: ModelConfig
     ) -> Union[float, np.ndarray]:
-        """TODO: Process inputs with CLIP, compute normalized embeddings, return cosine similarity"""
+        """TODO: Process inputs with CLIP, compute normalized embeddings, return cosine similarity
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (CLIP architecture, dual encoders, cosine similarity)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (text-image semantic alignment)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement CLIP similarity - see TODO above")
     
@@ -162,7 +166,11 @@ class CLIPModel(MultimodalModel):
         candidate_labels: List[str],
         config: ModelConfig
     ) -> Dict[str, float]:
-        """TODO: Compute CLIP logits for image + labels, apply softmax → probabilities"""
+        """TODO: Compute CLIP logits for image + labels, apply softmax → probabilities
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (Zero-shot classification via text-image alignment)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (classification without training)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement zero-shot classification - see TODO above")
     
@@ -171,7 +179,11 @@ class CLIPModel(MultimodalModel):
         test_data: List[Dict[str, Any]], 
         config: ModelConfig
     ) -> Dict[str, float]:
-        """TODO: Compute similarity matrix, calculate T2I/I2T accuracy and matched similarity"""
+        """TODO: Compute similarity matrix, calculate T2I/I2T accuracy and matched similarity
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (Contrastive evaluation metrics, retrieval accuracy)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (semantic search quality)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement CLIP evaluation - see TODO above")
     
@@ -245,7 +257,11 @@ class ImageCaptioningModel(MultimodalModel):
         config: ModelConfig,
         num_captions: int = 1
     ) -> Union[str, List[str]]:
-        """TODO: Generate caption(s) using beam search, decode tokens to text"""
+        """TODO: Generate caption(s) using beam search, decode tokens to text
+        
+        📖 See: notes/05-multimodal_ai/ch10_multimodal_llms/ (Image captioning, encoder-decoder, beam search)
+        🎯 VisualForge: Advances constraint #6 VERSATILITY (modality 3/4: image→caption for alt text)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement caption generation - see TODO above")
     
@@ -254,7 +270,11 @@ class ImageCaptioningModel(MultimodalModel):
         test_data: List[Dict[str, Any]],
         config: ModelConfig
     ) -> Dict[str, float]:
-        """TODO: Generate captions, compute BLEU, CIDEr, ROUGE-L metrics"""
+        """TODO: Generate captions, compute BLEU, CIDEr, ROUGE-L metrics
+        
+        📖 See: notes/05-multimodal_ai/ch10_multimodal_llms/ (Captioning evaluation, BLEU/CIDEr/ROUGE)
+        🎯 VisualForge: Advances constraint #6 VERSATILITY (quality measurement for caption generation)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement captioning evaluation - see TODO above")
     
@@ -302,7 +322,11 @@ class ExperimentRunner:
         test_data: List[Dict[str, Any]],
         config: ModelConfig
     ):
-        """TODO: Filter and evaluate all registered CLIP models, store results"""
+        """TODO: Filter and evaluate all registered CLIP models, store results
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (CLIP model comparison, variant evaluation)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (model selection for production)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement CLIP experiment runner - see TODO above")
     
@@ -311,17 +335,29 @@ class ExperimentRunner:
         test_data: List[Dict[str, Any]],
         config: ModelConfig
     ):
-        """TODO: Filter and evaluate all registered captioning models, store results"""
+        """TODO: Filter and evaluate all registered captioning models, store results
+        
+        📖 See: notes/05-multimodal_ai/ch10_multimodal_llms/ (Caption model comparison, BLIP vs GIT)
+        🎯 VisualForge: Advances constraint #6 VERSATILITY (caption model selection)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement caption experiment runner - see TODO above")
     
     def print_clip_leaderboard(self):
-        """TODO: Create rich table, sort by T2I accuracy, display winner"""
+        """TODO: Create rich table, sort by T2I accuracy, display winner
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (Retrieval metrics, leaderboard interpretation)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (performance comparison)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement CLIP leaderboard - see TODO above")
     
     def print_caption_leaderboard(self):
-        """TODO: Create rich table, sort by BLEU, display winner with color-coded scores"""
+        """TODO: Create rich table, sort by BLEU, display winner with color-coded scores
+        
+        📖 See: notes/05-multimodal_ai/ch10_multimodal_llms/ (Caption quality metrics interpretation)
+        🎯 VisualForge: Advances constraint #6 VERSATILITY (caption quality comparison)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement caption leaderboard - see TODO above")
     

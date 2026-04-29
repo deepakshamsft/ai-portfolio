@@ -76,14 +76,17 @@ class FeatureEngineer:
         X_transformed = X.copy()
         
         # TODO: Create polynomial features if degree > 1
+        # 📖 **See:** notes/01-ml/01_regression/ch04_polynomial_features/README.md § 1.1-1.2 for PolynomialFeatures mechanism and preprocessing workflow
         if self.polynomial_degree > 1:
             pass
         
         # TODO: Remove high-VIF features iteratively if threshold is set
+        # 📖 **See:** notes/01-ml/01_regression/ch03_feature_importance/README.md § 3.8-3.9 for VIF calculation and iterative multicollinearity removal
         if self.vif_threshold is not None:
             pass
         
         # TODO: Standardize features (zero mean, unit variance)
+        # 📖 **See:** notes/01-ml/01_regression/ch00_data_prep/README.md § 4.1 for StandardScaler implementation and why standardization matters for regression
         if self.scale_features:
             pass
         
