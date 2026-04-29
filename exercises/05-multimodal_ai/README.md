@@ -9,6 +9,42 @@
 
 ---
 
+## 0. Grand Challenge: VisualForge Studio
+
+**The Mission:** You're the Lead ML Engineer at **Aperture Creative** — a boutique marketing agency that just lost 60% of its budget (3 freelancers @ $200k/year each). The Creative Director needs to maintain 2,000 assets/year output (product shots, social ads, explainer videos, voiceovers) with a skeleton crew. Your job: build **VisualForge Studio** — a local AI creative pipeline that replaces $600k/year freelancer costs while maintaining professional-grade quality on $5k hardware with zero cloud fees.
+
+**Current Constraint Status:**
+| Constraint | Target | Status | Why It's Blocking |
+|------------|--------|--------|-------------------|
+| **#1 Quality** | ≥4.0/5.0 HPSv2 score | ❌ | No generation capability — can't produce images at all |
+| **#2 Speed** | <30s per 512×512 image | ❌ | No generation pipeline to measure |
+| **#3 Cost** | <$5k hardware, $0/month cloud | ❌ | No local inference system built yet |
+| **#4 Control** | <5% unusable generations | ❌ | Can't control what doesn't exist |
+| **#5 Throughput** | 100+ assets/day sustained | ❌ | Zero assets/day (retrieval only) |
+| **#6 Versatility** | 4 modalities working | ❌ | No generation — only retrieval and classification |
+
+**What's Blocking Us:**
+
+You've completed the notes for Multimodal Foundations, Vision Transformers, and CLIP. You understand patch embeddings, attention over images, and contrastive learning. But you **cannot generate a single image**. CLIP gives you text-image alignment and zero-shot classification — you can retrieve existing images from a database and classify them into arbitrary categories. That's powerful for search and classification tasks, but it doesn't produce the 2,000 new assets the agency needs.
+
+The Creative Director's response: *"So you can find stock photos and tell me what's in them. Great. But I need you to **create** hero shots for the Q3 campaign. Can your AI do that?"*
+
+Answer: Not yet. You're stuck at retrieval — you have no diffusion model, no latent space compression, no text-to-image generation pipeline. All 6 constraints remain unsatisfied.
+
+**What This Exercise Unlocks:**
+
+Implementing **CLIP contrastive learning** builds the foundation for constraint **#6 (Versatility)** — you'll learn how to:
+- Project images and text into the same embedding space (cosine similarity > 0.7)
+- Train vision-language models with InfoNCE loss (contrastive objective)
+- Perform zero-shot classification without task-specific training
+- Measure text-to-image retrieval accuracy (T2I/I2T metrics)
+
+This exercise teaches you the **alignment layer** that will later enable text-conditioned generation in Stable Diffusion (Ch.6) and multimodal LLMs (Ch.10). You're laying the groundwork for the CLIP text encoder that converts "a dog running on a beach at sunset" into the conditioning vector that guides latent diffusion.
+
+**Constraint Progress After This Exercise:** Still ❌❌❌❌❌❌ (no generation yet), but you've built the semantic alignment backbone that enables text→image conditioning in future chapters.
+
+---
+
 ## 🎯 **What You'll Implement**
 
 Starting from function stubs and inline TODOs, you'll build a complete vision-language system with:

@@ -57,12 +57,20 @@ class ImagePreprocessor:
         self._build_transform()
     
     def _build_transform(self):
-        """TODO: Build torchvision transform pipeline (augmentation + normalization)"""
+        """TODO: Build torchvision transform pipeline (augmentation + normalization)
+        
+        📖 See: notes/05-multimodal_ai/ch02_vision_transformers/ (Image preprocessing for ViT)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (image representation layer)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement image transform - see TODO above")
     
     def preprocess(self, image: Union[str, Image.Image]) -> torch.Tensor:
-        """TODO: Load image, convert to RGB, apply transform → tensor [3, H, W]"""
+        """TODO: Load image, convert to RGB, apply transform → tensor [3, H, W]
+        
+        📖 See: notes/05-multimodal_ai/ch02_vision_transformers/ (Patch embeddings, tensor conversion)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (image encoding pipeline)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement image preprocessing - see TODO above")
     
@@ -70,7 +78,11 @@ class ImagePreprocessor:
         self, 
         images: List[Union[str, Image.Image]]
     ) -> torch.Tensor:
-        """TODO: Process and stack images into batch tensor [B, 3, H, W]"""
+        """TODO: Process and stack images into batch tensor [B, 3, H, W]
+        
+        📖 See: notes/05-multimodal_ai/ch02_vision_transformers/ (Batch processing for transformer input)
+        🎯 VisualForge: Foundation for constraint #5 THROUGHPUT (batch inference efficiency)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement batch preprocessing - see TODO above")
 
@@ -103,12 +115,20 @@ class TextTokenizer:
         self.truncate = truncate
     
     def tokenize(self, text: str) -> Dict[str, torch.Tensor]:
-        """TODO: Tokenize text → add [SOS]/[EOS], pad to max_length, create attention mask"""
+        """TODO: Tokenize text → add [SOS]/[EOS], pad to max_length, create attention mask
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (CLIP tokenization, BPE encoding, 77-token limit)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (text encoding for alignment)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement text tokenization - see TODO above")
     
     def tokenize_batch(self, texts: List[str]) -> Dict[str, torch.Tensor]:
-        """TODO: Tokenize multiple texts and stack attention masks"""
+        """TODO: Tokenize multiple texts and stack attention masks
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (Batch text processing for contrastive learning)
+        🎯 VisualForge: Foundation for constraint #5 THROUGHPUT (parallel text encoding)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement batch tokenization - see TODO above")
 
@@ -144,7 +164,11 @@ class MultimodalDataLoader:
         image_files: List[str],
         captions: List[str]
     ) -> List[Dict[str, Any]]:
-        """TODO: Load and validate image-text pairs, skip corrupt/missing files"""
+        """TODO: Load and validate image-text pairs, skip corrupt/missing files
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (Contrastive learning data requirements)
+        🎯 VisualForge: Foundation for constraint #6 VERSATILITY (multimodal data alignment)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement paired data loading - see TODO above")
     
@@ -153,7 +177,11 @@ class MultimodalDataLoader:
         paired_data: List[Dict[str, Any]],
         batch_size: int
     ) -> List[Dict[str, torch.Tensor]]:
-        """TODO: Stack paired data into batches of specified size"""
+        """TODO: Stack paired data into batches of specified size
+        
+        📖 See: notes/05-multimodal_ai/ch03_clip/ (InfoNCE loss batch computation)
+        🎯 VisualForge: Foundation for constraint #5 THROUGHPUT (efficient batch processing)
+        """
         # TODO: Your implementation here
         raise NotImplementedError("Implement batch creation - see TODO above"
         )

@@ -145,6 +145,10 @@ class LLMFineTuner(AIModel):
     ) -> Dict[str, float]:
         """
         TODO: Implement LLM fine-tuning with LoRA/QLoRA (load model, apply LoRA config, train, evaluate with perplexity/BLEU)
+        
+        📖 See: notes/03-ai/ch10_fine_tuning/ (LoRA, QLoRA, parameter-efficient fine-tuning)
+        🎯 Unlocks: Constraint #1 BUSINESS VALUE (domain adaptation → pizza ordering style)
+                    Constraint #6 RELIABILITY (consistent responses → production quality)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement LLM fine-tuning")
@@ -157,6 +161,10 @@ class LLMFineTuner(AIModel):
     ) -> str:
         """
         TODO: Generate text using fine-tuned model (tokenize, generate, decode)
+        
+        📖 See: notes/03-ai/ch01_llm_fundamentals/ (tokenization, sampling, generation)
+                notes/03-ai/ch10_fine_tuning/ (using fine-tuned models)
+        🎯 Unlocks: Constraint #1 BUSINESS VALUE (domain-adapted generation)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement text generation")
@@ -207,6 +215,10 @@ class RAGPipeline(AIModel):
     ) -> Dict[str, float]:
         """
         TODO: Build RAG pipeline with vector database (load LLM, create embedder, index documents, evaluate retrieval + generation)
+        
+        📖 See: notes/03-ai/ch04_rag_and_embeddings/ (RAG architecture, retrieval + generation)
+                notes/03-ai/ch05_vector_dbs/ (vector database integration)
+        🎯 Unlocks: Constraint #2 ACCURACY (ground answers in menu facts → <5% error rate)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement RAG pipeline")
@@ -219,6 +231,9 @@ class RAGPipeline(AIModel):
     ) -> str:
         """
         TODO: Generate response with retrieved context (encode query, retrieve docs, build augmented prompt, generate)
+        
+        📖 See: notes/03-ai/ch04_rag_and_embeddings/ (RAG pipeline: retrieve → augment → generate)
+        🎯 Unlocks: Constraint #2 ACCURACY (context-grounded generation prevents hallucination)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement RAG generation")
@@ -259,6 +274,11 @@ class PromptEngineer(AIModel):
     ) -> Dict[str, float]:
         """
         TODO: Build few-shot prompt with best examples (load LLM, select diverse examples, evaluate with BLEU/ROUGE)
+        
+        📖 See: notes/03-ai/ch02_prompt_engineering/ (few-shot learning, example selection)
+                notes/03-ai/ch08_evaluating_ai_systems/ (BLEU, ROUGE metrics)
+        🎯 Unlocks: Constraint #1 BUSINESS VALUE (few-shot examples → better ordering patterns)
+                    Constraint #4 COST (no training overhead, just prompt engineering)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement few-shot prompt engineering")
@@ -271,6 +291,9 @@ class PromptEngineer(AIModel):
     ) -> str:
         """
         TODO: Generate with few-shot examples (build prompt with examples, generate, extract answer)
+        
+        📖 See: notes/03-ai/ch02_prompt_engineering/ (few-shot prompting patterns)
+        🎯 Unlocks: Constraint #1 BUSINESS VALUE (in-context learning for ordering)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement few-shot generation")
@@ -316,6 +339,9 @@ class ExperimentRunner:
     ):
         """
         TODO: Run all registered AI models and collect results with error handling
+        
+        📖 See: notes/03-ai/ch08_evaluating_ai_systems/ (A/B testing, experiment design, comparing models)
+        🎯 Unlocks: Constraint #6 RELIABILITY (systematic evaluation → choose best approach)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement experiment runner")
@@ -323,6 +349,9 @@ class ExperimentRunner:
     def print_leaderboard(self):
         """
         TODO: Print sorted leaderboard table comparing all AI models by BLEU score
+        
+        📖 See: notes/03-ai/ch08_evaluating_ai_systems/ (metrics reporting, model comparison)
+        🎯 Unlocks: Constraint #6 RELIABILITY (visibility → data-driven decisions)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement leaderboard")

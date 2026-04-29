@@ -63,6 +63,540 @@
 
 ---
 
+## 1.5 · The Practitioner Workflow — Your 5-Phase Messaging Architecture
+
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§8 sequentially to understand the concepts, then use this workflow as your reference
+> - **Workflow-first (practitioners with existing knowledge):** Use this diagram as a jump-to guide when designing event-driven systems
+>
+> **Note:** Section numbers don't follow phase order because the chapter teaches concepts pedagogically (theory before application). The workflow below shows how to APPLY those concepts in production.
+
+**What you'll build by the end:** A production-ready event-driven messaging architecture for OrderFlow handling 1,000+ POs/day with independent scaling per agent type, graceful degradation via DLQs, and full observability across the message pipeline.
+
+```
+Phase 1: TOPOLOGY        Phase 2: BROKER          Phase 3: PRODUCERS       Phase 4: CONSUMERS       Phase 5: MONITOR
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Define event flows:      Setup message bus:       Build publishers:        Build subscribers:       Track health:
+
+• Map business events    • Select broker          • Event schema           • Consumer groups        • Message rates
+• Topic hierarchy        • Durability config      • Serialization          • Idempotency keys       • Queue lag
+• Pub/sub vs fanout     • Partition strategy     • Retry logic            • Worker pools           • Dead letters
+• Message ordering      • Retention policy       • Acknowledgments        • DLQ handling           • Error rates
+
+→ DECISION:              → DECISION:              → DECISION:              → DECISION:              → DECISION:
+  Event granularity?       Which broker?            Retry strategy?          Concurrency model?       Alert thresholds?
+  
+  • order.received         Peak 1200 events/sec:    Failed publish:          50 concurrent POs:       Message lag > 1000:
+  • quote.completed        • RabbitMQ: 800/sec      • Exponential backoff    • 8 Negotiation workers    Alert on-call
+  • negotiation.completed    (too slow)             • Max 3 retries          • 3 Approval workers     DLQ depth > 50:
+  • po.approved           • Redis Streams:          • 1s, 2s, 4s delays     • Idempotency via         Human review
+  • po.sent                 1500/sec (sufficient)  • DLQ after exhaustion    message_id in Redis    Error rate > 2%:
+  (5 topics = 5 stages)   • Kafka: 10k/sec                                 • At-least-once           Page incident
+                            (overkill)                                        delivery guarantee
+                          
+                          ✅ Redis Streams:
+                          Cost $80/mo vs
+                          Kafka $600/mo
+```
+
+**The workflow maps to these sections:**
+- **Phase 1 (Topology)** → §3 The Architecture (pub/sub model), §2 Running Example (PO lifecycle events)
+- **Phase 2 (Broker)** → §3 Message Bus Options (Redis/Kafka/RabbitMQ/Azure Service Bus comparison)
+- **Phase 3 (Producers)** → §4 How It Works Step 1-2 (convert agents to publishers), §3 Message Structure
+- **Phase 4 (Consumers)** → §4 How It Works Step 2-4 (convert agents to consumers, idempotency, DLQ routing)
+- **Phase 5 (Monitor)** → §6 Production Considerations (observability, metrics)
+
+> 💡 **How to use this workflow:** Design your event topology first (Phase 1), then select and configure your broker (Phase 2), implement producers and consumers (Phase 3-4), and finally add observability (Phase 5). The sections above teach WHY each phase works; refer back here for WHAT to do.
+
+---
+
+### Phase 1: TOPOLOGY — Event Flow Design
+
+**Goal:** Map business processes to event topics before writing any code. Poor topology design causes cascading rewrites later.
+
+**Decision point:** **What grain size for events?** Too fine (agent.started, agent.thinking, agent.completed) floods the bus with noise. Too coarse (po.processed) hides valuable state transitions.
+
+**The OrderFlow event topology:**
+
+```
+Business Process:        Event Topics:                    Subscribers:
+──────────────────      ─────────────────────           ────────────────
+Email arrives        →  order.received                →  Pricing, Inventory (parallel)
+Quotes gathered      →  quote.completed               →  Negotiation
+Terms negotiated     →  negotiation.completed         →  Approval
+PO approved          →  po.approved                   →  Drafting
+PO sent to supplier  →  po.sent                       →  Audit, ERP Sync
+
+Dead letter topics:     order.received.dlq, quote.completed.dlq, ... (one per main topic)
+```
+
+**Event vs Command distinction:**
+- **Event** (past tense): `quote.completed` — "something happened", no expectation of who processes it, multiple subscribers allowed
+- **Command** (imperative): `generate.quote` — "do this now", exactly one handler expected
+
+OrderFlow uses events throughout — agents publish what they completed, downstream agents react. This decouples producers from consumers.
+
+**Topic naming conventions:**
+```
+<entity>.<lifecycle_stage>     # Examples: order.received, negotiation.completed
+<entity>.<action>.dlq          # Dead letters: quote.completed.dlq
+<entity>.<action>.retry        # Optional retry topics for exponential backoff
+```
+
+**Fan-out pattern:** One `order.received` event triggers 3 parallel agents (Pricing, Inventory, CreditCheck) — all subscribe to the same topic, process independently, publish separate result topics.
+
+**Fan-in pattern:** Aggregator agent subscribes to 3 result topics, accumulates responses keyed by `correlation_id` (the PO ID), publishes single `prechecks.completed` event when all 3 arrive.
+
+> 💡 **Industry Standard — CloudEvents:** For cross-organization event exchange, use [CloudEvents 1.0 spec](https://cloudevents.io) — standardizes `id`, `source`, `type`, `datacontenttype`, `data` fields. Major clouds (AWS EventBridge, Azure Event Grid, Google Eventarc) all support CloudEvents. For internal OrderFlow topology, simpler message structure in §3 suffices.
+
+**Checkpoint 1 — Topology validation:**
+- [ ] Every business outcome maps to exactly one event topic ✅
+- [ ] Event names are past-tense (describe what happened, not commands) ✅
+- [ ] Each topic has a corresponding DLQ (`.dlq` suffix) ✅
+- [ ] Fan-out scenarios identified (which events trigger multiple parallel agents?) ✅
+- [ ] Fan-in scenarios identified (which downstream events wait for multiple upstreams?) ✅
+
+---
+
+### Phase 2: BROKER — Message Bus Configuration
+
+**Goal:** Choose and configure the message broker that matches your throughput, latency, durability, and operational complexity requirements.
+
+**Decision point:** **Peak load drives broker choice.** OrderFlow targets 1,000 POs/day = 1,000 events × 5 stages = 5,000 events/day ÷ 24 hours = 208 events/hour = **3.5 events/sec** sustained, but peak load during business hours (8am-6pm) = 5,000 events ÷ 10 hours = **500 events/hour = 8.3 events/sec**. Add 50% headroom for traffic spikes → **12 events/sec** broker throughput requirement.
+
+**Broker comparison for OrderFlow:**
+
+| Broker | Throughput | Latency | Durability | Operational Complexity | Cost (AWS/Azure) | OrderFlow Fit |
+|--------|-----------|---------|------------|----------------------|-----------------|--------------|
+| **Redis Streams** | 1,500 msg/sec | <5ms p95 | Append-only log, configurable retention | Low (single Redis instance, no cluster needed at this scale) | $80/mo (r6g.large) | ✅ **Best fit** — exceeds 12 msg/sec requirement with 125× headroom, minimal ops overhead |
+| **RabbitMQ** | 800 msg/sec | 10-20ms p95 | Durable queues with ack | Medium (cluster for HA, manual partition management) | $180/mo (3-node cluster) | ⚠️ Sufficient but overkill — 67× headroom, adds cluster complexity |
+| **Apache Kafka** | 10,000 msg/sec | 20-50ms p95 | Partitioned log, configurable retention | High (ZooKeeper dependency, partition rebalancing, offset management) | $600/mo (MSK 3-broker cluster) | ❌ Massive overkill — 833× headroom, 7.5× cost vs Redis, operationally heavy |
+| **Azure Service Bus** | 2,000 msg/sec | 10-30ms p95 | Sessions, DLQ, scheduled messages | Low (fully managed, no infra) | $250/mo (Standard tier) | ✅ Strong fit if already on Azure — native managed identity, built-in DLQ, FIFO sessions |
+
+**✅ Decision for OrderFlow:** **Redis Streams** wins on cost ($80/mo vs $600/mo Kafka), simplicity (single instance vs Kafka cluster), and sufficient throughput (1,500 msg/sec >> 12 msg/sec requirement). Upgrade path exists: if load exceeds 1,000 msg/sec sustained, migrate to Kafka without changing producer/consumer code (both use similar append-log semantics).
+
+**Redis Streams configuration for OrderFlow:**
+
+```python
+# Phase 2: Broker setup — Redis Streams with consumer groups
+import redis.asyncio as redis
+
+# Connect to Redis (managed Redis instance on AWS ElastiCache or Azure Cache)
+r = await redis.from_url("redis://orderflow-cache.redis.cache.windows.net:6380", 
+                          ssl=True, decode_responses=True)
+
+# Create consumer groups for each topic (one-time setup per topic)
+topics = ["order.received", "quote.completed", "negotiation.completed", "po.approved", "po.sent"]
+for topic in topics:
+    try:
+        # Create consumer group 'orderflow-workers' starting from beginning of stream
+        await r.xgroup_create(topic, "orderflow-workers", id="0", mkstream=True)
+        print(f"✅ Consumer group created for {topic}")
+    except redis.ResponseError as e:
+        if "BUSYGROUP" in str(e):
+            print(f"⚠️  Consumer group already exists for {topic}")
+        else:
+            raise
+
+# Configure stream retention (keep last 10,000 messages per topic, ~24 hours at peak load)
+for topic in topics:
+    await r.xtrim(topic, maxlen=10_000, approximate=True)
+```
+
+**Durability configuration:**
+- **Redis persistence**: Enable RDB snapshots (every 5 minutes) + AOF (append-only file with fsync every second)
+- **Retention policy**: Keep 10,000 messages per stream (~24 hours at peak 8.3 msg/sec), then trim oldest
+- **Replication**: Redis replica for failover (promotes to primary if main instance fails)
+
+**Partition strategy (not needed for Redis Streams at this scale):** Redis Streams are single-partition by default. For >10k msg/sec workloads, use Kafka with partition key = `correlation_id` (routes all PO #2024-1847 events to same partition for ordering).
+
+> 💡 **Industry Standard — Apache Kafka for high-throughput:** If your peak load exceeds 10,000 msg/sec sustained, Kafka is the standard choice. Major platforms (LinkedIn, Uber, Netflix) run Kafka clusters handling millions of msgs/sec. Kafka's partitioned log model gives horizontal scaling (add brokers → add partitions → increase throughput linearly). Trade-off: operational complexity (ZooKeeper/KRaft, partition rebalancing, offset management).
+
+**Checkpoint 2 — Broker validation:**
+- [ ] Throughput requirement calculated from peak load + headroom ✅
+- [ ] Broker selected based on cost, ops complexity, throughput margin ✅
+- [ ] Consumer groups created for each topic ✅
+- [ ] Durability configured (persistence, replication) ✅
+- [ ] Retention policy set (message TTL or max count) ✅
+
+---
+
+### Phase 3: PRODUCERS — Event Publishing Patterns
+
+**Goal:** Convert agents from synchronous API callers to asynchronous event publishers with retry logic and acknowledgment handling.
+
+**Decision point:** **Retry strategy for failed publishes.** Network partitions, broker restarts, and transient errors will cause publish failures. No retry = lost events = incomplete POs. Infinite retry = stuck agent = throughput collapse. **Solution:** Exponential backoff with max retries, then DLQ.
+
+**Producer pattern for OrderFlow agents:**
+
+```python
+# Phase 3: Producer with exponential backoff retry
+import asyncio
+from typing import Dict, Any
+from redis.asyncio import Redis
+from datetime import datetime
+
+class EventPublisher:
+    def __init__(self, redis_client: Redis, max_retries: int = 3):
+        self.redis = redis_client
+        self.max_retries = max_retries
+    
+    async def publish(self, topic: str, event: Dict[str, Any]) -> str:
+        """Publish event with exponential backoff retry."""
+        # Add envelope fields
+        message = {
+            "message_id": event.get("message_id", f"msg-{datetime.utcnow().timestamp()}"),
+            "correlation_id": event["correlation_id"],  # PO ID
+            "causation_id": event.get("causation_id"),  # Parent message that triggered this
+            "topic": topic,
+            "timestamp": datetime.utcnow().isoformat(),
+            "payload": event["payload"],
+            "schema_version": "1.0"
+        }
+        
+        # Retry loop with exponential backoff
+        for attempt in range(self.max_retries):
+            try:
+                # Publish to Redis Stream via XADD
+                message_id = await self.redis.xadd(topic, message)
+                return message_id  # Success
+            except Exception as e:
+                if attempt == self.max_retries - 1:
+                    # Final retry failed → route to DLQ
+                    await self._send_to_dlq(topic, message, error=str(e))
+                    raise
+                # Exponential backoff: 1s, 2s, 4s
+                backoff_seconds = 2 ** attempt
+                await asyncio.sleep(backoff_seconds)
+    
+    async def _send_to_dlq(self, topic: str, message: Dict[str, Any], error: str):
+        """Send failed message to dead-letter queue."""
+        dlq_topic = f"{topic}.dlq"
+        message["error"] = error
+        message["failed_at"] = datetime.utcnow().isoformat()
+        await self.redis.xadd(dlq_topic, message)
+
+# Usage in Pricing agent:
+publisher = EventPublisher(redis_client)
+await publisher.publish("quote.completed", {
+    "correlation_id": "2024-1847",
+    "causation_id": "msg-intake-001",
+    "payload": {
+        "supplier_id": "SUP-88412",
+        "price_per_unit_usd": 14.20,
+        "quantity": 500,
+        "delivery_days": 7
+    }
+})
+```
+
+**Serialization choice:**
+- **JSON** (OrderFlow default): Human-readable, language-agnostic, schema evolution via optional fields. ~200 bytes/message for typical PO event.
+- **Protobuf**: 50-70% smaller, faster serialization, requires `.proto` schema files. Use when bandwidth/latency critical (>10k msg/sec).
+- **Avro**: Schema registry support, good for Kafka ecosystems with schema evolution requirements.
+
+**Acknowledgment patterns:**
+- **At-least-once** (OrderFlow default): Producer considers publish successful after broker acks. Consumer may see duplicate messages → must implement idempotency (Phase 4).
+- **At-most-once**: Producer sends and forgets, no ack. Fast but lossy — unacceptable for financial commitments.
+- **Exactly-once**: Distributed transaction across producer, broker, consumer. Expensive and complex — rarely worth it (use idempotent consumers instead).
+
+> 💡 **Industry Standard — Transactional Outbox Pattern:** For events that must be published atomically with database writes (e.g., "save PO to DB + publish po.approved event"), use the **Outbox pattern**: Write event to an `outbox` table in the same DB transaction, then a separate process polls the outbox and publishes to the message bus. This avoids distributed transactions while guaranteeing event delivery. See [Microservices.io Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html).
+
+**Checkpoint 3 — Producer validation:**
+- [ ] All agents converted from synchronous calls to event publishing ✅
+- [ ] Retry logic implemented (exponential backoff, max 3 attempts) ✅
+- [ ] DLQ routing for exhausted retries ✅
+- [ ] Message envelope includes `message_id`, `correlation_id`, `causation_id` ✅
+- [ ] Serialization format chosen (JSON for readability, Protobuf for high throughput) ✅
+
+---
+
+### Phase 4: CONSUMERS — Reliable Event Handling
+
+**Goal:** Build fault-tolerant consumer agents that process events exactly once (via idempotency) even under at-least-once delivery, handle errors gracefully, and route failures to DLQs without blocking the pipeline.
+
+**Decision point:** **Concurrency model for consumer workers.** Sequential processing (1 PO at a time) gives 24 POs/day max. Unbounded parallelism (spawn goroutine/async task per message) risks memory exhaustion. **Solution:** Worker pool with fixed concurrency limit (8-12 workers per agent type) + idempotency keys to prevent duplicate processing.
+
+**Consumer pattern for OrderFlow agents:**
+
+```python
+# Phase 4: Consumer with idempotency and worker pool
+import asyncio
+from typing import Dict, Any, Callable
+from redis.asyncio import Redis
+
+class EventConsumer:
+    def __init__(self, redis_client: Redis, topic: str, 
+                 consumer_group: str, consumer_name: str,
+                 handler: Callable, max_retries: int = 3):
+        self.redis = redis_client
+        self.topic = topic
+        self.consumer_group = consumer_group
+        self.consumer_name = consumer_name  # Unique ID for this worker instance
+        self.handler = handler
+        self.max_retries = max_retries
+        self.dedup_ttl_seconds = 86400  # 24 hours
+    
+    async def start(self, concurrency: int = 8):
+        """Start worker pool consuming from Redis Stream."""
+        tasks = [self._worker() for _ in range(concurrency)]
+        await asyncio.gather(*tasks)
+    
+    async def _worker(self):
+        """Single worker loop: read → check idempotency → process → ack/retry/dlq."""
+        while True:
+            try:
+                # Read next message from consumer group (blocks until message available)
+                # '>' means "give me new messages not yet delivered to this consumer group"
+                messages = await self.redis.xreadgroup(
+                    self.consumer_group, self.consumer_name, {self.topic: '>'}, 
+                    count=1, block=5000  # block up to 5 seconds waiting for message
+                )
+                
+                if not messages:
+                    continue  # No messages, loop again
+                
+                # Extract message
+                stream, msg_list = messages[0]
+                msg_id, msg_data = msg_list[0]
+                
+                # Check idempotency: have we already processed this message_id?
+                message_id = msg_data.get("message_id")
+                dedup_key = f"processed:{message_id}"
+                if await self.redis.exists(dedup_key):
+                    # Already processed → ack and skip
+                    await self.redis.xack(self.topic, self.consumer_group, msg_id)
+                    continue
+                
+                # Process message
+                try:
+                    await self.handler(msg_data)
+                    # Mark as processed (idempotency)
+                    await self.redis.setex(dedup_key, self.dedup_ttl_seconds, "1")
+                    # Ack to broker
+                    await self.redis.xack(self.topic, self.consumer_group, msg_id)
+                except Exception as e:
+                    # Retry logic: check delivery count
+                    # (Redis Streams doesn't track retries natively — implement via metadata)
+                    retry_count = int(msg_data.get("retry_count", 0))
+                    if retry_count >= self.max_retries:
+                        # Exhausted retries → DLQ
+                        await self._send_to_dlq(msg_data, error=str(e))
+                        await self.redis.xack(self.topic, self.consumer_group, msg_id)
+                    else:
+                        # Retry: increment count, don't ack (message will be redelivered)
+                        # (Better: republish to retry topic with incremented count)
+                        pass  # Message stays unacked, will be redelivered after timeout
+            except Exception as e:
+                # Worker crashed → log error, continue (don't kill worker pool)
+                print(f"Worker error: {e}")
+                await asyncio.sleep(1)
+    
+    async def _send_to_dlq(self, message: Dict[str, Any], error: str):
+        """Route failed message to DLQ."""
+        dlq_topic = f"{self.topic}.dlq"
+        message["error"] = error
+        message["failed_at"] = datetime.utcnow().isoformat()
+        await self.redis.xadd(dlq_topic, message)
+
+# Usage in Negotiation agent:
+async def handle_quote_completed(message: Dict[str, Any]):
+    """Business logic: negotiate with supplier."""
+    payload = message["payload"]
+    supplier_id = payload["supplier_id"]
+    # ... negotiation logic ...
+    # Publish result
+    await publisher.publish("negotiation.completed", {
+        "correlation_id": message["correlation_id"],
+        "causation_id": message["message_id"],
+        "payload": {"supplier_id": supplier_id, "negotiated_price": 13.80, ...}
+    })
+
+consumer = EventConsumer(redis_client, "quote.completed", "orderflow-workers", 
+                         "negotiation-worker-1", handle_quote_completed)
+await consumer.start(concurrency=8)  # 8 parallel workers
+```
+
+**Idempotency implementation:**
+- **Key:** `processed:{message_id}` stored in Redis with 24-hour TTL
+- **Check before processing:** If key exists, message was already handled → ack and skip
+- **Set after success:** Mark message as processed to prevent re-execution on duplicate delivery
+
+**Worker pool sizing:**
+- **Negotiation agent** (bottleneck): 8 workers × 4 concurrent POs/worker = 32 concurrent negotiations
+- **Pricing agent** (fast): 3 workers sufficient
+- **Approval agent** (fast, low volume): 2 workers sufficient
+
+**DLQ handling strategy:**
+- **Automated:** Human Review Agent subscribes to all `*.dlq` topics, posts to Slack channel with PO details
+- **Manual intervention:** Procurement team investigates failed PO (e.g., supplier API returned 500 error), fixes issue (e.g., contact supplier directly), marks PO as resolved in UI
+- **Replay:** After fix, operator can replay DLQ message (re-publish to main topic) to retry processing
+
+> 💡 **Industry Standard — Competing Consumers Pattern:** Multiple consumer instances (8 Negotiation workers) subscribe to the same topic as part of the same consumer group. The message broker ensures each message is delivered to exactly one consumer in the group (load balancing). This is how Kafka consumer groups, RabbitMQ competing consumers, and Redis Streams consumer groups all work. See [Enterprise Integration Patterns — Competing Consumers](https://www.enterpriseintegrationpatterns.com/patterns/messaging/CompetingConsumers.html).
+
+**Checkpoint 4 — Consumer validation:**
+- [ ] Worker pool implemented with fixed concurrency (no unbounded parallelism) ✅
+- [ ] Idempotency check via Redis `processed:{message_id}` key before processing ✅
+- [ ] DLQ routing for messages exceeding max retry count ✅
+- [ ] At-least-once delivery guarantee via broker ack after successful processing ✅
+- [ ] Error handling doesn't kill worker pool (catch exceptions, log, continue) ✅
+
+---
+
+### Phase 5: MONITOR — System Health Tracking
+
+**Goal:** Instrument the event-driven pipeline with metrics, traces, and alerts so you can detect throughput degradation, message lag, DLQ buildup, and error rate spikes before they impact business SLAs.
+
+**Decision point:** **What to monitor in an event-driven system?** Unlike synchronous APIs (where latency and error rate suffice), event-driven systems add **message lag** (time between publish and consumption) and **DLQ depth** (accumulation of failed messages). These are leading indicators of pipeline failure.
+
+**Key metrics for OrderFlow:**
+
+| Metric | What It Measures | Alert Threshold | Why It Matters |
+|--------|-----------------|----------------|----------------|
+| **Message rate (msg/sec)** | Events published per second per topic | N/A (baseline for capacity planning) | Detects traffic spikes; baseline for "is system keeping up?" |
+| **Consumer lag (messages)** | Unprocessed messages in topic | >1,000 messages | Lag buildup means consumers can't keep up → latency increases → SLA breach |
+| **Consumer lag (time)** | Age of oldest unprocessed message | >5 minutes | Time-based lag more intuitive than message count for SLA tracking |
+| **DLQ depth** | Messages in dead-letter queue | >50 messages | DLQ buildup means recurring failures → manual intervention needed |
+| **Processing latency (ms)** | Time from publish to ack per message | p95 > 10 seconds | Slow processing → lag accumulation → throughput collapse |
+| **Error rate (%)** | Failed messages ÷ total messages | >2% | High error rate means systemic issue (bad deploy, upstream API down) |
+
+**Monitoring implementation (Prometheus + Grafana):**
+
+```python
+# Phase 5: Instrumentation with Prometheus metrics
+from prometheus_client import Counter, Histogram, Gauge, start_http_server
+
+# Metrics
+messages_published = Counter('orderflow_messages_published_total', 
+                              'Total messages published', ['topic'])
+messages_consumed = Counter('orderflow_messages_consumed_total',
+                            'Total messages consumed', ['topic', 'status'])  # status: success/retry/dlq
+consumer_lag_messages = Gauge('orderflow_consumer_lag_messages',
+                              'Unprocessed messages in topic', ['topic'])
+consumer_lag_seconds = Gauge('orderflow_consumer_lag_seconds',
+                             'Age of oldest unprocessed message', ['topic'])
+processing_latency = Histogram('orderflow_processing_latency_seconds',
+                               'Time from publish to ack', ['topic'])
+dlq_depth = Gauge('orderflow_dlq_depth', 'Messages in DLQ', ['topic'])
+
+# Instrument producer
+async def publish(topic: str, event: Dict[str, Any]):
+    # ... existing publish logic ...
+    messages_published.labels(topic=topic).inc()
+
+# Instrument consumer
+async def _worker(self):
+    start_time = time.time()
+    # ... existing worker logic ...
+    # On success:
+    messages_consumed.labels(topic=self.topic, status='success').inc()
+    processing_latency.labels(topic=self.topic).observe(time.time() - start_time)
+    # On DLQ:
+    messages_consumed.labels(topic=self.topic, status='dlq').inc()
+    dlq_depth.labels(topic=self.topic).inc()
+
+# Lag monitoring (separate background task)
+async def monitor_lag():
+    while True:
+        for topic in ["order.received", "quote.completed", ...]:
+            # Get pending messages count from Redis Streams
+            info = await redis.xpending(topic, "orderflow-workers")
+            lag = info["pending"]
+            consumer_lag_messages.labels(topic=topic).set(lag)
+            
+            # Get oldest message timestamp
+            if lag > 0:
+                oldest = await redis.xpending_range(topic, "orderflow-workers", "-", "+", 1)
+                oldest_timestamp = oldest[0]["time_since_delivered"]
+                consumer_lag_seconds.labels(topic=topic).set(oldest_timestamp / 1000)
+        await asyncio.sleep(10)  # Update every 10 seconds
+
+# Start Prometheus HTTP server (scrape endpoint at :8000/metrics)
+start_http_server(8000)
+```
+
+**Grafana dashboard panels:**
+1. **Message throughput** (line chart): `rate(orderflow_messages_published_total[1m])` per topic
+2. **Consumer lag** (gauge): `orderflow_consumer_lag_messages` with alert line at 1,000
+3. **Processing latency** (heatmap): `orderflow_processing_latency_seconds` p50/p95/p99
+4. **DLQ depth** (bar chart): `orderflow_dlq_depth` per topic
+5. **Error rate** (line chart): `rate(orderflow_messages_consumed_total{status="dlq"}[5m]) / rate(orderflow_messages_consumed_total[5m])`
+
+**Alert rules (PagerDuty):**
+```yaml
+# alertmanager.yml
+groups:
+- name: orderflow_messaging
+  rules:
+  - alert: HighConsumerLag
+    expr: orderflow_consumer_lag_messages > 1000
+    for: 5m
+    annotations:
+      summary: "Consumer lag exceeds 1000 messages on {{ $labels.topic }}"
+  
+  - alert: DLQBuildup
+    expr: orderflow_dlq_depth > 50
+    for: 10m
+    annotations:
+      summary: "DLQ depth exceeds 50 on {{ $labels.topic }} — manual review needed"
+  
+  - alert: HighErrorRate
+    expr: rate(orderflow_messages_consumed_total{status="dlq"}[5m]) / 
+          rate(orderflow_messages_consumed_total[5m]) > 0.02
+    for: 5m
+    annotations:
+      summary: "Error rate exceeds 2% — systemic issue"
+```
+
+**Distributed tracing (OpenTelemetry):**
+- **Span per agent action:** Pricing agent creates span "negotiate_with_supplier", Approval agent creates span "check_threshold"
+- **Trace context propagation:** `correlation_id` becomes trace ID, `causation_id` links parent-child spans
+- **Visualization:** Jaeger/Zipkin shows full PO lifecycle as a tree of spans with timing for each agent
+
+> 💡 **Industry Standard — OpenTelemetry for distributed tracing:** OpenTelemetry is the CNCF standard for traces, metrics, and logs. It instruments your code once, then exports to any backend (Jaeger, Zipkin, Datadog, New Relic, Honeycomb). For event-driven systems, propagate trace context via message headers (`traceparent` field in CloudEvents). See [OpenTelemetry Messaging Conventions](https://opentelemetry.io/docs/specs/otel/trace/semantic_conventions/messaging/).
+
+**Checkpoint 5 — Monitoring validation:**
+- [ ] Message rate, consumer lag, DLQ depth, processing latency, error rate metrics instrumented ✅
+- [ ] Prometheus scrape endpoint exposed (`:8000/metrics`) ✅
+- [ ] Grafana dashboard created with 5 key panels ✅
+- [ ] Alertmanager rules configured (lag > 1000, DLQ > 50, error rate > 2%) ✅
+- [ ] Distributed tracing spans created per agent action with correlation ID propagation ✅
+
+---
+
+### Workflow Summary — Your Production Checklist
+
+When building event-driven multi-agent systems, complete these 5 phases in order:
+
+**✅ Phase 1 (Topology):**
+- [ ] Business events mapped to topics (past-tense naming)
+- [ ] Fan-out and fan-in scenarios identified
+- [ ] Topic naming conventions established
+
+**✅ Phase 2 (Broker):**
+- [ ] Throughput requirement calculated (peak load + 50% headroom)
+- [ ] Broker selected (Redis Streams for <10k msg/sec, Kafka for higher)
+- [ ] Consumer groups created, durability configured
+
+**✅ Phase 3 (Producers):**
+- [ ] Agents converted to event publishers
+- [ ] Retry logic with exponential backoff (1s, 2s, 4s)
+- [ ] DLQ routing for exhausted retries
+
+**✅ Phase 4 (Consumers):**
+- [ ] Worker pools with fixed concurrency (8-12 per agent type)
+- [ ] Idempotency via `processed:{message_id}` Redis key
+- [ ] DLQ handling and human review workflow
+
+**✅ Phase 5 (Monitor):**
+- [ ] Metrics: message rate, lag, DLQ depth, latency, error rate
+- [ ] Grafana dashboard with 5 key panels
+- [ ] Alerts: lag > 1000, DLQ > 50, error rate > 2%
+
+**What you've built:** A production-grade event-driven pipeline that scales to 1,200+ POs/day, handles failures gracefully via DLQs, prevents duplicate processing via idempotency, and gives full observability into message flow health.
+
+---
+
 ## 2 · Running Example: PO #2024-1847 Lifecycle
 
 Sarah Chen's standing desk order arrives as an email at 09:15. You're the Lead Architect at OrderFlow. Your synchronous A2A system from Ch.3 just failed on this PO — here's what happened, and how you rebuild it with event-driven messaging.
@@ -102,6 +636,40 @@ No orchestrator thread blocked. **50 concurrent POs in-flight** at any moment (l
 
 ## 3 · The Architecture
 
+## [Phase 1: TOPOLOGY] Event Flow Design
+
+Before configuring brokers or writing code, you must map the business process to event topics. This is the topology — the graph of which events trigger which agents.
+
+**The OrderFlow event flow:**
+
+```mermaid
+graph LR
+    A[Email Arrives] -->|order.received| B[Pricing Agent]
+    A -->|order.received| C[Inventory Agent]
+    B -->|quote.completed| D[Negotiation Agent]
+    D -->|negotiation.completed| E[Approval Agent]
+    E -->|po.approved| F[Drafting Agent]
+    F -->|po.sent| G[Audit Logger]
+    F -->|po.sent| H[ERP Sync]
+    
+    style A fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style B fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style C fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style D fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style E fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style F fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style G fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style H fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+**Topic hierarchy:** `<entity>.<lifecycle_stage>` naming (e.g., `order.received`, `negotiation.completed`). Past-tense events describe what happened, not commands.
+
+**Fan-out:** `order.received` triggers Pricing and Inventory agents in parallel — both subscribe to same topic.
+
+**Fan-in:** Aggregator agent waits for both `quote.completed` and `inventory.checked` before publishing `prechecks.completed`.
+
+> ⚡ **Decision Checkpoint 1 — Event Granularity:** OrderFlow uses 5 lifecycle events (received, quoted, negotiated, approved, sent). Finer granularity (agent.started, agent.thinking) floods the bus. Coarser granularity (po.processed) hides valuable state transitions. **Result:** 5 topics handle 1,200 POs/day = 6,000 events/day = 4.2 events/sec sustained — well within Redis Streams 1,500 msg/sec capacity.
+
 ### Progress on the 8 Constraints
 
 | Constraint | Status | Evidence |
@@ -136,6 +704,10 @@ It breaks when:
 
 The solution is to decouple producers from consumers using a **message bus**.
 
+## [Phase 2: BROKER] Message Bus Configuration
+
+**Broker selection drives throughput, latency, and operational complexity.** Choose based on peak load requirements, not average.
+
 ### The Async Pub/Sub Model for Agents
 
 ```
@@ -152,6 +724,10 @@ Intake Service ────▶│  Topic: "negotiation.completed"     │──�
 ```
 
 Key shift in mental model: **agents do not call each other**. Each agent publishes an event to the bus when it completes work. Any agent that cares about that event subscribes to it. The orchestrator is replaced by the topology of subscriptions.
+
+## [Phase 3: PRODUCERS] Event Publishing Patterns
+
+Producers publish events to topics. The message structure, serialization format, and retry logic determine reliability and debuggability.
 
 ### Message Structure and Correlation
 
@@ -177,6 +753,12 @@ Every message in an event-driven agent system needs at minimum:
 - **`correlation_id`**: This is how the orchestrator or downstream consumers know which business entity (which PO) this result belongs to. Without it you have messages floating in the bus with no way to associate results with their originating tasks.
 - **`causation_id`**: Enables distributed tracing across the agent chain — if a message triggers another message, causation_id points back. This is how you reconstruct the full execution graph in a trace viewer.
 - **`schema_version`**: Agents evolve independently. A consumer must be able to ignore fields it does not understand, and must be resilient to minor schema changes without breaking. Versioning the schema makes that explicit.
+
+> ⚡ **Decision Checkpoint 2 — Message Serialization:** OrderFlow uses JSON for message payloads (human-readable, 200 bytes/message). At 6,000 events/day, that's 1.2 MB/day = 36 MB/month message payload bandwidth — negligible. **Alternative:** Protobuf cuts payload size by 60% (80 bytes/message) but requires `.proto` schema files. **Trigger:** Switch to Protobuf when message volume exceeds 100k events/day or when latency-critical (<10ms p95).
+
+## [Phase 4: CONSUMERS] Reliable Event Handling
+
+Consumers subscribe to topics and process messages. The consumer pattern (worker pools, idempotency, retry logic, DLQ routing) determines throughput and fault tolerance.
 
 ### Dead-Letter Queues
 
@@ -255,6 +837,10 @@ The aggregator listens to a shared topic, accumulates partial results in a store
 
 **For agent workloads at OrderFlow's scale (1,000 POs/day):** Azure Service Bus is the pragmatic choice. The built-in session support gives per-PO FIFO ordering; native DLQ requires no custom code; managed identity authentication fits the security model from Ch.6.
 
+> ⚡ **Decision Checkpoint 3 — Broker Selection:** OrderFlow peak load: 1,200 POs/day × 5 events/PO = 6,000 events/day peak. During business hours (10hr): 6,000 ÷ 10hr ÷ 3600s = **0.17 events/sec sustained**. Add 50× spike factor for traffic bursts → **8.5 events/sec** peak requirement. **Broker analysis:** RabbitMQ: 800 msg/sec (94× headroom, $180/mo). Redis Streams: 1,500 msg/sec (176× headroom, $80/mo). Kafka: 10,000 msg/sec (1,176× headroom, $600/mo). **Decision:** Redis Streams — sufficient throughput at lowest cost. **Upgrade trigger:** If sustained load exceeds 1,000 msg/sec, migrate to Kafka (partition by `correlation_id` for ordering).
+
+> 💡 **Industry Standard — Apache Kafka for Event Sourcing:** When you need to replay the entire event history (audit compliance, rebuild projections, debug production incidents), Kafka's log retention model shines. Set `retention.ms` to 7 days (or indefinite for compliance), then any consumer can replay from any offset. Redis Streams trims old messages (10k max), so it's not suitable for long-term event sourcing. See [Martin Kleppmann — "Designing Data-Intensive Applications" Ch.11](https://dataintensive.net/) for event sourcing deep dive.
+
 ---
 
 ## 4 · How It Works — Step by Step
@@ -290,6 +876,10 @@ if await redis.exists(f"processed:{message.message_id}"):
 ```
 This prevents duplicate email sends, duplicate PO submissions, duplicate approval notifications.
 
+> ⚡ **Decision Checkpoint 4 — Idempotency Strategy:** OrderFlow uses Redis `SET message_id EX 86400` (24-hour TTL) for deduplication. At 6,000 events/day, that's 6,000 keys × 64 bytes = 384 KB Redis memory — negligible. **Alternative:** Database unique constraint on `message_id` column (slower but survives Redis restart). **Trigger:** Use database if message history must survive cache eviction or for audit compliance (7-year retention).
+
+> 💡 **Industry Standard — NATS JetStream for Edge Deployment:** If deploying agents to edge locations (retail stores, manufacturing plants) with intermittent connectivity, NATS JetStream provides lightweight pub/sub with local persistence. Messages queue locally when network is down, then sync to central broker when connectivity restores. At 20 MB binary footprint, NATS runs on Raspberry Pi. See [NATS.io JetStream](https://docs.nats.io/nats-concepts/jetstream) for edge messaging patterns.
+
 **Step 4: Configure dead-letter routing**
 
 If a message fails 3 times (e.g., Pricing agent can't parse item description), Azure Service Bus automatically moves it to the DLQ. You deploy a **Human Review Agent** that subscribes to all DLQs and publishes failed POs to a Slack channel for manual intervention.
@@ -297,6 +887,16 @@ If a message fails 3 times (e.g., Pricing agent can't parse item description), A
 **Step 5: Scale to load**
 
 You run a load test: 1,200 POs submitted over 24 hours. Negotiation agent CPU hits 80% → you scale to 12 replicas via Kubernetes Horizontal Pod Autoscaler. Throughput stabilizes at **1,200 POs/day** with **8hr median latency**.
+
+> ⚡ **Decision Checkpoint 5 — Consumer Scaling Strategy:** OrderFlow uses Kubernetes HPA (Horizontal Pod Autoscaler) with target CPU 70%. When Negotiation agent CPU exceeds 70%, HPA spawns new replicas (max 20). **Scaling math:** Each Negotiation worker handles 4 concurrent negotiations. At 1,200 POs/day = 50 POs/hr, need 50 ÷ 4 = **12.5 workers** minimum. Set HPA min=8, max=20, target CPU=70% for headroom. **Result:** Auto-scales from 8 workers (off-peak) to 16 workers (peak traffic).
+
+> 💡 **Industry Standard — Redpanda for Kafka-Compatible Streaming:** Redpanda is a drop-in Kafka replacement written in C++ (vs Kafka's JVM). Same protocol, same client libraries, but 10× faster and no ZooKeeper dependency. At <1 GB memory footprint (vs Kafka's 4 GB), Redpanda fits constrained environments. Benchmarks: 3.6M msg/sec on a single broker. See [Redpanda Benchmarks](https://redpanda.com/blog/kafka-vs-redpanda-performance-benchmark) for throughput comparisons.
+
+---
+
+## [Phase 5: MONITOR] System Health Tracking
+
+Event-driven systems hide failures differently than synchronous APIs. A slow consumer doesn't return a 500 error — it silently accumulates lag. Monitoring must track message rates, queue depths, and DLQ growth.
 
 ---
 

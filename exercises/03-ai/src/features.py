@@ -55,6 +55,10 @@ class TextPreprocessor:
     def preprocess(self, text: str) -> str:
         """
         TODO: Implement text preprocessing (clean, lowercase, handle punctuation/stopwords per config)
+        
+        📖 See: notes/03-ai/ch02_prompt_engineering/ (text normalization)
+                notes/03-ai/ch04_rag_and_embeddings/ (preparing text for embeddings)
+        🎯 Unlocks: Constraint #2 ACCURACY (clean text → better embeddings → accurate retrieval)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement text preprocessing")
@@ -62,6 +66,9 @@ class TextPreprocessor:
     def preprocess_batch(self, texts: List[str]) -> List[str]:
         """
         TODO: Preprocess list of texts with progress tracking
+        
+        📖 See: notes/03-ai/ch04_rag_and_embeddings/ (batch processing for RAG)
+        🎯 Unlocks: Constraint #2 ACCURACY (efficient preprocessing for large document sets)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement batch preprocessing")
@@ -96,6 +103,9 @@ class EmbeddingGenerator:
     def load(self):
         """
         TODO: Load sentence transformer model and determine embedding dimension
+        
+        📖 See: notes/03-ai/ch04_rag_and_embeddings/ (sentence transformers, embedding models)
+        🎯 Unlocks: Constraint #2 ACCURACY (semantic embeddings enable accurate retrieval)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement model loading")
@@ -103,6 +113,9 @@ class EmbeddingGenerator:
     def encode(self, text: str) -> np.ndarray:
         """
         TODO: Generate normalized embedding for single text
+        
+        📖 See: notes/03-ai/ch04_rag_and_embeddings/ (vector embeddings, cosine similarity)
+        🎯 Unlocks: Constraint #2 ACCURACY (semantic search for menu facts)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement single text encoding")
@@ -115,6 +128,10 @@ class EmbeddingGenerator:
     ) -> np.ndarray:
         """
         TODO: Generate normalized embeddings for batch of texts with progress bar
+        
+        📖 See: notes/03-ai/ch04_rag_and_embeddings/ (batch embedding generation)
+                notes/03-ai/ch09_cost_and_latency/ (batching for efficiency)
+        🎯 Unlocks: Constraint #3 LATENCY (batch processing reduces overhead)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement batch encoding")
@@ -157,6 +174,9 @@ class VectorDatabase:
     def create(self, embedding_dim: int):
         """
         TODO: Create ChromaDB or FAISS vector database index
+        
+        📖 See: notes/03-ai/ch05_vector_dbs/ (ChromaDB, FAISS, indexing strategies)
+        🎯 Unlocks: Constraint #2 ACCURACY + #3 LATENCY (fast similarity search)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement database creation")
@@ -169,6 +189,9 @@ class VectorDatabase:
     ):
         """
         TODO: Add documents with embeddings to database (ChromaDB or FAISS)
+        
+        📖 See: notes/03-ai/ch05_vector_dbs/ (indexing documents, metadata storage)
+        🎯 Unlocks: Constraint #2 ACCURACY (build knowledge base for retrieval)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement document addition")
@@ -180,6 +203,10 @@ class VectorDatabase:
     ) -> List[Dict[str, Any]]:
         """
         TODO: Search for similar documents and return top-k results with similarity scores
+        
+        📖 See: notes/03-ai/ch05_vector_dbs/ (similarity search, HNSW, IVF)
+                notes/03-ai/ch04_rag_and_embeddings/ (retrieval metrics)
+        🎯 Unlocks: Constraint #2 ACCURACY (retrieve relevant context → ground LLM answers)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement query")
@@ -192,6 +219,9 @@ class VectorDatabase:
     ) -> List[Dict[str, Any]]:
         """
         TODO: Search using text query (convenience wrapper for query)
+        
+        📖 See: notes/03-ai/ch04_rag_and_embeddings/ (text-to-vector retrieval)
+        🎯 Unlocks: Constraint #2 ACCURACY (end-to-end retrieval pipeline)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement text query")
@@ -204,6 +234,10 @@ class VectorDatabase:
     ) -> Dict[str, float]:
         """
         TODO: Evaluate retrieval accuracy by checking if expected documents appear in top-k results
+        
+        📖 See: notes/03-ai/ch08_evaluating_ai_systems/ (retrieval metrics: precision@k, recall@k, MRR)
+                notes/03-ai/ch04_rag_and_embeddings/ (RAG evaluation)
+        🎯 Unlocks: Constraint #6 RELIABILITY (measure and monitor retrieval quality)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement retrieval evaluation")
@@ -211,6 +245,9 @@ class VectorDatabase:
     def save(self):
         """
         TODO: Save database to disk (ChromaDB or FAISS index + documents)
+        
+        📖 See: notes/03-ai/ch05_vector_dbs/ (persistence, index serialization)
+        🎯 Unlocks: Constraint #6 RELIABILITY (persist index for production)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement save")
@@ -218,6 +255,9 @@ class VectorDatabase:
     def load(self):
         """
         TODO: Load database from disk (FAISS index + documents)
+        
+        📖 See: notes/03-ai/ch05_vector_dbs/ (loading persisted indexes)
+        🎯 Unlocks: Constraint #6 RELIABILITY (restore index across restarts)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement load")

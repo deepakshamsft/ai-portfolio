@@ -104,6 +104,37 @@ def main():
     console.print(f"  ✓ Eval:  {len(eval_data)} examples")
     
     # ============================================
+    # PizzaBot Business Context
+    # ============================================
+    console.print("\n[bold yellow]🎯 PIZZABOT GRAND CHALLENGE[/bold yellow]")
+    console.print("You're building Mamma Rosa's PizzaBot to replace phone agents")
+    console.print("\n[bold]Production Targets:[/bold]")
+    console.print("  • >25% conversion rate (orders/conversations)")
+    console.print("  • <$0.08 cost per conversation")
+    console.print("  • <5% error rate (no price hallucinations)")
+    console.print("  • <3s p95 latency per response")
+    
+    console.print("\n[bold]Three Critical Scenarios Your Models Will Handle:[/bold]")
+    
+    console.print("\n[bold cyan]Scenario 1:[/bold cyan] Simple Order (RAG Success)")
+    console.print("  Customer: 'What veggie pizzas do you have under $15?'")
+    console.print("  Challenge: RAG must retrieve accurate menu items")
+    console.print("  Success: 38% conversion (above 25% target)")
+    
+    console.print("\n[bold cyan]Scenario 2:[/bold cyan] Price Hallucination Test")
+    console.print("  Customer: 'How much is a large pepperoni?'")
+    console.print("  WITHOUT RAG: Bot hallucinates $14 (stale data) → 12% conversion")
+    console.print("  WITH RAG: Bot retrieves correct $15.50 → 28% conversion")
+    console.print("  Business Impact: RAG adds $1.85M/month revenue vs. $120/month cost")
+    
+    console.print("\n[bold cyan]Scenario 3:[/bold cyan] End-to-End Order (Function Calling)")
+    console.print("  Multi-turn: Order pizza → Add sides → Enter address → Place order")
+    console.print("  Success: 32% conversion with $4 upsell (garlic bread)")
+    console.print("  Key: Function calling enables POS integration + proactive upselling")
+    
+    console.print("\n[dim]After implementing TODOs, your models will be evaluated on these scenarios[/dim]")
+    
+    # ============================================
     # STEP 2: Text Preprocessing
     # ============================================
     console.print("\n[bold cyan]🔧 TEXT PREPROCESSING[/bold cyan]")

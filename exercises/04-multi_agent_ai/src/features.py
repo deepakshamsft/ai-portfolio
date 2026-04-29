@@ -55,6 +55,9 @@ class MessageParser:
     def parse_message(self, raw_message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         TODO: Validate required fields, check message_type, extract and clean content
+        
+        📖 See: notes/04-multi_agent_ai/ch01_message_formats/
+        ⚡ Advances constraint #4 SCALABILITY (structured message validation prevents context overflow)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement message parsing")
@@ -62,6 +65,10 @@ class MessageParser:
     def extract_task_from_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         TODO: Extract task details (type, description, priority, parameters) from message content
+        
+        📖 See: notes/04-multi_agent_ai/ch01_message_formats/ (message schemas)
+                notes/04-multi_agent_ai/ch03_a2a/ (A2A task lifecycle)
+        ⚡ Advances constraint #4 SCALABILITY (task extraction enables agent coordination)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement task extraction")
@@ -69,6 +76,9 @@ class MessageParser:
     def validate_response(self, request: Dict[str, Any], response: Dict[str, Any]) -> bool:
         """
         TODO: Validate sender/recipient match, message type, and timestamp order
+        
+        📖 See: notes/04-multi_agent_ai/ch01_message_formats/
+        ⚡ Advances constraint #3 ACCURACY (validation prevents message corruption)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement response validation")
@@ -108,6 +118,9 @@ class SharedStateManager:
     def update(self, agent_name: str, key: str, value: Any) -> bool:
         """
         TODO: Check lock status, save version if enabled, update state, handle conflicts
+        
+        📖 See: notes/04-multi_agent_ai/ch05_shared_memory/
+        ⚡ Advances constraint #3 ACCURACY (conflict-free state updates prevent race conditions)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement state update")
@@ -115,6 +128,9 @@ class SharedStateManager:
     def get(self, key: str, default: Any = None) -> Any:
         """
         TODO: Return value from self.state with default fallback
+        
+        📖 See: notes/04-multi_agent_ai/ch05_shared_memory/
+        ⚡ Advances constraint #3 ACCURACY (consistent state reads)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement state get")
@@ -122,6 +138,9 @@ class SharedStateManager:
     def lock(self, key: str, agent_name: str) -> bool:
         """
         TODO: Add key to self.locks if not already locked, return success status
+        
+        📖 See: notes/04-multi_agent_ai/ch05_shared_memory/ (optimistic/pessimistic locking)
+        ⚡ Advances constraint #3 ACCURACY (prevents concurrent write conflicts)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement state lock")
@@ -129,6 +148,9 @@ class SharedStateManager:
     def unlock(self, key: str, agent_name: str) -> bool:
         """
         TODO: Remove key from self.locks if locked, return success status
+        
+        📖 See: notes/04-multi_agent_ai/ch05_shared_memory/
+        ⚡ Advances constraint #3 ACCURACY (releases locks for other agents)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement state unlock")
@@ -203,6 +225,9 @@ class ConversationHistory:
     def add_message(self, message: Dict[str, Any]):
         """
         TODO: Append message to history, track by conversation thread, enforce max_history limit
+        
+        📖 See: notes/04-multi_agent_ai/ch01_message_formats/ (message history tracking)
+        ⚡ Advances constraint #6 AUDITABILITY (full conversation lineage for audit trails)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement add message")
@@ -210,6 +235,9 @@ class ConversationHistory:
     def get_conversation(self, agent1: str, agent2: str) -> List[Dict[str, Any]]:
         """
         TODO: Combine and sort bidirectional conversation messages by timestamp
+        
+        📖 See: notes/04-multi_agent_ai/ch01_message_formats/
+        ⚡ Advances constraint #6 AUDITABILITY (reconstruct agent interactions for compliance)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement get conversation")
@@ -300,6 +328,9 @@ class MessageRouter:
     def route(self, message: Dict[str, Any], agents: Dict[str, Any]) -> bool:
         """
         TODO: Validate recipient, handle broadcast, queue by priority, deliver message
+        
+        📖 See: notes/04-multi_agent_ai/ch04_event_driven_agents/ (async message routing)
+        ⚡ Advances constraint #1 THROUGHPUT (priority queuing enables 1,000 POs/day)
         """
         # TODO: Your implementation here
         raise NotImplementedError("Implement message routing")

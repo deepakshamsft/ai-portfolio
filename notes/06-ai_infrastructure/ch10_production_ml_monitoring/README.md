@@ -101,6 +101,126 @@ Production monitoring solves one problem: **detect when your deployed model stop
 
 ---
 
+## 1.5 · The Practitioner Workflow — Your 5-Phase Production ML Monitoring System
+
+> ⚠️ **Two ways to read this chapter:**
+> - **Theory-first (recommended for learning):** Read §0→§3 sequentially to understand the concepts, then use this workflow as your reference
+> - **Workflow-first (practitioners with existing knowledge):** Use this diagram as a jump-to guide when working with production models
+>
+> **Note:** Section numbers don't follow phase order because the chapter teaches concepts pedagogically (theory before application). The workflow below shows how to APPLY those concepts in production.
+
+**What you'll build by the end:** A complete production monitoring pipeline with automated drift detection, performance tracking, A/B testing framework, and rollback procedures. This is the system that catches model degradation within 24 hours instead of 3 weeks.
+
+```
+Phase 1: DEPLOY              Phase 2: DETECT              Phase 3: TRIAGE
+────────────────────────────────────────────────────────────────────────────
+Capture baselines:           Monitor distributions:       Diagnose root cause:
+
+• Log 1st week predictions   • PSI for feature drift      • Data drift analysis
+• Save reference stats       • KS test per feature        • Segment comparison
+• Define SLA thresholds      • Class distribution shift   • Cohort performance
+• Set alert thresholds       • Performance metrics        • Feature importance shift
+
+→ DECISION:                  → DECISION:                  → DECISION:
+  Baseline complete?           Drift detected?              Root cause identified?
+  ✓ 1000+ samples logged       • PSI > 0.2: RETRAIN        • Data drift: New pipeline
+  ✓ Reference distribution     • Accuracy drop: ROLLBACK   • Concept drift: New labels
+    saved                      • Both: TRIAGE → Phase 3    • Infrastructure: Scale up
+  ✓ Alert rules configured                                 • Adversarial: Filter inputs
+
+
+Phase 4: REMEDIATE           Phase 5: VALIDATE
+────────────────────────────────────────────────────────────────────────────
+Execute intervention:        Confirm recovery:
+
+• Retrain with new data      • A/B test new version       
+• Champion/Challenger A/B    • Monitor for 48 hours
+• Gradual rollout (10→100%)  • Compare business metrics
+• Rollback if metrics drop   • Update runbook
+
+→ DECISION:                  → DECISION:
+  Which intervention?          Deployment successful?
+  • High data drift:           ✓ Metrics recovered
+    RETRAIN + A/B test         ✓ No new drift detected
+  • Performance drop only:     ✓ False positive rate OK
+    ROLLBACK immediately       ✓ Runbook updated
+  • Infrastructure issue:
+    SCALE/FIX servers
+```
+
+**The workflow maps to these sections:**
+- **Phase 1 (DEPLOY)** → §2 Step 1: Deploy Model v1
+- **Phase 2 (DETECT)** → §2 Step 2: Monitor Data Drift + Step 3: Monitor Prediction Drift
+- **Phase 3 (TRIAGE)** → §3 Mental Model, §4 What Can Go Wrong
+- **Phase 4 (REMEDIATE)** → §2 Step 4: Deploy Model v2 (A/B Test)
+- **Phase 5 (VALIDATE)** → §2 Step 5: Compare Business Metrics + Step 6: Gradual Rollout
+
+> 💡 **Usage note:** Phases 1-2 run continuously in production. Phase 3 is triggered by alerts from Phase 2. Phases 4-5 execute when Phase 3 identifies a fixable degradation (not just noise). The cycle repeats: after Phase 5, return to Phase 2 monitoring with the new model as your baseline.
+
+### Workflow Decision Tree
+
+```mermaid
+graph TD
+    A[Phase 1: DEPLOY<br/>Capture baseline] --> B[Phase 2: DETECT<br/>Monitor metrics]
+    B --> C{Drift detected?}
+    C -->|No drift<br/>Performance OK| B
+    C -->|Data drift<br/>PSI > 0.2| D[Phase 3: TRIAGE<br/>Analyze root cause]
+    C -->|Performance drop<br/>Accuracy < 90%| E[Phase 4: REMEDIATE<br/>ROLLBACK immediately]
+    D --> F{Root cause?}
+    F -->|Data drift<br/>Distribution shift| G[Phase 4: REMEDIATE<br/>Retrain with new data]
+    F -->|Concept drift<br/>Label definition changed| H[Phase 4: REMEDIATE<br/>Collect new labels + retrain]
+    F -->|Infrastructure<br/>Server degradation| I[Phase 4: REMEDIATE<br/>Scale/fix infrastructure]
+    F -->|Adversarial<br/>Gaming inputs| J[Phase 4: REMEDIATE<br/>Add input filters]
+    G --> K[Phase 5: VALIDATE<br/>A/B test new model]
+    H --> K
+    I --> L[Phase 5: VALIDATE<br/>Monitor recovery]
+    J --> L
+    K --> M{v2 better than v1?}
+    M -->|Yes<br/>Metrics improved| N[Gradual rollout<br/>10% → 50% → 100%]
+    M -->|No<br/>Metrics same/worse| E
+    E --> O[Update runbook<br/>Return to Phase 2]
+    L --> O
+    N --> O
+    O --> B
+    
+    style A fill:#1e3a8a,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style B fill:#1d4ed8,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style D fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style E fill:#b91c1c,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style G fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style H fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style I fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style J fill:#b45309,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style K fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style L fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+    style N fill:#15803d,stroke:#e2e8f0,stroke-width:2px,color:#ffffff
+```
+
+### The 5-Phase Cycle in Production
+
+In a mature production system, this workflow runs continuously:
+
+| Timeline | Phase Active | What's Happening |
+|---|---|---|
+| **Week 1** | Phase 1 (DEPLOY) | New model v1.0 deployed; logging first 1,000 predictions to establish baseline |
+| **Week 2-4** | Phase 2 (DETECT) | Continuous monitoring; all metrics green (PSI < 0.1, accuracy 94%) |
+| **Week 5** | Phase 2 (DETECT) | Alert fired: PSI = 0.28 (HIGH drift), accuracy dropped to 89% |
+| **Week 5 Day 2** | Phase 3 (TRIAGE) | Root cause: input text length shifted from 200 → 50 words (product reviews vs movie reviews) |
+| **Week 5 Day 3-5** | Phase 4 (REMEDIATE) | Retrain model v1.1 with 500 labeled production samples; deploy to 10% traffic (A/B test) |
+| **Week 6** | Phase 5 (VALIDATE) | A/B test shows v1.1 accuracy 93% vs v1.0 accuracy 89% → gradual rollout |
+| **Week 7** | Phase 5 (VALIDATE) | v1.1 at 100% traffic; PSI = 0.05, accuracy = 93% → stable |
+| **Week 8+** | Phase 2 (DETECT) | Return to continuous monitoring with v1.1 as new baseline |
+
+> 💡 **Industry callout: Evidently AI for drift detection**  
+> **Tool:** [Evidently AI](https://evidentlyai.com) — open-source drift detection framework  
+> **When to use:** Phase 2 (DETECT) — automated drift reports comparing training vs production distributions  
+> **Key metrics:** PSI (Population Stability Index), KS test, feature-level drift scores  
+> **Alternative:** [Arize AI](https://arize.com) (commercial, includes root cause analysis), [WhyLabs](https://whylabs.ai) (lightweight, data quality focus)  
+> **Integration:** Runs daily as cron job, stores reports in S3/GCS, triggers alerts via Slack/PagerDuty when PSI > 0.2  
+> **Cost:** Free for single model; $99/mo for 5+ models with automated alerting
+
+---
+
 ## 2 · Running Example — Sentiment Classifier in Production
 
 You're deploying **BERT-base-uncased** fine-tuned for sentiment classification on movie reviews (IMDB dataset from Ch.9). The model achieved **94% test accuracy** in training. Now it's serving production traffic from an e-commerce platform classifying **product reviews** (not movie reviews).
@@ -112,6 +232,10 @@ You're deploying **BERT-base-uncased** fine-tuned for sentiment classification o
 - **SLA** — 95th percentile latency < 200ms, accuracy > 90%
 
 **What we'll implement:** Monitor data drift, detect degradation, deploy v2 via A/B test, rollback if v2 is worse.
+
+---
+
+## [Phase 1: DEPLOY] Reference Distribution Capture
 
 ### Step 1: Deploy Model v1 (Baseline)
 
@@ -139,7 +263,32 @@ predictions = response.json()["predictions"]  # [1, 0] (positive, negative)
 
 **What we log per prediction:**
 ```python
-# Log to SQLite database
+# Phase 1: Baseline capture — log every prediction with metadata
+import sqlite3
+from datetime import datetime
+
+def log_prediction(prediction_data):
+    """Log prediction to SQLite for baseline capture and drift detection."""
+    conn = sqlite3.connect("production_logs.db")
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO predictions (timestamp, model_version, input_text, 
+                                prediction, latency_ms, confidence)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        prediction_data["timestamp"],
+        prediction_data["model_version"],
+        prediction_data["input_text"],
+        prediction_data["prediction"],
+        prediction_data["latency_ms"],
+        prediction_data["confidence"]
+    ))
+    
+    conn.commit()
+    conn.close()
+
+# Example: Log one prediction
 log_prediction({
     "timestamp": datetime.now(),
     "model_version": "v1",
@@ -149,6 +298,37 @@ log_prediction({
     "confidence": 0.95
 })
 ```
+
+> 💡 **Industry callout: Arize AI for ML observability**  
+> **Tool:** [Arize AI](https://arize.com) — ML observability platform with automated root cause analysis  
+> **When to use:** Phase 1 (DEPLOY) + Phase 2 (DETECT) — captures baseline metrics and monitors production performance  
+> **Key features:** Automated drift detection, embedding visualization, model performance tracking, integrated A/B test analysis  
+> **vs Evidently AI:** Arize is commercial SaaS ($500/mo+) with built-in alerting and dashboards; Evidently is open-source and self-hosted  
+> **Integration:** Python SDK sends predictions to Arize platform; dashboards update in real-time; alerts fire via Slack/email  
+> **Best for:** Teams deploying 5+ models who want turnkey observability without building custom dashboards
+
+### DECISION CHECKPOINT 1 — Phase 1 Complete
+
+**What you just captured:**
+- ✅ **1,247 predictions logged** over 7 days (baseline period)
+- ✅ **Reference distribution saved**: avg text length 195 words, 48% positive class, vocabulary size 8,342 unique tokens
+- ✅ **Performance baseline**: 94% accuracy on test set, 180ms p95 latency, 0.89 avg confidence
+- ✅ **SLA thresholds defined**: accuracy > 90%, latency < 200ms, positive class 40-60% (balanced)
+
+**What it means:**
+- You now have a **reference snapshot** of what "normal" production traffic looks like for this model
+- The baseline captures the training distribution characteristics (movie reviews: long-form, balanced sentiment)
+- Any future drift will be measured **relative to this baseline** — not relative to training data alone
+- Alert thresholds are calibrated to your business constraints (90% accuracy = minimum acceptable, not training performance)
+
+**What to do next:**
+→ **Proceed to Phase 2 (DETECT):** Run continuous drift monitoring comparing new production data to this baseline  
+→ **Alert rules configured:** If PSI > 0.2 OR accuracy < 90% → trigger Phase 3 (TRIAGE)  
+→ **Baseline refresh cadence:** Re-capture baseline after every model retrain (v1.0 → v1.1) to avoid false drift alerts
+
+---
+
+## [Phase 2: DETECT] Drift Detection Pipelines
 
 ### Step 2: Monitor Data Drift (Input Distribution Changes)
 
@@ -218,6 +398,117 @@ report.save_html("prediction_drift_report.html")
 
 **Root cause hypothesis:** Model trained on movie reviews (balanced 50/50 positive/negative) now sees product reviews (naturally more positive), but the **definition of "positive"** differs (movie: "great acting" vs. product: "fast shipping").
 
+> 💡 **Industry callout: WhyLabs for data quality monitoring**  
+> **Tool:** [WhyLabs](https://whylabs.ai) — lightweight data quality + drift monitoring platform  
+> **When to use:** Phase 2 (DETECT) — continuous monitoring of data quality, drift, and model performance  
+> **Key features:** Privacy-preserving profiling (no raw data leaves your infrastructure), statistical drift detection, anomaly detection, schema validation  
+> **vs Evidently/Arize:** WhyLabs focuses on data quality (missing values, type changes, outliers) alongside drift; lighter weight than Arize; commercial like Arize but lower cost ($50-200/mo)  
+> **Integration:** Python SDK profiles data locally, sends statistical summaries to WhyLabs cloud; alerts via Slack/email  
+> **Best for:** Regulated industries (healthcare, finance) where raw data cannot be sent to third-party platforms
+
+### DECISION CHECKPOINT 2 — Phase 2 Complete
+
+**What you just detected:**
+- 🚨 **HIGH data drift**: Text length 200 → 50 words (KL divergence 0.35 > threshold 0.1)
+- 🚨 **HIGH prediction drift**: Positive class 50% → 85% (model over-predicts positive)
+- ⚠️ **Prediction entropy dropped**: 0.68 → 0.45 (model is more confident but wrong)
+- ⚠️ **Vocabulary overlap**: Only 60% of production words appeared in training
+- ✅ **Performance still acceptable**: 91% accuracy (above 90% SLA threshold)
+
+**What it means:**
+- **Training distribution ≠ production distribution** — the model sees data it wasn't trained on
+- **Data drift is LEADING indicator** — accuracy is 91% *now*, but drift suggests imminent degradation
+- **Prediction drift confirms model behavior changed** — not just input shift, but model response pattern shifted
+- **Concept drift suspected** — high confidence + wrong predictions = model learned "positive" from movie reviews, doesn't generalize to product reviews
+
+**What to do next:**
+→ **HIGH drift + acceptable performance:** Proceed to **Phase 3 (TRIAGE)** — diagnose root cause before performance drops further  
+→ **Do NOT rollback yet** — accuracy 91% is within SLA (> 90%); rollback is for SLA violations only  
+→ **Prepare for retraining** — start collecting labeled production samples (target: 500-1,000 labels)  
+→ **If accuracy drops below 90%** → Skip Phase 3, execute immediate **Phase 4 ROLLBACK**
+
+---
+
+## [Phase 3: TRIAGE] Root Cause Identification
+
+---
+
+## [Phase 3: TRIAGE] Root Cause Identification
+
+**Objective:** Determine *why* drift occurred and whether it's fixable via retraining, infrastructure changes, or input filtering.
+
+### Segment Analysis — Identify Which Cohorts Drifted
+
+Not all data drifts uniformly. Segment your production data to find which subpopulations shifted:
+
+```python
+# Phase 3: Segment analysis — identify drifting cohorts
+import pandas as pd
+import numpy as np
+
+# Load production predictions (week 3)
+prod_df = pd.read_sql("""
+    SELECT input_text, prediction, confidence, timestamp 
+    FROM predictions 
+    WHERE timestamp > NOW() - INTERVAL '7 days'
+""", conn)
+
+# Create segments by text length
+prod_df['text_length'] = prod_df['input_text'].str.split().str.len()
+prod_df['length_segment'] = pd.cut(prod_df['text_length'], 
+                                     bins=[0, 30, 100, 300],
+                                     labels=['short', 'medium', 'long'])
+
+# Analyze prediction distribution per segment
+segment_stats = prod_df.groupby('length_segment').agg({
+    'prediction': ['mean', 'count'],  # % positive, sample count
+    'confidence': 'mean',
+    'text_length': 'mean'
+}).round(3)
+
+print("Segment Analysis:")
+print(segment_stats)
+
+# Output:
+#                 prediction              confidence  text_length
+#                      mean   count         mean         mean
+# length_segment                                            
+# short                0.88   8234         0.94         22.3
+# medium               0.75   1543         0.87        64.1
+# long                 0.52    223         0.79       142.7
+```
+
+**Findings:**
+- **Short reviews (< 30 words):** 88% predicted positive, 94% confidence — model struggles with terse product reviews
+- **Medium reviews (30-100 words):** 75% positive — closer to baseline but still high
+- **Long reviews (100+ words):** 52% positive — model performs well when input resembles training data (movie reviews)
+
+**Root cause identified:** **Text length is the primary drift driver.** The model was trained on long-form movie reviews (200 words avg) and now sees short product reviews (50 words avg). Shorter reviews lack the contextual clues the model learned to rely on.
+
+### DECISION CHECKPOINT 3 — Phase 3 Complete
+
+**Root cause diagnosed:**
+- ✅ **Data drift confirmed**: Production text length 50 words vs training 200 words (75% shorter)
+- ✅ **Segment identified**: Short reviews (< 30 words) have 88% positive prediction rate (vs 50% baseline)
+- ✅ **Concept drift ruled out**: Long production reviews (100+ words) perform at 52% positive (similar to training) → the true label distribution hasn't changed, only input length
+- ✅ **Infrastructure issues ruled out**: Latency stable at 180ms, no server errors, batch size unchanged
+
+**What it means:**
+- **This is fixable via retraining** — not a fundamental model architecture problem
+- The model needs to learn from **short-form product reviews** — current training data (long movie reviews) doesn't cover this distribution
+- **Not an adversarial attack** — text length drift is gradual and organic (users naturally write shorter product reviews)
+- **Not infrastructure degradation** — serving layer is healthy; the issue is model-data mismatch
+
+**What to do next:**
+→ **Proceed to Phase 4 (REMEDIATE):** Retrain model v2 with 500 labeled production samples (focus on short reviews)  
+→ **Do NOT rollback** — accuracy still 91% (within SLA); retraining will improve it to ~93%  
+→ **Collect labels via active learning** — prioritize short reviews (<30 words) where model confidence > 0.9 but manual review shows errors  
+→ **Estimated timeline:** 3 days to collect labels + retrain + A/B test
+
+---
+
+## [Phase 4: REMEDIATE] Corrective Actions
+
 ### Step 4: Deploy Model v2 (A/B Test: 10% Traffic)
 
 You've retrained a new model (v2) on **1,000 labeled production reviews**. Before rolling out to 100% of traffic, run an **A/B test**:
@@ -284,6 +575,39 @@ else:
 
 **Decision:** v2 is significantly better (p < 0.001) → **Proceed with gradual rollout**
 
+> 💡 **Industry callout: DataRobot MLOps for champion/challenger testing**  
+> **Tool:** [DataRobot MLOps](https://datarobot.com/platform/mlops/) — enterprise MLOps platform with automated A/B testing  
+> **When to use:** Phase 4 (REMEDIATE) + Phase 5 (VALIDATE) — automated champion/challenger deployment with statistical significance testing  
+> **Key features:** Automated traffic splitting, statistical test integration (t-test, Bayesian A/B), automated rollout schedules, rollback on metric degradation  
+> **vs Manual A/B testing:** DataRobot automates the entire workflow (deploy → test → decide → rollout); manual requires custom scripts  
+> **Integration:** API-driven; connects to model registry (MLflow, SageMaker), serving layer (Kubernetes), and alerting (PagerDuty)  
+> **Best for:** Enterprises deploying dozens of models with strict governance requirements (auditable A/B tests, regulatory compliance)
+
+### DECISION CHECKPOINT 4 — Phase 4 Complete
+
+**A/B test results (48 hours, 10,000 predictions per model):**
+- ✅ **v2 accuracy 91%** vs v1 accuracy 72% → **+19 percentage points** (statistically significant, p < 0.001)
+- ✅ **v2 F1 score 0.89** vs v1 F1 0.68 → **+31% improvement**
+- ✅ **User thumbs-up rate 88%** vs 65% → **+23 percentage points** (business metric improved)
+- ⚠️ **v2 latency 220ms** vs v1 180ms → **+22% slower** (but still within 200ms SLA for p95)
+- ✅ **False positive rate 12%** vs 35% → **65% reduction** in incorrect "positive" predictions
+
+**What it means:**
+- **v2 is significantly better on all core metrics** — accuracy, F1, user satisfaction all improved
+- **Latency increase is acceptable** — 220ms is within SLA (< 200ms p95 means 95% of requests < 200ms; avg is 220ms)
+- **Business impact confirmed** — 88% user approval vs 65% baseline = measurable product improvement
+- **Drift addressed** — v2 trained on short product reviews no longer over-predicts positive (85% → 52% on short reviews)
+
+**What to do next:**
+→ **Approve gradual rollout to Phase 5 (VALIDATE):** Increase v2 traffic from 10% → 50% → 100% over 5 days  
+→ **Monitor continuously during rollout** — if accuracy drops below 90% at any stage, **rollback immediately**  
+→ **Set automated rollback trigger:** If v2 accuracy < 88% OR latency > 250ms for 6+ hours → auto-rollback to v1  
+→ **Update runbook:** Document root cause (text length drift) and solution (retrain with short product reviews)
+
+---
+
+## [Phase 5: VALIDATE] Recovery Validation
+
 ### Step 6: Gradual Rollout (10% → 50% → 100%) or Rollback
 
 **Rollout plan:**
@@ -341,6 +665,47 @@ def rollback_to_v1():
 ```
 
 **Result:** v2 reaches 100% traffic by Day 5 with 91% accuracy maintained. v1 is archived but kept in registry for emergency rollback.
+
+> 💡 **Industry callout: Fiddler AI for explainability + monitoring**  
+> **Tool:** [Fiddler AI](https://fiddler.ai) — ML observability with built-in explainability (SHAP, LIME integration)  
+> **When to use:** Phase 5 (VALIDATE) — post-deployment validation with explainability to confirm model behavior is correct  
+> **Key features:** Drift detection + explainability in one platform; slice-based analysis (segment performance); fairness metrics; custom metric tracking  
+> **vs Arize/WhyLabs:** Fiddler adds explainability layer (SHAP values, feature importance) alongside drift monitoring; best for regulated industries requiring interpretability  
+> **Integration:** Python SDK, REST API; connects to model serving layer; dashboard shows drift + explanations side-by-side  
+> **Best for:** Financial services, healthcare, hiring — industries where "why did the model predict X?" is a regulatory requirement
+
+### DECISION CHECKPOINT 5 — Phase 5 Complete (Deployment Successful)
+
+**Rollout timeline and validation results:**
+
+| Day | Traffic Split | v2 Accuracy | v2 Latency | User Approval | Status |
+|-----|---------------|-------------|------------|---------------|--------|
+| **Day 1-2** | 10% v2, 90% v1 | 91% | 220ms | 88% | ✅ PASS |
+| **Day 3** | 50% v2, 50% v1 | 90% | 218ms | 87% | ✅ PASS |
+| **Day 4** | 75% v2, 25% v1 | 91% | 222ms | 88% | ✅ PASS |
+| **Day 5** | 100% v2 | 91% | 220ms | 88% | ✅ PASS |
+| **Day 7** | 100% v2 | 91% | 219ms | 89% | ✅ STABLE |
+
+**Final validation checks:**
+- ✅ **Metrics recovered and stable**: Accuracy 91% for 7+ days (vs 72% pre-retrain)
+- ✅ **No new drift detected**: PSI = 0.06 (LOW drift), text length distribution stable at 50 words avg
+- ✅ **False positive rate normalized**: 12% (down from 35%), positive prediction rate 52% (down from 85%)
+- ✅ **Latency within SLA**: p95 = 198ms (under 200ms threshold), avg = 220ms
+- ✅ **User feedback positive**: 89% thumbs-up rate sustained (vs 65% baseline)
+
+**What it means:**
+- **Deployment successful** — v2 is now the production champion model
+- **Root cause resolved** — retraining with short product reviews eliminated text length drift impact
+- **Monitoring validated** — drift detection (Phase 2) caught degradation 3 weeks before accuracy would have dropped below SLA
+- **A/B testing de-risked rollout** — gradual rollout caught no unexpected issues; 100% confidence in v2 stability
+
+**Post-deployment actions completed:**
+→ ✅ **Runbook updated:** Documented text length drift, retraining procedure, and rollout timeline for future reference  
+→ ✅ **Alert thresholds recalibrated:** PSI threshold increased to 0.15 (was 0.10) based on observed false positive rate during rollout  
+→ ✅ **Baseline refreshed:** v2 performance (91% accuracy, 50-word avg text) now serves as new reference distribution  
+→ ✅ **v1 archived in model registry:** Tagged as "rollback-candidate" for emergency use if v2 degrades  
+
+**Return to Phase 2 (DETECT):** Resume continuous monitoring with v2 as the new baseline.
 
 ---
 

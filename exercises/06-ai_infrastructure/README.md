@@ -8,6 +8,58 @@
 
 ---
 
+## 0. Grand Challenge: InferenceBase
+
+You're the founding Platform Engineer at **InferenceBase**, a seed-stage AI startup building a document intelligence API. The product is simple: enterprise customers upload PDF documents via HTTP, your service runs them through an LLM, and you return structured JSON (contract clauses, invoice line items, compliance summaries). Revenue is growing — $180k ARR, twelve paying customers, pipeline looks strong.
+
+The CEO just forwarded you the latest AWS bill. **$80,000 for the month.** Almost all of it is OpenAI API charges. She's asked you to evaluate whether self-hosting Llama-3-8B makes sense, and you have two weeks to build a cost model and present a recommendation.
+
+You know the product constraints:
+- **Target cloud compute budget:** <$15,000/month (to replace the $80k/mo API spend)
+- **Latency SLA:** ≤2 seconds at p95 (customers expect near-instant responses)
+- **Throughput:** ~10,000 requests/day (growing 15% month-over-month)
+- **Reliability:** 99.5% uptime minimum (enterprise SLA requirement)
+
+**Current constraint status:**
+
+| Constraint | Status | Evidence |
+|------------|--------|----------|
+| Cost | ❌ **FAILING** | $80k/mo in API bills vs $15k budget — 5.3× over target |
+| Latency | ✅ **PASSING** | OpenAI API p95 ~800ms, well under 2s SLA |
+| Throughput | ✅ **PASSING** | 10k req/day handled without queuing |
+| Reliability | ✅ **PASSING** | OpenAI uptime meets 99.5% target |
+
+**What's blocking us:**
+
+You don't know the answers to the questions that matter:
+- **GPU hardware:** What GPU specs do you actually need for Llama-3-8B? (Ch.1)
+- **Memory budget:** Will the model fit in VRAM, or do you need multi-GPU? (Ch.2)
+- **Model size:** Can you quantize to INT4 without destroying quality? (Ch.3)
+- **Scale-out:** When throughput grows 3× next quarter, how do you add capacity? (Ch.4)
+- **Serving efficiency:** How do you serve 10k requests/day without wasting compute? (Ch.5)
+- **Framework choice:** vLLM vs TensorRT vs ONNX Runtime — which one and why? (Ch.6)
+- **Network topology:** Multi-GPU serving needs NVLink or InfiniBand — which one? (Ch.7)
+- **Feature serving:** Real-time document metadata needs a feature store — how? (Ch.8)
+- **Experiment tracking:** Training custom adapters requires MLflow — how to set it up? (Ch.9)
+- **Production monitoring:** How do you detect model drift before customers complain? (Ch.10)
+
+Without understanding GPU architecture, memory budgets, and inference optimization, you're flying blind. The CEO wants numbers — not guesses.
+
+**What this exercise unlocks:**
+
+By the end of this exercise, you will have built the complete MLOps infrastructure that enables InferenceBase to:
+- **Reduce costs 91%:** $80k/mo API bills → $7.3k/mo self-hosted infrastructure
+- **Maintain latency SLA:** Continuous batching + KV cache → p95 stays under 2s
+- **Scale throughput:** Data parallelism → handle 30k req/day growth without re-architecting
+- **Track experiments:** MLflow → version models, reproduce training runs
+- **Monitor production:** Evidently → detect drift before quality degrades
+- **Automate deployments:** CI/CD pipelines → ship updates without downtime
+- **Provision infrastructure:** Terraform → reproducible cloud resource management
+
+The path from $80k/mo to $7.3k/mo is not obvious — it requires understanding the full stack from GPU silicon to production monitoring. This exercise builds that understanding from the ground up.
+
+---
+
 ## Objective
 
 Implement a complete AI infrastructure platform with production deployment patterns:
