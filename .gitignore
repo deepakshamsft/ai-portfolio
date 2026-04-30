@@ -32,8 +32,6 @@ data/
 *.feather
 *.pkl
 *.pickle
-projects/ml/linear-regression/football/data/
-projects/ml/linear regression/football1/data/
 
 # ── Build / dist ─────────────────────────────────────────────────────────────
 build/
@@ -65,6 +63,7 @@ checkpoints/
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
+*.err
 logs/
 runs/
 
