@@ -44,9 +44,15 @@ dist/
 pdf-gen/
 node_modules/
 
-# ── VS Code workspace settings (machine-specific) ────────────────────────────
-.vscode/
-**/.vscode/
+# ── VS Code workspace settings ───────────────────────────────────────────────
+# Commit: settings.json (workspace config for .venv, formatters, etc.)
+# Ignore: user-specific settings, logs, and temporary files
+.vscode/*.code-workspace
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/*.log
+.vscode/.ropeproject
+.vscode/settings.local.json
 
 # ── OS artifacts ─────────────────────────────────────────────────────────────
 .DS_Store
