@@ -323,7 +323,7 @@ else
     # DevOps Fundamentals dependencies
     echo ""
     echo "📦 Installing DevOps Fundamentals dependencies..."
-    
+
     # Docker
     echo ""
     echo "  • Checking Docker..."
@@ -353,7 +353,7 @@ else
                 ;;
         esac
     fi
-    
+
     # Kind
     echo ""
     echo "  • Checking Kind (Kubernetes in Docker)..."
@@ -385,7 +385,7 @@ else
                 ;;
         esac
     fi
-    
+
     # kubectl
     echo ""
     echo "  • Checking kubectl..."
@@ -427,7 +427,7 @@ else
                 ;;
         esac
     fi
-    
+
     # Terraform
     echo ""
     echo "  • Checking Terraform..."
@@ -458,7 +458,7 @@ else
                 ;;
         esac
     fi
-    
+
     # K9s (optional)
     echo ""
     echo "  • Checking K9s (optional Kubernetes TUI)..."
@@ -486,7 +486,7 @@ else
                 ;;
         esac
     fi
-    
+
     echo ""
     echo "✅ DevOps Fundamentals setup complete"
     echo "   Verify installations:"
@@ -703,6 +703,70 @@ EOF
 else
     ok "Skipping install — VS Code already present"
 fi
+
+# ─── STEP 2.5: Core VS Code Extensions (Python/Jupyter Stack) ───────────────
+
+echo ""
+echo "══════════════════════════════════════════════"
+echo "  AI/ML Dev Environment Setup — Step 2.5/7"
+echo "  Core Python/Jupyter Extensions"
+echo "══════════════════════════════════════════════"
+
+CORE_EXTENSIONS=(
+    "ms-python.python"              # Python language support
+    "ms-python.vscode-pylance"      # Fast Python language server
+    "ms-toolsai.jupyter"            # Jupyter notebook support
+    "ms-python.black-formatter"     # Black code formatter
+    "ms-python.isort"               # Import organization
+    "yzhang.markdown-all-in-one"    # Markdown editing
+    "esbenp.prettier-vscode"        # Prettier formatter (Markdown/JSON)
+)
+
+step "Installing core extensions for Python/Jupyter development"
+
+installed_count=0
+skipped_count=0
+failed_count=0
+
+for ext_id in "${CORE_EXTENSIONS[@]}"; do
+    ext_name="${ext_id##*.}"  # Extract short name after last dot
+
+    # Check if already installed
+    already_installed=false
+    if command -v "${CODE_CMD}" &>/dev/null; then
+        if "${CODE_CMD}" --list-extensions 2>/dev/null | grep -qi "^${ext_id}$"; then
+            echo "  ✓ $ext_name (already installed)"
+            skipped_count=$((skipped_count + 1))
+            already_installed=true
+        fi
+    fi
+
+    if [ "$already_installed" = false ]; then
+        if command -v "${CODE_CMD}" &>/dev/null; then
+            "${CODE_CMD}" --install-extension "$ext_id" --force &>/dev/null || true
+            # Verify installation
+            if "${CODE_CMD}" --list-extensions 2>/dev/null | grep -qi "^${ext_id}$"; then
+                ok "$ext_name installed"
+                installed_count=$((installed_count + 1))
+            else
+                warn "$ext_name install ran but not yet detected"
+                installed_count=$((installed_count + 1))  # Count as success; may appear after restart
+            fi
+        else
+            warn "Cannot install $ext_name: 'code' not on PATH"
+            failed_count=$((failed_count + 1))
+        fi
+    fi
+done
+
+echo ""
+echo "  Extension Summary:"
+echo "    • Installed: $installed_count"
+echo "    • Already present: $skipped_count"
+if [ "$failed_count" -gt 0 ]; then
+    echo "    • Failed: $failed_count (install manually via Extensions panel)"
+fi
+echo ""
 
 # ─── STEP 3: Kilo Code (Agentic AI) Extension ───────────────────────────────
 #
