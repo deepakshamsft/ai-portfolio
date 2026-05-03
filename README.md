@@ -8,10 +8,31 @@ A personal portfolio combining structured AI/ML study notes and hands-on enginee
 
 ```
 ai-portfolio/
-├── notes/      ← Study material: every track, every chapter, every notebook
-├── projects/   ← Hands-on engineering projects built on the notes
-└── scripts/    ← One-shot setup scripts (Python, kernels, MkDocs, Ollama, Kilo Code)
+├── notes/       ← Study material
+├── exercises/   ← Hands-on practice
+├── playground/  ← Exploration & learning implementations
+├── projects/    ← Engineering projects (solo work)
+└── scripts/     ← Setup automation
 ```
+
+---
+
+## Authorship
+
+This repository contains three types of content:
+
+### Co-Authored with AI
+- **notes/** - Theory and learning content (GitHub Copilot, Claude)
+- **exercises/** - Hands-on coding exercises (mirrors notes/ structure)
+
+### Solo Work
+- **projects/** - Capstone engineering projects (fully designed and implemented by me)
+
+### Playground
+- **playground/** - Exploratory implementations for hands-on learning and experimentation
+  - Self-contained implementations
+  - Security-hardened (no credentials, proper .gitignore)
+  - Fully documented
 
 ---
 
@@ -20,6 +41,22 @@ ai-portfolio/
 All learning content lives here: a **19-chapter ML curriculum**, a math foundations track, four AI tracks (Agentic, Multi-Agent, Multimodal, AI Infrastructure), a consolidated interview guide, and runnable Jupyter notebooks throughout.
 
 → See [notes/README.md](notes/README.md) for the full index.
+
+---
+
+## `exercises/` — Hands-On Practice
+
+Complementary exercises that mirror the notes/ structure. Implement algorithms and concepts learned in theory.
+
+→ See [exercises/README.md](exercises/README.md) for the full index.
+
+---
+
+## `playground/` — Exploration Notebooks
+
+Exploratory implementations for hands-on learning and experimentation.
+
+→ See [playground/aglfvr/README.md](playground/aglfvr/README.md) for AI exploration notebooks.
 
 ---
 
@@ -98,7 +135,7 @@ flowchart TD
     AI --> Advanced[Stage 6: Advanced Deep Learning + Production]
     Multimodal --> Advanced
     Infra --> Advanced
-    
+
     style Start fill:#e1f5ff
     style DataPrep fill:#e1f5ff
     style MLCore1 fill:#fff4e1

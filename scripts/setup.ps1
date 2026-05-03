@@ -378,14 +378,14 @@ if ($missingPackageCount -eq 0) {
     # DevOps Fundamentals dependencies
     Write-Host ""
     Write-Host "📦 Installing DevOps Fundamentals dependencies..." -ForegroundColor Cyan
-    
+
     # Docker Desktop (manual installation required)
     Write-Host ""
     Write-Host "⚠️  Docker Desktop - Manual setup required:" -ForegroundColor Yellow
     Write-Host "   1. Download and install Docker Desktop from: https://www.docker.com/products/docker-desktop" -ForegroundColor Yellow
     Write-Host "   2. After installation, verify with: docker --version" -ForegroundColor Yellow
     Write-Host "   3. Ensure Docker Desktop is running before using DevOps notebooks" -ForegroundColor Yellow
-    
+
     # Check if Chocolatey is available
     $chocoAvailable = Get-Command choco -ErrorAction SilentlyContinue
     if (-not $chocoAvailable) {
@@ -404,11 +404,11 @@ if ($missingPackageCount -eq 0) {
             Write-Warn "Could not install Chocolatey automatically. Install manually from https://chocolatey.org/install"
         }
     }
-    
+
     if ($chocoAvailable) {
         Write-Host ""
         Write-Host "Installing DevOps tools via Chocolatey..." -ForegroundColor Cyan
-        
+
         # Kind
         Write-Host "  • Installing Kind (Kubernetes in Docker)..." -ForegroundColor Cyan
         try {
@@ -417,7 +417,7 @@ if ($missingPackageCount -eq 0) {
         } catch {
             Write-Warn "Failed to install Kind via Chocolatey"
         }
-        
+
         # kubectl
         Write-Host "  • Installing kubectl..." -ForegroundColor Cyan
         try {
@@ -426,7 +426,7 @@ if ($missingPackageCount -eq 0) {
         } catch {
             Write-Warn "Failed to install kubectl via Chocolatey"
         }
-        
+
         # Terraform
         Write-Host "  • Installing Terraform..." -ForegroundColor Cyan
         try {
@@ -435,7 +435,7 @@ if ($missingPackageCount -eq 0) {
         } catch {
             Write-Warn "Failed to install Terraform via Chocolatey"
         }
-        
+
         # K9s (optional)
         Write-Host "  • Installing K9s (optional Kubernetes TUI)..." -ForegroundColor Cyan
         try {
@@ -444,7 +444,7 @@ if ($missingPackageCount -eq 0) {
         } catch {
             Write-Warn "Failed to install K9s via Chocolatey (optional tool)"
         }
-        
+
         # Refresh PATH for this session
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
                     [System.Environment]::GetEnvironmentVariable("Path", "User")
@@ -457,7 +457,7 @@ if ($missingPackageCount -eq 0) {
         Write-Host "   • Terraform: https://developer.hashicorp.com/terraform/install" -ForegroundColor Yellow
         Write-Host "   • K9s: https://k9scli.io/topics/install/" -ForegroundColor Yellow
     }
-    
+
     Write-Host ""
     Write-Host "✅ DevOps Fundamentals setup complete" -ForegroundColor Green
     Write-Host "   Verify installations:" -ForegroundColor Cyan
@@ -570,14 +570,14 @@ try {
         Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $true -ErrorAction SilentlyContinue
         $solutionCount++
     }
-    
+
     # Writable for exercise notebooks (ensure not read-only)
     $exerciseCount = 0
     Get-ChildItem -Path (Join-Path $RepoRoot "notes") -Filter "*_exercise.ipynb" -Recurse | ForEach-Object {
         Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $false -ErrorAction SilentlyContinue
         $exerciseCount++
     }
-    
+
     Write-Ok "Permissions set: $solutionCount solution notebooks (read-only), $exerciseCount exercise notebooks (writable)"
 } catch {
     Write-Warn "Failed to set some notebook permissions: $_"
@@ -635,6 +635,74 @@ if (-not $CodeCmd) {
 } else {
     Write-Ok "Skipping install — VS Code already present"
 }
+
+# ─── STEP 2.5: Core VS Code Extensions (Python/Jupyter Stack) ───────────────
+
+Write-Host ""
+Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
+Write-Host "  AI/ML Dev Environment Setup — Step 2.5/7" -ForegroundColor White
+Write-Host "  Core Python/Jupyter Extensions" -ForegroundColor White
+Write-Host "══════════════════════════════════════════════" -ForegroundColor DarkGray
+
+$CoreExtensions = @(
+    "ms-python.python",              # Python language support
+    "ms-python.vscode-pylance",      # Fast Python language server
+    "ms-toolsai.jupyter",            # Jupyter notebook support
+    "ms-python.black-formatter",     # Black code formatter
+    "ms-python.isort",               # Import organization
+    "yzhang.markdown-all-in-one",    # Markdown editing
+    "esbenp.prettier-vscode"         # Prettier formatter (Markdown/JSON)
+)
+
+Write-Step "Installing core extensions for Python/Jupyter development"
+
+$installedCount = 0
+$skippedCount = 0
+$failedCount = 0
+
+foreach ($extId in $CoreExtensions) {
+    $extName = $extId -replace '.*\.', ''  # Extract short name
+
+    # Check if already installed
+    $alreadyInstalled = $false
+    try {
+        $extList = & $CodeCmd --list-extensions 2>&1
+        if ($extList -match [regex]::Escape($extId)) {
+            Write-Host "  ✓ $extName (already installed)" -ForegroundColor DarkGray
+            $skippedCount++
+            $alreadyInstalled = $true
+        }
+    } catch {
+        Write-Warn "Could not query extensions — will attempt install"
+    }
+
+    if (-not $alreadyInstalled) {
+        try {
+            & $CodeCmd --install-extension $extId --force 2>&1 | Out-Null
+            # Verify installation
+            $extList = & $CodeCmd --list-extensions 2>&1
+            if ($extList -match [regex]::Escape($extId)) {
+                Write-Ok "$extName installed"
+                $installedCount++
+            } else {
+                Write-Warn "$extName install command ran but extension not yet detected"
+                $installedCount++  # Count as success; may appear after restart
+            }
+        } catch {
+            Write-Warn "Failed to install $extName ($extId)"
+            $failedCount++
+        }
+    }
+}
+
+Write-Host ""
+Write-Host "  Extension Summary:" -ForegroundColor White
+Write-Host "    • Installed: $installedCount" -ForegroundColor Green
+Write-Host "    • Already present: $skippedCount" -ForegroundColor DarkGray
+if ($failedCount -gt 0) {
+    Write-Host "    • Failed: $failedCount (install manually via Extensions panel)" -ForegroundColor Yellow
+}
+Write-Host ""
 
 # ─── STEP 3: Kilo Code (Agentic AI) Extension ───────────────────────────────
 #
@@ -1343,7 +1411,7 @@ if ($EnableSlmAssistant) {
 } else {
     Write-Host "  Setup complete (assistant bundle skipped)" -ForegroundColor Green
 }
-Write-Host "" 
+Write-Host ""
 Write-Host "  Python env  : $VenvPath" -ForegroundColor White
 Write-Host "  Activate    : .\.venv\Scripts\Activate.ps1" -ForegroundColor White
 Write-Host "  VS Code     : $CodeCmd" -ForegroundColor White
