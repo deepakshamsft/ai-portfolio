@@ -56,7 +56,8 @@ Complementary exercises that mirror the notes/ structure. Implement algorithms a
 
 Exploratory implementations for hands-on learning and experimentation.
 
-→ See [playground/aglfvr/README.md](playground/aglfvr/README.md) for AI exploration notebooks.
+- **[playground/rag-agents/](playground/rag-agents/README.md)** — LangChain, RAG, and Agentic AI patterns
+- **[playground/feature-engineering/](playground/feature-engineering/README.md)** — Classical ML feature engineering techniques
 
 ---
 
